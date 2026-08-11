@@ -17,6 +17,7 @@
  *              Api.coupons.list / insert / update
  *              Api.credits.grant(userId, credits, memo)
  *              Api.credits.grantUnlimited(userId, days, memo)
+ *              Api.credits.setUserStatus(userId, status)  ← users への直接 PATCH は不可
  *              Api.credits.hasUnlimited(user) / Api.today()
  *            業務データは localStorage に置かない（保存先は Supabase）。
  * 文言       i18n.js の window.I18N.t(key) を使う。辞書に無いキーは勝手に作らず、
@@ -968,7 +969,14 @@
         var statusWord = next === 'active' ? t('admin.userStatusActive') : t('admin.userStatusSuspended');
 
         function run() {
-          tableUpdate('users', user.id, { user_status: next }).then(function () {
+          // users への直接 PATCH は 001 で権限を落としてある（落とさないと
+          // 利用者が自分の credit_balance や is_admin も書けてしまう）。管理操作はRPCを通す。
+          var setStatus = creditsFn('setUserStatus');
+          if (!setStatus) {
+            toast(tl('local.apiMissing', { name: 'Api.credits.setUserStatus' }), 'danger');
+            return;
+          }
+          setStatus(user.id, next).then(function () {
             closeModal();
             toast(tl('local.statusChanged', { name: displayNameOf(user), status: statusWord }), 'success');
             load();

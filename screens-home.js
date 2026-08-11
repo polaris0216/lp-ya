@@ -1056,7 +1056,8 @@
         if (unlimited) {
           return { project: created, user: user };
         }
-        return window.Api.credits.consume(user.id, cost, CREATE_FEATURE_KEY, name).then(function (result) {
+        // 消費するクレジット数は送らない。feature_key だけ渡してサーバーが単価を引く。
+        return window.Api.credits.consume(CREATE_FEATURE_KEY, name).then(function (result) {
           return { project: created, user: result.user };
         }, function (creditErr) {
           console.error('[screens-home] クレジットを引き落とせなかったため、作成したプロジェクトを取り消します', creditErr);

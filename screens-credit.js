@@ -9,9 +9,9 @@
  *            location.hash = '#/S16?id=...' （ハッシュルーターは app.js）
  * 通信       api.js の window.Api だけを使う。
  *              Api.users.get(id) / Api.projects.get(id)
- *              Api.credits.featureCosts() / Api.credits.consume(userId, credits, featureKey, memo)
- *              Api.credits.purchase(userId, credits, yen, memo)
- *              Api.credits.redeemCoupon(userId, code) / Api.credits.history(userId, limit)
+ *              Api.credits.featureCosts() / Api.credits.consume(featureKey, memo)
+ *              Api.credits.plans() / Api.credits.checkout(planId)
+ *              Api.credits.redeemCoupon(code) / Api.credits.history(userId, limit)
  *              Api.credits.hasUnlimited(user) / Api.storage.get
  *            業務データは localStorage に置かない（保存先は Supabase）。
  * 文言       i18n.js の window.I18N.t(key) を使う。辞書に無いキーは作らず、
@@ -94,8 +94,7 @@
   }
 
   /* ---------- 定数 ---------- */
-  var UNIT_PRICE_KEY = 'credit_unit_price';   // a2f58db45_feature_credits に置く単価専用の行
-  var DEFAULT_UNIT_PRICE = 10;                // 1クレジット = 10円（管理画面で変更できる）
+  var UNIT_PRICE_KEY = 'credit_unit_price';   // a2f58db45_feature_credits に置く単価専用の行（機能一覧からは除く）
   var CREATE_FEATURE_KEY = 'project_create';  // S4 が消費する。この画面の一覧には出さない
   var HISTORY_LIMIT = 50;
   var MAX_COUPON_LENGTH = 32;
@@ -109,21 +108,30 @@
     { key: 'line_content', cost: 15, kind: 'generate', name: ['LINEコンテンツ生成', 'LINE content generation', 'LINE 콘텐츠 생성'] }
   ];
 
-  /* 購入プラン。金額 = クレジット数 × 単価 × rate（まとめ買いほど1クレジットが安くなる） */
-  var PLANS = [
-    { credits: 100, rate: 1.2 },
-    { credits: 500, rate: 1 },
-    { credits: 1000, rate: 0.9 }
-  ];
+  /*
+   * 購入プラン（クレジット数と金額）はここには無い。stripe-checkout Edge Function が持つ。
+   * 画面とサーバーで別々に持つと、表示は1200円・実際の請求は別の額、という食い違いが起きる。
+   * Api.credits.plans() が [{ id, credits, yen }] を返す。
+   */
 
   /* i18n.js の辞書に無い文言だけをここで持つ。並びは [日本語, English, 한국어] */
   var LOCAL = {
     'local.selectPlan': ['購入プランを選択', 'Choose a plan', '구매 플랜 선택'],
     'local.perCredit': ['1クレジットあたり', 'per credit', '크레딧당'],
     'local.paymentNotice': [
-      '決済機能は未実装です。購入を押すと、このアカウントの残高だけが増えます。',
-      'Payment processing is not implemented. Purchasing only increases this account balance.',
-      '결제 기능은 구현되어 있지 않습니다. 구매를 누르면 이 계정의 잔액만 늘어납니다.'
+      '購入を押すと決済ページ（Stripe）が開きます。クレジットは支払いの完了後に反映されます。',
+      'Purchasing opens the Stripe payment page. Credits are added once the payment completes.',
+      '구매를 누르면 결제 페이지(Stripe)가 열립니다. 크레딧은 결제 완료 후 반영됩니다.'
+    ],
+    'local.paidPending': [
+      'お支払いありがとうございます。反映まで少しかかることがあります。',
+      'Thank you for your payment. It can take a moment to appear.',
+      '결제해 주셔서 감사합니다. 반영까지 잠시 걸릴 수 있습니다.'
+    ],
+    'local.plansFailed': [
+      '購入プランを読み込めませんでした。',
+      'Could not load the purchase plans.',
+      '구매 플랜을 불러오지 못했습니다.'
     ],
     'local.couponHint': [
       'クレジットまたは無制限利用権のクーポンを登録できます',
@@ -454,16 +462,6 @@
     return window.Api.credits.featureCosts();
   }
 
-  function unitPriceOf(rows) {
-    var price = DEFAULT_UNIT_PRICE;
-    (rows || []).forEach(function (row) {
-      if (textOf(row.feature_key).trim() !== UNIT_PRICE_KEY) { return; }
-      var value = Number(row.credit_cost);
-      if (value > 0) { price = value; }
-    });
-    return price;
-  }
-
   function buildFeatureList(rows) {
     var byKey = {};
     (rows || []).forEach(function (row) {
@@ -736,7 +734,7 @@
       return entries.reduce(function (chain, entry) {
         return chain.then(function () {
           if (entry.cost <= 0) { return null; }
-          return window.Api.credits.consume(state.user.id, entry.cost, entry.key, memo).then(function (result) {
+          return window.Api.credits.consume(entry.key, memo).then(function (result) {
             charged.push(entry);
             state.user = result.user;
             syncUser(result.user);
@@ -956,10 +954,13 @@
 
     var query = params || {};
     var returnTo = textOf(query.returnTo).trim();
+    // Stripe の success_url から戻ってきた印。付与は webhook 経由なので、
+    // 戻ってきた瞬間にはまだ残高が増えていないことがある。
+    var justPaid = textOf(query.paid).trim() === '1';
 
     var state = {
       user: null,
-      unitPrice: DEFAULT_UNIT_PRICE,
+      plans: [],
       featureNames: {},
       history: [],
       planIndex: 0,
@@ -979,16 +980,16 @@
     };
 
     function planYen(plan) {
-      return Math.round(plan.credits * state.unitPrice * plan.rate);
+      return Math.round(Number(plan && plan.yen) || 0);
     }
 
     function planUnitYen(plan) {
-      if (!plan.credits) { return 0; }
+      if (!plan || !plan.credits) { return 0; }
       return Math.round((planYen(plan) / plan.credits) * 10) / 10;
     }
 
     function selectedPlan() {
-      return PLANS[state.planIndex] || PLANS[0];
+      return state.plans[state.planIndex] || state.plans[0] || null;
     }
 
     function balanceOf() {
@@ -1017,17 +1018,26 @@
         state.user = user;
         return Promise.all([
           loadFeatureRows(),
-          window.Api.credits.history(user.id, HISTORY_LIMIT)
+          window.Api.credits.history(user.id, HISTORY_LIMIT),
+          // プランが取れなくても残高と履歴は出す。購入だけができない状態にする。
+          window.Api.credits.plans().catch(function (err) {
+            console.error('[screens-credit] 購入プランを読み込めませんでした', err);
+            return [];
+          })
         ]);
       }).then(function (results) {
         var rows = results[0] || [];
-        state.unitPrice = unitPriceOf(rows);
+        state.plans = results[2] || [];
         state.featureNames = {};
         buildFeatureList(rows).forEach(function (feature) {
           state.featureNames[feature.key] = feature.name;
         });
         state.history = sortHistory(results[1] || []);
         paint();
+        if (justPaid) {
+          justPaid = false;
+          toast(tl('local.paidPending'), 'success');
+        }
       }).catch(function (err) {
         if (err && err.code === 'noUser') {
           console.error('[screens-credit] ログイン中のユーザーがいないため S1 ログインへ戻します。');
@@ -1109,18 +1119,26 @@
     function updateBuyButton() {
       if (!nodes.buyButton) { return; }
       var plan = selectedPlan();
+      var disabled = state.buying || !plan;
       nodes.buyButton.textContent = state.buying
         ? tl('local.processing')
-        : t('credit.purchase') + ' ' + formatYen(planYen(plan));
-      nodes.buyButton.disabled = state.buying;
-      nodes.buyButton.setAttribute('aria-disabled', state.buying ? 'true' : 'false');
+        : (plan ? t('credit.purchase') + ' ' + formatYen(planYen(plan)) : t('credit.purchase'));
+      nodes.buyButton.disabled = disabled;
+      nodes.buyButton.setAttribute('aria-disabled', disabled ? 'true' : 'false');
     }
 
     function paintPlans() {
       if (!nodes.planHost) { return; }
       clear(nodes.planHost);
 
-      PLANS.forEach(function (plan, index) {
+      if (!state.plans.length) {
+        var empty = el('div', 'empty');
+        empty.appendChild(el('p', 'empty__text', tl('local.plansFailed')));
+        nodes.planHost.appendChild(empty);
+        return;
+      }
+
+      state.plans.forEach(function (plan, index) {
         var selected = index === state.planIndex;
         var card = el('button', selected ? 'card card--soft' : 'card');
         card.type = 'button';
@@ -1152,25 +1170,23 @@
       }
 
       var plan = selectedPlan();
-      var yen = planYen(plan);
-      var memo = tl('local.purchaseCredits', { n: formatNumber(plan.credits) });
+      if (!plan) { return; }
 
       state.buying = true;
       updateBuyButton();
       clearBanner();
 
-      window.Api.credits.purchase(state.user.id, plan.credits, yen, memo).then(function (result) {
-        state.user = result.user;
-        syncUser(result.user);
-        return reload();
-      }).then(function () {
-        state.buying = false;
-        updateBuyButton();
-        toast(t('credit.purchaseSuccess'), 'success');
+      /*
+       * 決済ページへ移るだけ。ここでは残高を触らない。
+       * 付与は支払い完了後に Stripe が stripe-webhook を叩いて行う。
+       * 画面から「買った」と申告できる経路を残すと、決済を通さず増やせてしまう。
+       */
+      window.Api.credits.checkout(plan.id).then(function (url) {
+        window.location.href = url;
       }).catch(function (err) {
         state.buying = false;
         updateBuyButton();
-        console.error('[screens-credit] クレジットの購入に失敗しました', err);
+        console.error('[screens-credit] 決済ページを開けませんでした', err);
         var message = errorMessage(err, 'credit.purchaseFailed');
         showBanner(message, purchase);
         toast(message, 'danger');
@@ -1212,7 +1228,7 @@
       updateCouponButton();
       clearBanner();
 
-      window.Api.credits.redeemCoupon(state.user.id, code).then(function (result) {
+      window.Api.credits.redeemCoupon(code).then(function (result) {
         state.coupon = '';
         if (nodes.couponInput) { nodes.couponInput.value = ''; }
         return reload().then(function () { return result; });

@@ -27,8 +27,8 @@
  *   状態
  *     App.getUser() / App.setUser(user) / App.logout() / App.isAdmin()
  *     App.refreshUser() / App.getBalance() / App.setBalance(n) / App.hasUnlimited()
- *     App.consumeCredit(credits, featureKey, memo)
- *     App.purchaseCredit(credits, yen, memo)
+ *     App.consumeCredit(featureKey, memo)   ← 数量は渡さない。サーバーが単価を引く
+ *     （クレジット購入の入口は App には無い。決済導線は S17 だけが持つ）
  *     App.on('user'|'balance'|'lang'|'route', fn) -> 解除関数
  *   共通の見た目
  *     App.showLoading(root, opts) / App.loadingBlock(opts)
@@ -44,9 +44,9 @@
  *     App.formatDateTime(v) / App.fromNow(v)
  *
  * ---- 依存（実際に存在する名前だけを呼ぶ。無ければコンソールに何が無いかを残す）----
- *   api.js  : Api.users.get / Api.credits.consume / Api.credits.purchase /
- *             Api.credits.hasUnlimited / Api.storage.get / set / remove /
- *             Api.storage.clearSelection / Api.URL
+ *   api.js  : Api.auth.restore / Api.auth.signOut / Api.auth.consumeRedirect /
+ *             Api.users.get / Api.credits.consume / Api.credits.hasUnlimited /
+ *             Api.storage.get / set / remove / Api.storage.clearSelection / Api.URL
  *   i18n.js : I18n.t(key, vars) / I18n.getLang() / I18n.setLang(code) / I18n.apply(root)
  *             （setLocale という綴りだった場合はそちらを使い、その旨をコンソールに残す）
  *             言語の保存先は api.js と同じ localStorage の 'elpiya.lang'（Api.storage の 'lang'）。
@@ -915,33 +915,30 @@
     });
   }
 
-  function consumeCredit(credits, featureKey, memo) {
+  // 消費するクレジット数は渡さない。feature_key だけ渡してサーバーが単価を引く。
+  function consumeCredit(featureKey, memo) {
     if (!state.user) {
       console.error('[App] ログイン中のユーザーがいないためクレジットを消費できません');
       return Promise.reject(new Error('ログインが必要です'));
     }
     var consume = requireApi('credits.consume');
     if (!consume) { return Promise.reject(new Error('Api.credits.consume がありません')); }
-    return consume(state.user.id, credits, featureKey, memo).then(function (result) {
-      setUser(result.user, { silent: true });
+    return consume(featureKey, memo).then(function (result) {
+      if (result && result.user) { setUser(result.user, { silent: true }); }
       return result;
     });
   }
 
-  function purchaseCredit(credits, yen, memo) {
-    if (!state.user) {
-      console.error('[App] ログイン中のユーザーがいないためクレジットを購入できません');
-      return Promise.reject(new Error('ログインが必要です'));
-    }
-    var purchase = requireApi('credits.purchase');
-    if (!purchase) { return Promise.reject(new Error('Api.credits.purchase がありません')); }
-    return purchase(state.user.id, credits, yen, memo).then(function (result) {
-      setUser(result.user, { silent: true });
-      return result;
-    });
-  }
+  /*
+   * クレジット購入の入口は App には無い。決済ページへ移る導線は S17 だけが持つ。
+   * 付与は支払い完了後に Stripe の webhook から行われる。
+   */
 
   function logout() {
+    // サーバー側のセッション失効を待たずに画面は戻す。トークンの破棄は必ず行われる。
+    if (global.Api && global.Api.auth && isFn(global.Api.auth.signOut)) {
+      global.Api.auth.signOut();
+    }
     state.user = null;
     if (global.Api && global.Api.storage && isFn(global.Api.storage.clearSelection)) {
       global.Api.storage.clearSelection();
@@ -953,24 +950,22 @@
     replace('S1');
   }
 
+  /*
+   * 保存されたセッションからログイン状態を戻す。
+   * 旧実装は localStorage の userId をそのまま信じていた（他人のIDを書けば入れた）。
+   * いまはアクセストークンを持っていることがログイン状態そのもので、
+   * 期限切れなら Api.auth.restore() の中で取り直す。
+   */
   function restoreUser() {
-    if (!global.Api || !global.Api.storage || !isFn(global.Api.storage.get)) {
+    if (!global.Api || !global.Api.auth || !isFn(global.Api.auth.restore)) {
+      console.error('[App] Api.auth がありません。api.js の読み込みを確認してください。');
       return Promise.resolve(null);
     }
-    var id = global.Api.storage.get('userId');
-    if (!id) { return Promise.resolve(null); }
-    var get = requireApi('users.get');
-    if (!get) { return Promise.resolve(null); }
     showLoading(dom.main);
-    return get(id).then(function (user) {
-      setUser(user, { silent: true });
+    return global.Api.auth.restore().then(function (user) {
+      if (user) { setUser(user, { silent: true }); }
       return user;
     }, function (err) {
-      if (err && err.code === 'notfound') {
-        console.warn('[App] 保存されていた userId のユーザーが見つかりません（' + id + '）。ログイン画面から始めます。');
-        if (isFn(global.Api.storage.remove)) { global.Api.storage.remove('userId'); }
-        return null;
-      }
       handleError(err, function () {
         restoreUser().then(function () { render(true); });
       });
@@ -1397,6 +1392,12 @@
       showBanner(t('common.errorApiMissing'), function () { global.location.reload(); });
     }
 
+    // Google ログインから戻った直後は URL のハッシュにトークンが入っている。
+    // ルーターより先に取り込んで消す（消さないと '#access_token=...' を画面IDとして読む）。
+    if (global.Api && global.Api.auth && isFn(global.Api.auth.consumeRedirect)) {
+      global.Api.auth.consumeRedirect();
+    }
+
     state.lang = readLang();
     document.documentElement.setAttribute('lang', state.lang);
     pushLangToI18n(state.lang);
@@ -1480,7 +1481,6 @@
     setBalance: setBalance,
     hasUnlimited: hasUnlimited,
     consumeCredit: consumeCredit,
-    purchaseCredit: purchaseCredit,
 
     on: on,
     off: off,

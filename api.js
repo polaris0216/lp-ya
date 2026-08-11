@@ -27,22 +27,37 @@
  *     filters: { credit_balance: 'gte.10' } // 生のフィルタ文字列
  *   }
  *
- * クレジット（残高更新と credit_transactions への記録はこのファイルだけで行う）
+ * 認証（Supabase Auth。パスワードはこのファイルもDBも保存しない）
+ *   Api.auth.signUp(email, password, displayName) -> { user, needsConfirmation }
+ *   Api.auth.signIn(email, password)              -> 自分の users 行
+ *   Api.auth.signInWithGoogle(redirectTo)         -> 画面ごと遷移する（戻り値なし）
+ *   Api.auth.consumeRedirect()                    -> OAuth から戻った直後に1回呼ぶ
+ *   Api.auth.restore()                            -> 自分の users 行 または null
+ *   Api.auth.signOut() / Api.auth.session() / Api.auth.userId() / Api.auth.profile()
+ *   Api.auth.resetPassword(email) / Api.auth.updatePassword(password)
+ *
+ * クレジット（残高を動かすのはサーバー側の関数だけ。クライアントは金額も数量も送らない）
  *   Api.credits.balance(userId)
- *   Api.credits.apply(userId, { type, amount, featureKey, amountYen, couponId, memo })
- *   Api.credits.purchase(userId, credits, yen, memo)
- *   Api.credits.consume(userId, credits, featureKey, memo)
- *   Api.credits.grant(userId, credits, memo)
+ *   Api.credits.consume(featureKey, memo)   単価はサーバーが feature_credits から引く
+ *   Api.credits.redeemCoupon(code)
+ *   Api.credits.plans()                     購入プラン一覧（金額の出どころは Edge Function）
+ *   Api.credits.checkout(planId)            -> Stripe の決済ページURL
+ *   Api.credits.grant(userId, credits, memo)          管理者のみ
+ *   Api.credits.grantUnlimited(userId, days, memo)    管理者のみ
+ *   Api.credits.setUserStatus(userId, status)         管理者のみ
  *   Api.credits.history(userId, limit)
  *   Api.credits.featureCosts()
  *   Api.credits.costOf(featureKey)
- *   Api.credits.redeemCoupon(userId, code)
  *   Api.credits.hasUnlimited(user)
+ *
+ * 直接呼びたいとき
+ *   Api.rpc(name, params)          Supabase の関数
+ *   Api.fn(name, body, method)     Edge Function
  *
  * 端末に置いてよいものだけを扱う保管庫
  *   Api.storage.get(name) / Api.storage.set(name, value) / Api.storage.remove(name)
  *   Api.storage.clearSelection()
- *   name は 'lang' | 'userId' | 'projectId' | 'analysisReportId' | 'generationId' のみ。
+ *   name は 'lang' | 'session' | 'userId' | 'projectId' | 'analysisReportId' | 'generationId' のみ。
  *   それ以外の名前を渡したときは保存せず、何が拒否されたかをコンソールに残す。
  *   実キーは 'elpiya.lang' のように STORAGE_PREFIX 付き。i18n.js も言語は 'elpiya.lang' を使う。
  *
@@ -50,7 +65,10 @@
  *   reject される値は必ず ApiError。
  *     err.message  日本語の説明（そのまま画面に出してよい）
  *     err.code     'network' | 'timeout' | 'unauthorized' | 'notfound' | 'conflict' |
- *                  'validation' | 'server' | 'parse' | 'insufficient' | 'coupon…' | 'unknown'
+ *                  'validation' | 'server' | 'parse' | 'insufficient' | 'coupon…' |
+ *                  'invalidLogin' | 'emailTaken' | 'weakPassword' | 'emailNotConfirmed' |
+ *                  'loginRequired' | 'unknown'
+ *     insufficient のときだけ err.balance（現在の残高）と err.shortage（不足分）が付く
  *     err.status   HTTPステータス（通信自体が届かなかったときは 0）
  *     err.detail   サーバーからの生の応答（調査用）
  *     err.retry()  同じ処理をやり直し、同じ形の Promise を返す（エラーバナーの再試行ボタン用）
@@ -69,11 +87,14 @@
   var SUPABASE_URL = 'https://hhmresepzahfhwhywxhu.supabase.co';
   var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhobXJlc2VwemFoZmh3aHl3eGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNzU0MDQsImV4cCI6MjEwMTY1MTQwNH0.SXJqKH75xKEE3Bdmort2A_vUzkG15rktpokOZn1QqfU';
   var REST_BASE = SUPABASE_URL + '/rest/v1/';
+  var AUTH_BASE = SUPABASE_URL + '/auth/v1/';
+  var FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1/';
   var TABLE_PREFIX = 'a2f58db45_';
   var TIMEOUT_MS = 15000;
   var AUTO_RETRY_DELAY_MS = 700;
   var STORAGE_PREFIX = 'elpiya.';
-  var ALLOWED_STORAGE_KEYS = ['lang', 'userId', 'projectId', 'analysisReportId', 'generationId'];
+  // session はログイン状態そのもの。これだけは端末に置かないと開くたびログインになる。
+  var ALLOWED_STORAGE_KEYS = ['lang', 'session', 'userId', 'projectId', 'analysisReportId', 'generationId'];
 
   var TABLES = {
     users: TABLE_PREFIX + 'users',
@@ -97,6 +118,11 @@
     server: 'サーバーでエラーが発生しました。時間をおいて、もう一度お試しください。',
     parse: 'サーバーからの応答を読み取れませんでした。もう一度お試しください。',
     insufficient: 'クレジットが不足しています。チャージしてから、もう一度お試しください。',
+    invalidLogin: 'メールアドレスまたはパスワードが違います。',
+    emailTaken: 'このメールアドレスはすでに登録されています。ログインしてください。',
+    weakPassword: 'パスワードは6文字以上で入力してください。',
+    emailNotConfirmed: 'メールアドレスの確認が終わっていません。届いたメールのリンクを開いてください。',
+    loginRequired: 'ログインが必要です。もう一度ログインしてください。',
     couponNotFound: 'このクーポンコードは見つかりませんでした。',
     couponInactive: 'このクーポンは現在利用できません。',
     couponExpired: 'このクーポンは有効期限が切れています。',
@@ -130,6 +156,51 @@
     if (status === 400 || status === 422) { return 'validation'; }
     if (status >= 500) { return 'server'; }
     return 'unknown';
+  }
+
+  /*
+   * サーバーが返した本文からエラーコードを決める。
+   * status だけでは足りない。PostgREST は RPC の raise exception を
+   * {"code":"P0001","message":"insufficient:100:50"} の 400 で返し、
+   * GoTrue は {"error_description":"Invalid login credentials"} の 400 で返す。
+   * どちらも codeForStatus では 'validation' になってしまい、画面に出す文言を選べない。
+   */
+  var AUTH_HINTS = [
+    ['invalid login credentials', 'invalidLogin'],
+    ['already registered', 'emailTaken'],
+    ['user_already_exists', 'emailTaken'],
+    ['already been registered', 'emailTaken'],
+    ['password should be', 'weakPassword'],
+    ['weak_password', 'weakPassword'],
+    ['email not confirmed', 'emailNotConfirmed'],
+    ['email_not_confirmed', 'emailNotConfirmed']
+  ];
+
+  function errorFromResponse(status, text) {
+    var body = null;
+    try { body = JSON.parse(text); } catch (e) { body = null; }
+
+    var message = String((body && (body.message || body.msg || body.error_description || body.error)) || '');
+
+    // 002 の elpiya_apply_credit が投げる 'insufficient:<残高>:<不足分>'
+    if (message.indexOf('insufficient:') === 0) {
+      var parts = message.split(':');
+      var lack = new ApiError('insufficient', status, text);
+      lack.balance = Number(parts[1]) || 0;
+      lack.shortage = Number(parts[2]) || 0;
+      return lack;
+    }
+    // 'unauthorized' / 'notfound' / 'couponExpired' など、そのままコードになるもの
+    if (MESSAGES[message]) { return new ApiError(message, status, text); }
+    if (message.indexOf('feature_not_found') === 0) { return new ApiError('notfound', status, text); }
+    if (message.indexOf('validation:') === 0) { return new ApiError('validation', status, text); }
+
+    var lower = (message + ' ' + String((body && body.error_code) || '')).toLowerCase();
+    for (var i = 0; i < AUTH_HINTS.length; i += 1) {
+      if (lower.indexOf(AUTH_HINTS[i][0]) !== -1) { return new ApiError(AUTH_HINTS[i][1], status, text); }
+    }
+
+    return new ApiError(codeForStatus(status), status, text);
   }
 
   function logError(method, path, err) {
@@ -231,20 +302,27 @@
   /* ---------- 通信の本体 ---------- */
   function request(method, path, body, options) {
     var opts = options || {};
-    var url = REST_BASE + path;
-    var headers = {
-      apikey: ANON_KEY,
-      Authorization: 'Bearer ' + ANON_KEY,
-      'Content-Type': 'application/json'
-    };
-    if (opts.prefer) { headers.Prefer = opts.prefer; }
+    var url = (opts.base || REST_BASE) + path;
+
+    // 送るたびに組み立てる。途中でトークンが入れ替わっても古い値を使わないため。
+    function buildHeaders() {
+      var token = (!opts.noAuth && session && session.access_token) ? session.access_token : ANON_KEY;
+      var h = {
+        apikey: ANON_KEY,
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      };
+      if (opts.prefer) { h.Prefer = opts.prefer; }
+      return h;
+    }
 
     var autoRetryLeft = typeof opts.autoRetry === 'number' ? opts.autoRetry : (method === 'GET' ? 1 : 0);
+    var refreshLeft = opts.noAuth ? 0 : 1;
 
     function send() {
       var controller = (typeof AbortController === 'function') ? new AbortController() : null;
       var timer = null;
-      var init = { method: method, headers: headers, cache: 'no-store' };
+      var init = { method: method, headers: buildHeaders(), cache: 'no-store' };
 
       if (body !== undefined && body !== null) { init.body = JSON.stringify(body); }
       if (controller) {
@@ -256,7 +334,7 @@
         if (timer) { clearTimeout(timer); }
         return res.text().then(function (text) {
           if (!res.ok) {
-            throw new ApiError(codeForStatus(res.status), res.status, text);
+            throw errorFromResponse(res.status, text);
           }
           if (!text) { return null; }
           try {
@@ -283,6 +361,12 @@
           console.warn('[Api] ' + method + ' ' + path + ' を自動で再試行します（' + err.code + '）');
           return delay(AUTO_RETRY_DELAY_MS).then(run);
         }
+        // アクセストークンは1時間で切れる。切れただけならログイン画面に戻さず取り直す。
+        if (err.code === 'unauthorized' && refreshLeft > 0 && session && session.refresh_token) {
+          refreshLeft -= 1;
+          console.warn('[Api] アクセストークンを取り直して ' + method + ' ' + path + ' をやり直します');
+          return refreshSession().then(run, function () { return Promise.reject(err); });
+        }
         logError(method, path, err);
         err.retry = function () { return request(method, path, body, options); };
         return Promise.reject(err);
@@ -308,6 +392,194 @@
       return err;
     }
     return null;
+  }
+
+  /* ---------- 認証（Supabase Auth / GoTrue） ----------
+   * 資格情報はサーバーが持つ。このファイルが預かるのはトークンだけで、
+   * パスワードはどこにも保存しない（旧実装は端末内で変換した文字列を
+   * a2f58db45_users.password_hash に入れていた。001 でその列ごと落とした）。
+   */
+  var session = null;
+
+  function saveSession(raw) {
+    if (!raw || !raw.access_token) { return null; }
+    session = {
+      access_token: raw.access_token,
+      refresh_token: raw.refresh_token || (session && session.refresh_token) || '',
+      // GoTrue の expires_at は秒。扱いを間違えないようミリ秒に直して持つ。
+      expires_at: raw.expires_at ? Number(raw.expires_at) * 1000
+        : Date.now() + (Number(raw.expires_in) || 3600) * 1000,
+      user: raw.user || (session && session.user) || null
+    };
+    storage.set('session', JSON.stringify(session));
+    if (session.user && session.user.id) { storage.set('userId', session.user.id); }
+    return session;
+  }
+
+  function forgetSession() {
+    session = null;
+    storage.remove('session');
+    storage.remove('userId');
+  }
+
+  function loadSession() {
+    var text = storage.get('session');
+    if (!text) { return null; }
+    try {
+      var parsed = JSON.parse(text);
+      session = (parsed && parsed.access_token) ? parsed : null;
+    } catch (e) {
+      console.error('[Api] 保存されていたセッションを読めませんでした。ログインし直しになります。', e);
+      forgetSession();
+    }
+    return session;
+  }
+
+  function refreshSession() {
+    if (!session || !session.refresh_token) {
+      return Promise.reject(new ApiError('loginRequired', 401, 'refresh_token がありません'));
+    }
+    return request('POST', 'token?grant_type=refresh_token', { refresh_token: session.refresh_token },
+      { base: AUTH_BASE, noAuth: true, autoRetry: 0 }
+    ).then(function (data) {
+      return saveSession(data);
+    }, function (err) {
+      // 取り直せない = ログインし直すしかない。古いトークンを残すと失敗し続ける。
+      console.error('[Api] セッションを取り直せませんでした。ログアウトします。', err);
+      forgetSession();
+      return Promise.reject(new ApiError('loginRequired', err.status || 401, err.detail || ''));
+    });
+  }
+
+  function currentUserId() {
+    return (session && session.user && session.user.id) ? session.user.id : null;
+  }
+
+  // 自分のプロフィール行（a2f58db45_users）。RLS があるので自分の行しか返らない。
+  function myProfile() {
+    var id = currentUserId();
+    if (!id) { return Promise.reject(new ApiError('loginRequired', 401, 'セッションがありません')); }
+    return api.users.get(id);
+  }
+
+  var auth = {
+    session: function () { return session; },
+    userId: currentUserId,
+    profile: myProfile,
+
+    signUp: function (email, password, displayName) {
+      var body = {
+        email: String(email || '').trim(),
+        password: String(password || ''),
+        data: { full_name: String(displayName || '').trim() }
+      };
+      return request('POST', 'signup', body, { base: AUTH_BASE, noAuth: true, autoRetry: 0 })
+        .then(function (data) {
+          // メール確認が有効なとき、ここではまだセッションが返らない。
+          if (data && data.access_token) {
+            saveSession(data);
+            return { user: data.user, needsConfirmation: false };
+          }
+          return { user: data, needsConfirmation: true };
+        });
+    },
+
+    signIn: function (email, password) {
+      var body = { email: String(email || '').trim(), password: String(password || '') };
+      return request('POST', 'token?grant_type=password', body, { base: AUTH_BASE, noAuth: true, autoRetry: 0 })
+        .then(function (data) {
+          saveSession(data);
+          return myProfile();
+        });
+    },
+
+    // 本物の Google OAuth。ブラウザごと Supabase へ飛ばし、戻り先の URL の
+    // ハッシュにトークンが付いて返ってくる（consumeRedirect が拾う）。
+    signInWithGoogle: function (redirectTo) {
+      var back = redirectTo || (global.location.origin + global.location.pathname);
+      global.location.href = AUTH_BASE + 'authorize?provider=google&redirect_to=' + encodeURIComponent(back);
+    },
+
+    /*
+     * OAuth から戻ってきた直後に呼ぶ。ハッシュにトークンがあれば取り込んで消す。
+     * 消さないとハッシュルーターが '#access_token=...' を画面IDとして読んでしまう。
+     * 戻り値: 取り込んだら true。
+     */
+    consumeRedirect: function () {
+      var hash = String(global.location.hash || '');
+      if (hash.indexOf('access_token=') === -1) { return false; }
+
+      var params = {};
+      hash.replace(/^#\/?/, '').split('&').forEach(function (pair) {
+        var kv = pair.split('=');
+        if (kv[0]) { params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || ''); }
+      });
+      if (!params.access_token) { return false; }
+
+      saveSession(params);
+      try {
+        global.history.replaceState(null, '', global.location.pathname + global.location.search);
+      } catch (e) {
+        global.location.hash = '';
+      }
+      return true;
+    },
+
+    signOut: function () {
+      if (!session) { return Promise.resolve(true); }
+      // サーバー側の失効に失敗しても端末からは必ず消す（消さないと入れっぱなしになる）。
+      return request('POST', 'logout', {}, { base: AUTH_BASE, autoRetry: 0 })
+        .then(function () { forgetSession(); return true; },
+          function (err) {
+            console.warn('[Api] サーバー側のログアウトに失敗しましたが、端末のセッションは破棄します', err);
+            forgetSession();
+            return true;
+          });
+    },
+
+    /* 起動時に呼ぶ。ログイン中ならプロフィール行、そうでなければ null。 */
+    restore: function () {
+      if (!loadSession()) { return Promise.resolve(null); }
+      var needsRefresh = !session.expires_at || session.expires_at - Date.now() < 60000;
+      var ready = needsRefresh ? refreshSession() : Promise.resolve(session);
+      return ready.then(myProfile).catch(function (err) {
+        console.warn('[Api] セッションを復元できませんでした', err);
+        if (err && (err.code === 'loginRequired' || err.code === 'unauthorized' || err.code === 'notfound')) {
+          forgetSession();
+        }
+        return null;
+      });
+    },
+
+    /* パスワード再設定メールの送信 */
+    resetPassword: function (email, redirectTo) {
+      var back = redirectTo || (global.location.origin + global.location.pathname);
+      return request('POST', 'recover?redirect_to=' + encodeURIComponent(back),
+        { email: String(email || '').trim() },
+        { base: AUTH_BASE, noAuth: true, autoRetry: 0 }
+      ).then(function () { return true; });
+    },
+
+    /* ログイン中の利用者が自分のパスワードを変える */
+    updatePassword: function (password) {
+      if (!session) { return Promise.reject(new ApiError('loginRequired', 401, '')); }
+      return request('PUT', 'user', { password: String(password || '') }, { base: AUTH_BASE, autoRetry: 0 })
+        .then(function (user) { if (session) { session.user = user; } return true; });
+    }
+  };
+
+  /* ---------- RPC（サーバー側の1トランザクション） ---------- */
+  function rpc(name, params) {
+    return retriable(function () {
+      return request('POST', 'rpc/' + name, params || {}, { autoRetry: 0 });
+    });
+  }
+
+  /* ---------- Edge Function ---------- */
+  function callFunction(name, body, method) {
+    return retriable(function () {
+      return request(method || 'POST', name, body, { base: FUNCTIONS_BASE, autoRetry: 0 });
+    });
   }
 
   /* ---------- 表ごとのCRUD ---------- */
@@ -431,87 +703,67 @@
     return api.users.get(userId).then(function (user) { return Number(user.credit_balance) || 0; });
   }
 
-  /*
-   * 残高更新と credit_transactions への記録をひとまとめに行う唯一の入口。
-   * amount は符号つき（購入・付与は正、消費は負）。
-   * ponytail: 残高更新と履歴記録は2回のRESTに分かれるため原子的ではない。
-   *           履歴の記録に失敗したときは残高を戻す。厳密な同時実行制御が要るなら Supabase の RPC（単一トランザクション）へ移す。
-   */
-  function applyCredit(userId, options) {
-    var opts = options || {};
-    var type = opts.type || 'consume';
-    var amount = Math.round(Number(opts.amount) || 0);
+  /* ============================================================
+   * 残高を動かす処理はすべて Supabase の RPC（002_credit_functions.sql）に移した。
+   *
+   * 理由は2つ。
+   *  1) 001 で users の列単位の権限を絞ったので、クライアントからは
+   *     credit_balance を書けない（書けたら誰でも自分の残高を増やせる）。
+   *  2) 旧実装は「残高を更新」「履歴を記録」の2回のRESTに分かれていて原子的でなかった。
+   *     旧コードのコメント自身がRPCへの移行を upgrade path として挙げていた。
+   *
+   * 消費するクレジット数はもうクライアントから送らない。feature_key だけ送り、
+   * 単価はサーバーが feature_credits から引く。送れると「1クレジットで実行」と申告できてしまう。
+   * ============================================================ */
 
-    function run() {
-      return api.users.get(userId).then(function (user) {
-        var before = Number(user.credit_balance) || 0;
-        var after = before + amount;
+  /* 消費。無制限利用中なら amount 0・unlimited true が返り、残高は動かない。 */
+  function consume(featureKey, memo) {
+    return rpc('elpiya_consume_credit', {
+      p_feature_key: String(featureKey || ''),
+      p_memo: memo || null
+    });
+  }
 
-        if (after < 0) {
-          var lack = new ApiError('insufficient', 0, 'balance=' + before + ' amount=' + amount);
-          lack.shortage = Math.abs(after);
-          lack.balance = before;
-          throw lack;
-        }
-
-        return api.users.update(userId, { credit_balance: after }).then(function (updatedUser) {
-          return api.creditTransactions.insert({
-            users_id: String(userId),
-            transaction_type: type,
-            credit_amount: amount,
-            balance_after: after,
-            feature_key: opts.featureKey || null,
-            amount_yen: (opts.amountYen === undefined || opts.amountYen === null) ? null : Number(opts.amountYen),
-            coupons_id: opts.couponId ? String(opts.couponId) : null,
-            memo: opts.memo || null
-          }).then(function (tx) {
-            return {
-              user: updatedUser,
-              balance: after,
-              balanceBefore: before,
-              amount: amount,
-              transaction: tx
-            };
-          }, function (txErr) {
-            console.error('[Api] credit_transactions の記録に失敗したため残高を元に戻します', txErr);
-            return api.users.update(userId, { credit_balance: before }).then(
-              function () { return Promise.reject(txErr); },
-              function (rollbackErr) {
-                console.error('[Api] 残高の巻き戻しにも失敗しました。users id=' + userId + ' の credit_balance を確認してください', rollbackErr);
-                return Promise.reject(txErr);
-              }
-            );
-          });
-        });
-      });
+  function redeemCoupon(code) {
+    var trimmed = String(code === undefined || code === null ? '' : code).trim();
+    if (!trimmed) {
+      return Promise.reject(new ApiError('validation', 0, 'クーポンコードが空です'));
     }
-
-    return retriable(run);
+    return rpc('elpiya_redeem_coupon', { p_code: trimmed });
   }
 
-  function purchase(userId, credits, yen, memo) {
-    return applyCredit(userId, {
-      type: 'purchase',
-      amount: Math.abs(Math.round(Number(credits) || 0)),
-      amountYen: yen,
-      memo: memo || 'クレジット購入'
-    });
-  }
-
-  function consume(userId, credits, featureKey, memo) {
-    return applyCredit(userId, {
-      type: 'consume',
-      amount: -Math.abs(Math.round(Number(credits) || 0)),
-      featureKey: featureKey || null,
-      memo: memo || null
-    });
-  }
-
+  /* 管理者用。is_admin の判定はサーバー側（elpiya_is_admin）で行う。 */
   function grant(userId, credits, memo) {
-    return applyCredit(userId, {
-      type: 'grant',
-      amount: Math.round(Number(credits) || 0),
-      memo: memo || '管理者による付与'
+    return rpc('elpiya_admin_grant_credit', {
+      p_user: String(userId),
+      p_credits: Math.round(Number(credits) || 0),
+      p_memo: memo || null
+    });
+  }
+
+  function grantUnlimited(userId, days, memo) {
+    return rpc('elpiya_admin_grant_unlimited', {
+      p_user: String(userId),
+      p_days: Math.max(1, Math.round(Number(days) || 30)),
+      p_memo: memo || null
+    });
+  }
+
+  function setUserStatus(userId, status) {
+    return rpc('elpiya_admin_set_user_status', { p_user: String(userId), p_status: String(status) });
+  }
+
+  /* 購入。金額とクレジット数は stripe-checkout Edge Function が持つ。 */
+  function plans() {
+    return callFunction('stripe-checkout', null, 'GET').then(function (data) {
+      return (data && data.plans) || [];
+    });
+  }
+
+  function checkout(planId) {
+    return callFunction('stripe-checkout', { plan: String(planId || '') }).then(function (data) {
+      if (!data || !data.url) { throw new ApiError('server', 0, 'Checkout の URL が返りませんでした'); }
+      return data.url;
     });
   }
 
@@ -537,117 +789,18 @@
     });
   }
 
-  function grantUnlimited(userId, days, memo, couponId) {
-    var addDaysCount = Math.max(1, Math.round(Number(days) || 30));
-    function run() {
-      return api.users.get(userId).then(function (user) {
-        var current = user.unlimited_until ? new Date(String(user.unlimited_until)) : null;
-        var base = (current && !isNaN(current.getTime()) && toDateString(current) >= today()) ? current : new Date();
-        var until = addDays(base, addDaysCount);
-        return api.users.update(userId, { unlimited_until: until }).then(function (updatedUser) {
-          return api.creditTransactions.insert({
-            users_id: String(userId),
-            transaction_type: 'unlimited',
-            credit_amount: 0,
-            balance_after: Number(user.credit_balance) || 0,
-            feature_key: null,
-            amount_yen: null,
-            coupons_id: couponId ? String(couponId) : null,
-            memo: memo || (addDaysCount + '日間の無制限利用権')
-          }).then(function (tx) {
-            return {
-              user: updatedUser,
-              unlimitedUntil: until,
-              days: addDaysCount,
-              balance: Number(user.credit_balance) || 0,
-              transaction: tx
-            };
-          });
-        });
-      });
-    }
-    return retriable(run);
-  }
-
-  function redeemCoupon(userId, code) {
-    var trimmed = String(code === undefined || code === null ? '' : code).trim();
-
-    function run() {
-      if (!trimmed) {
-        return Promise.reject(new ApiError('validation', 0, 'クーポンコードが空です'));
-      }
-      return api.coupons.first({ eq: { code: trimmed }, order: false }).then(function (coupon) {
-        if (!coupon) { throw new ApiError('couponNotFound', 0, trimmed); }
-        if (!coupon.is_active) { throw new ApiError('couponInactive', 0, trimmed); }
-
-        if (coupon.expires_at) {
-          var limitDate = new Date(String(coupon.expires_at));
-          if (!isNaN(limitDate.getTime()) && toDateString(limitDate) < today()) {
-            throw new ApiError('couponExpired', 0, trimmed);
-          }
-        }
-
-        var used = Number(coupon.used_count) || 0;
-        var max = Number(coupon.max_uses) || 0;
-        if (max > 0 && used >= max) { throw new ApiError('couponUsedUp', 0, trimmed); }
-
-        return api.coupons.update(coupon.id, { used_count: used + 1 }).then(function () {
-          if (coupon.coupon_type === 'unlimited') {
-            var days = Number(coupon.unlimited_days) || 30;
-            return grantUnlimited(userId, days, 'クーポン ' + coupon.code + '（' + days + '日間の無制限利用）', coupon.id)
-              .then(function (result) {
-                return {
-                  type: 'unlimited',
-                  coupon: coupon,
-                  days: result.days,
-                  unlimitedUntil: result.unlimitedUntil,
-                  balance: result.balance,
-                  transaction: result.transaction
-                };
-              }, function (err) {
-                console.error('[Api] 無制限クーポンの適用に失敗したため used_count を戻します', err);
-                return api.coupons.update(coupon.id, { used_count: used }).then(
-                  function () { return Promise.reject(err); },
-                  function () { return Promise.reject(err); }
-                );
-              });
-          }
-
-          var credits = Math.round(Number(coupon.credit_amount) || 0);
-          return applyCredit(userId, {
-            type: 'coupon',
-            amount: credits,
-            couponId: coupon.id,
-            memo: 'クーポン ' + coupon.code
-          }).then(function (result) {
-            return {
-              type: 'credit',
-              coupon: coupon,
-              credits: credits,
-              balance: result.balance,
-              transaction: result.transaction
-            };
-          }, function (err) {
-            console.error('[Api] クレジットクーポンの適用に失敗したため used_count を戻します', err);
-            return api.coupons.update(coupon.id, { used_count: used }).then(
-              function () { return Promise.reject(err); },
-              function () { return Promise.reject(err); }
-            );
-          });
-        });
-      });
-    }
-
-    return retriable(run);
-  }
+  api.auth = auth;
+  api.rpc = rpc;
+  api.fn = callFunction;
 
   api.credits = {
     balance: balance,
-    apply: applyCredit,
-    purchase: purchase,
     consume: consume,
     grant: grant,
     grantUnlimited: grantUnlimited,
+    setUserStatus: setUserStatus,
+    plans: plans,
+    checkout: checkout,
     history: history,
     featureCosts: featureCosts,
     costOf: costOf,
@@ -748,6 +901,17 @@
     var err = new ApiError('network', 0, 'test');
     assert(err.message === MESSAGES.network, 'エラーメッセージ');
     assert(new ApiError('存在しないコード', 0, '').code === 'unknown', '未知コードの既定');
+
+    // サーバーが返す本文からコードを決められること（画面に出す文言がこれで決まる）
+    var lack = errorFromResponse(400, '{"code":"P0001","message":"insufficient:100:40"}');
+    assert(lack.code === 'insufficient', 'RPC insufficient');
+    assert(lack.balance === 100 && lack.shortage === 40, 'RPC insufficient の残高と不足分');
+    assert(errorFromResponse(400, '{"message":"couponExpired"}').code === 'couponExpired', 'RPC クーポン期限切れ');
+    assert(errorFromResponse(400, '{"message":"feature_not_found:kv"}').code === 'notfound', 'RPC 機能なし');
+    assert(errorFromResponse(400, '{"message":"validation:user_status=x"}').code === 'validation', 'RPC 入力不正');
+    assert(errorFromResponse(400, '{"error_description":"Invalid login credentials"}').code === 'invalidLogin', 'ログイン失敗');
+    assert(errorFromResponse(422, '{"msg":"User already registered"}').code === 'emailTaken', '登録済みメール');
+    assert(errorFromResponse(500, 'not json').code === 'server', '本文が読めなくても status で決まること');
 
     console.log('[Api] 自己チェック OK');
     return true;
