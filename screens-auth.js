@@ -13,9 +13,11 @@
  *   app.js の関数名を推測しないため、遷移だけは必ずこの方式にする。
  *
  * api.js（window.Api）から使う名前（api.js が実際に公開しているものだけ）:
- *   Api.users.first(options) / Api.users.insert(row) / Api.users.update(id, patch) / Api.users.count(options)
- *   Api.today()  … 'YYYY-MM-DD'（last_login_at / password_updated_at 用）
- *   Api.storage.set('userId', id) / Api.storage.get('lang')
+ *   Api.auth.signIn(email, password) / Api.auth.signUp(email, password, displayName)
+ *   Api.auth.signInWithGoogle() / Api.auth.signOut() / Api.auth.resetPassword(email)
+ *   Api.users.update(id, patch)  … last_login_at だけ
+ *   Api.today()  … 'YYYY-MM-DD'（last_login_at 用）
+ *   Api.storage.get('lang')
  *   失敗時の reject は必ず ApiError（err.message は日本語・err.retry() で再試行）
  *
  * app.js に任意で置ける窓口（無ければ何が無いかをコンソールに残したうえで、
@@ -38,10 +40,14 @@
  * 触る id は index.html にあるものだけ:
  *   header-title / header-back / header-action / tabbar / toast-root
  *
- * サーバーの認証機能は無い。パスワードは端末内で変換した文字列を
- * a2f58db45_users.password_hash に入れているだけで、暗号としての強度は無い。
- * 「Googleで続行 / Googleで登録」も本物のOAuthではない。Googleの画面は開かず、
- * 偽のGoogleログイン画面も作らない。ボタン名と説明に体験用であることを明記する。
+ * 認証は Supabase Auth（GoTrue）が行う。この画面はパスワードを保存も変換もしない。
+ * 「Googleで続行 / Googleで登録」は本物の OAuth で、Google の画面へ実際に移動する。
+ *
+ * users への INSERT はここでは行わない。プロフィール行は auth.users への
+ * トリガ elpiya_handle_new_user が作る（001_auth_rls.sql）。
+ * 「最初の登録者を管理者にする」処理も無い。RLS で users は自分の行しか見えず、
+ * 件数を数えると常に 0 になって全員が管理者になってしまうため。
+ * 管理者は SQL で手動で立てる（docs/SUPABASE-SETUP.md）。
  */
 (function (window, document) {
   'use strict';
@@ -51,8 +57,8 @@
     console.error('[screens-auth.js] App.registerScreen(画面ID, { render: 関数 }) が見つかりません。index.html の読み込み順（app.js → screens-auth.js）を確認してください。S1・S2 は描画されません。');
     return;
   }
-  if (!window.Api || !window.Api.users || !window.Api.storage) {
-    console.error('[screens-auth.js] window.Api（api.js）が見つからないか、Api.users / Api.storage がありません。api.js が screens-auth.js より先に読み込まれているか確認してください。');
+  if (!window.Api || !window.Api.auth || !window.Api.storage) {
+    console.error('[screens-auth.js] window.Api（api.js）が見つからないか、Api.auth / Api.storage がありません。api.js が screens-auth.js より先に読み込まれているか確認してください。');
   }
 
   var Api = window.Api;
@@ -68,8 +74,8 @@
       retry: '再試行',
       cancel: 'キャンセル',
       errUnknown: '処理に失敗しました。もう一度お試しください。',
-      storageNotice: 'アカウントは共有のデータベース（Supabase）に保存されます。このアプリを開いた全員が同じデータを見ます。',
-      passwordNotice: 'パスワードは端末内で簡易的に変換して保存します。暗号としての強度はないので、他のサービスで使っているパスワードは入力しないでください。',
+      storageNotice: 'アカウントとプロジェクトはご自身のものだけが見えます。他の利用者のデータにはアクセスできません。',
+      passwordNotice: 'パスワードはこのアプリには保存されません。認証は Supabase が行います。',
 
       s1Title: 'ログイン',
       s1Lead: 'おかえりなさい',
@@ -80,10 +86,13 @@
       passwordPh: '8文字以上',
       login: 'ログイン',
       loginBusy: 'ログイン中…',
-      googleContinue: 'Googleで続行（体験用）',
+      googleContinue: 'Googleで続行',
       signupLink: '新規登録',
       forgotTitle: 'パスワードをお忘れですか？',
-      forgotBody: 'この体験版ではメールでの再設定ができません。管理者にお問い合わせください。',
+      forgotBody: '登録したメールアドレスを上に入力してから、下のボタンを押してください。再設定用のメールをお送りします。',
+      forgotSend: '再設定メールを送る',
+      forgotBusy: '送信中…',
+      forgotSent: '再設定メールを送りました。届いたメールのリンクを開いてください。',
 
       errEmailEmpty: 'メールアドレスを入力してください',
       errEmailFormat: 'メールアドレスの形式が正しくありません',
@@ -91,7 +100,7 @@
       errPwShort: 'パスワードは8文字以上で入力してください',
       errAuth: '認証情報が正しくありません',
       errStopped: 'このアカウントは現在利用できません。管理者にお問い合わせください。',
-      errGoogleOnly: 'このアカウントはGoogle連携でのみログインできます。「Googleで続行（体験用）」をお使いください。',
+      errGoogleOnly: 'このアカウントはGoogle連携でのみログインできます。「Googleで続行」をお使いください。',
       loginDone: 'ログインしました',
       signedUpNotice: 'アカウントを作成しました。登録したメールアドレスとパスワードでログインしてください。',
 
@@ -108,37 +117,25 @@
       strengthStrong: '強い',
       register: '登録する',
       registerBusy: '登録中…',
-      googleSignup: 'Googleで登録（体験用）',
+      googleSignup: 'Googleで登録',
       backToLogin: 'ログインへ戻る',
       errNameEmpty: '表示名を入力してください',
       errNameLong: '表示名は20文字以内で入力してください',
       errPwAlnum: 'パスワードは英字と数字を含む8文字以上で入力してください',
       errEmailTaken: 'このメールアドレスは登録済みです',
-      emailChecking: '登録済みかどうかを確認しています…',
-      emailFree: 'このメールアドレスは使えます',
-      signupNoMail: '確認メールはこの体験版では送信されません。登録後すぐにログインできます。',
+      signupNoMail: '登録するとメールアドレス宛に確認メールが届くことがあります。届いたらリンクを開いてください。',
+      signupConfirm: '確認メールを送りました。メール内のリンクを開いてから、ログインしてください。',
+      googleRedirect: 'Googleの画面に移動します…',
       signupDone: 'アカウントを作成しました。「ログインへ戻る」からログインしてください。',
-      signupDoneToast: 'アカウントを作成しました',
-      adminGranted: '最初の登録者のため、このアカウントは管理者になりました。',
-
-      googleTitle: '体験用の擬似Google連携',
-      googleNote: 'サーバーとOAuthの設定がないため、これは本物のGoogle認証ではありません。Googleの画面は開きません。ここに入力したメールアドレスで auth_provider=google のアカウントを作る（同じメールのアカウントがあれば連携する）体験用の機能です。',
-      googleEmail: 'Googleアカウントのメールアドレス',
-      googleName: 'Googleの表示名',
-      googleNameHint: '未入力のときはメールアドレスから作ります',
-      googleLink: 'この内容で続行',
-      googleBusy: '連携中…',
-      googleCancelled: 'Google連携をキャンセルしました。もう一度お試しください。',
-      googleCreated: 'Googleアカウントで登録しました',
-      googleLinked: '既存のアカウントにGoogleを連携しました'
+      signupDoneToast: 'アカウントを作成しました'
     },
 
     en: {
       retry: 'Retry',
       cancel: 'Cancel',
       errUnknown: 'Something went wrong. Please try again.',
-      storageNotice: 'Accounts are stored in a shared database (Supabase). Everyone who opens this app sees the same data.',
-      passwordNotice: 'Passwords are only lightly scrambled on the device before being stored. This is not real encryption, so do not reuse a password from another service.',
+      storageNotice: 'You only ever see your own account and projects. Other users\u2019 data is not accessible.',
+      passwordNotice: 'Your password is never stored by this app. Supabase handles authentication.',
 
       s1Title: 'Sign in',
       s1Lead: 'Welcome back',
@@ -149,10 +146,13 @@
       passwordPh: '8 characters or more',
       login: 'Sign in',
       loginBusy: 'Signing in…',
-      googleContinue: 'Continue with Google (demo)',
+      googleContinue: 'Continue with Google',
       signupLink: 'Create an account',
       forgotTitle: 'Forgot your password?',
-      forgotBody: 'This demo build cannot send a reset email. Please contact an administrator.',
+      forgotBody: 'Enter your registered email address above, then tap the button below. We will send you a reset link.',
+      forgotSend: 'Send a reset email',
+      forgotBusy: 'Sending\u2026',
+      forgotSent: 'Reset email sent. Please open the link in it.',
 
       errEmailEmpty: 'Please enter your email address',
       errEmailFormat: 'This email address is not in a valid format',
@@ -160,7 +160,7 @@
       errPwShort: 'Your password must be at least 8 characters',
       errAuth: 'Your sign-in details are incorrect',
       errStopped: 'This account is currently unavailable. Please contact an administrator.',
-      errGoogleOnly: 'This account can only sign in through Google. Please use “Continue with Google (demo)”.',
+      errGoogleOnly: 'This account can only sign in through Google. Please use “Continue with Google”.',
       loginDone: 'Signed in',
       signedUpNotice: 'Your account was created. Sign in with the email address and password you registered.',
 
@@ -177,37 +177,25 @@
       strengthStrong: 'Strong',
       register: 'Register',
       registerBusy: 'Registering…',
-      googleSignup: 'Sign up with Google (demo)',
+      googleSignup: 'Sign up with Google',
       backToLogin: 'Back to sign in',
       errNameEmpty: 'Please enter a display name',
       errNameLong: 'Your display name must be 20 characters or fewer',
       errPwAlnum: 'Your password must be at least 8 characters and contain letters and numbers',
       errEmailTaken: 'This email address is already registered',
-      emailChecking: 'Checking whether this address is already registered…',
-      emailFree: 'This email address is available',
-      signupNoMail: 'No confirmation email is sent in this demo build. You can sign in right after registering.',
+      signupNoMail: 'A confirmation email may be sent to your address. Open the link if it arrives.',
+      signupConfirm: 'We sent you a confirmation email. Open the link in it, then sign in.',
+      googleRedirect: 'Taking you to Google…',
       signupDone: 'Your account was created. Tap “Back to sign in” to sign in.',
-      signupDoneToast: 'Account created',
-      adminGranted: 'This is the first registered account, so it was made an administrator.',
-
-      googleTitle: 'Simulated Google link (demo only)',
-      googleNote: 'There is no server or OAuth setup, so this is not real Google authentication and no Google screen opens. It only creates an account with auth_provider=google for the address you type here, or links it to an existing account with the same address.',
-      googleEmail: 'Google account email address',
-      googleName: 'Google display name',
-      googleNameHint: 'Left empty, it is built from the email address',
-      googleLink: 'Continue with this',
-      googleBusy: 'Linking…',
-      googleCancelled: 'The Google link was cancelled. Please try again.',
-      googleCreated: 'Registered with a Google account',
-      googleLinked: 'Google was linked to your existing account'
+      signupDoneToast: 'Account created'
     },
 
     ko: {
       retry: '다시 시도',
       cancel: '취소',
       errUnknown: '처리에 실패했습니다. 다시 시도해 주세요.',
-      storageNotice: '계정은 공유 데이터베이스(Supabase)에 저장됩니다. 이 앱을 연 모든 사람이 같은 데이터를 봅니다.',
-      passwordNotice: '비밀번호는 기기 안에서 간단히 변환해 저장합니다. 암호로서의 강도는 없으니 다른 서비스에서 쓰는 비밀번호는 입력하지 마세요.',
+      storageNotice: '본인의 계정과 프로젝트만 볼 수 있습니다. 다른 이용자의 데이터에는 접근할 수 없습니다.',
+      passwordNotice: '비밀번호는 이 앱에 저장되지 않습니다. 인증은 Supabase가 처리합니다.',
 
       s1Title: '로그인',
       s1Lead: '다시 오신 것을 환영합니다',
@@ -218,10 +206,13 @@
       passwordPh: '8자 이상',
       login: '로그인',
       loginBusy: '로그인 중…',
-      googleContinue: 'Google로 계속하기(체험용)',
+      googleContinue: 'Google로 계속하기',
       signupLink: '신규 가입',
       forgotTitle: '비밀번호를 잊으셨나요?',
-      forgotBody: '이 체험판에서는 메일로 재설정할 수 없습니다. 관리자에게 문의해 주세요.',
+      forgotBody: '가입한 이메일 주소를 위에 입력한 뒤 아래 버튼을 눌러 주세요. 재설정 메일을 보내드립니다.',
+      forgotSend: '재설정 메일 보내기',
+      forgotBusy: '보내는 중\u2026',
+      forgotSent: '재설정 메일을 보냈습니다. 메일의 링크를 열어 주세요.',
 
       errEmailEmpty: '이메일 주소를 입력해 주세요',
       errEmailFormat: '이메일 주소 형식이 올바르지 않습니다',
@@ -246,29 +237,17 @@
       strengthStrong: '강함',
       register: '가입하기',
       registerBusy: '가입 중…',
-      googleSignup: 'Google로 가입(체험용)',
+      googleSignup: 'Google로 가입',
       backToLogin: '로그인으로 돌아가기',
       errNameEmpty: '표시 이름을 입력해 주세요',
       errNameLong: '표시 이름은 20자 이내로 입력해 주세요',
       errPwAlnum: '비밀번호는 영문과 숫자를 포함해 8자 이상으로 입력해 주세요',
       errEmailTaken: '이미 가입된 이메일 주소입니다',
-      emailChecking: '이미 가입된 주소인지 확인하고 있습니다…',
-      emailFree: '사용할 수 있는 이메일 주소입니다',
-      signupNoMail: '이 체험판에서는 확인 메일을 보내지 않습니다. 가입 후 바로 로그인할 수 있습니다.',
+      signupNoMail: '가입하면 이메일로 확인 메일이 갈 수 있습니다. 도착하면 링크를 열어 주세요.',
+      signupConfirm: '확인 메일을 보냈습니다. 메일의 링크를 연 뒤 로그인해 주세요.',
+      googleRedirect: 'Google 화면으로 이동합니다…',
       signupDone: '계정을 만들었습니다. “로그인으로 돌아가기”에서 로그인해 주세요.',
-      signupDoneToast: '계정을 만들었습니다',
-      adminGranted: '첫 가입자이므로 이 계정은 관리자가 되었습니다.',
-
-      googleTitle: '체험용 모의 Google 연동',
-      googleNote: '서버와 OAuth 설정이 없어 실제 Google 인증이 아닙니다. Google 화면은 열리지 않습니다. 여기에 입력한 이메일 주소로 auth_provider=google 계정을 만들거나, 같은 주소의 계정이 있으면 연동하는 체험용 기능입니다.',
-      googleEmail: 'Google 계정 이메일 주소',
-      googleName: 'Google 표시 이름',
-      googleNameHint: '비워 두면 이메일 주소에서 만듭니다',
-      googleLink: '이 내용으로 계속',
-      googleBusy: '연동 중…',
-      googleCancelled: 'Google 연동을 취소했습니다. 다시 시도해 주세요.',
-      googleCreated: 'Google 계정으로 가입했습니다',
-      googleLinked: '기존 계정에 Google을 연동했습니다'
+      signupDoneToast: '계정을 만들었습니다'
     }
   };
 
@@ -441,43 +420,6 @@
     return 'strengthStrong';
   }
 
-  function fnv1a(str, seed) {
-    var h = seed >>> 0;
-    for (var i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
-    }
-    return h >>> 0;
-  }
-
-  function hex8(n) {
-    return ('00000000' + (n >>> 0).toString(16)).slice(-8);
-  }
-
-  // ponytail: サーバーが無いので純JSの反復ハッシュ。暗号強度は無い。
-  // 本番の認証が要るときは Supabase Auth（bcrypt/argon2）へ差し替える。
-  function hashPassword(plain) {
-    var s = 'elpiya.v1$' + String(plain === undefined || plain === null ? '' : plain);
-    var a = 2166136261;
-    var b = 1103515245;
-    for (var round = 0; round < 600; round++) {
-      a = fnv1a(s + '|' + round + '|' + hex8(b), a);
-      b = fnv1a(hex8(a) + '|' + round + '|' + s, b);
-    }
-    return 'v1$' + hex8(a) + hex8(b) + hex8(a ^ b) + hex8((a + b) >>> 0);
-  }
-
-  function verifyPassword(plain, stored) {
-    if (!stored) { return false; }
-    return hashPassword(plain) === String(stored);
-  }
-
-  // 本物の Google の sub ではない。体験用に、メールアドレスから決まる値を作るだけ。
-  function pseudoGoogleSub(email) {
-    var e = normalizeEmail(email);
-    return 'demo-google-' + hex8(fnv1a(e, 2166136261)) + hex8(fnv1a('sub|' + e, 1103515245));
-  }
-
   function nameFromEmail(email) {
     var e = normalizeEmail(email);
     var local = e.split('@')[0] || 'user';
@@ -620,14 +562,11 @@
   var state = {
     S1: {
       email: '', password: '',
-      busy: false, alert: null,
-      googleOpen: false, gEmail: '', gName: '', gBusy: false
+      busy: false, resetting: false, alert: null
     },
     S2: {
       name: '', email: '', password: '',
-      busy: false, alert: null, done: false, adminGranted: false,
-      emailHint: null,
-      googleOpen: false, gEmail: '', gName: '', gBusy: false
+      busy: false, alert: null, done: false, needsConfirmation: false
     }
   };
 
@@ -727,150 +666,25 @@
   }
 
   /* =========================================================
-     6. 体験用の擬似Google連携パネル（偽のGoogle画面は作らない）
+     6. Google ログイン
      ========================================================= */
 
-  function googlePanel(screenId, opts) {
-    var s = state[screenId];
-    var card = el('div', 'card');
-
-    card.appendChild(el('h3', 'section__title', t('googleTitle')));
-    card.appendChild(el('p', 't-note', t('googleNote')));
-
-    var emailField = makeField({
-      id: screenId + '-g-email',
-      label: t('googleEmail'),
-      type: 'email',
-      inputmode: 'email',
-      autocomplete: 'email',
-      placeholder: t('emailPh'),
-      value: s.gEmail,
-      onInput: function (v, handle) {
-        s.gEmail = v;
-        handle.setError(emailIssue(v) && v.trim() ? emailIssue(v) : null);
-      }
-    });
-    card.appendChild(emailField.wrap);
-
-    var nameField = makeField({
-      id: screenId + '-g-name',
-      label: t('googleName'),
-      type: 'text',
-      autocomplete: 'name',
-      maxlength: 20,
-      hint: t('googleNameHint'),
-      value: s.gName,
-      onInput: function (v) { s.gName = v; }
-    });
-    card.appendChild(nameField.wrap);
-
-    var row = el('div', 'btn-row');
-    var cancelBtn = makeButton('btn--secondary', t('cancel'), function () {
-      if (s.gBusy) { return; }
-      s.googleOpen = false;
-      s.gEmail = '';
-      s.gName = '';
-      // 意図書どおり「キャンセル時は再試行できるエラーを出す」。偽の画面には遷移しない。
-      setAlert(screenId, { kind: 'auth', key: 'googleCancelled' }, null);
-      rerender();
-    });
-    var okBtn = makeButton('btn--primary', s.gBusy ? t('googleBusy') : t('googleLink'), function () {
-      if (s.gBusy) { return; }
-      var issue = emailIssue(emailField.value());
-      if (issue) {
-        emailField.setError(issue);
-        emailField.focus();
-        return;
-      }
-      emailField.setError(null);
-      s.gEmail = emailField.value();
-      s.gName = nameField.value();
-      opts.onSubmit(normalizeEmail(s.gEmail), String(s.gName || '').trim());
-    });
-    okBtn.disabled = !!s.gBusy;
-    cancelBtn.disabled = !!s.gBusy;
-    row.appendChild(cancelBtn);
-    row.appendChild(okBtn);
-    card.appendChild(row);
-
-    if (s.gBusy) {
-      card.appendChild(el('p', 'loading-inline', t('googleBusy')));
-    }
-
-    return card;
-  }
-
-  /**
-   * 擬似Google連携の本体。
-   *  - 同じメールのユーザーが無ければ auth_provider='google' で新規作成
-   *  - あれば google_sub を書き込んで既存アカウントに連携（二重登録しない）
-   * 成功したらダッシュボード（S3）へ。
+  /*
+   * 本物の OAuth。ブラウザごと Supabase の認可URLへ移り、
+   * 戻ってきた URL のハッシュに入るトークンは app.js の起動時に
+   * Api.auth.consumeRedirect() が拾う。
+   * 旧実装は Google の画面を開かず、入力されたメールで
+   * auth_provider='google' の行を作るだけの見せかけだった。
    */
-  function runGoogleFlow(screenId, email, displayName) {
-    var s = state[screenId];
-    if (!Api || !Api.users) {
-      console.error('[screens-auth.js] Api.users がありません。api.js の読み込みを確認してください。');
+  function startGoogle(screenId) {
+    if (!Api || !Api.auth || typeof Api.auth.signInWithGoogle !== 'function') {
+      console.error('[screens-auth.js] Api.auth.signInWithGoogle がありません。api.js の読み込みを確認してください。');
       setAlert(screenId, { kind: 'auth', key: 'errUnknown' }, null);
       rerender();
       return;
     }
-
-    s.gBusy = true;
-    setAlert(screenId, null, null);
-    rerender();
-
-    var retry = function () { runGoogleFlow(screenId, email, displayName); };
-    var sub = pseudoGoogleSub(email);
-    var name = displayName || nameFromEmail(email);
-
-    Api.users.first({ eq: { email: email }, order: false })
-      .then(function (user) {
-        if (user) {
-          if (user.user_status && user.user_status !== 'active') {
-            throw new AuthFail('errStopped');
-          }
-          var provider = user.auth_provider === 'google' ? 'google' : 'email,google';
-          return Api.users.update(user.id, {
-            google_sub: sub,
-            auth_provider: provider,
-            display_name: user.display_name || name,
-            last_login_at: Api.today()
-          }).then(function (updated) {
-            return { user: updated, linked: true, admin: false };
-          });
-        }
-        return Api.users.count({ limit: 1 }).then(function (existing) {
-          var isFirst = existing === 0;
-          return Api.users.insert({
-            email: email,
-            display_name: name,
-            auth_provider: 'google',
-            google_sub: sub,
-            is_admin: isFirst,
-            credit_balance: 0,
-            user_status: 'active',
-            last_login_at: Api.today()
-          }).then(function (created) {
-            return { user: created, linked: false, admin: isFirst };
-          });
-        });
-      })
-      .then(function (result) {
-        s.gBusy = false;
-        s.googleOpen = false;
-        s.gEmail = '';
-        s.gName = '';
-        adoptUser(result.user);
-        toast(result.linked ? t('googleLinked') : t('googleCreated'), 'success');
-        if (result.admin) { toast(t('adminGranted'), 'success'); }
-        setAlert(screenId, null, null);
-        go('S3');
-      })
-      .catch(function (err) {
-        s.gBusy = false;
-        showFailure(screenId, err, retry);
-        rerender();
-      });
+    toast(t('googleRedirect'), 'success');
+    Api.auth.signInWithGoogle();
   }
 
   /* =========================================================
@@ -939,10 +753,8 @@
 
     var googleBtn = makeButton('btn--secondary btn--block', t('googleContinue'), function () {
       if (s.busy) { return; }
-      s.googleOpen = true;
-      if (!s.gEmail) { s.gEmail = s.email; }
       setAlert('S1', null, null);
-      rerender();
+      startGoogle('S1');
     });
     googleBtn.disabled = !!s.busy;
 
@@ -956,15 +768,37 @@
     buttons.appendChild(signupBtn);
     screen.appendChild(buttons);
 
-    if (s.googleOpen) {
-      screen.appendChild(googlePanel('S1', {
-        onSubmit: function (email, name) { runGoogleFlow('S1', email, name); }
-      }));
-    }
-
     var forgot = el('div', 'stack stack--tight');
     forgot.appendChild(el('h3', 'section__title', t('forgotTitle')));
     forgot.appendChild(el('p', 't-note', t('forgotBody')));
+
+    var resetBtn = makeButton('btn--text btn--block', t('forgotSend'), function () {
+      if (s.busy || s.resetting) { return; }
+      var issue = emailIssue(emailField.value());
+      if (issue) {
+        emailField.setError(issue);
+        emailField.focus();
+        return;
+      }
+      s.resetting = true;
+      resetBtn.disabled = true;
+      resetBtn.textContent = t('forgotBusy');
+      // 「そのアドレスは未登録です」は返さない。返すと登録済みメールを総当たりで割り出せる。
+      Api.auth.resetPassword(normalizeEmail(emailField.value())).then(function () {
+        s.resetting = false;
+        resetBtn.disabled = false;
+        resetBtn.textContent = t('forgotSend');
+        toast(t('forgotSent'), 'success');
+      }, function (err) {
+        s.resetting = false;
+        resetBtn.disabled = false;
+        resetBtn.textContent = t('forgotSend');
+        console.error('[screens-auth.js] 再設定メールを送れませんでした', err);
+        showFailure('S1', err, null);
+        rerender();
+      });
+    });
+    forgot.appendChild(resetBtn);
     screen.appendChild(forgot);
 
     screen.appendChild(noticeBlock());
@@ -991,8 +825,8 @@
       if (eIssue) { emailField.focus(); return; }
       if (pIssue) { pwField.focus(); return; }
 
-      if (!Api || !Api.users) {
-        console.error('[screens-auth.js] Api.users がありません。api.js の読み込みを確認してください。');
+      if (!Api || !Api.auth) {
+        console.error('[screens-auth.js] Api.auth がありません。api.js の読み込みを確認してください。');
         setAlert('S1', { kind: 'auth', key: 'errUnknown' }, null);
         rerender();
         return;
@@ -1004,13 +838,22 @@
       setAlert('S1', null, null);
       setBusy(true);
 
-      Api.users.first({ eq: { email: email }, order: false })
+      /*
+       * 照合はサーバー（Supabase Auth）が行う。
+       * 旧実装は users を1件読んで自前ハッシュと突き合わせていた。
+       * それは password_hash が誰にでも読めることが前提で、認証として成立していなかった。
+       */
+      Api.auth.signIn(email, password)
         .then(function (user) {
-          if (!user) { throw new AuthFail('errAuth'); }
-          if (user.user_status && user.user_status !== 'active') { throw new AuthFail('errStopped'); }
-          if (!user.password_hash) { throw new AuthFail('errGoogleOnly'); }
-          if (!verifyPassword(password, user.password_hash)) { throw new AuthFail('errAuth'); }
-          return Api.users.update(user.id, { last_login_at: Api.today() });
+          if (user && user.user_status && user.user_status !== 'active') {
+            // 停止中のアカウントはログイン状態を残さない
+            return Api.auth.signOut().then(function () { throw new AuthFail('errStopped'); });
+          }
+          return Api.users.update(user.id, { last_login_at: Api.today() }).catch(function (err) {
+            // 最終ログイン日の記録に失敗してもログイン自体は成立させる
+            console.warn('[screens-auth.js] last_login_at を更新できませんでした', err);
+            return user;
+          });
         })
         .then(function (updated) {
           setBusy(false);
@@ -1046,7 +889,7 @@
       var doneBox = el('p', 'note-box t-ok', t('signupDone'));
       doneBox.setAttribute('role', 'status');
       screen.appendChild(doneBox);
-      if (s.adminGranted) { screen.appendChild(noteNode(t('adminGranted'))); }
+      if (s.needsConfirmation) { screen.appendChild(noteNode(t('signupConfirm'))); }
     }
 
     var fields = el('div', 'stack');
@@ -1078,14 +921,11 @@
       value: s.email,
       onInput: function (v, handle) {
         s.email = v;
-        s.emailHint = null;
         handle.setHint('', false);
         handle.setError(v.trim() ? emailIssue(v) : null);
       },
       onBlur: function (v, handle) {
-        var issue = emailIssue(v);
-        handle.setError(issue);
-        if (!issue) { checkEmailTaken(normalizeEmail(v), handle); }
+        handle.setError(emailIssue(v));
       }
     });
 
@@ -1131,9 +971,6 @@
     fields.appendChild(meterWrap);
     screen.appendChild(fields);
 
-    if (s.emailHint) {
-      emailField.setHint(t(s.emailHint.key), !!s.emailHint.ok);
-    }
 
     var buttons = el('div', 'stack');
 
@@ -1142,11 +979,8 @@
 
     var googleBtn = makeButton('btn--secondary btn--block', t('googleSignup'), function () {
       if (s.busy) { return; }
-      s.googleOpen = true;
-      if (!s.gEmail) { s.gEmail = s.email; }
-      if (!s.gName) { s.gName = s.name; }
       setAlert('S2', null, null);
-      rerender();
+      startGoogle('S2');
     });
     googleBtn.disabled = !!s.busy;
 
@@ -1162,12 +996,6 @@
     buttons.appendChild(backBtn);
     screen.appendChild(buttons);
 
-    if (s.googleOpen) {
-      screen.appendChild(googlePanel('S2', {
-        onSubmit: function (email, name) { runGoogleFlow('S2', email, name); }
-      }));
-    }
-
     var terms = el('div', 'stack stack--tight');
     terms.appendChild(el('p', 't-note', t('s2Sub')));
     terms.appendChild(el('p', 't-note', t('signupNoMail')));
@@ -1175,32 +1003,12 @@
 
     screen.appendChild(noticeBlock());
 
-    function checkEmailTaken(email, handle) {
-      if (!Api || !Api.users) {
-        console.error('[screens-auth.js] Api.users がありません。メールの重複確認ができません。');
-        return;
-      }
-      s.emailHint = { key: 'emailChecking', ok: false };
-      handle.setHint(t('emailChecking'), false);
-      Api.users.first({ eq: { email: email }, order: false })
-        .then(function (user) {
-          if (user) {
-            s.emailHint = null;
-            handle.setHint('', false);
-            handle.setError('errEmailTaken');
-          } else {
-            s.emailHint = { key: 'emailFree', ok: true };
-            handle.setHint(t('emailFree'), true);
-          }
-        })
-        .catch(function (err) {
-          s.emailHint = null;
-          handle.setHint('', false);
-          // 重複確認だけの失敗。登録操作そのものは止めないが、黙って消さずにバナーで知らせる。
-          showFailure('S2', err, function () { checkEmailTaken(email, handle); });
-          rerender();
-        });
-    }
+    /*
+     * メールの重複確認は廃止した。
+     * RLS で users は自分の行しか読めないため、他人のアドレスは必ず「未登録」に見える。
+     * 「使えます」と出したあとに登録が弾かれるのが一番わかりにくい。
+     * 重複はサーバーが返す emailTaken で伝える。
+     */
 
     function setBusy(on) {
       s.busy = on;
@@ -1231,8 +1039,8 @@
       if (eIssue) { emailField.focus(); return; }
       if (pIssue) { pwField.focus(); return; }
 
-      if (!Api || !Api.users) {
-        console.error('[screens-auth.js] Api.users がありません。api.js の読み込みを確認してください。');
+      if (!Api || !Api.auth) {
+        console.error('[screens-auth.js] Api.auth がありません。api.js の読み込みを確認してください。');
         setAlert('S2', { kind: 'auth', key: 'errUnknown' }, null);
         rerender();
         return;
@@ -1240,44 +1048,31 @@
 
       var email = normalizeEmail(s.email);
       var displayName = String(s.name).trim();
-      var passwordHash = hashPassword(s.password);
 
       setAlert('S2', null, null);
       setBusy(true);
 
-      Api.users.first({ eq: { email: email }, order: false })
-        .then(function (existing) {
-          if (existing) { throw new AuthFail('errEmailTaken'); }
-          return Api.users.count({ limit: 1 });
-        })
-        .then(function (userCount) {
-          var isFirst = userCount === 0;
-          return Api.users.insert({
-            email: email,
-            password_hash: passwordHash,
-            display_name: displayName,
-            auth_provider: 'email',
-            is_admin: isFirst,
-            credit_balance: 0,
-            user_status: 'active',
-            password_updated_at: Api.today()
-          }).then(function (created) {
-            return { user: created, admin: isFirst };
-          });
-        })
+      /*
+       * アカウントの作成はサーバーが行う。users への INSERT はもう行わない
+       * （001 で INSERT ポリシーを作らず、プロフィール行は auth.users への
+       *  トリガ elpiya_handle_new_user が作る）。
+       * 「最初の登録者を管理者にする」判定も無くした。RLS により users は
+       * 自分の行しか見えず、件数を数えると常に0になって全員が管理者になってしまう。
+       * 管理者はSQLで手動で立てる（docs/SUPABASE-SETUP.md）。
+       */
+      Api.auth.signUp(email, s.password, displayName)
         .then(function (result) {
           setBusy(false);
           s.done = true;
-          s.adminGranted = result.admin;
+          s.needsConfirmation = !!(result && result.needsConfirmation);
           s.password = '';
-          s.emailHint = null;
           setAlert('S2', null, null);
           toast(t('signupDoneToast'), 'success');
           rerender();
         })
         .catch(function (err) {
           setBusy(false);
-          if (err && err.authFail && err.key === 'errEmailTaken') {
+          if (err && (err.code === 'emailTaken' || (err.authFail && err.key === 'errEmailTaken'))) {
             emailField.setError('errEmailTaken');
             emailField.focus();
             return;
@@ -1296,8 +1091,7 @@
     s.busy = false;
     s.alert = null;
     s.done = false;
-    s.adminGranted = false;
-    s.emailHint = null;
+    s.needsConfirmation = false;
     s.googleOpen = false;
     s.gEmail = '';
     s.gName = '';
@@ -1317,10 +1111,6 @@
      ========================================================= */
 
   window.AuthScreens = {
-    hashPassword: hashPassword,
-    verifyPassword: verifyPassword,
-    pseudoGoogleSub: pseudoGoogleSub,
-
     _selfTest: function () {
       function assert(ok, name) {
         if (!ok) { throw new Error('[screens-auth.js] 自己チェック失敗: ' + name); }
@@ -1346,17 +1136,6 @@
       assert(nameIssue(new Array(21).join('あ')) === null, '表示名20文字');
       assert(nameIssue('山田太郎') === null, '表示名正常');
 
-      var h = hashPassword('abcd1234');
-      assert(h === hashPassword('abcd1234'), '同じ入力は同じハッシュ');
-      assert(h !== hashPassword('abcd1235'), '違う入力は違うハッシュ');
-      assert(h.indexOf('v1$') === 0 && h.length === 35, 'ハッシュの形式');
-      assert(verifyPassword('abcd1234', h) === true, '照合成功');
-      assert(verifyPassword('abcd1235', h) === false, '照合失敗');
-      assert(verifyPassword('abcd1234', null) === false, 'ハッシュ無しは常に失敗');
-      assert(verifyPassword('abcd1234', '') === false, '空ハッシュは常に失敗');
-
-      assert(pseudoGoogleSub('A@B.com') === pseudoGoogleSub('a@b.com'), 'google_sub は大文字小文字を無視');
-      assert(pseudoGoogleSub('a@b.com') !== pseudoGoogleSub('c@d.com'), 'google_sub はメールごとに変わる');
       assert(nameFromEmail('taro.yamada@example.com') === 'taro.yamada', 'メールから表示名');
 
       assert(strength('') === 0, '空は強度0');
