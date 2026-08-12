@@ -93,6 +93,10 @@
   var TIMEOUT_MS = 15000;
   var AUTO_RETRY_DELAY_MS = 700;
   var STORAGE_PREFIX = 'elpiya.';
+  // Google ログインは Supabase 側に OAuth を設定するまで使えない。未設定のまま
+  // authorize へ飛ばすと 400 が返り、アプリを離れて生のエラーJSONが表示される。
+  // docs/SUPABASE-SETUP.md の手順4 を終えたら true にする（ここ1か所だけ）。
+  var GOOGLE_LOGIN_ENABLED = false;
   // session はログイン状態そのもの。これだけは端末に置かないと開くたびログインになる。
   var ALLOWED_STORAGE_KEYS = ['lang', 'session', 'userId', 'projectId', 'analysisReportId', 'generationId'];
 
@@ -496,9 +500,14 @@
 
     // 本物の Google OAuth。ブラウザごと Supabase へ飛ばし、戻り先の URL の
     // ハッシュにトークンが付いて返ってくる（consumeRedirect が拾う）。
+    // 設定前は false を返すだけで、画面遷移しない（呼び出し側が案内を出す）。
+    googleEnabled: function () { return GOOGLE_LOGIN_ENABLED; },
+
     signInWithGoogle: function (redirectTo) {
+      if (!GOOGLE_LOGIN_ENABLED) { return false; }
       var back = redirectTo || (global.location.origin + global.location.pathname);
       global.location.href = AUTH_BASE + 'authorize?provider=google&redirect_to=' + encodeURIComponent(back);
+      return true;
     },
 
     /*

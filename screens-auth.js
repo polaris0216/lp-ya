@@ -101,6 +101,7 @@
       errAuth: '認証情報が正しくありません',
       errStopped: 'このアカウントは現在利用できません。管理者にお問い合わせください。',
       errGoogleOnly: 'このアカウントはGoogle連携でのみログインできます。「Googleで続行」をお使いください。',
+      errGoogleNotReady: 'Googleログインは準備中です。メールアドレスとパスワードでログインしてください。',
       loginDone: 'ログインしました',
       signedUpNotice: 'アカウントを作成しました。登録したメールアドレスとパスワードでログインしてください。',
 
@@ -161,6 +162,7 @@
       errAuth: 'Your sign-in details are incorrect',
       errStopped: 'This account is currently unavailable. Please contact an administrator.',
       errGoogleOnly: 'This account can only sign in through Google. Please use “Continue with Google”.',
+      errGoogleNotReady: 'Google sign-in is not available yet. Please sign in with your email address and password.',
       loginDone: 'Signed in',
       signedUpNotice: 'Your account was created. Sign in with the email address and password you registered.',
 
@@ -221,6 +223,7 @@
       errAuth: '인증 정보가 올바르지 않습니다',
       errStopped: '이 계정은 현재 사용할 수 없습니다. 관리자에게 문의해 주세요.',
       errGoogleOnly: '이 계정은 Google 연동으로만 로그인할 수 있습니다. “Google로 계속하기(체험용)”를 사용해 주세요.',
+      errGoogleNotReady: 'Google 로그인은 준비 중입니다. 이메일 주소와 비밀번호로 로그인해 주세요.',
       loginDone: '로그인했습니다',
       signedUpNotice: '계정을 만들었습니다. 등록한 이메일 주소와 비밀번호로 로그인해 주세요.',
 
@@ -680,6 +683,12 @@
     if (!Api || !Api.auth || typeof Api.auth.signInWithGoogle !== 'function') {
       console.error('[screens-auth.js] Api.auth.signInWithGoogle がありません。api.js の読み込みを確認してください。');
       setAlert(screenId, { kind: 'auth', key: 'errUnknown' }, null);
+      rerender();
+      return;
+    }
+    /* Supabase 側に OAuth を設定するまでは飛ばさない（飛ばすと 400 の生JSONが出る）。 */
+    if (typeof Api.auth.googleEnabled === 'function' && !Api.auth.googleEnabled()) {
+      setAlert(screenId, { kind: 'auth', key: 'errGoogleNotReady' }, null);
       rerender();
       return;
     }
