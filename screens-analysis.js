@@ -1222,6 +1222,9 @@
       source_platforms: entries.map(function (entry) { return entry.platform; }),
       kv_selectors: kvConf,
       lp_selectors: lpConf,
+      /* status は NOT NULL・既定値なし。analysis_status は同じ意味の旧列（nullable）。
+         旧側だけに入れると insert が 23502 で必ず失敗する（列が二重化しているテーブル） */
+      status: status,
       analysis_status: status
     };
   }

@@ -1100,6 +1100,9 @@
 
         var payload = {
           code: code,
+          /* benefit_type は NOT NULL・既定値なしの旧列。coupon_type（新・nullable）と
+             同じ値を入れる。旧側を落とすと insert が 23502 で必ず失敗する */
+          benefit_type: state.couponType,
           coupon_type: state.couponType,
           credit_amount: null,
           unlimited_days: null,
