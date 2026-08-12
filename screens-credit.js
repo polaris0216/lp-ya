@@ -423,7 +423,11 @@
     } else {
       App.state = { user: user, creditBalance: Number(user.credit_balance) || 0 };
     }
-    if (typeof App.setUser === 'function') { App.setUser(user); }
+    /* silent が要る。App.setUser は既定で画面全体を描き直すため、
+       描画中に呼ぶ（この関数は loadUser から呼ばれる）と
+       描画→取得→setUser→描画… の無限ループになり、
+       チェックした機能が毎回消えて「生成を実行」が押せなくなる。 */
+    if (typeof App.setUser === 'function') { App.setUser(user, { silent: true }); }
     else if (typeof App.setBalance === 'function') { App.setBalance(Number(user.credit_balance) || 0); }
   }
 
