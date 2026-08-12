@@ -64,7 +64,7 @@
  *   header-title / header-back / header-action / banner-root / toast-root / modal-root
  *
  * ログイン機能は未実装で、業務データは共有の Supabase に入る。
- * このアプリを開いた全員が同じ生成結果を見る（注意書きは index.html の #shared-data-notice）。
+ * 生成結果は RLS により本人のプロジェクトの分だけ見える（旧: 全員共有だった）。
  */
 (function (window, document) {
   'use strict';

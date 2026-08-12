@@ -48,7 +48,6 @@
        #header-back       戻る矢印ボタン（44×44・既定は hidden）
        #header-title      ヘッダー中央タイトル（既定は「エルピーヤ」）
        #header-action     ヘッダー右側スロット（44×44・任意）
-       #shared-data-notice ログイン未実装の注意書き1行
        #banner-root       通信失敗バナーの置き場
        #app               画面差し込み先（App.registerScreen した render がここへ描画）
        #tabbar            下部タブバー（.tabbar__item[data-screen]）
@@ -75,7 +74,7 @@
     </div>
   </header>
 
-  <p id="shared-data-notice" class="notice-line" data-i18n="common.sharedDataNotice">ログイン機能は未実装のため、このアプリを開いた全員が同じデータを見ます</p>
+  <!-- 旧 #shared-data-notice（ログイン未実装の注意書き）は認証+RLS導入で事実と逆になったため削除 -->
 
   <div id="banner-root" class="banner-root"></div>
 
