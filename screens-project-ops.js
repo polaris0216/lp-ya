@@ -31,7 +31,7 @@
  *   App.setHeader({ title, back })    … 共通ヘッダー
  *   App.setTabbarVisible(真偽値)      … 下部タブバーの出し分け（S6・S7 では隠す）
  *   App.toast(文言, 種類)             … トースト
- *   App.currentUser                   … 現在ユーザー（無ければ Api.storage.get('userId')）
+ *   App.getUser()                     … 現在ユーザー（無ければ Api.storage.get('userId')）
  *
  * このファイルが触る class は styles.css に実在するものだけ:
  *   screen / section / section__head / section__title
@@ -414,7 +414,9 @@
   }
 
   function currentUserId() {
-    if (App.currentUser && App.currentUser.id) { return String(App.currentUser.id); }
+    /* app.js が持っている現在ユーザーは getUser() で取る（App.currentUser は存在しない） */
+    var user = (typeof App.getUser === 'function') ? App.getUser() : App.currentUser;
+    if (user && user.id) { return String(user.id); }
     if (Api && Api.storage) {
       var stored = Api.storage.get('userId');
       if (stored) { return String(stored); }

@@ -22,9 +22,11 @@
  *
  * app.js に任意で置ける窓口（無ければ何が無いかをコンソールに残したうえで、
  * このファイル側の予備実装で必ず動かす。黙って握りつぶさない）:
- *   App.setCurrentUser(ユーザー行)   … 現在ユーザーのグローバル状態
+ *   App.setUser(ユーザー行)          … 現在ユーザーのグローバル状態（必須。これを呼ばないと
+ *                                      app.js が未ログインのままで S1 へ戻し続ける）
  *   App.setHeader({ title, back })   … 共通ヘッダー
- *   App.setTabbarVisible(真偽値)      … 下部タブバーの出し分け（S1・S2 では隠す）
+ *   App.setTabbarVisible(真偽値)      … 下部タブバーの出し分け。app.js は画面ごとの
+ *                                      meta.tab で自動制御しているため通常は不要
  *   App.toast(文言, 種類)             … トースト
  *   I18n.getLocale() / I18n.onChange(関数) … 言語と切替通知
  *
@@ -357,13 +359,16 @@
   }
 
   // 現在ユーザーの引き渡し。Api.storage の userId は api.js が許可している唯一の保存先。
+  // app.js 側の入口は setUser（setCurrentUser ではない）。ここを間違えると
+  // app.js の state.user が null のままになり、ログインに成功しても
+  // ルーターが「ログインが必要です」で S1 へ戻し続ける（＝ログインできない）。
   function adoptUser(user) {
     if (Api && Api.storage) { Api.storage.set('userId', user.id); }
-    if (typeof App.setCurrentUser === 'function') {
-      App.setCurrentUser(user);
+    if (typeof App.setUser === 'function') {
+      App.setUser(user);
       return;
     }
-    report('App.setCurrentUser(ユーザー行)', 'Api.storage の userId のみ更新しました。app.js はここから現在ユーザーを読み込んでください。');
+    report('App.setUser(ユーザー行)', 'Api.storage の userId のみ更新しました。app.js はここから現在ユーザーを読み込んでください。');
     App.currentUser = user;
   }
 
