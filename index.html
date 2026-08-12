@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="エルピーヤ — クラウドファンディングLP・自社LP・KV・メタ広告・LINEコンテンツをまとめて作るアプリ">
 <title>エルピーヤ</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260813a">
 </head>
 <body>
 
@@ -115,16 +115,22 @@
   <div class="noscript-note">このアプリを使うには JavaScript を有効にしてください。</div>
 </noscript>
 
-<script defer src="i18n.js"></script>
-<script defer src="api.js"></script>
-<script defer src="app.js"></script>
-<script defer src="screens-auth.js"></script>
-<script defer src="screens-home.js"></script>
-<script defer src="screens-project-ops.js"></script>
-<script defer src="screens-project.js"></script>
-<script defer src="screens-analysis.js"></script>
-<script defer src="screens-generate.js"></script>
-<script defer src="screens-credit.js"></script>
-<script defer src="screens-admin.js"></script>
+<!--
+  ?v= はキャッシュ対策。GitHub Pages は JS/CSS に max-age=600 を付けるため、
+  これが無いと更新直後に「新しい index.html ＋ 古い .js」が混ざって動く。
+  **JS か CSS を変更したら、この日付+英字をまとめて1つ上げてから push すること**
+  （styles.css の分も含めて全部同じ値にする）。
+-->
+<script defer src="i18n.js?v=20260813a"></script>
+<script defer src="api.js?v=20260813a"></script>
+<script defer src="app.js?v=20260813a"></script>
+<script defer src="screens-auth.js?v=20260813a"></script>
+<script defer src="screens-home.js?v=20260813a"></script>
+<script defer src="screens-project-ops.js?v=20260813a"></script>
+<script defer src="screens-project.js?v=20260813a"></script>
+<script defer src="screens-analysis.js?v=20260813a"></script>
+<script defer src="screens-generate.js?v=20260813a"></script>
+<script defer src="screens-credit.js?v=20260813a"></script>
+<script defer src="screens-admin.js?v=20260813a"></script>
 </body>
 </html>
