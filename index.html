@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#FAF8FB">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="エルピーヤ — クラウドファンディングLP・自社LP・KV・メタ広告・LINEコンテンツをまとめて作るアプリ">
+<title>エルピーヤ</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!--
+  ========== 他ファイルとの共通契約（この名前どおりに参照すること） ==========
+  1) 画面の登録は必ず次の形。第2引数は「{ render: 関数 }」オブジェクト固定。
+       App.registerScreen("S3", { render: function (root, params) { ... } });
+     呼び出し側（app.js）は spec.render(root, params) で呼ぶ。
+     window.renderXxx / window.Screens.Xxx などの別方式は使わない。
+
+  2) 画面ID一覧（ハッシュルーターの経路は "#/<画面ID>"、パラメータは "#/S8?id=..."）
+       S1  ログイン                    -> screens-auth.js
+       S2  会員登録                    -> screens-auth.js
+       S3  ダッシュボード              -> screens-home.js
+       S4  プロジェクト作成            -> screens-home.js
+       S5  プロジェクト操作メニュー    -> screens-project-ops.js
+       S6  プロジェクト名変更          -> screens-project-ops.js
+       S7  プロジェクト削除確認        -> screens-project-ops.js
+       S8  プロジェクト詳細            -> screens-project.js
+       S9  商品登録                    -> screens-project.js
+       S10 競合分析                    -> screens-analysis.js
+       S11 分析レポート                -> screens-analysis.js
+       S12 分析内容確認                -> screens-analysis.js
+       S13 生成結果                    -> screens-generate.js
+       S14 デザイン編集                -> screens-generate.js
+       S15 デバイスプレビュー拡大      -> screens-generate.js
+       S16 クレジット消費確認          -> screens-credit.js
+       S17 クレジット                  -> screens-credit.js
+       S18 管理画面                    -> screens-admin.js
+       S19 機能別クレジット価格設定    -> screens-admin.js
+       settings 設定（言語切替・アカウント情報）-> app.js が登録する唯一の画面
+
+  3) このシェルが用意するDOM（idはapp.jsからこの綴りで取得する）
+       #app-header        共通ヘッダー（高さ56px＋上端4pxグラデーションライン）
+       #header-back       戻る矢印ボタン（44×44・既定は hidden）
+       #header-title      ヘッダー中央タイトル（既定は「エルピーヤ」）
+       #header-action     ヘッダー右側スロット（44×44・任意）
+       #shared-data-notice ログイン未実装の注意書き1行
+       #banner-root       通信失敗バナーの置き場
+       #app               画面差し込み先（App.registerScreen した render がここへ描画）
+       #tabbar            下部タブバー（.tabbar__item[data-screen]）
+       #tab-admin         管理タブ（管理者のみ表示。既定は hidden）
+       #toast-root        トーストの置き場
+       #modal-root        モーダル・確認ダイアログの置き場（既定は hidden）
+
+  4) 文言は i18n.js の t(key) と data-i18n / data-i18n-aria / data-i18n-placeholder で差し替える。
+     アプリ名「エルピーヤ」だけは全言語共通で翻訳しない。
+-->
+
+<div class="app-shell">
+
+  <header id="app-header" class="app-header">
+    <div class="app-header__accent" aria-hidden="true"></div>
+    <div class="app-header__bar">
+      <button id="header-back" class="app-header__back" type="button" hidden aria-label="戻る" data-i18n-aria="common.back">
+        <svg class="app-header__back-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M15 19L8 12l7-7"></path>
+        </svg>
+      </button>
+      <h1 id="header-title" class="app-header__title">エルピーヤ</h1>
+      <div id="header-action" class="app-header__action"></div>
+    </div>
+  </header>
+
+  <p id="shared-data-notice" class="notice-line" data-i18n="common.sharedDataNotice">ログイン機能は未実装のため、このアプリを開いた全員が同じデータを見ます</p>
+
+  <div id="banner-root" class="banner-root"></div>
+
+  <main id="app" class="app-main" role="main" tabindex="-1">
+    <div class="screen">
+      <div class="skeleton skeleton--title" aria-hidden="true"></div>
+      <div class="skeleton skeleton--card" aria-hidden="true"></div>
+      <div class="skeleton skeleton--row" aria-hidden="true"></div>
+      <div class="skeleton skeleton--row" aria-hidden="true"></div>
+      <p class="loading-text" data-i18n="common.loading">読み込み中…</p>
+    </div>
+  </main>
+
+  <nav id="tabbar" class="tabbar" aria-label="メインナビゲーション" data-i18n-aria="common.mainNav">
+    <button class="tabbar__item" type="button" data-screen="S3">
+      <span class="tabbar__label" data-i18n="tab.home">ホーム</span>
+    </button>
+    <button class="tabbar__item" type="button" data-screen="S4">
+      <span class="tabbar__label" data-i18n="tab.create">作成</span>
+    </button>
+    <button class="tabbar__item" type="button" data-screen="S17">
+      <span class="tabbar__label" data-i18n="tab.credit">クレジット</span>
+    </button>
+    <button id="tab-admin" class="tabbar__item tabbar__item--admin" type="button" data-screen="S18" hidden>
+      <span class="tabbar__label" data-i18n="tab.admin">管理</span>
+    </button>
+    <button class="tabbar__item" type="button" data-screen="settings">
+      <span class="tabbar__label" data-i18n="tab.settings">設定</span>
+    </button>
+  </nav>
+
+</div>
+
+<div id="toast-root" class="toast-root" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="modal-root" class="modal-root" hidden></div>
+
+<noscript>
+  <div class="noscript-note">このアプリを使うには JavaScript を有効にしてください。</div>
+</noscript>
+
+<script defer src="i18n.js"></script>
+<script defer src="api.js"></script>
+<script defer src="app.js"></script>
+<script defer src="screens-auth.js"></script>
+<script defer src="screens-home.js"></script>
+<script defer src="screens-project-ops.js"></script>
+<script defer src="screens-project.js"></script>
+<script defer src="screens-analysis.js"></script>
+<script defer src="screens-generate.js"></script>
+<script defer src="screens-credit.js"></script>
+<script defer src="screens-admin.js"></script>
+</body>
+</html>

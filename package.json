@@ -1,0 +1,28 @@
+{
+  "name": "elpiya",
+  "version": "1.0.0",
+  "description": "エルピーヤ — クラウドファンディングLP・自社LP・KV・メタ広告・LINEコンテンツをまとめて作るアプリ（Capacitorラッパー。ビルドツールは使わず、リポジトリ直下の index.html をそのまま webDir として使用する）",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "add:ios": "npx cap add ios",
+    "add:android": "npx cap add android",
+    "sync": "npx cap sync",
+    "sync:ios": "npx cap sync ios",
+    "sync:android": "npx cap sync android",
+    "open:ios": "npx cap open ios",
+    "open:android": "npx cap open android",
+    "update:ios": "npx cap update ios",
+    "update:android": "npx cap update android",
+    "doctor": "npx cap doctor"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/ios": "^6.2.0",
+    "@capacitor/android": "^6.2.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
