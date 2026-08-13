@@ -735,29 +735,6 @@
       paintButtons();
     }
 
-    /*
-     * 選んだ機能を1件ずつ引き落とす。
-     * ponytail: 途中で失敗しても、すでに引き落とし済みの機能は戻さない（api.js の1件ずつの記録に合わせる）。
-     *           1回の取引としてまとめたいなら Supabase の RPC を足して、そこへ移すこと。
-     */
-    function consumeAll(entries, memo) {
-      var charged = [];
-      return entries.reduce(function (chain, entry) {
-        return chain.then(function () {
-          if (entry.cost <= 0) { return null; }
-          return window.Api.credits.consume(entry.key, memo).then(function (result) {
-            charged.push(entry);
-            state.user = result.user;
-            syncUser(result.user);
-            return result;
-          }, function (err) {
-            if (err) { err.chargedCount = charged.length; }
-            return Promise.reject(err);
-          });
-        });
-      }, Promise.resolve()).then(function () { return charged; });
-    }
-
     function execute(kind) {
       if (state.busy) { return; }
 
@@ -788,17 +765,13 @@
         return;
       }
 
-      var memo = (state.project && textOf(state.project.project_name)) || t('creditConfirm.title');
-
       setBusy(true);
       clearBanner();
 
-      /* 生成はここで引き落とさない。S13 が呼ぶ generate-content Edge Function が
-         LLM 成功後に消費+保存を1トランザクションで行う（先に消費すると失敗時の
-         返金経路が要るため）。分析（S11）は従来どおりここで引き落とす。 */
-      var work = (isUnlimited || kind === 'generate') ? Promise.resolve([]) : consumeAll(entries, memo);
-
-      work.then(function () {
+      /* ここではもう引き落とさない。生成は generate-content、分析は analyze-competitor の
+         各 Edge Function が成功後に消費+保存を1トランザクションで行う（先に消費すると
+         失敗時の返金経路が要るため）。この画面は消費内容の確認と実行の起点だけ。 */
+      Promise.resolve().then(function () {
         App.state = App.state || {};
         App.state.creditConfirmed = {
           mode: kind,

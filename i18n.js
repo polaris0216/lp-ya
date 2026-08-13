@@ -48,7 +48,7 @@
     'common.error': ['エラーが発生しました', 'An error occurred', '오류가 발생했습니다'],
     'common.networkError': ['通信に失敗しました。ネットワーク接続を確認して再試行してください', 'Connection failed. Please check your network and try again.', '통신에 실패했습니다. 네트워크 연결을 확인한 후 다시 시도해 주세요'],
     'common.required': ['必須項目です', 'This field is required', '필수 항목입니다'],
-    'common.sharedDataNotice': ['ログイン機能は未実装のため、このアプリを開いた全員が同じデータを見ます', 'Login is not yet implemented, so everyone who opens this app sees the same data.', '로그인 기능이 구현되어 있지 않아 이 앱을 연 모든 사람이 같은 데이터를 보게 됩니다'],
+    'common.sharedDataNotice': ['データはアカウントごとに保護され、ログインした本人だけが閲覧できます', 'Your data is private to your account and visible only to you after signing in.', '데이터는 계정별로 보호되며, 로그인한 본인만 볼 수 있습니다'],
     'common.mainNav': ['メインナビゲーション', 'Main navigation', '메인 내비게이션'],
     'common.empty': ['データがありません', 'No data yet', '데이터가 없습니다'],
     'common.copy': ['コピー', 'Copy', '복사'],

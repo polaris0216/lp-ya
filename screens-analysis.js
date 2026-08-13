@@ -163,40 +163,6 @@
     }
   ];
 
-  /* その他のページで「構造を精査して」採用する候補（採用したものを根拠として表示する） */
-  var OTHER_KV_CANDIDATES = ['div.fv', 'section#hero', 'header .visual', 'main > section:first-of-type', 'div.p-hero'];
-  var OTHER_LP_CANDIDATES = ['main', 'div#main', 'article.entry', 'div#contents', 'div.l-contents'];
-
-  var SECTION_POOL = [
-    { key: 'firstview', fixed: true },
-    { key: 'problem', fixed: true },
-    { key: 'solution', fixed: true },
-    { key: 'spec', fixed: false },
-    { key: 'proof', fixed: true },
-    { key: 'story', fixed: false },
-    { key: 'voice', fixed: false },
-    { key: 'faq', fixed: false },
-    { key: 'price', fixed: false },
-    { key: 'cta', fixed: true }
-  ];
-
-  var FACTOR_POOL = [
-    'fvBenefit', 'priceAnchor', 'problemFirst', 'proofNumber', 'ctaRepeat',
-    'specTable', 'voiceReal', 'limited', 'faqObjection', 'makerStory'
-  ];
-
-  var KV_ITEM_KEYS = {
-    image: ['kvHero', 'kvThumb', 'kvDetail', 'kvUsage', 'kvPackage', 'kvLifestyle'],
-    text: ['kvCatch', 'kvSub', 'kvBadge', 'kvPrice', 'kvDeadline'],
-    video: ['kvMovie', 'kvShort']
-  };
-
-  var LP_ITEM_KEYS = {
-    image: ['lpProblem', 'lpSolution', 'lpSpecTable', 'lpReview', 'lpMaker', 'lpCompare'],
-    text: ['lpHeadline', 'lpBody', 'lpVoice', 'lpFaq', 'lpReturn', 'lpSchedule'],
-    video: ['lpDemo', 'lpHowTo']
-  };
-
   /* ------------------------------------------------------------------
    * 追加辞書
    * i18n.js の辞書に無い文言だけをここに置く。値は [ja, en, ko] の順。
@@ -205,10 +171,20 @@
    * ------------------------------------------------------------------ */
   var LOCAL = {
     /* ---- この3画面で共通の言い回し ---- */
-    'sa.simulatedNote': [
-      'このアプリは競合サイトへ直接アクセスできないため、KV・LPの収集結果はURL・プラットフォーム判定・収集設定から組み立てた想定データです。',
-      'This app cannot reach competitor sites directly, so the collected KV and LP results are modelled from the URL, the detected platform and your collection settings.',
-      '이 앱은 경쟁 사이트에 직접 접속할 수 없으므로 KV·LP 수집 결과는 URL·플랫폼 판별·수집 설정으로 구성한 가상 데이터입니다.'
+    'sa.serverAnalysisNote': [
+      '分析はサーバーが競合ページを実際に取得して行います。ページの規模により1〜2分かかることがあります。',
+      'The analysis fetches the competitor pages on the server. It can take 1–2 minutes depending on page size.',
+      '분석은 서버가 경쟁 페이지를 실제로 가져와 수행합니다. 페이지 규모에 따라 1~2분 걸릴 수 있습니다.'
+    ],
+    'sa.analysisFailed': [
+      '分析に失敗しました。時間をおいて再実行してください。',
+      'The analysis failed. Please try again later.',
+      '분석에 실패했습니다. 잠시 후 다시 실행해 주세요.'
+    ],
+    'sa.analysisQueued': [
+      '分析を受け付けました。完了までこの画面でお待ちください（開発モード：ローカルエージェントが処理します）。',
+      'The analysis has been queued. Please wait on this screen (dev mode: a local agent will process it).',
+      '분석이 접수되었습니다. 완료까지 이 화면에서 기다려 주세요(개발 모드: 로컬 에이전트가 처리합니다).'
     ],
     'sa.noProject': [
       'プロジェクトが選ばれていません。ダッシュボードからプロジェクトを開いてください。',
@@ -983,164 +959,6 @@
    * 外部サイトへ通信できないため、URL・プラットフォーム・収集設定から
    * 毎回同じ結果になるように組み立てる。
    * ------------------------------------------------------------------ */
-  function makeRng(seedText) {
-    var s = 5381;
-    var i;
-    var text = String(seedText || 'elpiya');
-    for (i = 0; i < text.length; i++) {
-      s = (((s * 33) ^ text.charCodeAt(i)) >>> 0);
-    }
-    if (s === 0) { s = 1; }
-    return {
-      next: function () {
-        s = (s * 1664525 + 1013904223) >>> 0;
-        return s / 4294967296;
-      },
-      int: function (min, max) {
-        return min + Math.floor(this.next() * (max - min + 1));
-      },
-      pick: function (list) {
-        return list[Math.floor(this.next() * list.length)];
-      }
-    };
-  }
-
-  function buildItems(kind, media, rng) {
-    var table = kind === 'kv' ? KV_ITEM_KEYS : LP_ITEM_KEYS;
-    var counts = { text: 0, image: 0, video: 0 };
-    var items = [];
-
-    /* 並びが設定順で変わらないよう、必ず text -> image -> video の順に見る */
-    MEDIA_TYPES.forEach(function (type) {
-      if (media.indexOf(type) === -1) { return; }
-      var pool = table[type] || [];
-      if (!pool.length) { return; }
-
-      var howMany;
-      if (type === 'image') { howMany = kind === 'kv' ? rng.int(3, 6) : rng.int(4, 8); }
-      else if (type === 'text') { howMany = kind === 'kv' ? rng.int(2, 5) : rng.int(5, 9); }
-      else { howMany = kind === 'kv' ? rng.int(0, 2) : rng.int(0, 1); }
-
-      var i;
-      for (i = 0; i < howMany; i++) {
-        var key = pool[i % pool.length];
-        items.push({
-          type: type,
-          key: key,
-          label: LOCAL['item.' + key] ? LOCAL['item.' + key][0] : key,
-          index: Math.floor(i / pool.length) + 1
-        });
-        counts[type] += 1;
-      }
-    });
-
-    return { items: items, counts: counts };
-  }
-
-  function collectOne(kind, entry, conf, rng, assets, errors) {
-    var selectors = cleanSelectors(conf.selectors);
-    var media = (conf.media || []).slice();
-    var auto = false;
-    var basisKey = null;
-
-    if (!selectors.length) {
-      if (entry.platform === 'other') {
-        /* その他のページは構造を精査して判定し、採用セレクタを根拠として残す */
-        auto = true;
-        selectors = [rng.pick(kind === 'kv' ? OTHER_KV_CANDIDATES : OTHER_LP_CANDIDATES)];
-        basisKey = kind === 'kv' ? 's11.basisAuto' : 's11.basisAutoLp';
-      } else {
-        errors.push({
-          url: entry.url,
-          platform: entry.platform,
-          kind: kind,
-          reasonKey: 's11.errSelectorMissing',
-          message: LOCAL['s11.errSelectorMissing'][0]
-        });
-        return;
-      }
-    }
-
-    if (!media.length) {
-      errors.push({
-        url: entry.url,
-        platform: entry.platform,
-        kind: kind,
-        reasonKey: 's11.errMediaNone',
-        message: LOCAL['s11.errMediaNone'][0]
-      });
-      return;
-    }
-
-    var built = buildItems(kind, media, rng);
-    if (!built.items.length) {
-      errors.push({
-        url: entry.url,
-        platform: entry.platform,
-        kind: kind,
-        reasonKey: 's11.errNotFound',
-        message: LOCAL['s11.errNotFound'][0]
-      });
-      return;
-    }
-
-    assets.push({
-      url: entry.url,
-      platform: entry.platform,
-      selectors: selectors,
-      auto: auto,
-      basisKey: basisKey,
-      counts: built.counts,
-      items: built.items
-    });
-  }
-
-  function buildStructure(rng) {
-    var picked = [];
-    SECTION_POOL.forEach(function (section) {
-      if (section.fixed) { picked.push(section.key); return; }
-      if (rng.next() > 0.45) { picked.push(section.key); }
-    });
-
-    var weights = picked.map(function () { return rng.int(6, 20); });
-    var total = 0;
-    weights.forEach(function (one) { total += one; });
-
-    return picked.map(function (key, index) {
-      var ratio = Math.max(4, Math.round((weights[index] / total) * 100));
-      return {
-        key: key,
-        label: LOCAL['sec.' + key] ? LOCAL['sec.' + key][0] : key,
-        ratio: ratio,
-        cta: key === 'cta' || key === 'firstview' || key === 'price',
-        priceShown: key === 'price' || key === 'firstview',
-        order: index + 1
-      };
-    });
-  }
-
-  function buildFactors(rng, entries) {
-    var scored = FACTOR_POOL.map(function (key) {
-      return { key: key, weight: rng.int(52, 98) };
-    });
-    scored.sort(function (a, b) { return b.weight - a.weight; });
-
-    /* 「売れた理由」は3件以上という約束なので、下限を4件にしておく */
-    var howMany = Math.min(scored.length, rng.int(4, 6));
-    var top = scored.slice(0, howMany);
-
-    return top.map(function (one) {
-      var evidenceIndex = entries.length ? rng.int(0, entries.length - 1) : 0;
-      return {
-        key: one.key,
-        label: LOCAL['fac.' + one.key] ? LOCAL['fac.' + one.key][0] : one.key,
-        weight: one.weight,
-        evidence: entries.length ? entries[evidenceIndex].url : '',
-        selected: true
-      };
-    });
-  }
-
   /* ------------------------------------------------------------------
    * レポート1行の読み書き
    * ------------------------------------------------------------------ */
@@ -1186,34 +1004,6 @@
       out.push({ url: url, platform: platform });
     });
     return out;
-  }
-
-  function buildAnalysis(report) {
-    var entries = entriesOf(report);
-    var keys = usedPlatformKeys(entries);
-    var kvConf = normalizeConfMap(report.kv_selectors, 'kv', keys);
-    var lpConf = normalizeConfMap(report.lp_selectors, 'lp', keys);
-
-    var kvAssets = [];
-    var lpAssets = [];
-    var errors = [];
-
-    entries.forEach(function (entry) {
-      var rng = makeRng(entry.url + '|' + entry.platform);
-      collectOne('kv', entry, kvConf[entry.platform] || defaultConf(entry.platform, 'kv'), rng, kvAssets, errors);
-      collectOne('lp', entry, lpConf[entry.platform] || defaultConf(entry.platform, 'lp'), rng, lpAssets, errors);
-    });
-
-    var shared = makeRng(entries.map(function (entry) { return entry.url; }).join('+'));
-
-    return {
-      kv_assets: kvAssets,
-      lp_assets: lpAssets,
-      page_structure: buildStructure(shared),
-      success_factors: buildFactors(shared, entries),
-      collection_errors: errors,
-      analysis_status: STATUS_DONE
-    };
   }
 
   function reportPayload(entries, kvConf, lpConf, status) {
@@ -1690,7 +1480,7 @@
         add(wrap, info);
       }
 
-      add(wrap, el('div', 'note-box', t('sa.simulatedNote')));
+      add(wrap, el('div', 'note-box', t('sa.serverAnalysisNote')));
 
       var inputSection = el('section', 'section');
       add(inputSection, urlField());
@@ -1792,6 +1582,11 @@
       });
     }
 
+    /* 分析はサーバー（analyze-competitor Edge Function）が行う。
+       競合ページの取得・LLM分析・クレジット消費+保存はすべてサーバー側で、
+       この画面は実行の起点と完了待ちだけを受け持つ。
+       開発モード（サーバーにキーが無い間）は {queued, job_id} が返るので、
+       ジョブの完了をポーリングしてからレポートを読み直す。 */
     function runCollection() {
       clear(root);
       var wrap = el('div', 'screen');
@@ -1799,16 +1594,64 @@
       add(wrap, el('div', 'skeleton skeleton--row'));
       add(wrap, el('div', 'skeleton skeleton--row'));
       add(wrap, el('p', 'loading-text', t('s11.collecting')));
+      add(wrap, el('p', 't-note t-center', t('sa.serverAnalysisNote')));
       root.appendChild(wrap);
 
-      var result = buildAnalysis(view.report);
+      if (!window.Api.analysis || typeof window.Api.analysis.run !== 'function') {
+        console.error('[screens-analysis] Api.analysis.run がありません。api.js を確認してください。');
+        showFailure(root, t('common.error'), runCollection);
+        return;
+      }
 
-      window.Api.analysisReports.update(view.report.id, result).then(function (row) {
-        view.report = row;
-        drawReport();
+      function reloadReport() {
+        return window.Api.analysisReports.get(view.report.id).then(function (row) {
+          view.report = row;
+          drawReport();
+        }, function (err) {
+          console.error('[screens-analysis] 分析後のレポート再取得に失敗しました', err);
+          showFailure(root, errorMessage(err, 'report.loadFailed'), reloadReport);
+        });
+      }
+
+      function waitForJob(jobId) {
+        var POLL_MS = 5000;
+        var LIMIT_MS = 10 * 60 * 1000;
+        var startedAt = Date.now();
+        function tick() {
+          if (Date.now() - startedAt > LIMIT_MS) {
+            showFailure(root, t('sa.analysisFailed'), runCollection);
+            return;
+          }
+          window.Api.generationJobs.get(jobId).then(function (job) {
+            if (job && job.status === 'done') { reloadReport(); return; }
+            if (job && job.status === 'failed') {
+              console.error('[screens-analysis] 分析ジョブが失敗しました', job.error);
+              showFailure(root, t('sa.analysisFailed'), runCollection);
+              return;
+            }
+            setTimeout(tick, POLL_MS);
+          }, function (err) {
+            console.error('[screens-analysis] ジョブの確認に失敗しました。続けて確認します', err);
+            setTimeout(tick, POLL_MS);
+          });
+        }
+        setTimeout(tick, POLL_MS);
+      }
+
+      window.Api.analysis.run({
+        report_id: String(view.report.id),
+        lang: (App.getLang && App.getLang()) || 'ja'
+      }).then(function (result) {
+        if (result && result.queued) {
+          toast(t('sa.analysisQueued'), 'info');
+          waitForJob(result.job_id);
+          return;
+        }
+        if (result && result.user && App.setUser) { App.setUser(result.user, { silent: true }); }
+        reloadReport();
       }, function (err) {
-        console.error('[screens-analysis] 分析結果の保存に失敗しました', err);
-        showFailure(root, errorMessage(err, 's11.runFailed'), runCollection);
+        console.error('[screens-analysis] 分析の実行に失敗しました', err);
+        showFailure(root, errorMessage(err, 'sa.analysisFailed'), runCollection);
       });
     }
 
@@ -2232,8 +2075,6 @@
       add(dateRow, el('span', 'info-row__val', formatDateTime(report.created_at)));
       add(meta, dateRow);
       add(wrap, meta);
-
-      add(wrap, el('div', 'note-box', t('sa.simulatedNote')));
 
       var errorNode = errorSection(errors);
       if (errorNode) { add(wrap, errorNode); }
@@ -2677,38 +2518,8 @@
       assert(resolveReportId({ reportId: 'a' }) === 'a', 'reportId を読む');
       assert(resolveReportId({ report: 'b' }) === 'b', 'report も読む（S13 の綴り）');
 
-      var report = {
-        competitor_urls: ['https://www.makuake.com/project/a', 'https://example.co.jp/lp'],
-        source_platforms: ['makuake', 'other'],
-        kv_selectors: {
-          makuake: { selectors: [], media: ['image'] },
-          other: { selectors: [], media: ['image', 'text'] }
-        },
-        lp_selectors: {
-          makuake: { selectors: ['div#main'], media: ['text'] },
-          other: { selectors: [], media: ['text'] }
-        }
-      };
-      var built = buildAnalysis(report);
-      assert(built.collection_errors.length === 1, 'セレクタ空はエラー1件（その他は自動判定なのでエラーにしない）');
-      assert(built.collection_errors[0].platform === 'makuake', 'エラーは Makuake のもの');
-      assert(built.collection_errors[0].kind === 'kv', 'エラーの種別は KV');
-      assert(built.kv_assets.length === 1, 'エラーがあっても他のURLの収集は続く');
-      assert(built.lp_assets.length === 2, 'LPは2件とも収集できる');
-      assert(built.lp_assets[1].auto === true, 'その他は自動判定で採用セレクタを決める');
-      assert(built.success_factors.length >= 3, '売れた理由は3件以上');
-      assert(built.page_structure.length >= 5, 'ページ構成は5件以上');
-      assert(built.analysis_status === STATUS_DONE, '収集後の状態は done');
-
-      var keys = built.page_structure.map(function (one) { return one.key; });
-      ['firstview', 'problem', 'solution', 'proof', 'cta'].forEach(function (key) {
-        assert(keys.indexOf(key) !== -1, 'ページ構成に ' + key + ' がある');
-      });
-
-      var again = buildAnalysis(report);
-      assert(JSON.stringify(again.page_structure) === JSON.stringify(built.page_structure), '同じ入力なら同じ結果になる');
-      assert(JSON.stringify(again.kv_assets) === JSON.stringify(built.kv_assets), '収集結果も同じになる');
-
+      /* 分析の中身はサーバー（analyze-competitor）が作るので、ここでは
+         レポート行の読み書きの整形だけを確認する */
       var entries = entriesOf({ competitor_urls: ['https://www.makuake.com/x'], source_platforms: [] });
       assert(entries[0].platform === 'makuake', 'source_platforms が無くてもURLから判定する');
 

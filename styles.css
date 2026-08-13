@@ -45,13 +45,13 @@
    1. デザイントークン
    -------------------------------------------------------------------------- */
 :root {
-  /* 面と文字 */
-  --c-bg: #FAF8FB;            /* オフホワイト背景 */
+  /* 面と文字（白基調・無彩色グレー：Accenture/博報堂 参照） */
+  --c-bg: #FFFFFF;            /* 白背景 */
   --c-surface: #FFFFFF;       /* 面・カード */
-  --c-text: #171018;          /* 本文字 */
-  --c-text-sub: #6B6270;      /* 副文字 */
-  --c-line: #ECE6EE;          /* 罫線 */
-  --c-skeleton: #F1EDF3;      /* ローディング矩形 */
+  --c-text: #111111;          /* 本文字 */
+  --c-text-sub: #6E6E6E;      /* 副文字 */
+  --c-line: #E6E6E6;          /* 罫線 */
+  --c-skeleton: #F2F2F2;      /* ローディング矩形 */
 
   /* ブランド */
   --c-main: #C13584;
@@ -66,38 +66,38 @@
   --c-danger-bg: #FFF3F6;
   --c-success: #2E7D57;
 
-  /* グラデーション（この2本以外は作らない） */
+  /* グラデーション（アクセント限定：上端ライン・CTA・残高カードのみ。この2本以外は作らない） */
   --grad-main: linear-gradient(135deg, #C13584 0%, #5B2A86 55%, #515BD4 100%);
-  --grad-soft: linear-gradient(180deg, rgba(193, 53, 132, .06), rgba(81, 91, 212, .06));
+  --grad-soft: linear-gradient(180deg, rgba(193, 53, 132, .05), rgba(81, 91, 212, .05));
 
   /* フォントスタック（意図書のとおり） */
   --font-title: system-ui, -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
   --font-sub: 'Hiragino Sans', system-ui, -apple-system, 'Noto Sans JP', sans-serif;
   --font-body: -apple-system, system-ui, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
 
-  /* タイポ3段階 */
-  --fs-title: 22px;
-  --lh-title: 1.35;
+  /* タイポ3段階（見出しは大きく太く） */
+  --fs-title: 26px;
+  --lh-title: 1.3;
   --fs-sub: 17px;
   --fs-body: 15px;
   --lh-body: 1.6;
   --fs-note: 13px;
   --fs-input: 16px;   /* iOSズーム防止 */
 
-  /* 余白（4の倍数） */
-  --sp-screen: 20px;  /* 画面左右 */
+  /* 余白（4の倍数・広めに取る） */
+  --sp-screen: 24px;  /* 画面左右 */
   --sp-item: 12px;    /* 要素間 */
-  --sp-group: 16px;   /* グループ間 */
-  --sp-section: 24px; /* セクション間 */
+  --sp-group: 20px;   /* グループ間 */
+  --sp-section: 36px; /* セクション間 */
 
-  /* 角丸 */
-  --r-card: 16px;
-  --r-control: 12px;
+  /* 角丸（コーポレートミニマル：ほぼ直角） */
+  --r-card: 4px;
+  --r-control: 4px;
   --r-pill: 999px;
-  --r-thumb: 12px;
+  --r-thumb: 4px;
 
   /* 影は「実際に浮くもの」だけ */
-  --shadow-float: 0 8px 24px rgba(91, 42, 134, .12);
+  --shadow-float: 0 6px 20px rgba(0, 0, 0, .10);
 
   /* 寸法 */
   --h-header: 56px;
@@ -180,19 +180,19 @@ button {
   color: inherit;
 }
 
-a { color: var(--c-main); }
+a { color: var(--c-sub); }
 
 table { border-collapse: collapse; width: 100%; }
 
 [hidden] { display: none !important; }
 
 :focus-visible {
-  outline: 2px solid var(--c-main);
+  outline: 2px solid var(--c-sub);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: rgba(193, 53, 132, .16);
+  background: rgba(91, 42, 134, .14);
   color: var(--c-text);
 }
 
@@ -264,7 +264,7 @@ table { border-collapse: collapse; width: 100%; }
   text-align: center;
   font-family: var(--font-sub);
   font-size: var(--fs-sub);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.35;
   color: var(--c-text);
   white-space: nowrap;
@@ -329,7 +329,8 @@ table { border-collapse: collapse; width: 100%; }
 .screen__title {
   font-family: var(--font-title);
   font-size: var(--fs-title);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: var(--lh-title);
   color: var(--c-text);
   margin: 0;
@@ -345,7 +346,17 @@ table { border-collapse: collapse; width: 100%; }
 .screen__head {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
+}
+
+/* 見出し下の短いグラデーション罫線（グラデはアクセント限定で使う） */
+.screen__head::after {
+  content: '';
+  width: 40px;
+  height: 3px;
+  margin-top: 8px;
+  background: var(--grad-main);
 }
 
 /* --- 下部タブバー --- */
@@ -382,7 +393,7 @@ table { border-collapse: collapse; width: 100%; }
 
 .tabbar__item:active { opacity: .88; }
 
-.tabbar__item--active { color: var(--c-main); }
+.tabbar__item--active { color: var(--c-sub); }
 
 .tabbar__label {
   display: block;
@@ -398,7 +409,8 @@ table { border-collapse: collapse; width: 100%; }
 .t-title {
   font-family: var(--font-title);
   font-size: var(--fs-title);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: var(--lh-title);
 }
 
@@ -605,7 +617,7 @@ a.card:active,
 .card__value {
   font-family: var(--font-title);
   font-size: var(--fs-title);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--lh-title);
   font-variant-numeric: tabular-nums;
 }
@@ -713,14 +725,14 @@ a.card:active,
 }
 
 .input::placeholder,
-.textarea::placeholder { color: #A79FAC; }
+.textarea::placeholder { color: #9A9A9A; }
 
 .input:focus,
 .textarea:focus,
 .select:focus {
   outline: none;
-  border-color: var(--c-main);
-  box-shadow: 0 0 0 3px rgba(193, 53, 132, .12);
+  border-color: var(--c-sub);
+  box-shadow: 0 0 0 3px rgba(91, 42, 134, .14);
 }
 
 .input:disabled,
@@ -775,8 +787,8 @@ a.card:active,
 
 .search__input:focus {
   outline: none;
-  border-color: var(--c-main);
-  box-shadow: 0 0 0 3px rgba(193, 53, 132, .12);
+  border-color: var(--c-sub);
+  box-shadow: 0 0 0 3px rgba(91, 42, 134, .14);
 }
 
 /* 数値入力のスピナーを消す（クレジット・価格） */
@@ -835,17 +847,17 @@ a.card:active,
   border-color: transparent;
 }
 
-/* 副ボタン：白地・1px罫線 */
+/* 副ボタン：白地・黒1px枠（Accenture風アウトライン） */
 .btn--secondary {
   background: var(--c-surface);
   color: var(--c-text);
-  border-color: var(--c-line);
+  border-color: var(--c-text);
 }
 
 /* テキストボタン */
 .btn--text {
   background: none;
-  color: var(--c-main);
+  color: var(--c-sub);
   border-color: transparent;
   padding: 10px 8px;
 }
@@ -947,7 +959,7 @@ a.card:active,
 .chip:active { opacity: .88; }
 
 .chip--selected {
-  background: var(--grad-main);
+  background: var(--c-sub);
   border-color: transparent;
   color: var(--c-white);
 }
@@ -986,7 +998,7 @@ a.card:active,
 
 .tabs__item:active { opacity: .88; }
 
-.tabs__item--active { color: var(--c-main); }
+.tabs__item--active { color: var(--c-sub); }
 
 .tabs__item--active::after {
   content: '';
@@ -1174,7 +1186,7 @@ a.list-row:active { opacity: .88; }
   flex: 0 0 auto;
   width: 22px;
   height: 22px;
-  accent-color: var(--c-main);
+  accent-color: var(--c-sub);
   margin: 0;
 }
 
@@ -1196,7 +1208,7 @@ a.list-row:active { opacity: .88; }
   flex: 0 0 auto;
   width: 22px;
   height: 22px;
-  accent-color: var(--c-main);
+  accent-color: var(--c-sub);
   margin: 0;
 }
 
@@ -1213,7 +1225,7 @@ a.list-row:active { opacity: .88; }
 
 .progress__bar {
   height: 100%;
-  background: var(--c-main);
+  background: var(--c-sub);
   border-radius: var(--r-pill);
 }
 
@@ -1420,8 +1432,8 @@ a.list-row:active { opacity: .88; }
 }
 
 .editor-node--selected {
-  border-color: var(--c-main);
-  box-shadow: 0 0 0 3px rgba(193, 53, 132, .12);
+  border-color: var(--c-sub);
+  box-shadow: 0 0 0 3px rgba(91, 42, 134, .14);
 }
 
 /* 生成HTML・コードの表示 */
@@ -1654,7 +1666,7 @@ a.list-row:active { opacity: .88; }
   justify-content: center;
   padding: var(--sp-screen);
   padding-bottom: calc(var(--sp-screen) + var(--safe-bottom));
-  background: rgba(23, 16, 24, .40);
+  background: rgba(17, 17, 17, .44);
 }
 
 .modal {

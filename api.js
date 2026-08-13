@@ -815,6 +815,32 @@
     return callFunction('generate-content', payload || {}, 'POST', { timeoutMs: 120000 });
   };
 
+  /* 競合LP分析。スクレイピング・LLM分析・消費+保存は analyze-competitor
+     Edge Function（サーバー側）が行う。開発モード中は {queued, job_id} が返る。 */
+  api.analysis = {
+    run: function (payload) {
+      return callFunction('analyze-competitor', payload || {}, 'POST', { timeoutMs: 180000 });
+    }
+  };
+
+  /* LP A/Bテスト（公開と計測）。すべて 007 の SECURITY DEFINER RPC。
+     テーブルを anon に開かないための窓口なので、直接 REST を叩かないこと。 */
+  api.lp = {
+    publish: function (generationId, html) {
+      return rpc('elpiya_publish_lp', {
+        p_generation: String(generationId),
+        p_html: html === undefined || html === null ? null : String(html),
+        p_publish: true
+      });
+    },
+    unpublish: function (generationId) {
+      return rpc('elpiya_publish_lp', { p_generation: String(generationId), p_html: null, p_publish: false });
+    },
+    metrics: function (projectId) {
+      return rpc('elpiya_lp_metrics', { p_project: String(projectId) });
+    }
+  };
+
   api.credits = {
     balance: balance,
     consume: consume,
