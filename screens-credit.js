@@ -42,7 +42,7 @@
  *   features     'kv_generation,meta_ads' のように機能キーをカンマで並べたもの（任意）
  *   reportId     参照する分析レポートID（任意。実行後の遷移先へそのまま引き継ぐ）
  *   generationId 参照する生成物ID（任意。同上）
- *   例: location.hash = '#/S16?id=' + projectId + '&mode=generate&features=kv_generation,meta_ads'
+ *   例: location.hash = '#/S16?id=' + projectId + '&mode=generate&features=crowdfunding_lp,meta_ads'
  *
  * ---- S16 が実行後に残すもの（S11 分析レポート / S13 生成結果 が読む）----
  *   App.state.creditConfirmed = {
@@ -53,16 +53,19 @@
  *     projectId, reportId, generationId,
  *     at: ISO文字列
  *   }
- *   クレジットの引き落としと credit_transactions への記録はこの画面が行う。
- *   実際の分析・生成の中身づくりは遷移先（S11 / S13）が creditConfirmed を見て行う。
+ *   分析（mode=analysis）の引き落としと credit_transactions への記録はこの画面が行い、
+ *   中身づくりは S11 が creditConfirmed を見て行う。
+ *   生成（mode=generate）はこの画面では引き落とさない。S13 が creditConfirmed を見て
+ *   generate-content Edge Function を呼び、サーバー側が LLM 成功後に消費+保存する。
  *
  * ---- S17 が受け取る params ----
  *   returnTo    'S16' のとき、消費確認へ戻るボタンを出す
  *   id / mode / features / reportId / generationId  戻るときにそのまま S16 へ返す
  *
- * ---- 機能キー（S18 管理画面・S19 機能別価格設定と同じ綴りを使う）----
- *   competitor_analysis 競合LP分析 / generation クラファンLP・自社LP生成 /
- *   kv_generation KV生成 / meta_ads メタ広告文生成 / line_content LINEコンテンツ生成 /
+ * ---- 機能キー（a2f58db45_feature_credits の実データと同じ綴りを使う）----
+ *   competitor_analysis 競合LP分析 / crowdfunding_lp クラファンLP生成 /
+ *   own_lp 自社LP生成 / kv_creative KV生成 / meta_ads メタ広告文生成 /
+ *   line_contents LINEコンテンツ生成 /
  *   project_create プロジェクト作成（S4 が消費する。S16 の一覧には出さない）
  *   credit_unit_price は機能ではなく「1クレジットあたりの円」を入れる特別な行。
  *
@@ -99,13 +102,17 @@
   var HISTORY_LIMIT = 50;
   var MAX_COUPON_LENGTH = 32;
 
-  /* 機能別の既定クレジット。a2f58db45_feature_credits に行があればそちらを優先する */
+  /* 機能別の既定クレジット。a2f58db45_feature_credits に行があればそちらを優先する。
+     キーの綴りは feature_credits の実データに合わせる。ここがズレていると
+     elpiya_consume_credit が feature_not_found で落ちる（旧: generation / kv_generation /
+     line_content という実在しないキーが並んでいて、生成の実行が必ず失敗する状態だった）。 */
   var FEATURE_DEFAULTS = [
     { key: 'competitor_analysis', cost: 40, kind: 'analysis', name: ['競合LP分析', 'Competitor LP analysis', '경쟁 LP 분석'] },
-    { key: 'generation', cost: 60, kind: 'generate', name: ['クラファンLP・自社LP生成', 'Crowdfunding & brand LP generation', '크라우드펀딩·자사 LP 생성'] },
-    { key: 'kv_generation', cost: 20, kind: 'generate', name: ['KV生成', 'Key visual generation', 'KV 생성'] },
-    { key: 'meta_ads', cost: 15, kind: 'generate', name: ['メタ広告文生成', 'Meta ad copy generation', '메타 광고 문구 생성'] },
-    { key: 'line_content', cost: 15, kind: 'generate', name: ['LINEコンテンツ生成', 'LINE content generation', 'LINE 콘텐츠 생성'] }
+    { key: 'crowdfunding_lp', cost: 60, kind: 'generate', name: ['クラファンLP生成', 'Crowdfunding LP generation', '크라우드펀딩 LP 생성'] },
+    { key: 'own_lp', cost: 60, kind: 'generate', name: ['自社LP生成（LINE導線つき）', 'Brand LP generation (with LINE)', '자사 LP 생성(LINE 도선 포함)'] },
+    { key: 'kv_creative', cost: 30, kind: 'generate', name: ['KV生成', 'Key visual generation', 'KV 생성'] },
+    { key: 'meta_ads', cost: 30, kind: 'generate', name: ['メタ広告文生成', 'Meta ad copy generation', '메타 광고 문구 생성'] },
+    { key: 'line_contents', cost: 30, kind: 'generate', name: ['LINEコンテンツ生成', 'LINE content generation', 'LINE 콘텐츠 생성'] }
   ];
 
   /*
@@ -416,7 +423,11 @@
     } else {
       App.state = { user: user, creditBalance: Number(user.credit_balance) || 0 };
     }
-    if (typeof App.setUser === 'function') { App.setUser(user); }
+    /* silent が要る。App.setUser は既定で画面全体を描き直すため、
+       描画中に呼ぶ（この関数は loadUser から呼ばれる）と
+       描画→取得→setUser→描画… の無限ループになり、
+       チェックした機能が毎回消えて「生成を実行」が押せなくなる。 */
+    if (typeof App.setUser === 'function') { App.setUser(user, { silent: true }); }
     else if (typeof App.setBalance === 'function') { App.setBalance(Number(user.credit_balance) || 0); }
   }
 
@@ -724,29 +735,6 @@
       paintButtons();
     }
 
-    /*
-     * 選んだ機能を1件ずつ引き落とす。
-     * ponytail: 途中で失敗しても、すでに引き落とし済みの機能は戻さない（api.js の1件ずつの記録に合わせる）。
-     *           1回の取引としてまとめたいなら Supabase の RPC を足して、そこへ移すこと。
-     */
-    function consumeAll(entries, memo) {
-      var charged = [];
-      return entries.reduce(function (chain, entry) {
-        return chain.then(function () {
-          if (entry.cost <= 0) { return null; }
-          return window.Api.credits.consume(entry.key, memo).then(function (result) {
-            charged.push(entry);
-            state.user = result.user;
-            syncUser(result.user);
-            return result;
-          }, function (err) {
-            if (err) { err.chargedCount = charged.length; }
-            return Promise.reject(err);
-          });
-        });
-      }, Promise.resolve()).then(function () { return charged; });
-    }
-
     function execute(kind) {
       if (state.busy) { return; }
 
@@ -777,14 +765,13 @@
         return;
       }
 
-      var memo = (state.project && textOf(state.project.project_name)) || t('creditConfirm.title');
-
       setBusy(true);
       clearBanner();
 
-      var work = isUnlimited ? Promise.resolve([]) : consumeAll(entries, memo);
-
-      work.then(function () {
+      /* ここではもう引き落とさない。生成は generate-content、分析は analyze-competitor の
+         各 Edge Function が成功後に消費+保存を1トランザクションで行う（先に消費すると
+         失敗時の返金経路が要るため）。この画面は消費内容の確認と実行の起点だけ。 */
+      Promise.resolve().then(function () {
         App.state = App.state || {};
         App.state.creditConfirmed = {
           mode: kind,

@@ -31,7 +31,7 @@
  *   App.setHeader({ title, back })    … 共通ヘッダー
  *   App.setTabbarVisible(真偽値)      … 下部タブバーの出し分け（S6・S7 では隠す）
  *   App.toast(文言, 種類)             … トースト
- *   App.currentUser                   … 現在ユーザー（無ければ Api.storage.get('userId')）
+ *   App.getUser()                     … 現在ユーザー（無ければ Api.storage.get('userId')）
  *
  * このファイルが触る class は styles.css に実在するものだけ:
  *   screen / section / section__head / section__title
@@ -51,7 +51,7 @@
  *   header-title / header-back / tabbar / banner-root / toast-root / modal-root
  *
  * ログイン機能は未実装で、業務データは共有の Supabase に入る。
- * このアプリを開いた全員が同じプロジェクトを見る（注意書きは index.html の #shared-data-notice）。
+ * プロジェクトは RLS により本人の分だけ見える（旧: 全員共有だった）。
  */
 (function (window, document) {
   'use strict';
@@ -414,7 +414,9 @@
   }
 
   function currentUserId() {
-    if (App.currentUser && App.currentUser.id) { return String(App.currentUser.id); }
+    /* app.js が持っている現在ユーザーは getUser() で取る（App.currentUser は存在しない） */
+    var user = (typeof App.getUser === 'function') ? App.getUser() : App.currentUser;
+    if (user && user.id) { return String(user.id); }
     if (Api && Api.storage) {
       var stored = Api.storage.get('userId');
       if (stored) { return String(stored); }
@@ -667,9 +669,13 @@
         console.warn('[screens-project-ops.js] 既存のプロジェクト名を取得できませんでした。連番なしの名前で複製します。', err);
         return [];
       }).then(function (names) {
+        var copyName = uniqueCopyName(project.project_name, names);
+        /* name / status は NOT NULL でデフォルトが無い（screens-home.js の作成側と同じ理由） */
         return Api.projects.insert({
           users_id: project.users_id,
-          project_name: uniqueCopyName(project.project_name, names),
+          project_name: copyName,
+          name: copyName,
+          status: project.status || 'active',
           product_name: project.product_name,
           price: project.price,
           product_features: project.product_features,

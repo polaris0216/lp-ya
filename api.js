@@ -93,6 +93,10 @@
   var TIMEOUT_MS = 15000;
   var AUTO_RETRY_DELAY_MS = 700;
   var STORAGE_PREFIX = 'elpiya.';
+  // Google ログインは Supabase 側に OAuth を設定するまで使えない。未設定のまま
+  // authorize へ飛ばすと 400 が返り、アプリを離れて生のエラーJSONが表示される。
+  // docs/SUPABASE-SETUP.md の手順4 を終えたら true にする（ここ1か所だけ）。
+  var GOOGLE_LOGIN_ENABLED = false;
   // session はログイン状態そのもの。これだけは端末に置かないと開くたびログインになる。
   var ALLOWED_STORAGE_KEYS = ['lang', 'session', 'userId', 'projectId', 'analysisReportId', 'generationId'];
 
@@ -101,6 +105,7 @@
     projects: TABLE_PREFIX + 'projects',
     analysisReports: TABLE_PREFIX + 'analysis_reports',
     generations: TABLE_PREFIX + 'generations',
+    generationJobs: TABLE_PREFIX + 'generation_jobs',
     creditTransactions: TABLE_PREFIX + 'credit_transactions',
     featureCredits: TABLE_PREFIX + 'feature_credits',
     coupons: TABLE_PREFIX + 'coupons',
@@ -327,7 +332,7 @@
       if (body !== undefined && body !== null) { init.body = JSON.stringify(body); }
       if (controller) {
         init.signal = controller.signal;
-        timer = setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
+        timer = setTimeout(function () { controller.abort(); }, opts.timeoutMs || TIMEOUT_MS);
       }
 
       return fetch(url, init).then(function (res) {
@@ -495,9 +500,14 @@
 
     // 本物の Google OAuth。ブラウザごと Supabase へ飛ばし、戻り先の URL の
     // ハッシュにトークンが付いて返ってくる（consumeRedirect が拾う）。
+    // 設定前は false を返すだけで、画面遷移しない（呼び出し側が案内を出す）。
+    googleEnabled: function () { return GOOGLE_LOGIN_ENABLED; },
+
     signInWithGoogle: function (redirectTo) {
+      if (!GOOGLE_LOGIN_ENABLED) { return false; }
       var back = redirectTo || (global.location.origin + global.location.pathname);
       global.location.href = AUTH_BASE + 'authorize?provider=google&redirect_to=' + encodeURIComponent(back);
+      return true;
     },
 
     /*
@@ -576,9 +586,14 @@
   }
 
   /* ---------- Edge Function ---------- */
-  function callFunction(name, body, method) {
+  function callFunction(name, body, method, opts) {
+    var extra = opts || {};
     return retriable(function () {
-      return request(method || 'POST', name, body, { base: FUNCTIONS_BASE, autoRetry: 0 });
+      return request(method || 'POST', name, body, {
+        base: FUNCTIONS_BASE,
+        autoRetry: 0,
+        timeoutMs: extra.timeoutMs
+      });
     });
   }
 
@@ -685,6 +700,7 @@
     projects: makeTable(TABLES.projects),
     analysisReports: makeTable(TABLES.analysisReports),
     generations: makeTable(TABLES.generations),
+    generationJobs: makeTable(TABLES.generationJobs),
     creditTransactions: makeTable(TABLES.creditTransactions),
     featureCredits: makeTable(TABLES.featureCredits),
     coupons: makeTable(TABLES.coupons),
@@ -792,6 +808,38 @@
   api.auth = auth;
   api.rpc = rpc;
   api.fn = callFunction;
+
+  /* 生成。中身づくりとクレジット消費は generate-content Edge Function（サーバー側）が
+     LLM成功後に1トランザクションで行う。LLM の応答を待つため、タイムアウトだけ長く取る。 */
+  api.generations.generate = function (payload) {
+    return callFunction('generate-content', payload || {}, 'POST', { timeoutMs: 120000 });
+  };
+
+  /* 競合LP分析。スクレイピング・LLM分析・消費+保存は analyze-competitor
+     Edge Function（サーバー側）が行う。開発モード中は {queued, job_id} が返る。 */
+  api.analysis = {
+    run: function (payload) {
+      return callFunction('analyze-competitor', payload || {}, 'POST', { timeoutMs: 180000 });
+    }
+  };
+
+  /* LP A/Bテスト（公開と計測）。すべて 007 の SECURITY DEFINER RPC。
+     テーブルを anon に開かないための窓口なので、直接 REST を叩かないこと。 */
+  api.lp = {
+    publish: function (generationId, html) {
+      return rpc('elpiya_publish_lp', {
+        p_generation: String(generationId),
+        p_html: html === undefined || html === null ? null : String(html),
+        p_publish: true
+      });
+    },
+    unpublish: function (generationId) {
+      return rpc('elpiya_publish_lp', { p_generation: String(generationId), p_html: null, p_publish: false });
+    },
+    metrics: function (projectId) {
+      return rpc('elpiya_lp_metrics', { p_project: String(projectId) });
+    }
+  };
 
   api.credits = {
     balance: balance,

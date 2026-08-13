@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>エルピーヤ</title>
+<style>
+  /* 公開LPビューア。LP本体のHTML（スナップショット）を iframe に描き、
+     表示・CTAクリック・LINE追加のイベントだけを記録する */
+  html, body { margin: 0; padding: 0; height: 100%; }
+  iframe { display: block; width: 100%; height: 100%; border: 0; }
+  .state {
+    font-family: -apple-system, system-ui, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
+    color: #555; text-align: center; padding: 80px 24px;
+  }
+</style>
+</head>
+<body>
+<div class="state" id="state">読み込んでいます…</div>
+<script>
+(function () {
+  'use strict';
+  var SUPABASE_URL = 'https://hhmresepzahfhwhywxhu.supabase.co';
+  var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhobXJlc2VwemFoZmh3aHl3eGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNzU0MDQsImV4cCI6MjEwMTY1MTQwNH0.SXJqKH75xKEE3Bdmort2A_vUzkG15rktpokOZn1QqfU';
+
+  function rpc(name, args) {
+    return fetch(SUPABASE_URL + '/rest/v1/rpc/' + name, {
+      method: 'POST',
+      headers: {
+        apikey: ANON_KEY,
+        Authorization: 'Bearer ' + ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(args)
+    }).then(function (res) {
+      if (!res.ok) { throw new Error('HTTP ' + res.status); }
+      return res.text().then(function (text) { return text ? JSON.parse(text) : null; });
+    });
+  }
+
+  var slug = new URLSearchParams(window.location.search).get('lp') || '';
+  var stateNode = document.getElementById('state');
+  if (!slug) { stateNode.textContent = 'このURLは無効です。'; return; }
+
+  function track(event) {
+    /* 計測は表示を妨げない（失敗してもLPは見せる） */
+    rpc('elpiya_track_lp_event', { p_slug: slug, p_event: event }).catch(function () {});
+  }
+
+  rpc('elpiya_public_lp', { p_slug: slug }).then(function (data) {
+    if (!data || !data.html) {
+      stateNode.textContent = 'このページは公開されていないか、公開が終了しました。';
+      return;
+    }
+    if (data.title || data.headline) { document.title = data.title || data.headline; }
+
+    var frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', 'allow-same-origin allow-popups');
+    stateNode.remove();
+    document.body.appendChild(frame);
+    var doc = frame.contentDocument;
+    doc.open();
+    doc.write(data.html);
+    doc.close();
+
+    track('view');
+
+    /* クリック計測: LINEのリンク（lin.ee / line.me）→ line_add、
+       それ以外のリンク・ボタン → cta_click。1種類につき1回だけ送る。 */
+    var sent = {};
+    function once(kind) {
+      if (sent[kind]) { return; }
+      sent[kind] = true;
+      track(kind);
+    }
+    doc.addEventListener('click', function (event) {
+      var node = event.target;
+      while (node && node !== doc.body) {
+        var tag = (node.tagName || '').toLowerCase();
+        if (tag === 'a') {
+          var href = String(node.getAttribute('href') || '');
+          if (href.indexOf('lin.ee') !== -1 || href.indexOf('line.me') !== -1) { once('line_add'); }
+          else { once('cta_click'); }
+          return;
+        }
+        if (tag === 'button') { once('cta_click'); return; }
+        node = node.parentNode;
+      }
+    }, true);
+  }).catch(function (err) {
+    stateNode.textContent = '読み込みに失敗しました。時間をおいて再度お試しください。';
+    console.error(err);
+  });
+})();
+</script>
+</body>
+</html>

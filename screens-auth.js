@@ -22,9 +22,11 @@
  *
  * app.js に任意で置ける窓口（無ければ何が無いかをコンソールに残したうえで、
  * このファイル側の予備実装で必ず動かす。黙って握りつぶさない）:
- *   App.setCurrentUser(ユーザー行)   … 現在ユーザーのグローバル状態
+ *   App.setUser(ユーザー行)          … 現在ユーザーのグローバル状態（必須。これを呼ばないと
+ *                                      app.js が未ログインのままで S1 へ戻し続ける）
  *   App.setHeader({ title, back })   … 共通ヘッダー
- *   App.setTabbarVisible(真偽値)      … 下部タブバーの出し分け（S1・S2 では隠す）
+ *   App.setTabbarVisible(真偽値)      … 下部タブバーの出し分け。app.js は画面ごとの
+ *                                      meta.tab で自動制御しているため通常は不要
  *   App.toast(文言, 種類)             … トースト
  *   I18n.getLocale() / I18n.onChange(関数) … 言語と切替通知
  *
@@ -101,6 +103,7 @@
       errAuth: '認証情報が正しくありません',
       errStopped: 'このアカウントは現在利用できません。管理者にお問い合わせください。',
       errGoogleOnly: 'このアカウントはGoogle連携でのみログインできます。「Googleで続行」をお使いください。',
+      errGoogleNotReady: 'Googleログインは準備中です。メールアドレスとパスワードでログインしてください。',
       loginDone: 'ログインしました',
       signedUpNotice: 'アカウントを作成しました。登録したメールアドレスとパスワードでログインしてください。',
 
@@ -161,6 +164,7 @@
       errAuth: 'Your sign-in details are incorrect',
       errStopped: 'This account is currently unavailable. Please contact an administrator.',
       errGoogleOnly: 'This account can only sign in through Google. Please use “Continue with Google”.',
+      errGoogleNotReady: 'Google sign-in is not available yet. Please sign in with your email address and password.',
       loginDone: 'Signed in',
       signedUpNotice: 'Your account was created. Sign in with the email address and password you registered.',
 
@@ -221,6 +225,7 @@
       errAuth: '인증 정보가 올바르지 않습니다',
       errStopped: '이 계정은 현재 사용할 수 없습니다. 관리자에게 문의해 주세요.',
       errGoogleOnly: '이 계정은 Google 연동으로만 로그인할 수 있습니다. “Google로 계속하기(체험용)”를 사용해 주세요.',
+      errGoogleNotReady: 'Google 로그인은 준비 중입니다. 이메일 주소와 비밀번호로 로그인해 주세요.',
       loginDone: '로그인했습니다',
       signedUpNotice: '계정을 만들었습니다. 등록한 이메일 주소와 비밀번호로 로그인해 주세요.',
 
@@ -354,13 +359,16 @@
   }
 
   // 現在ユーザーの引き渡し。Api.storage の userId は api.js が許可している唯一の保存先。
+  // app.js 側の入口は setUser（setCurrentUser ではない）。ここを間違えると
+  // app.js の state.user が null のままになり、ログインに成功しても
+  // ルーターが「ログインが必要です」で S1 へ戻し続ける（＝ログインできない）。
   function adoptUser(user) {
     if (Api && Api.storage) { Api.storage.set('userId', user.id); }
-    if (typeof App.setCurrentUser === 'function') {
-      App.setCurrentUser(user);
+    if (typeof App.setUser === 'function') {
+      App.setUser(user);
       return;
     }
-    report('App.setCurrentUser(ユーザー行)', 'Api.storage の userId のみ更新しました。app.js はここから現在ユーザーを読み込んでください。');
+    report('App.setUser(ユーザー行)', 'Api.storage の userId のみ更新しました。app.js はここから現在ユーザーを読み込んでください。');
     App.currentUser = user;
   }
 
@@ -680,6 +688,12 @@
     if (!Api || !Api.auth || typeof Api.auth.signInWithGoogle !== 'function') {
       console.error('[screens-auth.js] Api.auth.signInWithGoogle がありません。api.js の読み込みを確認してください。');
       setAlert(screenId, { kind: 'auth', key: 'errUnknown' }, null);
+      rerender();
+      return;
+    }
+    /* Supabase 側に OAuth を設定するまでは飛ばさない（飛ばすと 400 の生JSONが出る）。 */
+    if (typeof Api.auth.googleEnabled === 'function' && !Api.auth.googleEnabled()) {
+      setAlert(screenId, { kind: 'auth', key: 'errGoogleNotReady' }, null);
       rerender();
       return;
     }

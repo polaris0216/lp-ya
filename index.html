@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<meta name="theme-color" content="#FAF8FB">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="format-detection" content="telephone=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="description" content="エルピーヤ — クラウドファンディングLP・自社LP・KV・メタ広告・LINEコンテンツをまとめて作るアプリ">
 <title>エルピーヤ</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260813f">
 </head>
 <body>
 
@@ -48,7 +48,6 @@
        #header-back       戻る矢印ボタン（44×44・既定は hidden）
        #header-title      ヘッダー中央タイトル（既定は「エルピーヤ」）
        #header-action     ヘッダー右側スロット（44×44・任意）
-       #shared-data-notice ログイン未実装の注意書き1行
        #banner-root       通信失敗バナーの置き場
        #app               画面差し込み先（App.registerScreen した render がここへ描画）
        #tabbar            下部タブバー（.tabbar__item[data-screen]）
@@ -75,7 +74,7 @@
     </div>
   </header>
 
-  <p id="shared-data-notice" class="notice-line" data-i18n="common.sharedDataNotice">ログイン機能は未実装のため、このアプリを開いた全員が同じデータを見ます</p>
+  <!-- 旧 #shared-data-notice（ログイン未実装の注意書き）は認証+RLS導入で事実と逆になったため削除 -->
 
   <div id="banner-root" class="banner-root"></div>
 
@@ -116,16 +115,22 @@
   <div class="noscript-note">このアプリを使うには JavaScript を有効にしてください。</div>
 </noscript>
 
-<script defer src="i18n.js"></script>
-<script defer src="api.js"></script>
-<script defer src="app.js"></script>
-<script defer src="screens-auth.js"></script>
-<script defer src="screens-home.js"></script>
-<script defer src="screens-project-ops.js"></script>
-<script defer src="screens-project.js"></script>
-<script defer src="screens-analysis.js"></script>
-<script defer src="screens-generate.js"></script>
-<script defer src="screens-credit.js"></script>
-<script defer src="screens-admin.js"></script>
+<!--
+  ?v= はキャッシュ対策。GitHub Pages は JS/CSS に max-age=600 を付けるため、
+  これが無いと更新直後に「新しい index.html ＋ 古い .js」が混ざって動く。
+  **JS か CSS を変更したら、この日付+英字をまとめて1つ上げてから push すること**
+  （styles.css の分も含めて全部同じ値にする）。
+-->
+<script defer src="i18n.js?v=20260813f"></script>
+<script defer src="api.js?v=20260813f"></script>
+<script defer src="app.js?v=20260813f"></script>
+<script defer src="screens-auth.js?v=20260813f"></script>
+<script defer src="screens-home.js?v=20260813f"></script>
+<script defer src="screens-project-ops.js?v=20260813f"></script>
+<script defer src="screens-project.js?v=20260813f"></script>
+<script defer src="screens-analysis.js?v=20260813f"></script>
+<script defer src="screens-generate.js?v=20260813f"></script>
+<script defer src="screens-credit.js?v=20260813f"></script>
+<script defer src="screens-admin.js?v=20260813f"></script>
 </body>
 </html>

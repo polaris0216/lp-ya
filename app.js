@@ -120,7 +120,7 @@
       'common.minutesAgo': '{n}分前',
       'common.hoursAgo': '{n}時間前',
       'common.daysAgo': '{n}日前',
-      'common.sharedDataNotice': 'ログイン機能は未実装のため、このアプリを開いた全員が同じデータを見ます',
+      'common.sharedDataNotice': 'データはアカウントごとに保護され、ログインした本人だけが閲覧できます',
       'common.errorUnknown': '問題が発生しました。時間をおいて再試行してください。',
       'common.errorRender': 'この画面を表示できませんでした。再試行してください。',
       'common.errorScreenMissing': 'この画面の部品がまだ読み込まれていません。アプリを再読み込みしてください。',
@@ -179,6 +179,14 @@
       'settings.appInfo': 'アプリ情報',
       'settings.version': 'バージョン',
       'settings.server': '保存先',
+      'settings.inquiry': 'お問い合わせ',
+      'settings.inquiryHint': '不具合・ご要望はこちらから送信できます。返答状況は管理者が管理画面で更新します。',
+      'settings.inquirySubject': '件名',
+      'settings.inquiryBody': '内容',
+      'settings.inquirySend': '送信する',
+      'settings.inquirySent': 'お問い合わせを送信しました',
+      'settings.inquiryFailed': '送信に失敗しました。時間をおいてお試しください',
+      'settings.inquiryNeedBody': '内容を入力してください',
       'settings.notice': '業務データは共有のサーバーに保存されます。この端末に残るのは表示言語と選択中のIDだけです。'
     },
     en: {
@@ -195,7 +203,7 @@
       'common.minutesAgo': '{n} min ago',
       'common.hoursAgo': '{n} h ago',
       'common.daysAgo': '{n} d ago',
-      'common.sharedDataNotice': 'Sign-in is not implemented yet, so everyone who opens this app sees the same data',
+      'common.sharedDataNotice': 'Your data is private to your account and visible only to you after signing in',
       'common.errorUnknown': 'Something went wrong. Please try again later.',
       'common.errorRender': 'This screen could not be displayed. Please try again.',
       'common.errorScreenMissing': 'This screen has not been loaded yet. Please reload the app.',
@@ -254,6 +262,14 @@
       'settings.appInfo': 'About',
       'settings.version': 'Version',
       'settings.server': 'Storage',
+      'settings.inquiry': 'Contact us',
+      'settings.inquiryHint': 'Send bug reports or requests here. An administrator updates the response status.',
+      'settings.inquirySubject': 'Subject',
+      'settings.inquiryBody': 'Message',
+      'settings.inquirySend': 'Send',
+      'settings.inquirySent': 'Your inquiry has been sent',
+      'settings.inquiryFailed': 'Failed to send. Please try again later',
+      'settings.inquiryNeedBody': 'Please enter a message',
       'settings.notice': 'Business data is stored on the shared server. Only the language and the selected IDs stay on this device.'
     },
     ko: {
@@ -270,7 +286,7 @@
       'common.minutesAgo': '{n}분 전',
       'common.hoursAgo': '{n}시간 전',
       'common.daysAgo': '{n}일 전',
-      'common.sharedDataNotice': '로그인 기능이 아직 없어, 이 앱을 연 모든 사람이 같은 데이터를 봅니다',
+      'common.sharedDataNotice': '데이터는 계정별로 보호되며, 로그인한 본인만 볼 수 있습니다',
       'common.errorUnknown': '문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
       'common.errorRender': '이 화면을 표시하지 못했습니다. 다시 시도해 주세요.',
       'common.errorScreenMissing': '이 화면의 파일이 아직 로드되지 않았습니다. 앱을 새로고침해 주세요.',
@@ -329,6 +345,14 @@
       'settings.appInfo': '앱 정보',
       'settings.version': '버전',
       'settings.server': '저장 위치',
+      'settings.inquiry': '문의하기',
+      'settings.inquiryHint': '오류·요청 사항을 여기서 보낼 수 있습니다. 응답 상태는 관리자가 관리 화면에서 갱신합니다.',
+      'settings.inquirySubject': '제목',
+      'settings.inquiryBody': '내용',
+      'settings.inquirySend': '보내기',
+      'settings.inquirySent': '문의를 보냈습니다',
+      'settings.inquiryFailed': '전송에 실패했습니다. 잠시 후 다시 시도해 주세요',
+      'settings.inquiryNeedBody': '내용을 입력해 주세요',
       'settings.notice': '업무 데이터는 공유 서버에 저장됩니다. 이 기기에는 표시 언어와 선택 중인 ID만 남습니다.'
     }
   };
@@ -1322,6 +1346,61 @@
     ]);
   }
 
+  /* 問い合わせの送信（inquiries の書き手はこのフォームだけ。管理画面は読む側） */
+  function inquirySection() {
+    if (!state.user) { return el('div', {}); }
+
+    var subject = el('input', { class: 'input', type: 'text', 'aria-label': t('settings.inquirySubject') });
+    subject.placeholder = t('settings.inquirySubject');
+    var body = el('textarea', { class: 'input textarea', rows: '4', 'aria-label': t('settings.inquiryBody') });
+    body.placeholder = t('settings.inquiryBody');
+
+    var send = button({
+      label: t('settings.inquirySend'),
+      variant: 'primary',
+      onClick: function () {
+        var text = String(body.value || '').trim();
+        if (!text) { toast(t('settings.inquiryNeedBody'), 'danger'); return; }
+        if (!global.Api || !global.Api.inquiries) {
+          console.error('[App] Api.inquiries がありません。api.js を確認してください。');
+          toast(t('settings.inquiryFailed'), 'danger');
+          return;
+        }
+        send.disabled = true;
+        /* message/status と body/inquiry_status は列が二重化している。両方へ同じ値を入れる */
+        global.Api.inquiries.insert({
+          users_id: String(state.user.id),
+          user_id: String(state.user.id),
+          email: state.user.email || '',
+          subject: String(subject.value || '').trim() || null,
+          message: text,
+          body: text,
+          status: 'pending',
+          inquiry_status: 'pending'
+        }).then(function () {
+          send.disabled = false;
+          subject.value = '';
+          body.value = '';
+          toast(t('settings.inquirySent'), 'success');
+        }, function (err) {
+          console.error('[App] 問い合わせの送信に失敗しました', err);
+          send.disabled = false;
+          toast(t('settings.inquiryFailed'), 'danger');
+        });
+      }
+    });
+
+    return el('section', { class: 'section' }, [
+      el('div', { class: 'section__head' }, [
+        el('h2', { class: 'section__title', text: t('settings.inquiry') })
+      ]),
+      el('p', { class: 'section__desc', text: t('settings.inquiryHint') }),
+      el('div', { class: 'field' }, [subject]),
+      el('div', { class: 'field' }, [body]),
+      send
+    ]);
+  }
+
   function renderSettings(root) {
     root.appendChild(el('div', { class: 'screen' }, [
       el('div', { class: 'screen__head' }, [
@@ -1330,6 +1409,7 @@
       ]),
       languageSection(),
       accountSection(),
+      inquirySection(),
       appInfoSection()
     ]));
   }

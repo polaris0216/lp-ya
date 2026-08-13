@@ -25,6 +25,8 @@
  * api.js（window.Api）から使う名前は api.js が実際に公開しているものだけ:
  *   Api.projects.get(id)
  *   Api.generations.list(options) / .get(id) / .update(id, patch)
+ *   Api.generations.generate(payload)  S16経由で来たときだけ。中身づくりと
+ *     クレジット消費は generate-content Edge Function（サーバー側）が行う
  *   Api.analysisReports.list(options)
  *   Api.users.get(id)
  *   Api.storage.get('userId'|'projectId'|'generationId') / .set(名前, 値)
@@ -62,7 +64,7 @@
  *   header-title / header-back / header-action / banner-root / toast-root / modal-root
  *
  * ログイン機能は未実装で、業務データは共有の Supabase に入る。
- * このアプリを開いた全員が同じ生成結果を見る（注意書きは index.html の #shared-data-notice）。
+ * 生成結果は RLS により本人のプロジェクトの分だけ見える（旧: 全員共有だった）。
  */
 (function (window, document) {
   'use strict';
@@ -94,6 +96,12 @@
     'gen.untitled': ['名称未設定', 'Untitled', '이름 없음'],
     'gen.untitledSection': ['無題のセクション', 'Untitled section', '제목 없는 섹션'],
     'gen.saving': ['保存中…', 'Saving…', '저장 중…'],
+    'gen.generating': ['{name}を生成しています…（1分ほどかかります）', 'Generating {name}… (takes about a minute)', '{name}을(를) 생성하고 있습니다… (약 1분 소요)'],
+    'gen.generateDone': ['生成が完了しました', 'Generation completed', '생성이 완료되었습니다'],
+    'gen.generateFailed': ['{name}の生成に失敗しました。クレジットは消費されていません', 'Failed to generate {name}. No credits were consumed.', '{name} 생성에 실패했습니다. 크레딧은 소비되지 않았습니다'],
+    'gen.generateNotReady': ['{name}はまだ生成に対応していません。クレジットは消費されていません', '{name} is not supported yet. No credits were consumed.', '{name}은(는) 아직 생성을 지원하지 않습니다. 크레딧은 소비되지 않았습니다'],
+    'gen.queuedLocal': ['{name}の生成を受け付けました。処理を待っています…', 'Queued {name}. Waiting for it to finish…', '{name} 생성을 접수했습니다. 처리를 기다리는 중…'],
+    'gen.queuedTimeout': ['生成がまだ終わっていません。あとでこの画面を開き直すと反映されます', 'Generation is still running. Reopen this screen later to see the result.', '생성이 아직 끝나지 않았습니다. 나중에 이 화면을 다시 열면 반영됩니다'],
     'gen.charCount': ['{n}文字', '{n} characters', '{n}자'],
     'gen.charLimit': ['上限{max}文字', 'limit {max}', '최대 {max}자'],
 
@@ -113,6 +121,20 @@
     'gen.downloadFailed': ['ダウンロードに失敗しました', 'The download failed', '다운로드에 실패했습니다'],
     'gen.pngUnsupported': ['この端末ではPNGを書き出せませんでした。SVGをダウンロードしてください', 'PNG export is not available on this device. Please download the SVG instead.', '이 기기에서는 PNG를 내보낼 수 없습니다. SVG를 다운로드해 주세요'],
     'gen.downloaded': ['ダウンロードを開始しました', 'The download has started', '다운로드를 시작했습니다'],
+    'gen.publish': ['公開する（A/Bテスト用URL）', 'Publish (A/B test URL)', '공개하기(A/B 테스트 URL)'],
+    'gen.publishUpdate': ['公開中のHTMLを更新', 'Update the published HTML', '공개 중인 HTML 업데이트'],
+    'gen.unpublish': ['公開停止', 'Unpublish', '공개 중지'],
+    'gen.published': ['公開中', 'Published', '공개 중'],
+    'gen.publishDone': ['公開しました。URLをコピーして配布できます', 'Published. Copy the URL to share it.', '공개했습니다. URL을 복사해 배포할 수 있습니다'],
+    'gen.unpublishDone': ['公開を停止しました', 'Unpublished', '공개를 중지했습니다'],
+    'gen.publishFailed': ['公開に失敗しました', 'Publishing failed', '공개에 실패했습니다'],
+    'gen.publicUrl': ['公開URL', 'Public URL', '공개 URL'],
+    'gen.copyUrl': ['URLをコピー', 'Copy URL', 'URL 복사'],
+    'gen.openUrl': ['開く', 'Open', '열기'],
+    'gen.metricViews': ['表示', 'Views', '노출'],
+    'gen.metricCta': ['CTAクリック', 'CTA clicks', 'CTA 클릭'],
+    'gen.metricLine': ['LINE追加', 'LINE adds', 'LINE 추가'],
+    'gen.abHint': ['A/B両案を公開して、表示数・CTAクリック・LINE追加を並べて比較できます', 'Publish both A and B to compare views, CTA clicks and LINE adds side by side.', 'A/B 두 안을 공개해 노출·CTA 클릭·LINE 추가를 나란히 비교할 수 있습니다'],
     'gen.cfImageNote': ['クラファンLPは画像入稿のため、全体のSVGとPNGで書き出します', 'Crowdfunding pages are submitted as images, so they export as SVG and PNG.', '크라우드펀딩 LP는 이미지 입고용이라 SVG와 PNG로 내보냅니다'],
 
     /* S13 LINE友だち追加ボタン */
@@ -1039,7 +1061,7 @@
 
     var projectId = resolveProjectId(params);
     var view = { tab: (params && params.tab) ? String(params.tab) : 'cf', lineSub: 'rich_menu' };
-    var data = { project: null, generations: [], buckets: {}, user: null, report: null };
+    var data = { project: null, generations: [], buckets: {}, user: null, report: null, metrics: {} };
 
     if (!projectId) {
       showErrorScreen(root, t('gen.noProject'), null,
@@ -1078,6 +1100,21 @@
         });
       }).then(function (reports) {
         data.report = (reports && reports[0]) || null;
+        /* 公開LPの計測（A/Bテスト）。読めなくても画面は出す */
+        if (Api.lp && typeof Api.lp.metrics === 'function') {
+          return Api.lp.metrics(String(projectId)).then(function (rows) {
+            data.metrics = {};
+            (rows || []).forEach(function (row) {
+              var id = String(row.generation_id || '');
+              if (!data.metrics[id]) { data.metrics[id] = {}; }
+              data.metrics[id][String(row.event_type)] = Number(row.count) || 0;
+            });
+          }, function (err) {
+            console.error('[screens-generate] 計測の読み込みに失敗しました（表示のみ省きます）', err);
+            data.metrics = {};
+          });
+        }
+      }).then(function () {
         return loadUser();
       }).then(function (user) {
         data.user = user;
@@ -1325,6 +1362,92 @@
       return box;
     }
 
+    /* ---- LPの公開とA/B計測（f8） ----
+       公開＝HTMLスナップショットを保存して view.html?lp=<slug> で誰でも見られる状態にする。
+       表示数・CTAクリック・LINE追加は view.html が RPC で記録し、ここで並べて表示する。 */
+    function publicUrlOf(generation) {
+      if (!generation.public_url_slug) { return ''; }
+      var base = window.location.href.split('#')[0].replace(/index\.html$/, '');
+      return base + 'view.html?lp=' + encodeURIComponent(generation.public_url_slug);
+    }
+
+    function publishBlock(generation) {
+      var box = el('div', 'stack stack--tight');
+      var isPublished = !!generation.published_at;
+
+      if (isPublished) {
+        var url = publicUrlOf(generation);
+        var chips = el('div', 'chips');
+        chips.appendChild(el('span', 'chip', t('gen.published')));
+        var m = data.metrics[String(generation.id)] || {};
+        chips.appendChild(el('span', 'chip chip--mute', t('gen.metricViews') + ' ' + formatNumber(m.view || 0)));
+        chips.appendChild(el('span', 'chip chip--mute', t('gen.metricCta') + ' ' + formatNumber(m.cta_click || 0)));
+        chips.appendChild(el('span', 'chip chip--mute', t('gen.metricLine') + ' ' + formatNumber(m.line_add || 0)));
+        box.appendChild(chips);
+
+        var urlRow = el('div', 'info-row');
+        urlRow.appendChild(el('span', 'info-row__key', t('gen.publicUrl')));
+        urlRow.appendChild(el('span', 'info-row__val break-url clamp-2', url));
+        box.appendChild(urlRow);
+
+        var row2 = el('div', 'row row--2');
+        row2.appendChild(button('btn btn--secondary btn--block', t('gen.copyUrl'), function () {
+          copyText(url);
+        }));
+        row2.appendChild(button('btn btn--secondary btn--block', t('gen.openUrl'), function () {
+          window.open(url, '_blank', 'noopener');
+        }));
+        box.appendChild(row2);
+
+        var row3 = el('div', 'row row--2');
+        row3.appendChild(button('btn btn--text btn--block', t('gen.publishUpdate'), function () {
+          doPublish(generation, true);
+        }));
+        row3.appendChild(button('btn btn--text btn--block', t('gen.unpublish'), function () {
+          Api.lp.unpublish(generation.id).then(function (row) {
+            generation.published_at = null;
+            toast(t('gen.unpublishDone'), 'success');
+            paint();
+          }, function (err) {
+            console.error('[screens-generate] 公開停止に失敗しました', err);
+            toast(t('gen.publishFailed'), 'danger');
+          });
+        }));
+        box.appendChild(row3);
+      } else {
+        box.appendChild(button('btn btn--secondary btn--block', t('gen.publish'), function () {
+          doPublish(generation, false);
+        }));
+        if (generation.variant_label) {
+          box.appendChild(el('p', 't-note', t('gen.abHint')));
+        }
+      }
+      return box;
+    }
+
+    function doPublish(generation, isUpdate) {
+      var html;
+      try {
+        html = htmlOf(generation, true);
+      } catch (e) {
+        console.error('[screens-generate] 公開用HTMLの生成に失敗しました', e);
+        toast(t('gen.publishFailed'), 'danger');
+        return;
+      }
+      Api.lp.publish(generation.id, html).then(function (row) {
+        if (row && typeof row === 'object') {
+          generation.public_url_slug = row.public_url_slug || generation.public_url_slug;
+          generation.published_at = row.published_at || new Date().toISOString();
+          generation.generated_html = html;
+        }
+        toast(t(isUpdate ? 'common.saved' : 'gen.publishDone'), 'success');
+        paint();
+      }, function (err) {
+        console.error('[screens-generate] 公開に失敗しました', err);
+        toast(t('gen.publishFailed'), 'danger');
+      });
+    }
+
     /* ---- LPタブ（クラファンLP / 自社LP） ---- */
     function paintLpTab(container, rows, type) {
       if (!rows || !rows.length) {
@@ -1356,6 +1479,8 @@
         } else {
           card.appendChild(lineButtonEditor(generation, sections));
         }
+
+        card.appendChild(publishBlock(generation));
 
         card.appendChild(el('div', 'list__head', t('gen.sectionsTitle')));
         var list = el('div', 'list');
@@ -1682,7 +1807,97 @@
       fitAllFrames();
     }
 
-    load();
+    /* ---- S16 から来た直後の生成実行 ----
+       creditConfirmed は一度きり読んで消す（戻る・再訪で二重生成しないため）。
+       消費はここでは行わない。generate-content Edge Function が LLM 成功後に
+       消費+保存を1トランザクションで行うので、失敗時にクレジットは動かない。 */
+    function runGeneration(confirmed) {
+      var features = (confirmed.features || []).filter(function (f) { return f && f.feature_key; });
+      if (!features.length) { load(); return; }
+      if (!Api.generations || typeof Api.generations.generate !== 'function') {
+        console.error('[screens-generate] Api.generations.generate がありません。api.js を確認してください。');
+        load();
+        return;
+      }
+
+      showSkeleton(root);
+      var failures = [];
+      var made = 0;
+
+      function nameOf(feature) { return feature.feature_name || feature.feature_key; }
+
+      /* 開発モード（サーバーに ANTHROPIC_API_KEY が無い間）は {queued:true} が返る。
+         ジョブの完了をポーリングして待つ。待ちきれなくても、生成物は次に
+         S13 を開いたときに反映されている（ジョブは破棄されない）。 */
+      function waitForJob(jobId) {
+        var POLL_MS = 5000;
+        var LIMIT_MS = 10 * 60 * 1000;
+        var startedAt = Date.now();
+        return new Promise(function (resolve) {
+          function tick() {
+            if (Date.now() - startedAt > LIMIT_MS) { resolve('timeout'); return; }
+            Api.generationJobs.get(jobId).then(function (job) {
+              if (job && job.status === 'done') { resolve('done'); return; }
+              if (job && job.status === 'failed') { resolve('failed'); return; }
+              setTimeout(tick, POLL_MS);
+            }, function (err) {
+              console.error('[screens-generate] ジョブの確認に失敗しました。続けて確認します', err);
+              setTimeout(tick, POLL_MS);
+            });
+          }
+          setTimeout(tick, POLL_MS);
+        });
+      }
+
+      function step(index) {
+        if (index >= features.length) {
+          if (made) { toast(t('gen.generateDone'), 'success'); }
+          failures.forEach(function (failed) {
+            var key = (failed.err && failed.err.status === 501) ? 'gen.generateNotReady' : 'gen.generateFailed';
+            if (failed.err && failed.err.code === 'insufficient') {
+              toast(errorMessage(failed.err, 'gen.generateFailed'), 'danger');
+            } else {
+              toast(fill(t(key), { name: nameOf(failed.feature) }), 'danger');
+            }
+          });
+          load();
+          return;
+        }
+        var feature = features[index];
+        toast(fill(t('gen.generating'), { name: nameOf(feature) }), 'info');
+        Api.generations.generate({
+          project_id: String(projectId),
+          feature_key: feature.feature_key,
+          report_id: confirmed.reportId || null,
+          lang: (App.getLang && App.getLang()) || 'ja'
+        }).then(function (result) {
+          if (result && result.queued) {
+            toast(fill(t('gen.queuedLocal'), { name: nameOf(feature) }), 'info');
+            return waitForJob(result.job_id).then(function (outcome) {
+              if (outcome === 'done') { made += 1; }
+              else if (outcome === 'failed') { failures.push({ feature: feature, err: null }); }
+              else { toast(t('gen.queuedTimeout'), 'info'); }
+              step(index + 1);
+            });
+          }
+          made += 1;
+          step(index + 1);
+        }, function (err) {
+          console.error('[screens-generate] 生成に失敗しました', feature.feature_key, err);
+          failures.push({ feature: feature, err: err });
+          step(index + 1);
+        });
+      }
+      step(0);
+    }
+
+    var confirmed = App.state && App.state.creditConfirmed;
+    if (confirmed && confirmed.mode === 'generate' && String(confirmed.projectId) === String(projectId)) {
+      App.state.creditConfirmed = null;
+      runGeneration(confirmed);
+    } else {
+      load();
+    }
   }
 
   /* =========================================================

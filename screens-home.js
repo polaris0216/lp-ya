@@ -1044,9 +1044,13 @@
       setBusy(true);
       clearBanner();
 
+      /* projects も列が二重化している（name/project_name）。NOT NULL 側は name と
+         status で、どちらもデフォルトが無い。送らないと 23502 で必ず失敗する。 */
       window.Api.projects.insert({
         users_id: String(user.id),
         project_name: name,
+        name: name,
+        status: 'active',
         product_name: name,
         price: priceValue(),
         product_features: form.features.trim() || null,
