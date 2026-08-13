@@ -1330,6 +1330,10 @@ a.list-row:active { opacity: .88; }
   gap: 4px;
   text-align: center;
   padding: 8px;
+  /* 文字の上でも I ビームに変えず、ボックス全体を押せる面として見せる */
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .thumb-add:active { opacity: .88; }
