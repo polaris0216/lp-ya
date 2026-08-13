@@ -186,6 +186,18 @@
       'The analysis has been queued. Please wait on this screen (dev mode: a local agent will process it).',
       '분석이 접수되었습니다. 완료까지 이 화면에서 기다려 주세요(개발 모드: 로컬 에이전트가 처리합니다).'
     ],
+    'sa.verdictTitle': ['プロジェクト成否判定', 'Project outcome', '프로젝트 성패 판정'],
+    'sa.verdictLead': ['公開データ（目標金額・応援購入総額）による機械判定です', 'Judged from public data (goal and total raised).', '공개 데이터(목표 금액·응원 구매 총액)에 따른 자동 판정입니다'],
+    'sa.verdictSuccess': ['成功', 'Success', '성공'],
+    'sa.verdictFailure': ['失敗', 'Failure', '실패'],
+    'sa.verdictUnknown': ['判定不可', 'Unknown', '판정 불가'],
+    'sa.verdictGoal': ['目標金額', 'Goal', '목표 금액'],
+    'sa.verdictTotal': ['応援購入総額', 'Total raised', '응원 구매 총액'],
+    'sa.verdictSupporters': ['サポーター', 'Supporters', '서포터'],
+    'sa.verdictRatio': ['達成率', 'Achievement', '달성률'],
+    'sa.factorTitle': ['成功・失敗要因', 'Success & failure factors', '성공·실패 요인'],
+    'sa.factorKindSuccess': ['成功要因', 'Success factor', '성공 요인'],
+    'sa.factorKindFailure': ['失敗要因', 'Failure factor', '실패 요인'],
     'sa.noProject': [
       'プロジェクトが選ばれていません。ダッシュボードからプロジェクトを開いてください。',
       'No project is selected. Please open a project from the dashboard.',
@@ -1733,18 +1745,41 @@
           if (!items.length) {
             add(group, el('p', 't-note', t('s11.noAsset')));
           } else {
-            var list = el('ul', 'list');
-            list.setAttribute('role', 'list');
-            items.forEach(function (item) {
-              var row = el('li', 'list-row');
-              var rowBody = el('div', 'list-row__body');
-              add(rowBody, el('span', 'list-row__title', itemName(item) + (item.index > 1 ? ' ' + item.index : '')));
-              add(rowBody, el('span', 'list-row__sub', t('media.' + item.type)));
-              add(row, rowBody);
-              add(row, el('span', 'list-row__meta', kind === 'kv' ? t('s11.kindKv') : t('s11.kindLp')));
-              add(list, row);
-            });
-            add(group, list);
+            /* 画像（src あり）はサムネイルのグリッドで全件、それ以外は行で全件見せる */
+            var withSrc = items.filter(function (item) { return item.type === 'image' && item.src; });
+            var rest = items.filter(function (item) { return !(item.type === 'image' && item.src); });
+
+            if (withSrc.length) {
+              var grid = el('div', 'thumb-grid');
+              withSrc.forEach(function (item) {
+                var tile = el('a', 'thumb');
+                tile.href = item.src;
+                tile.target = '_blank';
+                tile.rel = 'noopener';
+                var img = el('img', 'thumb__img');
+                img.src = item.src;
+                img.alt = itemName(item);
+                img.loading = 'lazy';
+                add(tile, img);
+                add(grid, tile);
+              });
+              add(group, grid);
+            }
+
+            if (rest.length) {
+              var list = el('ul', 'list');
+              list.setAttribute('role', 'list');
+              rest.forEach(function (item) {
+                var row = el('li', 'list-row');
+                var rowBody = el('div', 'list-row__body');
+                add(rowBody, el('span', 'list-row__title', itemName(item) + (item.index > 1 ? ' ' + item.index : '')));
+                add(rowBody, el('span', 'list-row__sub', t('media.' + item.type)));
+                add(row, rowBody);
+                add(row, el('span', 'list-row__meta', kind === 'kv' ? t('s11.kindKv') : t('s11.kindLp')));
+                add(list, row);
+              });
+              add(group, list);
+            }
           }
           add(body, group);
         });
@@ -1804,13 +1839,22 @@
         video: counts.video
       })));
 
+      /* プレビューは実画像で最大8枚。全件はカードをタップした一覧で見せる */
       var grid = el('div', 'thumb-grid');
       var shown = 0;
       assets.forEach(function (asset) {
         (asset.items || []).forEach(function (item) {
-          if (shown >= 6 || item.type === 'text') { return; }
+          if (shown >= 8 || item.type === 'text') { return; }
           var tile = el('div', 'thumb');
-          add(tile, el('span', 'thumb-add', itemName(item)));
+          if (item.src) {
+            var img = el('img', 'thumb__img');
+            img.src = item.src;
+            img.alt = itemName(item);
+            img.loading = 'lazy';
+            add(tile, img);
+          } else {
+            add(tile, el('span', 'thumb-add', itemName(item)));
+          }
           add(grid, tile);
           shown += 1;
         });
@@ -1826,11 +1870,60 @@
       return card;
     }
 
-    /* ---- 成功要因（重要度順・タップで根拠へジャンプ） ---- */
+    /* ---- プロジェクト成否判定（公開データによる機械判定） ---- */
+    function verdictSection(report) {
+      var collected = report.collected_assets;
+      if (typeof collected === 'string') {
+        try { collected = JSON.parse(collected); } catch (e) { collected = null; }
+      }
+      var verdicts = (collected && Array.isArray(collected.verdicts)) ? collected.verdicts : [];
+      if (!verdicts.length) { return null; }
+
+      var section = el('section', 'section');
+      var head = el('div', 'section__head');
+      add(head, el('h2', 'section__title', t('sa.verdictTitle')));
+      add(head, el('span', 't-note', t('sa.verdictLead')));
+      add(section, head);
+
+      verdicts.forEach(function (v) {
+        var group = el('div', 'stack stack--tight');
+
+        var badges = el('div', 'chips');
+        var badgeClass = v.verdict === 'success' ? 'badge badge--ok'
+          : v.verdict === 'failure' ? 'badge badge--danger' : 'badge badge--mute';
+        var badgeText = v.verdict === 'success' ? t('sa.verdictSuccess')
+          : v.verdict === 'failure' ? t('sa.verdictFailure') : t('sa.verdictUnknown');
+        add(badges, el('span', badgeClass, badgeText));
+        if (v.ratio !== null && v.ratio !== undefined) {
+          add(badges, el('span', 'badge badge--mute', t('sa.verdictRatio') + ' ' + formatNumber(v.ratio) + '%'));
+        }
+        add(group, badges);
+        add(group, el('p', 't-sub break-url', shortUrl(v.url, 60)));
+
+        var info = el('div', 'info-list');
+        function numRow(labelKey, value, unit) {
+          if (value === null || value === undefined) { return; }
+          var row = el('div', 'info-row');
+          add(row, el('span', 'info-row__key', t(labelKey)));
+          add(row, el('span', 'info-row__val num', formatNumber(value) + unit));
+          add(info, row);
+        }
+        numRow('sa.verdictGoal', v.target_amount, '円');
+        numRow('sa.verdictTotal', v.current_amount, '円');
+        numRow('sa.verdictSupporters', v.supporters, '人');
+        if (info.childNodes.length) { add(group, info); }
+
+        if (v.reason) { add(group, el('p', 'note-box', v.reason)); }
+        add(section, group);
+      });
+      return section;
+    }
+
+    /* ---- 成功・失敗要因（重要度順・タップで根拠へジャンプ） ---- */
     function factorSection(factors, jumpTarget) {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('report.successFactors')));
+      add(head, el('h2', 'section__title', t('sa.factorTitle')));
       add(head, el('span', 't-note', t('report.winPattern')));
       add(section, head);
 
@@ -1844,7 +1937,15 @@
       factors.forEach(function (factor) {
         var row = el('li', 'list-row');
         var body = el('div', 'list-row__body');
-        add(body, el('span', 'list-row__title', labelOf('fac.', factor.key, factor.label)));
+
+        /* kind 無し（旧データ）は成功要因として扱う */
+        var isFailure = factor.kind === 'failure';
+        var kindBadge = el('span', isFailure ? 'badge badge--danger' : 'badge badge--ok',
+          isFailure ? t('sa.factorKindFailure') : t('sa.factorKindSuccess'));
+        var titleLine = el('span', 'list-row__title');
+        add(titleLine, kindBadge);
+        titleLine.appendChild(document.createTextNode(' ' + labelOf('fac.', factor.key, factor.label)));
+        add(body, titleLine);
         add(body, el('span', 'list-row__sub break-url', t('s11.evidence', { url: shortUrl(factor.evidence, 48) })));
         add(row, body);
         add(row, el('span', 'list-row__meta', t('s11.weight', { n: factor.weight })));
@@ -2078,6 +2179,9 @@
 
       var errorNode = errorSection(errors);
       if (errorNode) { add(wrap, errorNode); }
+
+      var verdictNode = verdictSection(report);
+      if (verdictNode) { add(wrap, verdictNode); }
 
       var kvSection = el('section', 'section');
       add(kvSection, assetCard(kvAssets, 'kv'));
