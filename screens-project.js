@@ -71,13 +71,31 @@
   var MAX_TARGET = 60;
   var MAX_FEATURES = 300;
   var PROGRESS_STEPS = 3;           // 商品登録・競合LP分析・生成 の3段階で進捗を出す
-  var IMAGE_MAX_EDGE = 1024;        // ponytail: 画像はデータURLのまま image_urls に入れるので長辺1024pxへ縮小する。専用ストレージを使うならここを差し替える。
-  var IMAGE_QUALITY = 0.72;
+  var IMAGE_MAX_EDGE = 1600;        // 商品写真は生成LPにもそのまま載せるので長辺1600pxまで残す
+  var IMAGE_QUALITY = 0.82;
 
   /* ---------- 小さな道具 ---------- */
   function t(key, params) {
     if (window.I18N && typeof window.I18N.t === 'function') { return window.I18N.t(key, params); }
     return key;
+  }
+
+  /* i18n.js の辞書に無い、このファイルだけの文言。並びは [日本語, English, 한국어] */
+  var LOCAL = {
+    'local.photoUploading': ['商品写真をアップロードしています…', 'Uploading product photos…', '상품 사진을 업로드하는 중…'],
+    'local.photoUploaded': ['商品写真をアップロードしました', 'Product photos uploaded', '상품 사진을 업로드했습니다'],
+    'local.photoUploadFailed': ['一部の写真をアップロードできませんでした', 'Some photos could not be uploaded', '일부 사진을 업로드하지 못했습니다']
+  };
+
+  function tl(key) {
+    var row = LOCAL[key];
+    if (!row) { return key; }
+    var code = 'ja';
+    if (window.I18N && typeof window.I18N.getLocale === 'function') {
+      code = String(window.I18N.getLocale() || 'ja');
+    }
+    var index = code === 'en' ? 1 : (code === 'ko' ? 2 : 0);
+    return row[index] || row[0];
   }
 
   function el(tag, className, textContent) {
@@ -337,7 +355,11 @@
     return null;
   }
 
-  /* ---------- 商品写真（端末の写真を縮めてから image_urls に入れる） ---------- */
+  /* ---------- 商品写真 ----------
+     端末の写真を長辺1600pxへ縮めてから Supabase Storage（公開バケット）へ上げ、
+     image_urls には公開URLだけを入れる。
+     以前はデータURLを列にそのまま入れていたため、1枚あたり数百KBの文字列が
+     業務テーブルに載り、生成LPへ写真を差し込むこともできなかった。 */
   function shrinkImage(file, done) {
     if (!file || String(file.type).indexOf('image/') !== 0) {
       done(new Error('画像ファイルではありません'));
@@ -369,11 +391,46 @@
           return;
         }
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-        done(null, canvas.toDataURL('image/jpeg', IMAGE_QUALITY));
+        /* 送るのは Blob。toDataURL だと base64 で約1.37倍に膨らむ */
+        if (typeof canvas.toBlob === 'function') {
+          canvas.toBlob(function (blob) {
+            if (blob) { done(null, blob); }
+            else { done(new Error('画像を書き出せませんでした')); }
+          }, 'image/jpeg', IMAGE_QUALITY);
+          return;
+        }
+        /* toBlob が無い古い環境向けの保険（データURL→Blob） */
+        try {
+          var dataUrl = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
+          var binary = window.atob(dataUrl.split(',')[1]);
+          var bytes = new window.Uint8Array(binary.length);
+          var i;
+          for (i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+          done(null, new window.Blob([bytes], { type: 'image/jpeg' }));
+        } catch (e) {
+          done(e);
+        }
       };
       image.src = String(reader.result);
     };
     reader.readAsDataURL(file);
+  }
+
+  /* 縮小 → アップロード。成功すると公開URLが返る */
+  function uploadProductPhoto(file, projectId, done) {
+    shrinkImage(file, function (err, blob) {
+      if (err) { done(err); return; }
+      if (!window.Api || !window.Api.files || typeof window.Api.files.upload !== 'function') {
+        console.error('[screens-project] Api.files.upload がありません。api.js を確認してください。');
+        done(new Error('Api.files.upload がありません'));
+        return;
+      }
+      window.Api.files.upload(blob, {
+        folder: 'products/' + String(projectId || 'draft'),
+        ext: 'jpg',
+        contentType: 'image/jpeg'
+      }).then(function (url) { done(null, url); }, function (uploadErr) { done(uploadErr); });
+    });
   }
 
   /* ============================================================
@@ -866,16 +923,23 @@
       var pending = picked.length;
       if (!pending) { return; }
 
+      var failed = 0;
+      toast(tl('local.photoUploading'), 'info');
+
       picked.forEach(function (file) {
-        shrinkImage(file, function (err, dataUrl) {
+        uploadProductPhoto(file, projectIdFrom(params), function (err, url) {
           pending--;
           if (err) {
-            console.error('[screens-project] 画像を読み込めませんでした: ' + (file && file.name ? file.name : ''), err);
-            toast(t('common.error'), 'danger');
+            failed += 1;
+            console.error('[screens-project] 商品写真をアップロードできませんでした: ' + (file && file.name ? file.name : ''), err);
           } else {
-            form.images.push(dataUrl);
+            form.images.push(url);
           }
-          if (pending === 0) { paintImages(); }
+          if (pending === 0) {
+            paintImages();
+            if (failed) { toast(tl('local.photoUploadFailed'), 'danger'); }
+            else { toast(tl('local.photoUploaded'), 'success'); }
+          }
         });
       });
     }

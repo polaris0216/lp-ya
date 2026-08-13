@@ -315,9 +315,13 @@
       var h = {
         apikey: ANON_KEY,
         Authorization: 'Bearer ' + token,
-        'Content-Type': 'application/json'
+        'Content-Type': opts.contentType || 'application/json'
       };
       if (opts.prefer) { h.Prefer = opts.prefer; }
+      /* Storage へのアップロードなど、追加ヘッダが要る呼び出し用 */
+      if (opts.extraHeaders) {
+        Object.keys(opts.extraHeaders).forEach(function (key) { h[key] = opts.extraHeaders[key]; });
+      }
       return h;
     }
 
@@ -329,7 +333,9 @@
       var timer = null;
       var init = { method: method, headers: buildHeaders(), cache: 'no-store' };
 
-      if (body !== undefined && body !== null) { init.body = JSON.stringify(body); }
+      /* rawBody は Blob/File をそのまま送る（Storage のアップロード用）。JSON化しない */
+      if (opts.rawBody !== undefined && opts.rawBody !== null) { init.body = opts.rawBody; }
+      else if (body !== undefined && body !== null) { init.body = JSON.stringify(body); }
       if (controller) {
         init.signal = controller.signal;
         timer = setTimeout(function () { controller.abort(); }, opts.timeoutMs || TIMEOUT_MS);
@@ -813,6 +819,60 @@
      LLM成功後に1トランザクションで行う。LLM の応答を待つため、タイムアウトだけ長く取る。 */
   api.generations.generate = function (payload) {
     return callFunction('generate-content', payload || {}, 'POST', { timeoutMs: 120000 });
+  };
+
+  /* ---------- ファイル（商品写真などの画像）----------
+     保存先は Storage の公開バケット `lp-assets`。パスの先頭は必ず自分の user_id
+     （009 のポリシーがそれ以外への書き込みを拒否する）。
+     戻り値は公開URL。業務テーブルにはこのURLだけを入れる（データURLを入れない）。 */
+  var STORAGE_OBJECT_BASE = SUPABASE_URL + '/storage/v1/object/';
+  var ASSET_BUCKET = 'lp-assets';
+  var PUBLIC_MARKER = '/storage/v1/object/public/' + ASSET_BUCKET + '/';
+
+  function uploadFile(blob, options) {
+    var o = options || {};
+    var userId = storage.get('userId');
+    if (!userId) {
+      return Promise.reject(new ApiError('loginRequired', 0, 'ログインが必要です'));
+    }
+    if (!blob) {
+      return Promise.reject(new ApiError('validation', 0, 'ファイルがありません'));
+    }
+    /* パスの先頭は必ず自分の user_id。009 のポリシーがそれ以外を拒否する */
+    var folder = String(o.folder || 'uploads').replace(/^\/+|\/+$/g, '');
+    var ext = String(o.ext || 'jpg').replace(/[^a-z0-9]/gi, '') || 'jpg';
+    var base = String(o.name || (Date.now() + '-' + Math.random().toString(36).slice(2, 10)));
+    var path = userId + '/' + folder + '/' + base + '.' + ext;
+
+    return request('POST', ASSET_BUCKET + '/' + path, null, {
+      base: STORAGE_OBJECT_BASE,
+      rawBody: blob,
+      contentType: o.contentType || blob.type || 'image/jpeg',
+      extraHeaders: { 'x-upsert': 'true' },
+      timeoutMs: 60000,
+      autoRetry: 0
+    }).then(function () {
+      return SUPABASE_URL + PUBLIC_MARKER + path;
+    });
+  }
+
+  /* 自分がアップロードしたファイルの削除。公開URL・保存パスのどちらでも渡せる。 */
+  function removeFile(urlOrPath) {
+    var text = String(urlOrPath || '');
+    var path = text.indexOf(PUBLIC_MARKER) !== -1 ? text.split(PUBLIC_MARKER)[1] : text;
+    if (!path || path.indexOf('data:') === 0) { return Promise.resolve(null); }
+    return request('DELETE', ASSET_BUCKET + '/' + path, null, {
+      base: STORAGE_OBJECT_BASE,
+      autoRetry: 0
+    });
+  }
+
+  api.files = {
+    upload: uploadFile,
+    remove: removeFile,
+    isStorageUrl: function (value) {
+      return String(value || '').indexOf(PUBLIC_MARKER) !== -1;
+    }
   };
 
   /* 競合LP分析。スクレイピング・LLM分析・消費+保存は analyze-competitor
