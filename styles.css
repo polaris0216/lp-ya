@@ -1334,6 +1334,14 @@ a.list-row:active { opacity: .88; }
 
 .thumb-add:active { opacity: .88; }
 
+/* 追加ボックスの上に写真をドラッグしている間の見た目 */
+.thumb-add--over {
+  border-style: solid;
+  border-color: var(--c-main);
+  color: var(--c-main);
+  background: var(--c-skeleton);
+}
+
 /* 画像を選ぶ<input type=file>は隠して、ラベルをタップ領域にする */
 .file-input {
   position: absolute;

@@ -64,7 +64,7 @@
   /* ---------- 定数 ---------- */
   var CREATE_FEATURE_KEY = 'project_create';
   var CREATE_COST_FALLBACK = 10;   // 意図書のメモ「作成に10クレジット消費」。feature_credits に登録があればそちらを使う
-  var MAX_IMAGES = 10;
+  var MAX_IMAGES = 15;
   var MAX_NAME = 30;
   var MAX_FEATURES = 300;
   var IMAGE_MAX_EDGE = 1024;       // ponytail: 画像はデータURLのまま projects.image_urls に入れるので長辺1024pxへ縮小する。専用ストレージを使うならここを差し替える。
@@ -636,7 +636,7 @@
     mounted = { id: 'S4', root: root, params: params };
     setHeader(t('project.createTitle'), true);
 
-    var form = { name: '', features: '', price: '', target: '', images: [] };
+    var form = { name: '', features: '', price: '', target: '', images: [], rewards: [] };
     var user = null;
     var cost = CREATE_COST_FALLBACK;
     var targetCandidates = [];
@@ -648,6 +648,7 @@
     var priceError = null;
     var submitButton = null;
     var imagesHost = null;
+    var rewardsHost = null;
     var warnHost = null;
 
     function load() {
@@ -839,6 +840,17 @@
 
       fields.appendChild(pair);
 
+      /* リワード（定価の下に、リワードごとの名前・価格・数量・説明を並べる） */
+      var rewardsField = el('div', 'field');
+      rewardsField.appendChild(el('span', 'field__label', t('product.rewards')));
+      rewardsHost = el('div', 'stack');
+      rewardsField.appendChild(rewardsHost);
+      rewardsField.appendChild(button('btn btn--secondary btn--block', '＋ ' + t('product.rewardAdd'), function () {
+        form.rewards.push({ name: '', price: '', qty: '', desc: '' });
+        paintRewards();
+      }));
+      fields.appendChild(rewardsField);
+
       /* 商品画像 */
       var imagesField = el('div', 'field');
       imagesField.appendChild(el('span', 'field__label', t('product.images')));
@@ -860,7 +872,80 @@
       root.appendChild(screen);
 
       paintImages();
+      paintRewards();
       validate();
+    }
+
+    /* 入力中に描き直すとフォーカスが飛ぶので、追加・削除のときだけ呼ぶこと */
+    function paintRewards() {
+      if (!rewardsHost) { return; }
+      clear(rewardsHost);
+
+      form.rewards.forEach(function (reward, index) {
+        var card = el('div', 'card');
+        var body = el('div', 'stack');
+
+        var head = el('div', 'row row--between');
+        head.appendChild(el('span', 'card__label', t('product.reward') + ' ' + (index + 1)));
+        head.appendChild(button('btn btn--text', t('common.delete'), function () {
+          form.rewards.splice(index, 1);
+          paintRewards();
+        }));
+        body.appendChild(head);
+
+        body.appendChild(rewardInput(t('product.rewardName'), reward.name, false, function (value) {
+          reward.name = value;
+        }));
+
+        var pair = el('div', 'row--2');
+        pair.appendChild(rewardInput(t('product.rewardPrice'), reward.price, true, function (value) {
+          reward.price = value;
+        }));
+        pair.appendChild(rewardInput(t('product.rewardQty'), reward.qty, true, function (value) {
+          reward.qty = value;
+        }));
+        body.appendChild(pair);
+
+        var desc = el('textarea', 'textarea');
+        desc.value = reward.desc;
+        desc.setAttribute('placeholder', t('product.rewardDesc'));
+        desc.setAttribute('aria-label', t('product.rewardDesc'));
+        desc.addEventListener('input', function () { reward.desc = desc.value; });
+        body.appendChild(desc);
+
+        card.appendChild(body);
+        rewardsHost.appendChild(card);
+      });
+    }
+
+    function rewardInput(placeholder, value, numeric, onInput) {
+      var input = el('input', 'input');
+      input.type = 'text';
+      input.value = value;
+      if (numeric) { input.setAttribute('inputmode', 'numeric'); }
+      input.setAttribute('placeholder', placeholder);
+      input.setAttribute('aria-label', placeholder);
+      input.addEventListener('input', function () { onInput(input.value); });
+      return input;
+    }
+
+    /* 空行は捨て、価格と数量は数値にしてから rewards 列に入れる */
+    function rewardsValue() {
+      var out = [];
+      form.rewards.forEach(function (reward) {
+        var name = String(reward.name || '').trim();
+        var desc = String(reward.desc || '').trim();
+        var price = digitsOf(reward.price);
+        var qty = digitsOf(reward.qty);
+        if (!name && !desc && !price && !qty) { return; }
+        out.push({
+          name: name,
+          price: price && isDigits(price) ? Number(price) : null,
+          quantity: qty && isDigits(qty) ? Number(qty) : null,
+          description: desc || null
+        });
+      });
+      return out;
     }
 
     function paintImages() {
@@ -883,7 +968,10 @@
       });
 
       if (form.images.length < MAX_IMAGES) {
-        var picker = el('label', 'thumb-add tap');
+        var picker = el('div', 'thumb-add tap');
+        picker.setAttribute('role', 'button');
+        picker.setAttribute('tabindex', '0');
+        picker.setAttribute('aria-label', t('common.add'));
         picker.appendChild(el('span', null, '＋'));
         picker.appendChild(el('span', null, t('common.add')));
         var fileInput = el('input', 'file-input');
@@ -891,10 +979,35 @@
         fileInput.id = 'home-create-images';
         fileInput.accept = 'image/*';
         fileInput.multiple = true;
-        picker.setAttribute('for', fileInput.id);
         fileInput.addEventListener('change', function () {
           addFiles(fileInput.files);
           fileInput.value = '';
+        });
+
+        /* 追加ボックスへ直接ドロップしても登録できるようにする */
+        ['dragenter', 'dragover'].forEach(function (name) {
+          picker.addEventListener(name, function (event) {
+            event.preventDefault();
+            picker.classList.add('thumb-add--over');
+          });
+        });
+        ['dragleave', 'dragend', 'drop'].forEach(function (name) {
+          picker.addEventListener(name, function () { picker.classList.remove('thumb-add--over'); });
+        });
+        picker.addEventListener('drop', function (event) {
+          event.preventDefault();
+          if (event.dataTransfer) { addFiles(event.dataTransfer.files); }
+        });
+
+        /* label 任せだと開かないブラウザがあるので、自分で input を叩いてファイル選択窓を出す */
+        picker.addEventListener('click', function (event) {
+          if (event.target === fileInput) { return; }
+          fileInput.click();
+        });
+        picker.addEventListener('keydown', function (event) {
+          if (event.key !== 'Enter' && event.key !== ' ') { return; }
+          event.preventDefault();
+          fileInput.click();
         });
         picker.appendChild(fileInput);
         imagesHost.appendChild(picker);
@@ -1055,7 +1168,8 @@
         price: priceValue(),
         product_features: form.features.trim() || null,
         target_audience: form.target.trim() || null,
-        image_urls: form.images.slice()
+        image_urls: form.images.slice(),
+        rewards: rewardsValue()
       }).then(function (created) {
         if (unlimited) {
           return { project: created, user: user };

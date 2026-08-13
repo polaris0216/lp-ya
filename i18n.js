@@ -154,11 +154,18 @@
 
     'product.features': ['商品の特徴', 'Product features', '상품 특징'],
     'product.featuresMax': ['300文字まで入力できます', 'Up to 300 characters', '300자까지 입력할 수 있습니다'],
-    'product.price': ['価格', 'Price', '가격'],
+    'product.price': ['定価', 'List price', '정가'],
     'product.priceInvalid': ['半角数字で入力してください', 'Please enter numbers only', '숫자로 입력해 주세요'],
     'product.target': ['ターゲット', 'Target audience', '타겟'],
     'product.images': ['商品画像', 'Product images', '상품 이미지'],
-    'product.imagesMax': ['最大10枚までアップロードできます', 'You can upload up to 10 photos', '최대 10장까지 업로드할 수 있습니다'],
+    'product.imagesMax': ['最大15枚までアップロードできます', 'You can upload up to 15 photos', '최대 15장까지 업로드할 수 있습니다'],
+    'product.rewards': ['リワード', 'Rewards', '리워드'],
+    'product.reward': ['リワード', 'Reward', '리워드'],
+    'product.rewardAdd': ['リワードを追加', 'Add a reward', '리워드 추가'],
+    'product.rewardName': ['リワード名', 'Reward name', '리워드 이름'],
+    'product.rewardPrice': ['リワード価格', 'Reward price', '리워드 가격'],
+    'product.rewardQty': ['数量', 'Quantity', '수량'],
+    'product.rewardDesc': ['リワード説明', 'Reward description', '리워드 설명'],
 
     // ==== projectOps: S5 プロジェクト操作メニュー ====
     'projectOps.title': ['プロジェクト操作', 'Project options', '프로젝트 작업'],
@@ -213,7 +220,7 @@
     // ==== productForm: S9 商品登録 ====
     'productForm.title': ['商品登録', 'Register product', '상품 등록'],
     'productForm.addPhoto': ['商品写真を追加', 'Add product photos', '상품 사진 추가'],
-    'productForm.photoMax': ['最大10枚まで追加できます', 'You can add up to 10 photos', '최대 10장까지 추가할 수 있습니다'],
+    'productForm.photoMax': ['最大15枚まで追加できます', 'You can add up to 15 photos', '최대 15장까지 추가할 수 있습니다'],
     'productForm.name': ['商品名', 'Product name', '상품명'],
     'productForm.nameRequired': ['商品名を入力してください', 'Please enter a product name', '상품명을 입력해 주세요'],
     'productForm.saveAndAnalyze': ['保存して分析へ', 'Save and analyze', '저장하고 분석하기'],

@@ -66,7 +66,7 @@
   }
 
   /* ---------- 定数 ---------- */
-  var MAX_IMAGES = 10;              // 商品写真は最大10枚
+  var MAX_IMAGES = 15;              // 商品写真は最大15枚
   var MAX_PRODUCT_NAME = 60;
   var MAX_TARGET = 60;
   var MAX_FEATURES = 300;
@@ -897,7 +897,10 @@
       });
 
       if (form.images.length < MAX_IMAGES) {
-        var picker = el('label', 'thumb-add tap');
+        var picker = el('div', 'thumb-add tap');
+        picker.setAttribute('role', 'button');
+        picker.setAttribute('tabindex', '0');
+        picker.setAttribute('aria-label', t('common.add'));
         picker.appendChild(el('span', null, '＋'));
         picker.appendChild(el('span', null, t('common.add')));
         var fileInput = el('input', 'file-input');
@@ -905,10 +908,35 @@
         fileInput.id = 'product-images';
         fileInput.accept = 'image/*';
         fileInput.multiple = true;
-        picker.setAttribute('for', fileInput.id);
         fileInput.addEventListener('change', function () {
           addFiles(fileInput.files);
           fileInput.value = '';
+        });
+
+        /* 追加ボックスへ直接ドロップしても登録できるようにする */
+        ['dragenter', 'dragover'].forEach(function (name) {
+          picker.addEventListener(name, function (event) {
+            event.preventDefault();
+            picker.classList.add('thumb-add--over');
+          });
+        });
+        ['dragleave', 'dragend', 'drop'].forEach(function (name) {
+          picker.addEventListener(name, function () { picker.classList.remove('thumb-add--over'); });
+        });
+        picker.addEventListener('drop', function (event) {
+          event.preventDefault();
+          if (event.dataTransfer) { addFiles(event.dataTransfer.files); }
+        });
+
+        /* label 任せだと開かないブラウザがあるので、自分で input を叩いてファイル選択窓を出す */
+        picker.addEventListener('click', function (event) {
+          if (event.target === fileInput) { return; }
+          fileInput.click();
+        });
+        picker.addEventListener('keydown', function (event) {
+          if (event.key !== 'Enter' && event.key !== ' ') { return; }
+          event.preventDefault();
+          fileInput.click();
         });
         picker.appendChild(fileInput);
         imagesHost.appendChild(picker);
