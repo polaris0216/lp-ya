@@ -112,7 +112,7 @@
     'gen.pcSize': ['1440px', '1440px', '1440px'],
     'gen.phoneSize': ['390px', '390px', '390px'],
     'gen.previewNone': ['プレビューできるLPがまだありません', 'There is no LP to preview yet', '아직 미리 볼 LP가 없습니다'],
-    'gen.previewNoteInApp': ['アプリ内のプレビューでは外部画像を読み込みません。書き出したHTMLには画像が入ります', 'In-app previews do not load external images. Exported HTML includes them.', '앱 안 미리보기에서는 외부 이미지를 불러오지 않습니다. 내보낸 HTML에는 포함됩니다'],
+    'gen.previewNoteInApp': ['生成した画像を含む実際の表示です。書き出したHTML・公開URLでも同じものが表示されます', 'This preview shows the real page including generated images. Exported HTML and the public URL render the same.', '생성한 이미지를 포함한 실제 표시입니다. 내보낸 HTML과 공개 URL에서도 동일하게 표시됩니다'],
     'gen.sectionsTitle': ['セクション構成', 'Section structure', '섹션 구성'],
     'gen.copyAll': ['すべてコピー', 'Copy all', '전체 복사'],
     'gen.downloadSvg': ['SVGダウンロード', 'Download SVG', 'SVG 다운로드'],
