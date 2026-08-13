@@ -881,8 +881,15 @@
         image.alt = '';
         cell.appendChild(image);
         var remove = button('thumb__remove', '×', function () {
-          form.images.splice(index, 1);
+          var removed = form.images.splice(index, 1)[0];
           paintImages();
+          /* Storage の実体も消す（消し損ねてもフォームは進むので待たない）。
+             データURL時代の写真はファイルが無いので remove 側が黙って無視する */
+          if (window.Api && window.Api.files && typeof window.Api.files.remove === 'function') {
+            window.Api.files.remove(removed).catch(function (err) {
+              console.error('[screens-project] 商品写真の実体を削除できませんでした（画面からは外しています）', err);
+            });
+          }
         });
         remove.setAttribute('aria-label', t('common.delete'));
         cell.appendChild(remove);
