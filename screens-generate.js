@@ -1149,9 +1149,25 @@
 
     function htmlOf(generation, forDownload) {
       var type = generation.__type || normalizeType(generation.content_type);
-      /* 保存済みHTMLは、LINEボタンの設定を後から変えていない場合だけそのまま使う */
-      if (generation.generated_html && (type === TYPE.CF || !lineHref(generation.line_button_url))) {
-        return String(generation.generated_html);
+      /* 保存済みHTML（デザイン済みのリッチLP）があればそれを使う。
+         自社LPでLINE URLが設定されたら、リッチHTML内の <!--LINE_BUTTON--> 位置
+         （無ければ </body> 直前）へボタンを差し込む */
+      if (generation.generated_html) {
+        var rich = String(generation.generated_html);
+        if (type === TYPE.OWN) {
+          var richHref = lineHref(generation.line_button_url);
+          if (richHref) {
+            var richBtn = lineButtonMarkup(lineStyleOf(generation), richHref);
+            if (rich.indexOf('<!--LINE_BUTTON-->') !== -1) {
+              rich = rich.split('<!--LINE_BUTTON-->').join(richBtn);
+            } else if (rich.indexOf('</body>') !== -1) {
+              rich = rich.replace('</body>', richBtn + '\n</body>');
+            } else {
+              rich += richBtn;
+            }
+          }
+        }
+        return rich;
       }
       return buildHtml({
         title: generation.headline || (data.project && data.project.project_name) || '',
@@ -1545,6 +1561,34 @@
         headRow.appendChild(el('h3', 'section__title',
           typeLabel(generation.__type) + (generation.variant_label ? '　' + fill(t('gen.variant'), { label: generation.variant_label }) : '')));
         card.appendChild(headRow);
+
+        /* 生成済みのKV画像（image_urls）。SVGデータURI・通常URLの両方を表示できる */
+        var kvImages = asArray(generation.image_urls).filter(Boolean);
+        if (kvImages.length) {
+          kvImages.forEach(function (src, imgIndex) {
+            var frame = el('div', 'preview-frame');
+            var img = el('img', 'thumb__img');
+            img.src = String(src);
+            img.alt = (generation.title || 'KV') + ' ' + (imgIndex + 1);
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.display = 'block';
+            img.style.borderRadius = '12px';
+            frame.appendChild(img);
+            card.appendChild(frame);
+          });
+          card.appendChild(button('btn btn--secondary btn--block', t('gen.downloadSvg'), function () {
+            var src = String(kvImages[0]);
+            if (src.indexOf('data:image/svg') === 0) {
+              var svgText = src.indexOf('base64,') !== -1
+                ? atob(src.split('base64,')[1])
+                : decodeURIComponent(src.split(',').slice(1).join(','));
+              downloadText(svgText, safeFileName(generation.title || 'kv') + '.svg', 'image/svg+xml;charset=utf-8');
+            } else {
+              window.open(src, '_blank', 'noopener');
+            }
+          }));
+        }
 
         var info = el('div', 'info-list');
         if (generation.headline) {
