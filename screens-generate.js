@@ -1370,11 +1370,20 @@
       var out = String(html);
       assetRowsOf(generation).forEach(function (one) {
         var token = '{' + (one.kind === 'image' ? 'image_' : 'video_') + (one.index + 1) + '}';
-        out = out.split(token).join(one.url || PENDING_PIXEL);
+        var value = one.url || PENDING_PIXEL;
+        out = out.split(token).join(value);
         /* 指示文の見出しをそのまま口にしている書き方も拾う */
-        if (one.slot) { out = out.split('{' + one.slot + '}').join(one.url || PENDING_PIXEL); }
+        if (one.slot) { out = out.split('{' + one.slot + '}').join(value); }
       });
-      return out;
+      /* 動画の口は <img> のままでは再生されない。URLが動画なら <video> に置き換える。
+         音は付けない（LPの中で勝手に鳴らさないため） */
+      return out.replace(/<img\b[^>]*\bsrc="([^"]+\.(?:mp4|webm))"[^>]*>/gi,
+        function (whole, url) {
+          var alt = /alt="([^"]*)"/i.exec(whole);
+          return '<video src="' + url + '" muted playsinline loop autoplay controls'
+            + (alt ? ' aria-label="' + alt[1] + '"' : '')
+            + ' style="display:block;width:100%;height:auto"></video>';
+        });
     }
 
     function htmlOf(generation, forDownload) {
