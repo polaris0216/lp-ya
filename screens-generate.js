@@ -152,7 +152,34 @@
       '먼저 상품 입력 페이지에서 상품이 찍힌 사진에 ★를 표시해 주세요. 견본이 없으면 AI가 상품의 겉모습을 마음대로 만들어 버립니다.'
     ],
     'gen.assetShots': ['見本にする商品写真 {n}枚', '{n} product shots used as the reference', '견본으로 사용할 상품 사진 {n}장'],
+    'gen.assetCutouts': [
+      'うち背景を抜いた切り抜き {n}枚を見本に使います',
+      '{n} of them are background-free cutouts and are used as the reference',
+      '그중 배경을 제거한 컷아웃 {n}장을 견본으로 사용합니다'
+    ],
+    'gen.assetCutoutFirst': [
+      '背景を抜いた切り抜きはまだありません。生成の最初に切り抜きを作ってから、それを見本にします。',
+      'There are no background-free cutouts yet. They are made first, then used as the reference.',
+      '배경을 제거한 컷아웃이 아직 없습니다. 생성 시작 시 컷아웃을 먼저 만들어 견본으로 사용합니다.'
+    ],
     'gen.assetToInput': ['商品入力へ', 'Go to product input', '상품 입력으로'],
+    'gen.previewScroll': [
+      '画面の上にカーソルを置いてスクロールすると、ページの下まで見られます。',
+      'Put the pointer over the screen and scroll to see further down the page.',
+      '화면 위에 커서를 두고 스크롤하면 페이지 아래까지 볼 수 있습니다.'
+    ],
+    'gen.assetOpen': ['原寸で開く', 'Open full size', '원본 크기로 열기'],
+    'gen.assetShowPrompt': ['指示文を見る（管理者）', 'Show the instruction (admin)', '지시문 보기(관리자)'],
+    'gen.assetRedo': ['作り直す', 'Make it again', '다시 만들기'],
+    'gen.assetRedoing': ['作り直しています', 'Making it again', '다시 만드는 중입니다'],
+    'gen.assetMaking': ['生成中', 'Making', '생성 중'],
+    'gen.assetProgress': ['素材を生成中 {done}/{total}', 'Making assets {done}/{total}', '소재 생성 중 {done}/{total}'],
+    'gen.assetSomeFailed': ['{n}件は生成に出せませんでした。', '{n} could not be sent for production.', '{n}건은 생성에 보내지 못했습니다.'],
+    'gen.assetRedoQueued': [
+      '作り直しに出しました。できあがると差し替わります。',
+      'Sent to be made again. It swaps in when it arrives.',
+      '다시 만들기에 보냈습니다. 완성되면 교체됩니다.'
+    ],
     'gen.assetApiNote': [
       '画像・動画のAPIはまだ接続していません。いまは指示文をコピーして ChatGPT と segmind で作り、できたURLをここに貼ります。キーを入れたら、この欄は自動で埋まります。',
       'The image and video APIs are not connected yet. For now, copy the instruction, make the asset in ChatGPT or segmind, and paste the URL here. Once the keys are in, this fills itself.',
@@ -659,6 +686,71 @@
     return '';
   }
 
+  /* ---- 生成待ちの素材 ----
+     生成物1行が持つ asset_prompts（画像はChatGPT image2、動画はsegmind向けの
+     指示文）と、実際にできたURL（image_urls / video_urls）を突き合わせる。
+     URLがまだ入っていないものが「生成待ち」。
+     APIキーを入れたら Edge Function が同じ列を埋めるので、この画面は変えずに済む。 */
+  function assetRowsOf(generation) {
+    var prompts = generation.asset_prompts;
+    if (typeof prompts === 'string') {
+      try { prompts = JSON.parse(prompts); } catch (e) { prompts = null; }
+    }
+    if (!prompts || typeof prompts !== 'object') { return []; }
+
+    var out = [];
+    [['images', 'image_urls', 'image'], ['videos', 'video_urls', 'video']].forEach(function (spec) {
+      var list = asArray(prompts[spec[0]]);
+      var made = asArray(generation[spec[1]]);
+      list.forEach(function (one, index) {
+        var url = made[index];
+        /* できたものが {slot, url} で入っている場合は slot で合わせる */
+        if (url && typeof url === 'object') { url = url.url; }
+        if (!url) {
+          made.forEach(function (m) {
+            if (m && typeof m === 'object' && m.slot && m.slot === one.slot) { url = m.url; }
+          });
+        }
+        out.push({
+          generation: generation,
+          column: spec[1],
+          index: index,
+          kind: spec[2],
+          slot: String(one.slot || (index + 1)),
+          prompt: String(one.prompt || ''),
+          url: String(url || '')
+        });
+      });
+    });
+    return out;
+  }
+
+  /* LP本文に空けてある差し込み口を、貼られた素材のURLで埋める。
+     指示文の並び順に {image_1} {image_2} … {video_1} … が対応する。
+     まだ貼っていない口は、そのままでは生の波括弧が見えてしまうので、
+     灰色の待ち枠（data URI の1x1）に置き換える。 */
+  var PENDING_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAOXh7wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+  function fillAssetSlots(generation, html) {
+    var out = String(html);
+    assetRowsOf(generation).forEach(function (one) {
+      var token = '{' + (one.kind === 'image' ? 'image_' : 'video_') + (one.index + 1) + '}';
+      var value = one.url || PENDING_PIXEL;
+      out = out.split(token).join(value);
+      /* 指示文の見出しをそのまま口にしている書き方も拾う */
+      if (one.slot) { out = out.split('{' + one.slot + '}').join(value); }
+    });
+    /* 動画の口は <img> のままでは再生されない。URLが動画なら <video> に置き換える。
+       音は付けない（LPの中で勝手に鳴らさないため） */
+    return out.replace(/<img\b[^>]*\bsrc="([^"]+\.(?:mp4|webm))"[^>]*>/gi,
+      function (whole, url) {
+        var alt = /alt="([^"]*)"/i.exec(whole);
+        return '<video src="' + url + '" muted playsinline loop autoplay controls'
+          + (alt ? ' aria-label="' + alt[1] + '"' : '')
+          + ' style="display:block;width:100%;height:auto"></video>';
+      });
+  }
+
   function isLp(type) { return type === TYPE.CF || type === TYPE.OWN; }
 
   function typeLabel(type) {
@@ -1030,12 +1122,50 @@
     var cssWidth = Number(frame.getAttribute('data-fit-width')) || 1440;
     var boxWidth = wrapper.clientWidth;
     var boxHeight = wrapper.clientHeight;
+    /* まだ大きさが決まっていない段階で縮尺を出すと、実寸より小さいまま
+       固まって中身が左に寄る。決まってから測り直す */
     if (!boxWidth || !boxHeight) { return; }
     var scale = boxWidth / cssWidth;
+
+    /* ページ全体の高さぶん iframe を伸ばし、枠のほうをスクロールさせる。
+       iframe を見えているぶんだけの高さにして中身を内側でスクロールさせると、
+       ホイールが外側のページに流れてしまい、端末の画面が動かない。 */
+    var contentHeight = 0;
+    try {
+      var doc = frame.contentDocument;
+      if (doc && doc.documentElement) {
+        contentHeight = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0);
+      }
+    } catch (e) {
+      /* 読めない場合は見えているぶんだけにする（スクロールはしない） */
+      contentHeight = 0;
+    }
+    if (!contentHeight) { contentHeight = Math.round(boxHeight / scale); }
+
     frame.style.width = cssWidth + 'px';
-    frame.style.height = Math.round(boxHeight / scale) + 'px';
+    frame.style.height = contentHeight + 'px';
     frame.style.transform = 'scale(' + scale + ')';
     frame.style.transformOrigin = '0 0';
+
+    /* 縮尺は並びの計算に効かないので、スクロールできる高さを別に置く */
+    var spacer = wrapper.querySelector('.mock__scroll');
+    if (spacer) { spacer.style.height = Math.round(contentHeight * scale) + 'px'; }
+  }
+
+  /* 枠の大きさが決まった時点で測り直す。読み込み直後の一瞬だけ
+     小さく描かれて左に寄る、という見え方を防ぐ */
+  function watchFrame(frame) {
+    var wrapper = frame.parentNode;
+    if (!wrapper) { return; }
+    if (typeof window.ResizeObserver === 'function') {
+      var ro = new window.ResizeObserver(function () { fitFrame(frame); });
+      ro.observe(wrapper);
+      return;
+    }
+    console.warn('[screens-generate] ResizeObserver がないため、プレビューの縮尺は数回の測り直しで合わせます。');
+    [0, 60, 200, 600].forEach(function (wait) {
+      window.setTimeout(function () { fitFrame(frame); }, wait);
+    });
   }
 
   function fitAllFrames() {
@@ -1046,20 +1176,54 @@
 
   window.addEventListener('resize', fitAllFrames);
 
+  /* 実物の端末に見えるように、外側の枠まで描く。
+     PC はブラウザの窓（信号3つとアドレスバー）、スマホは本体の縁と
+     画面上部の黒い島。中身は等倍で描いてから縮尺をかけるので、
+     文字の大きさの関係は実機と同じになる。 */
   function mockCard(kind, html, label) {
     var isPhone = kind === 'phone';
     var card = el('div', 'mock ' + (isPhone ? 'mock--phone' : 'mock--pc'));
     card.appendChild(el('span', 'mock__label', label));
+
+    var device = el('div', 'device ' + (isPhone ? 'device--phone' : 'device--pc'));
+
+    if (isPhone) {
+      device.appendChild(el('span', 'device__island'));
+    } else {
+      var bar = el('div', 'device__bar');
+      var dots = el('span', 'device__dots');
+      dots.appendChild(el('i', 'device__dot device__dot--r'));
+      dots.appendChild(el('i', 'device__dot device__dot--y'));
+      dots.appendChild(el('i', 'device__dot device__dot--g'));
+      bar.appendChild(dots);
+      bar.appendChild(el('span', 'device__url', 'example.com'));
+      device.appendChild(bar);
+    }
+
     var frame = el('div', 'mock__frame');
     var iframe = document.createElement('iframe');
     iframe.className = 'mock__screen';
     iframe.setAttribute('title', label);
-    iframe.setAttribute('sandbox', '');
+    /* allow-same-origin は中身の高さを測るためだけ。allow-scripts は付けないので
+       生成されたHTMLの中でスクリプトは動かない */
+    iframe.setAttribute('sandbox', 'allow-same-origin');
     iframe.setAttribute('scrolling', 'no');
     iframe.setAttribute('data-fit-width', isPhone ? '390' : '1440');
     iframe.srcdoc = html;
     frame.appendChild(iframe);
-    card.appendChild(frame);
+    /* スクロールできる高さを作るための下敷き */
+    frame.appendChild(el('div', 'mock__scroll'));
+    iframe.addEventListener('load', function () {
+      fitFrame(iframe);
+      /* 画像が入って高さが伸びたぶんを拾い直す */
+      [120, 400, 1200].forEach(function (wait) {
+        window.setTimeout(function () { fitFrame(iframe); }, wait);
+      });
+    });
+    device.appendChild(frame);
+    card.appendChild(device);
+
+    watchFrame(iframe);
     window.setTimeout(function () { fitFrame(iframe); }, 0);
     return card;
   }
@@ -1113,7 +1277,9 @@
     var view = {
       tab: (params && params.tab) ? String(params.tab) : 'cf',
       lineSub: 'rich_menu',
-      target: 'all'   /* 'all' か、ターゲット層の記号（A〜E） */
+      target: 'all',  /* 'all' か、ターゲット層の記号（A〜E） */
+      device: 'pc',   /* プレビューで見せている端末。'pc' か 'phone' */
+      making: {}      /* いま作っている素材の印。'生成物ID:列:番号' → true */
     };
     var data = { project: null, generations: [], buckets: {}, user: null, report: null, metrics: {} };
 
@@ -1134,6 +1300,9 @@
         data.project = project;
         /* 素材の見本にするのは、S4 で★を付けた商品カットだけ */
         data.productShots = asArray(project && project.product_shot_urls).map(String).filter(Boolean);
+        /* 背景を抜いた切り抜き。あればこちらを見本に渡す（背景ごと商品だと
+           解釈されて、まるで違う物が描かれるのを防ぐため） */
+        data.productCutouts = asArray(project && project.product_cutout_urls).map(String).filter(Boolean);
         return Api.generations.list({
           eq: { projects_id: String(projectId) },
           order: 'created_at.desc',
@@ -1197,45 +1366,6 @@
       });
     }
 
-    /* ---- 生成待ちの素材 ----
-       生成物1行が持つ asset_prompts（画像はChatGPT image2、動画はsegmind向けの
-       指示文）と、実際にできたURL（image_urls / video_urls）を突き合わせる。
-       URLがまだ入っていないものが「生成待ち」。
-       APIキーを入れたら Edge Function が同じ列を埋めるので、この画面は変えずに済む。 */
-    function assetRowsOf(generation) {
-      var prompts = generation.asset_prompts;
-      if (typeof prompts === 'string') {
-        try { prompts = JSON.parse(prompts); } catch (e) { prompts = null; }
-      }
-      if (!prompts || typeof prompts !== 'object') { return []; }
-
-      var out = [];
-      [['images', 'image_urls', 'image'], ['videos', 'video_urls', 'video']].forEach(function (spec) {
-        var list = asArray(prompts[spec[0]]);
-        var made = asArray(generation[spec[1]]);
-        list.forEach(function (one, index) {
-          var url = made[index];
-          /* できたものが {slot, url} で入っている場合は slot で合わせる */
-          if (url && typeof url === 'object') { url = url.url; }
-          if (!url) {
-            made.forEach(function (m) {
-              if (m && typeof m === 'object' && m.slot && m.slot === one.slot) { url = m.url; }
-            });
-          }
-          out.push({
-            generation: generation,
-            column: spec[1],
-            index: index,
-            kind: spec[2],
-            slot: String(one.slot || (index + 1)),
-            prompt: String(one.prompt || ''),
-            url: String(url || '')
-          });
-        });
-      });
-      return out;
-    }
-
     function allAssetRows() {
       var out = [];
       data.generations.forEach(function (row) {
@@ -1289,9 +1419,11 @@
 
       section.appendChild(renderAllBar(rows));
 
+      var grid = el('div', 'asset-grid');
       rows.forEach(function (one) {
-        section.appendChild(assetCard(one));
+        grid.appendChild(assetCard(one));
       });
+      section.appendChild(grid);
       return section;
     }
 
@@ -1315,6 +1447,10 @@
       }
 
       box.appendChild(el('p', 't-note', fill(t('gen.assetShots'), { n: shots.length })));
+      var cutouts = data.productCutouts || [];
+      box.appendChild(el('p', 't-note', cutouts.length
+        ? fill(t('gen.assetCutouts'), { n: cutouts.length })
+        : t('gen.assetCutoutFirst')));
 
       var run = button('btn btn--primary btn--block', t('gen.assetRenderAll'), function () {
         if (!waiting.length) { return; }
@@ -1327,57 +1463,131 @@
       return box;
     }
 
-    function renderAllAssets(waiting, shots, run) {
+    /* 素材1件ぶんの覚え書き。どのカードが作られているかを見分ける */
+    function assetKey(one) {
+      return String(one.generation.id) + ':' + one.column + ':' + one.index;
+    }
+
+    function assetPayload(one) {
+      return {
+        generation_id: String(one.generation.id),
+        content_type: one.generation.content_type,
+        target: one.generation.variant_label || '',
+        column: one.column,
+        index: one.index,
+        kind: one.kind,
+        slot: one.slot,
+        prompt: one.prompt
+      };
+    }
+
+    /* ---- 複数の素材を同時に作る ----
+       1件ずつ順番に待つと、枚数ぶんだけ待ち時間が積み上がる。
+       素材ごとに生成へ出し、何件かを並行して走らせる。できたものから
+       順に一覧へ入るので、全部そろうのを待たずに見はじめられる。
+       同時数を絞るのは、画像生成が詰まって全体が遅くなるのを避けるため。 */
+    var ASSET_RUNNING_MAX = 4;
+
+    function renderAllAssets(waiting, shots, run, queuedMessage) {
       if (!Api.analysis || typeof Api.analysis.run !== 'function') {
         console.error('[screens-generate] Api.analysis.run がありません。api.js を確認してください。');
         toast(t('gen.assetRenderFailed'), 'danger');
         run.disabled = false;
-        run.textContent = t('gen.assetRenderAll');
+        run.textContent = queuedMessage ? t('gen.assetRedo') : t('gen.assetRenderAll');
         return;
       }
 
-      Api.analysis.run({
-        mode: 'asset_render',
-        projects_id: String(projectId),
-        product_shots: shots,
-        assets: waiting.map(function (one) {
-          return {
-            generation_id: String(one.generation.id),
-            content_type: one.generation.content_type,
-            target: one.generation.variant_label || '',
-            column: one.column,
-            index: one.index,
-            kind: one.kind,
-            slot: one.slot,
-            prompt: one.prompt
-          };
-        }),
-        lang: (App.getLang && App.getLang()) || 'ja'
-      }).then(function (result) {
-        function done() { load(); }
-        if (result && result.queued && App.watchJob) {
-          toast(fill(t('gen.assetRenderQueued'), { n: waiting.length }), 'success');
-          App.watchJob({
-            jobId: result.job_id,
-            titleKey: 'job.titleAssets',
-            doneKey: 'job.doneAssets',
-            noteKey: 'job.noteAssets',
-            urls: [],
-            onDone: done
-          });
-          return;
+      var list = waiting.slice();
+      if (!list.length) { return; }
+
+      list.forEach(function (one) { view.making[assetKey(one)] = true; });
+      paint();
+
+      var done = 0;
+      var failed = 0;
+      var next = 0;
+      var live = 0;
+      var single = list.length === 1;
+
+      function announce() {
+        if (single) { return; }
+        toast(fill(t('gen.assetProgress'), { done: done, total: list.length }), 'info');
+      }
+
+      function runOne(one) {
+        return Api.analysis.run({
+          mode: 'asset_render',
+          projects_id: String(projectId),
+          product_shots: shots,
+          /* 切り抜きができていればそれを見本にする。無ければ生成の最初に作る */
+          product_cutouts: data.productCutouts || [],
+          assets: [assetPayload(one)],
+          lang: (App.getLang && App.getLang()) || 'ja'
+        }).then(function (result) {
+          if (!(result && result.queued)) { return null; }
+          return waitForAssetJob(result.job_id);
+        }, function (err) {
+          console.error('[screens-generate] 素材の生成に出せませんでした', one.slot, err);
+          failed += 1;
+        }).then(function () {
+          delete view.making[assetKey(one)];
+          done += 1;
+          announce();
+        });
+      }
+
+      function finish() {
+        if (failed) {
+          toast(fill(t('gen.assetSomeFailed'), { n: failed }), 'danger');
+        } else {
+          toast(queuedMessage || fill(t('gen.assetRenderQueued'), { n: list.length }), 'success');
         }
-        done();
-      }, function (err) {
-        console.error('[screens-generate] 素材の一括生成に出せませんでした', err);
-        toast(errorMessage(err, 'gen.assetRenderFailed'), 'danger');
-        run.disabled = false;
-        run.textContent = t('gen.assetRenderAll');
+        load();
+      }
+
+      function pump() {
+        while (live < ASSET_RUNNING_MAX && next < list.length) {
+          var one = list[next];
+          next += 1;
+          live += 1;
+          runOne(one).then(function () {
+            live -= 1;
+            /* 1件終わるたびに一覧を作り直し、できたものからすぐ見えるようにする */
+            if (next < list.length) { pump(); }
+            if (!live && next >= list.length) { finish(); return; }
+            load();
+          });
+        }
+      }
+
+      announce();
+      pump();
+    }
+
+    /* 素材のジョブが片づくまで待つ。待ちきれなくても、次に画面を開けば入っている */
+    function waitForAssetJob(jobId) {
+      var POLL_MS = 4000;
+      var LIMIT_MS = 15 * 60 * 1000;
+      var startedAt = Date.now();
+      return new Promise(function (resolve) {
+        function tick() {
+          if (Date.now() - startedAt > LIMIT_MS) { resolve('timeout'); return; }
+          Api.generationJobs.get(jobId).then(function (job) {
+            if (job && job.status === 'done') { resolve('done'); return; }
+            if (job && job.status === 'failed') { resolve('failed'); return; }
+            setTimeout(tick, POLL_MS);
+          }, function (err) {
+            console.error('[screens-generate] 素材ジョブの確認に失敗しました。続けて確認します', err);
+            setTimeout(tick, POLL_MS);
+          });
+        }
+        setTimeout(tick, POLL_MS);
       });
     }
 
     function assetCard(one) {
-      var card = el('div', 'card');
+      var making = !!view.making[assetKey(one)];
+      var card = el('div', 'card asset-card');
 
       var badges = el('div', 'chips');
       if (one.generation.variant_label) {
@@ -1386,31 +1596,75 @@
       badges.appendChild(el('span', 'badge badge--mute', typeLabel(one.generation.__type)));
       badges.appendChild(el('span', 'badge badge--mute',
         t(one.kind === 'image' ? 'gen.assetImage' : 'gen.assetVideo')));
-      badges.appendChild(el('span', 'badge badge--mute',
-        t(one.kind === 'image' ? 'gen.assetProviderImage' : 'gen.assetProviderVideo')));
-      badges.appendChild(el('span', one.url ? 'badge badge--ok' : 'badge badge--warn',
-        t(one.url ? 'gen.assetDone' : 'gen.assetWaiting')));
+      badges.appendChild(el('span',
+        making ? 'badge badge--warn' : (one.url ? 'badge badge--ok' : 'badge badge--mute'),
+        t(making ? 'gen.assetMaking' : (one.url ? 'gen.assetDone' : 'gen.assetWaiting'))));
       card.appendChild(badges);
 
       card.appendChild(el('p', 'card__label', one.slot));
 
-      var body = el('p', 'card__sub');
-      body.textContent = one.prompt;
-      card.appendChild(body);
-
-      /* 指示文をそのまま ChatGPT / segmind に貼れるようにする */
-      card.appendChild(button('btn btn--secondary btn--sm', t('gen.assetCopy'), function () {
-        copyText(one.prompt);
-      }));
-
-      if (one.url) {
-        var made = el('p', 't-note break-url');
-        made.textContent = one.url;
-        card.appendChild(made);
+      if (making) {
+        var pending = el('div', 'asset-view asset-view--making');
+        pending.appendChild(el('span', 't-note', t('gen.assetMaking')));
+        card.appendChild(pending);
+      } else if (one.url) {
+        var link = el('a', 'asset-view');
+        link.href = one.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.setAttribute('aria-label', t('gen.assetOpen') + '：' + one.slot);
+        if (one.kind === 'video') {
+          var movie = el('video', 'asset-view__media');
+          movie.src = one.url;
+          movie.muted = true;
+          movie.loop = true;
+          movie.autoplay = true;
+          movie.playsInline = true;
+          link.appendChild(movie);
+        } else {
+          var shot = el('img', 'asset-view__media');
+          shot.src = one.url;
+          shot.alt = one.slot;
+          shot.loading = 'lazy';
+          link.appendChild(shot);
+        }
+        card.appendChild(link);
       }
 
-      var field = el('div', 'field');
-      field.appendChild(el('label', 'field__label', t('gen.assetPaste')));
+      /* 指示文は運営が中身を確かめるためのもの。利用者には見せない */
+      if (App.isAdmin && App.isAdmin()) {
+        var promptBox = el('details', 'asset-prompt');
+        if (!one.url) { promptBox.open = true; }
+        promptBox.appendChild(el('summary', 'asset-prompt__head', t('gen.assetShowPrompt')));
+        var body = el('p', 'card__sub');
+        body.textContent = one.prompt;
+        promptBox.appendChild(body);
+        /* 指示文をそのまま ChatGPT / segmind に貼れるようにする */
+        promptBox.appendChild(button('btn btn--secondary btn--sm', t('gen.assetCopy'), function () {
+          copyText(one.prompt);
+        }));
+        card.appendChild(promptBox);
+      }
+
+      /* 気に入らなければ作り直す。同じ指示文でもう一度作らせる */
+      var redo = button('btn btn--secondary btn--block btn--sm',
+        t(making ? 'gen.assetRedoing' : 'gen.assetRedo'), function () {
+        redo.disabled = true;
+        redo.textContent = t('gen.assetRedoing');
+        renderAllAssets([one], data.productCutouts && data.productCutouts.length
+          ? data.productCutouts : (data.productShots || []), redo, t('gen.assetRedoQueued'));
+      });
+      if (making) { redo.disabled = true; }
+      card.appendChild(redo);
+
+      /* URLを貼る欄も、できたあとは畳んでおく（差し替えたいときだけ開く） */
+      /* URLを手で貼る欄も運営用。APIを入れたら自動で埋まるので、
+         利用者には出さない（利用者にできるのは「作り直す」だけ） */
+      if (!(App.isAdmin && App.isAdmin())) { return card; }
+
+      var field = el('details', 'field asset-paste');
+      if (!one.url) { field.open = true; }
+      field.appendChild(el('summary', 'field__label', t('gen.assetPaste')));
       var line = el('div', 'row--input-action');
       var input = el('input', 'input');
       input.type = 'url';
@@ -1458,32 +1712,6 @@
         if (!found && data.buckets[key] && data.buckets[key].length) { found = data.buckets[key][0]; }
       });
       return found;
-    }
-
-    /* LP本文に空けてある差し込み口を、貼られた素材のURLで埋める。
-       指示文の並び順に {image_1} {image_2} … {video_1} … が対応する。
-       まだ貼っていない口は、そのままでは生の波括弧が見えてしまうので、
-       灰色の待ち枠（data URI の1x1）に置き換える。 */
-    var PENDING_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAOXh7wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
-
-    function fillAssetSlots(generation, html) {
-      var out = String(html);
-      assetRowsOf(generation).forEach(function (one) {
-        var token = '{' + (one.kind === 'image' ? 'image_' : 'video_') + (one.index + 1) + '}';
-        var value = one.url || PENDING_PIXEL;
-        out = out.split(token).join(value);
-        /* 指示文の見出しをそのまま口にしている書き方も拾う */
-        if (one.slot) { out = out.split('{' + one.slot + '}').join(value); }
-      });
-      /* 動画の口は <img> のままでは再生されない。URLが動画なら <video> に置き換える。
-         音は付けない（LPの中で勝手に鳴らさないため） */
-      return out.replace(/<img\b[^>]*\bsrc="([^"]+\.(?:mp4|webm))"[^>]*>/gi,
-        function (whole, url) {
-          var alt = /alt="([^"]*)"/i.exec(whole);
-          return '<video src="' + url + '" muted playsinline loop autoplay controls'
-            + (alt ? ' aria-label="' + alt[1] + '"' : '')
-            + ' style="display:block;width:100%;height:auto"></video>';
-        });
     }
 
     function htmlOf(generation, forDownload) {
@@ -2103,19 +2331,53 @@
         return;
       }
 
-      /* PC・スマホ同時プレビュー */
+      /* プレビューは1台ずつ。タブか左右の矢印で PC とスマホを行き来する */
       var target = previewTarget();
       var previewSection = el('section', 'section');
       var previewHead = el('div', 'section__head');
-      previewHead.appendChild(el('h3', 'section__title', t('generate.pcPreview') + ' / ' + t('generate.mobilePreview')));
+      var isPhone = view.device === 'phone';
+      previewHead.appendChild(el('h3', 'section__title',
+        isPhone ? t('generate.mobilePreview') : t('generate.pcPreview')));
+      previewHead.appendChild(el('span', 't-note', isPhone ? t('gen.phoneSize') : t('gen.pcSize')));
       previewSection.appendChild(previewHead);
 
       if (target) {
         var html = htmlOf(target, false);
-        var grid = el('div', 'mock-grid');
-        grid.appendChild(mockCard('pc', html, t('generate.pcPreview') + ' ' + t('gen.pcSize')));
-        grid.appendChild(mockCard('phone', html, t('generate.mobilePreview') + ' ' + t('gen.phoneSize')));
-        previewSection.appendChild(grid);
+
+        var switcher = el('div', 'tabs');
+        switcher.setAttribute('role', 'tablist');
+        [['pc', 'generate.pcPreview'], ['phone', 'generate.mobilePreview']].forEach(function (pair) {
+          var on = view.device === pair[0];
+          var tab = button('tabs__item' + (on ? ' tabs__item--active' : ''), t(pair[1]), function () {
+            view.device = pair[0];
+            paint();
+          });
+          tab.setAttribute('role', 'tab');
+          tab.setAttribute('aria-selected', on ? 'true' : 'false');
+          switcher.appendChild(tab);
+        });
+        previewSection.appendChild(switcher);
+
+        var stage = el('div', 'mock-stage');
+        var prev = button('mock-stage__arrow', '‹', function () {
+          view.device = isPhone ? 'pc' : 'phone';
+          paint();
+        });
+        prev.setAttribute('aria-label', isPhone ? t('generate.pcPreview') : t('generate.mobilePreview'));
+        stage.appendChild(prev);
+
+        stage.appendChild(mockCard(view.device, html,
+          isPhone ? t('generate.mobilePreview') + ' ' + t('gen.phoneSize')
+                  : t('generate.pcPreview') + ' ' + t('gen.pcSize')));
+
+        var next = button('mock-stage__arrow', '›', function () {
+          view.device = isPhone ? 'pc' : 'phone';
+          paint();
+        });
+        next.setAttribute('aria-label', isPhone ? t('generate.pcPreview') : t('generate.mobilePreview'));
+        stage.appendChild(next);
+        previewSection.appendChild(stage);
+        previewSection.appendChild(el('p', 't-note', t('gen.previewScroll')));
         previewSection.appendChild(el('p', 't-note', fill(t('gen.previewOf'), { name: typeLabel(target.__type) })));
         previewSection.appendChild(el('p', 't-note', t('gen.previewNoteInApp')));
         previewSection.appendChild(button('btn btn--primary btn--block', t('generate.expand'), function () {
@@ -2195,15 +2457,7 @@
 
       screen.appendChild(assetSection());
 
-      /* 残高（タップでクレジット画面へ） */
-      var balanceCard = button('card card--gradient', '', function () { go('S17'); });
-      balanceCard.appendChild(el('span', 'card__label', t('generate.balance')));
-      var valueRow = el('span');
-      valueRow.appendChild(el('span', 'card__value num', data.user ? formatNumber(data.user.credit_balance) : '—'));
-      valueRow.appendChild(el('span', 'card__unit', t('common.creditUnit')));
-      balanceCard.appendChild(valueRow);
-      balanceCard.appendChild(el('span', 'card__sub', t('generate.viewCredit')));
-      screen.appendChild(balanceCard);
+      /* 残高はヘッダーに常時出ているので、ここには置かない */
 
       screen.appendChild(footerActions());
       root.appendChild(screen);
@@ -2266,23 +2520,18 @@
         });
       }
 
-      function step(index) {
-        if (index >= jobs.length) {
-          if (made) { toast(t('gen.generateDone'), 'success'); }
-          failures.forEach(function (failed) {
-            var key = (failed.err && failed.err.status === 501) ? 'gen.generateNotReady' : 'gen.generateFailed';
-            if (failed.err && failed.err.code === 'insufficient') {
-              toast(errorMessage(failed.err, 'gen.generateFailed'), 'danger');
-            } else {
-              toast(fill(t(key), { name: nameOf(failed.job) }), 'danger');
-            }
-          });
-          load();
-          return;
-        }
-        var job = jobs[index];
-        toast(fill(t('gen.generating'), { name: nameOf(job) }), 'info');
-        Api.generations.generate({
+      /* 1件ずつ順番に待つと、層 × 成果物のぶんだけ待ち時間が積み上がる。
+         まとめて出して同時に走らせ、全部の結果が出そろってから画面を戻す。
+         同時に走らせる数は絞る（サーバー側の生成が詰まらないように）。 */
+      var RUNNING_MAX = 4;
+      var done = 0;
+
+      function progress() {
+        toast(fill(t('gen.generatingCount'), { done: done, total: jobs.length }), 'info');
+      }
+
+      function runOne(job) {
+        return Api.generations.generate({
           project_id: String(projectId),
           feature_key: job.feature.feature_key,
           target: job.target || null,
@@ -2290,23 +2539,54 @@
           lang: (App.getLang && App.getLang()) || 'ja'
         }).then(function (result) {
           if (result && result.queued) {
-            toast(fill(t('gen.queuedLocal'), { name: nameOf(job) }), 'info');
             return waitForJob(result.job_id).then(function (outcome) {
               if (outcome === 'done') { made += 1; }
               else if (outcome === 'failed') { failures.push({ job: job, err: null }); }
               else { toast(t('gen.queuedTimeout'), 'info'); }
-              step(index + 1);
             });
           }
           made += 1;
-          step(index + 1);
         }, function (err) {
           console.error('[screens-generate] 生成に失敗しました', job.target, job.feature.feature_key, err);
           failures.push({ job: job, err: err });
-          step(index + 1);
+        }).then(function () {
+          done += 1;
+          progress();
         });
       }
-      step(0);
+
+      function finish() {
+        if (made) { toast(t('gen.generateDone'), 'success'); }
+        failures.forEach(function (failed) {
+          var key = (failed.err && failed.err.status === 501) ? 'gen.generateNotReady' : 'gen.generateFailed';
+          if (failed.err && failed.err.code === 'insufficient') {
+            toast(errorMessage(failed.err, 'gen.generateFailed'), 'danger');
+          } else {
+            toast(fill(t(key), { name: nameOf(failed.job) }), 'danger');
+          }
+        });
+        load();
+      }
+
+      var next = 0;
+      var live = 0;
+
+      function pump() {
+        while (live < RUNNING_MAX && next < jobs.length) {
+          var job = jobs[next];
+          next += 1;
+          live += 1;
+          runOne(job).then(function () {
+            live -= 1;
+            if (next < jobs.length) { pump(); return; }
+            if (!live) { finish(); }
+          });
+        }
+        if (!live && next >= jobs.length) { finish(); }
+      }
+
+      progress();
+      pump();
     }
 
     var requested = App.state && App.state.generateRequest;
@@ -2965,6 +3245,25 @@
     }
 
     function previewHtml() {
+      /* 生成済みのHTMLがあればそれを出す。sections から組み直すと、
+         デザインの無い見出しの羅列になってしまい、S13 のプレビューと食い違う */
+      if (state.generation && state.generation.generated_html) {
+        var rich = fillAssetSlots(state.generation, String(state.generation.generated_html));
+        if (normalizeType(state.generation.content_type) === TYPE.OWN) {
+          var href = lineHref(state.generation.line_button_url);
+          if (href) {
+            var btn = lineButtonMarkup(lineStyleOf(state.generation), href);
+            if (rich.indexOf('<!--LINE_BUTTON-->') !== -1) {
+              rich = rich.split('<!--LINE_BUTTON-->').join(btn);
+            } else if (rich.indexOf('</body>') !== -1) {
+              rich = rich.replace('</body>', btn + '\n</body>');
+            } else {
+              rich += btn;
+            }
+          }
+        }
+        return rich;
+      }
       return buildHtml({
         title: (state.project && state.project.project_name) || '',
         sections: state.sections,

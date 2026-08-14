@@ -934,6 +934,7 @@
       /* 商品写真 */
       var photoPanel = panel('product.photoPanel', 'product.photoPanelDesc');
       photoPanel.appendChild(el('p', 'field__hint', t('s4.productShotHint')));
+      photoPanel.appendChild(el('p', 'field__hint', t('s4.productShotCutouts')));
       imagesHost = el('div', 'thumb-grid');
       photoPanel.appendChild(imagesHost);
       productShotNote = el('p', 'field__hint');

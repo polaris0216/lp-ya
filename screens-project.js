@@ -619,20 +619,7 @@
       }
       screen.appendChild(progressCard);
 
-      /* 残クレジット（タップで S17 クレジットへ） */
-      var balance = Number(data.user.credit_balance) || 0;
-      var balanceCard = el('button', 'card card--gradient');
-      balanceCard.type = 'button';
-      balanceCard.appendChild(el('span', 'card__label', t('projectDetail.remainingCredit')));
-      var balanceValue = el('span');
-      balanceValue.appendChild(el('span', 'card__value', formatNumber(balance)));
-      balanceValue.appendChild(el('span', 'card__unit', t('common.creditUnit')));
-      balanceCard.appendChild(balanceValue);
-      if (data.user.unlimited_until) {
-        balanceCard.appendChild(el('span', 'card__sub', t('credit.expiry') + ' ' + formatDate(data.user.unlimited_until)));
-      }
-      balanceCard.addEventListener('click', function () { go('S17'); });
-      screen.appendChild(balanceCard);
+      /* 残ポイントはヘッダーに常時出ているので、ここには置かない */
 
       /* 登録済み商品 */
       var section = el('section', 'section');

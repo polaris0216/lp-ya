@@ -220,6 +220,11 @@
     // 商品入力（ttalkkak-ai.com の「① 상품 입력」タブに合わせた項目）
     'product.photoPanel': ['商品写真', 'Product photos', '상품 사진'],
     's4.productShot': ['商品カットとして使う', 'Use as a product shot', '상품 컷으로 사용'],
+    's4.productShotCutouts': [
+      '★の写真は、素材を作る前に背景を抜いて商品だけを切り出します。背景が多いままだと、AIが背景ごと商品だと解釈して別の物を描いてしまうためです。',
+      'Starred photos have their background removed before the assets are produced. Handed over with the background intact, the AI reads the whole scene as the product and draws something else.',
+      '★ 사진은 소재를 만들기 전에 배경을 제거해 상품만 잘라냅니다. 배경이 많은 채로 넘기면 AI가 배경까지 상품으로 이해해 다른 물건을 그려 버립니다.'
+    ],
     's4.productShotHint': [
       '★を付けた写真だけを、KV・LP・広告の素材を作るときの見本としてAIに渡します。商品そのものが写っているものを選んでください（仕様の図版やレビュー画面は外す）。',
       'Only the photos you star are handed to the AI as the reference when producing key visuals, LPs and ads. Pick the ones that actually show the product — leave out spec graphics and review screenshots.',
@@ -286,6 +291,13 @@
     // 自動入力ジョブの進行状況ウィンドウ
     'job.title': ['参考ページを読み取り中', 'Reading the reference page', '참고 페이지를 읽는 중'],
     'job.titleTargets': ['ターゲット案を作成中', 'Building target segments', '타깃 안 생성 중'],
+    // ==== wf: プロジェクトの工程タブ（画面上部） ====
+    'wf.input': ['商品入力', 'Product', '상품 입력'],
+    'wf.competitor': ['競合LP分析', 'Competitors', '경쟁 LP 분석'],
+    'wf.report': ['分析レポート', 'Report', '분석 리포트'],
+    'wf.prompt': ['生成プロンプト', 'Prompts', '생성 프롬프트'],
+    'wf.result': ['生成結果', 'Results', '생성 결과'],
+
     'job.titleAnalysis': ['競合LPを分析中', 'Analyzing competitor pages', '경쟁 상세페이지 분석 중'],
     'job.titlePrompts': ['生成プロンプトを作成中', 'Writing the generation prompts', '생성 프롬프트 작성 중'],
     'job.titleAssets': ['画像と動画を生成中', 'Producing images and video', '이미지와 동영상 생성 중'],

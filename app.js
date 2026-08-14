@@ -98,6 +98,23 @@
   /* プロジェクトに紐づく画面は、戻り先を作るときに選択中のプロジェクトIDを付ける */
   var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15'];
 
+  /* プロジェクトを作ってから仕上げるまでの工程。この並びで上にタブを出し、
+     どの工程からでも他の工程へ直接行けるようにする。
+     S12（生成プロンプト）は S11 と S13 のあいだの工程なので、
+     利用者が並びを見失わないようタブにも出す。 */
+  var WORKFLOW = [
+    { id: 'S4', labelKey: 'wf.input' },
+    { id: 'S10', labelKey: 'wf.competitor' },
+    { id: 'S11', labelKey: 'wf.report' },
+    { id: 'S12', labelKey: 'wf.prompt' },
+    { id: 'S13', labelKey: 'wf.result' }
+  ];
+
+  /* 下層の画面にいるときも、どの工程の中にいるのかを示す。
+     プロジェクト詳細（S8）は工程ではなく入口の概要なので、ここには入れない。
+     入れると、中身がダッシュボードなのに「商品入力」の耳が光ってしまう。 */
+  var WORKFLOW_OF = { S14: 'S13', S15: 'S13' };
+
   /* ------------------------------------------------------------------
    * 2. 予備辞書
    *    本来の辞書は i18n.js。ここにあるのは app.js 自身が出す文言だけで、
@@ -107,6 +124,11 @@
   var FALLBACK = {
     ja: {
       'common.back': '戻る',
+      'wf.input': '商品入力',
+      'wf.competitor': '競合LP分析',
+      'wf.report': '分析レポート',
+      'wf.prompt': '生成プロンプト',
+      'wf.result': '生成結果',
       'common.mainNav': 'メインナビゲーション',
       'common.loading': '読み込み中…',
       'common.retry': '再試行',
@@ -1179,8 +1201,61 @@
       dom.shell.classList.toggle('app-shell--no-nav', meta.nav === false);
     }
     renderSidebarNav(meta.tab);
+    renderWorkflowTabs(route);
     renderAccount();
     closeSidebar();
+  }
+
+  /* ------------------------------------------------------------------
+   * 10b. 工程タブ（商品入力 → 競合LP分析 → 分析レポート →
+   *      生成プロンプト → 生成結果）
+   *   プロジェクトを選んでいるときだけ出す。今いる工程に印を付け、
+   *   ほかの工程は押せばそのまま移れる。
+   * ------------------------------------------------------------------ */
+  /* 見出しと耳は同じことを言うので、耳が出ているあいだは見出しを引っ込める */
+  function setSubheadTabs(on) {
+    if (dom.title) { dom.title.hidden = !!on; }
+    var row = dom.title && dom.title.parentNode;
+    if (row && row.classList) { row.classList.toggle('app-subhead--tabs', !!on); }
+  }
+
+  function renderWorkflowTabs(route) {
+    var host = dom.workflowTabs;
+    if (!host) { return; }
+
+    var here = WORKFLOW_OF[route.id] || route.id;
+    var inFlow = WORKFLOW.some(function (step) { return step.id === here; });
+    var projectId = selectedProjectId();
+
+    /* 工程の外にいる、またはプロジェクトを選んでいないときは出さない */
+    if (!inFlow || !projectId) {
+      host.hidden = true;
+      clear(host);
+      setSubheadTabs(false);
+      return;
+    }
+
+    clear(host);
+    host.hidden = false;
+    /* 耳が出ているあいだは見出しを隠す。どちらも同じ工程名を出すため */
+    setSubheadTabs(true);
+    host.setAttribute('aria-label', t('common.mainNav'));
+
+    WORKFLOW.forEach(function (step, index) {
+      var active = step.id === here;
+      var tab = el('button', {
+        type: 'button',
+        class: 'wtabs__item' + (active ? ' wtabs__item--active' : ''),
+        'aria-current': active ? 'step' : null
+      }, [
+        el('span', { class: 'wtabs__no' }, [String(index + 1)]),
+        el('span', { class: 'wtabs__label' }, [t(step.labelKey)])
+      ]);
+      if (!active) {
+        tab.addEventListener('click', function () { navigate(step.id, { id: projectId }); });
+      }
+      host.appendChild(tab);
+    });
   }
 
   /* ------------------------------------------------------------------
@@ -1879,6 +1954,7 @@
     dom.action = byId('header-action');
     dom.banner = byId('banner-root');
     dom.main = byId('app');
+    dom.workflowTabs = byId('workflow-tabs');
     dom.sidebar = byId('sidebar');
     dom.sidebarNav = byId('sidebar-nav');
     dom.sidebarProjects = byId('sidebar-projects');
