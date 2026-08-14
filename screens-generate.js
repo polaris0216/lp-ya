@@ -108,6 +108,41 @@
     /* S13 タブ・プレビュー */
     'gen.tabKvAd': ['KV・メタ広告', 'KV & Meta ads', 'KV·메타 광고'],
     'gen.tabOther': ['その他', 'Other', '기타'],
+    'gen.targetFilter': ['ターゲット層で絞る', 'Filter by audience', '타깃층으로 좁히기'],
+    'gen.targetAll': ['すべて', 'All', '전체'],
+
+    /* ---- 生成待ちの素材（画像は ChatGPT image2、動画は segmind で作る） ---- */
+    'gen.assetTitle': ['生成待ちの素材', 'Assets still to be made', '생성 대기 중인 소재'],
+    'gen.assetLead': [
+      'LP・KV・広告バナーに入る画像と動画です。指示文はできていて、あとは実際に作って貼るだけの状態です。',
+      'The images and videos that go inside the LPs, key visuals and ad banners. The instructions are written; they just need to be produced and pasted in.',
+      'LP·KV·광고 배너에 들어가는 이미지와 동영상입니다. 지시문은 완성되어 있고, 실제로 만들어 붙이기만 하면 됩니다.'
+    ],
+    'gen.assetImage': ['画像', 'Image', '이미지'],
+    'gen.assetVideo': ['動画', 'Video', '동영상'],
+    'gen.assetProviderImage': ['ChatGPT image2', 'ChatGPT image2', 'ChatGPT image2'],
+    'gen.assetProviderVideo': ['segmind', 'segmind', 'segmind'],
+    'gen.assetWaiting': ['未生成', 'Not made yet', '미생성'],
+    'gen.assetDone': ['生成済み', 'Made', '생성 완료'],
+    'gen.assetCopy': ['指示文をコピー', 'Copy the instruction', '지시문 복사'],
+    'gen.assetCopied': ['コピーしました', 'Copied', '복사했습니다'],
+    'gen.assetCopyFailed': ['コピーできませんでした。指示文を選んで手でコピーしてください。', 'Could not copy. Select the text and copy it by hand.', '복사하지 못했습니다. 지시문을 선택해 직접 복사해 주세요.'],
+    'gen.assetPaste': ['できた素材のURLを貼る', 'Paste the URL of the finished asset', '완성된 소재의 URL 붙여넣기'],
+    'gen.assetSave': ['貼る', 'Attach', '붙이기'],
+    'gen.assetSaved': ['素材を登録しました', 'The asset was attached', '소재를 등록했습니다'],
+    'gen.assetSaveFailed': ['素材の登録に失敗しました。', 'Attaching the asset failed.', '소재 등록에 실패했습니다.'],
+    'gen.assetBadUrl': ['http から始まるURLを入れてください。', 'Enter a URL starting with http.', 'http로 시작하는 URL을 입력해 주세요.'],
+    'gen.assetCount': ['未生成 {n}件 / 全{m}件', '{n} of {m} still to make', '미생성 {n}건 / 전체 {m}건'],
+    'gen.assetEmpty': [
+      '生成待ちの素材はありません。',
+      'There is nothing waiting to be made.',
+      '생성 대기 중인 소재가 없습니다.'
+    ],
+    'gen.assetApiNote': [
+      '画像・動画のAPIはまだ接続していません。いまは指示文をコピーして ChatGPT と segmind で作り、できたURLをここに貼ります。キーを入れたら、この欄は自動で埋まります。',
+      'The image and video APIs are not connected yet. For now, copy the instruction, make the asset in ChatGPT or segmind, and paste the URL here. Once the keys are in, this fills itself.',
+      '이미지·동영상 API는 아직 연결하지 않았습니다. 지금은 지시문을 복사해 ChatGPT와 segmind에서 만들고, 완성된 URL을 여기에 붙입니다. 키를 넣으면 이 칸은 자동으로 채워집니다.'
+    ],
     'gen.previewOf': ['プレビュー中：{name}', 'Previewing: {name}', '미리보기 중: {name}'],
     'gen.pcSize': ['1440px', '1440px', '1440px'],
     'gen.phoneSize': ['390px', '390px', '390px'],
@@ -1060,7 +1095,11 @@
     setHeader(t('generate.title'), true);
 
     var projectId = resolveProjectId(params);
-    var view = { tab: (params && params.tab) ? String(params.tab) : 'cf', lineSub: 'rich_menu' };
+    var view = {
+      tab: (params && params.tab) ? String(params.tab) : 'cf',
+      lineSub: 'rich_menu',
+      target: 'all'   /* 'all' か、ターゲット層の記号（A〜E） */
+    };
     var data = { project: null, generations: [], buckets: {}, user: null, report: null, metrics: {} };
 
     if (!projectId) {
@@ -1085,11 +1124,15 @@
         });
       }).then(function (rows) {
         data.generations = rows || [];
-        data.buckets = { cf: [], own: [], kvad: [], line: [], other: [] };
+        data.targets = [];
         data.generations.forEach(function (row) {
           row.__type = normalizeType(row.content_type);
-          data.buckets[bucketKey(row.__type)].push(row);
+          var label = String(row.variant_label || '').trim();
+          if (label && data.targets.indexOf(label) === -1) { data.targets.push(label); }
         });
+        data.targets.sort();
+        if (view.target !== 'all' && data.targets.indexOf(view.target) === -1) { view.target = 'all'; }
+        fillBuckets();
         return Api.analysisReports.list({
           eq: { projects_id: String(projectId) },
           order: 'created_at.desc',
@@ -1137,6 +1180,176 @@
       });
     }
 
+    /* ---- 生成待ちの素材 ----
+       生成物1行が持つ asset_prompts（画像はChatGPT image2、動画はsegmind向けの
+       指示文）と、実際にできたURL（image_urls / video_urls）を突き合わせる。
+       URLがまだ入っていないものが「生成待ち」。
+       APIキーを入れたら Edge Function が同じ列を埋めるので、この画面は変えずに済む。 */
+    function assetRowsOf(generation) {
+      var prompts = generation.asset_prompts;
+      if (typeof prompts === 'string') {
+        try { prompts = JSON.parse(prompts); } catch (e) { prompts = null; }
+      }
+      if (!prompts || typeof prompts !== 'object') { return []; }
+
+      var out = [];
+      [['images', 'image_urls', 'image'], ['videos', 'video_urls', 'video']].forEach(function (spec) {
+        var list = asArray(prompts[spec[0]]);
+        var made = asArray(generation[spec[1]]);
+        list.forEach(function (one, index) {
+          var url = made[index];
+          /* できたものが {slot, url} で入っている場合は slot で合わせる */
+          if (url && typeof url === 'object') { url = url.url; }
+          if (!url) {
+            made.forEach(function (m) {
+              if (m && typeof m === 'object' && m.slot && m.slot === one.slot) { url = m.url; }
+            });
+          }
+          out.push({
+            generation: generation,
+            column: spec[1],
+            index: index,
+            kind: spec[2],
+            slot: String(one.slot || (index + 1)),
+            prompt: String(one.prompt || ''),
+            url: String(url || '')
+          });
+        });
+      });
+      return out;
+    }
+
+    function allAssetRows() {
+      var out = [];
+      data.generations.forEach(function (row) {
+        if (view.target !== 'all' && String(row.variant_label || '').trim() !== view.target) { return; }
+        assetRowsOf(row).forEach(function (one) { out.push(one); });
+      });
+      return out;
+    }
+
+    /* できた素材のURLを、その生成物の image_urls / video_urls に入れる。
+       並びは指示文と同じにしておく（何番目の指示のものか分かるように） */
+    function attachAsset(assetRow, url) {
+      var current = asArray(assetRow.generation[assetRow.column]).slice();
+      while (current.length <= assetRow.index) { current.push(null); }
+      current[assetRow.index] = {
+        slot: assetRow.slot,
+        url: url,
+        provider: assetRow.kind === 'image' ? 'chatgpt_image2' : 'segmind'
+      };
+
+      var patch = {};
+      patch[assetRow.column] = current;
+      return Api.generations.update(assetRow.generation.id, patch).then(function (row) {
+        /* 手元の行も更新して、貼った直後から生成済みとして見えるようにする */
+        assetRow.generation[assetRow.column] = row ? row[assetRow.column] : current;
+        return row;
+      });
+    }
+
+    function assetSection() {
+      var rows = allAssetRows();
+      var section = el('section', 'section');
+      var head = el('div', 'section__head');
+      head.appendChild(el('h3', 'section__title', t('gen.assetTitle')));
+
+      var waiting = rows.filter(function (one) { return !one.url; }).length;
+      head.appendChild(el('span', 't-note', fill(t('gen.assetCount'), { n: waiting, m: rows.length })));
+      section.appendChild(head);
+      section.appendChild(el('p', 'section__desc', t('gen.assetLead')));
+
+      if (!rows.length) {
+        var box = el('div', 'empty');
+        box.appendChild(el('p', 'empty__text', t('gen.assetEmpty')));
+        section.appendChild(box);
+        return section;
+      }
+
+      var note = el('div', 'note-box');
+      note.appendChild(el('p', null, t('gen.assetApiNote')));
+      section.appendChild(note);
+
+      rows.forEach(function (one) {
+        section.appendChild(assetCard(one));
+      });
+      return section;
+    }
+
+    function assetCard(one) {
+      var card = el('div', 'card');
+
+      var badges = el('div', 'chips');
+      if (one.generation.variant_label) {
+        badges.appendChild(el('span', 'badge', String(one.generation.variant_label)));
+      }
+      badges.appendChild(el('span', 'badge badge--mute', typeLabel(one.generation.__type)));
+      badges.appendChild(el('span', 'badge badge--mute',
+        t(one.kind === 'image' ? 'gen.assetImage' : 'gen.assetVideo')));
+      badges.appendChild(el('span', 'badge badge--mute',
+        t(one.kind === 'image' ? 'gen.assetProviderImage' : 'gen.assetProviderVideo')));
+      badges.appendChild(el('span', one.url ? 'badge badge--ok' : 'badge badge--warn',
+        t(one.url ? 'gen.assetDone' : 'gen.assetWaiting')));
+      card.appendChild(badges);
+
+      card.appendChild(el('p', 'card__label', one.slot));
+
+      var body = el('p', 'card__sub');
+      body.textContent = one.prompt;
+      card.appendChild(body);
+
+      /* 指示文をそのまま ChatGPT / segmind に貼れるようにする */
+      card.appendChild(button('btn btn--secondary btn--sm', t('gen.assetCopy'), function () {
+        copyText(one.prompt);
+      }));
+
+      if (one.url) {
+        var made = el('p', 't-note break-url');
+        made.textContent = one.url;
+        card.appendChild(made);
+      }
+
+      var field = el('div', 'field');
+      field.appendChild(el('label', 'field__label', t('gen.assetPaste')));
+      var line = el('div', 'row--input-action');
+      var input = el('input', 'input');
+      input.type = 'url';
+      input.placeholder = 'https://';
+      input.value = one.url;
+      input.setAttribute('aria-label', t('gen.assetPaste') + '：' + one.slot);
+      line.appendChild(input);
+
+      var save = button('btn btn--primary btn--sm', t('gen.assetSave'), function () {
+        var value = String(input.value || '').trim();
+        if (!/^https?:\/\//i.test(value)) {
+          toast(t('gen.assetBadUrl'), 'danger');
+          return;
+        }
+        save.disabled = true;
+        attachAsset(one, value).then(function () {
+          toast(t('gen.assetSaved'), 'success');
+          paint();
+        }, function (err) {
+          save.disabled = false;
+          console.error('[screens-generate] 素材の登録に失敗しました', err);
+          toast(errorMessage(err, 'gen.assetSaveFailed'), 'danger');
+        });
+      });
+      line.appendChild(save);
+      field.appendChild(line);
+      card.appendChild(field);
+      return card;
+    }
+
+    /* 選んでいる層だけを種別ごとの入れ物に配る。'all' のときは全部入れる */
+    function fillBuckets() {
+      data.buckets = { cf: [], own: [], kvad: [], line: [], other: [] };
+      data.generations.forEach(function (row) {
+        if (view.target !== 'all' && String(row.variant_label || '').trim() !== view.target) { return; }
+        data.buckets[bucketKey(row.__type)].push(row);
+      });
+    }
+
     /* プレビュー対象（LPタブはそのLP、その他タブは自社LP→クラファンLPの順） */
     function previewTarget() {
       var order = (view.tab === 'cf') ? ['cf', 'own'] : ['own', 'cf'];
@@ -1147,13 +1360,30 @@
       return found;
     }
 
+    /* LP本文に空けてある差し込み口を、貼られた素材のURLで埋める。
+       指示文の並び順に {image_1} {image_2} … {video_1} … が対応する。
+       まだ貼っていない口は、そのままでは生の波括弧が見えてしまうので、
+       灰色の待ち枠（data URI の1x1）に置き換える。 */
+    var PENDING_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAOXh7wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+    function fillAssetSlots(generation, html) {
+      var out = String(html);
+      assetRowsOf(generation).forEach(function (one) {
+        var token = '{' + (one.kind === 'image' ? 'image_' : 'video_') + (one.index + 1) + '}';
+        out = out.split(token).join(one.url || PENDING_PIXEL);
+        /* 指示文の見出しをそのまま口にしている書き方も拾う */
+        if (one.slot) { out = out.split('{' + one.slot + '}').join(one.url || PENDING_PIXEL); }
+      });
+      return out;
+    }
+
     function htmlOf(generation, forDownload) {
       var type = generation.__type || normalizeType(generation.content_type);
       /* 保存済みHTML（デザイン済みのリッチLP）があればそれを使う。
          自社LPでLINE URLが設定されたら、リッチHTML内の <!--LINE_BUTTON--> 位置
          （無ければ </body> 直前）へボタンを差し込む */
       if (generation.generated_html) {
-        var rich = String(generation.generated_html);
+        var rich = fillAssetSlots(generation, String(generation.generated_html));
         if (type === TYPE.OWN) {
           var richHref = lineHref(generation.line_button_url);
           if (richHref) {
@@ -1808,6 +2038,24 @@
       previewSection.appendChild(pair);
       screen.appendChild(previewSection);
 
+      /* ターゲット層の絞り込み。層を分けて作っているときだけ出す */
+      if (data.targets && data.targets.length) {
+        var targetRow = el('div', 'chips');
+        ['all'].concat(data.targets).forEach(function (label) {
+          var on = view.target === label;
+          var chip = button('chip' + (on ? ' chip--selected' : ''),
+            label === 'all' ? t('gen.targetAll') : label, function () {
+              view.target = label;
+              fillBuckets();
+              paint();
+            });
+          chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+          targetRow.appendChild(chip);
+        });
+        screen.appendChild(el('span', 'field__label', t('gen.targetFilter')));
+        screen.appendChild(targetRow);
+      }
+
       /* タブ */
       var tabsRow = el('div', 'tabs');
       tabsRow.setAttribute('role', 'tablist');
@@ -1836,6 +2084,8 @@
       else { paintOtherTab(body); }
       screen.appendChild(body);
 
+      screen.appendChild(assetSection());
+
       /* 残高（タップでクレジット画面へ） */
       var balanceCard = button('card card--gradient', '', function () { go('S17'); });
       balanceCard.appendChild(el('span', 'card__label', t('generate.balance')));
@@ -1858,6 +2108,17 @@
     function runGeneration(confirmed) {
       var features = (confirmed.features || []).filter(function (f) { return f && f.feature_key; });
       if (!features.length) { load(); return; }
+
+      /* 作るのは「選んだ層 × 成果物」の総当たり。層を選んでいない古い呼び方でも
+         動くように、空の層をひとつ置いて1周だけ回す */
+      var targets = (confirmed.targets || []).filter(Boolean);
+      if (!targets.length) { targets = ['']; }
+      var jobs = [];
+      targets.forEach(function (target) {
+        features.forEach(function (feature) {
+          jobs.push({ target: target, feature: feature });
+        });
+      });
       if (!Api.generations || typeof Api.generations.generate !== 'function') {
         console.error('[screens-generate] Api.generations.generate がありません。api.js を確認してください。');
         load();
@@ -1868,7 +2129,10 @@
       var failures = [];
       var made = 0;
 
-      function nameOf(feature) { return feature.feature_name || feature.feature_key; }
+      function nameOf(job) {
+        var base = job.feature.feature_name || job.feature.feature_key;
+        return job.target ? job.target + '　' + base : base;
+      }
 
       /* 開発モード（サーバーに ANTHROPIC_API_KEY が無い間）は {queued:true} が返る。
          ジョブの完了をポーリングして待つ。待ちきれなくても、生成物は次に
@@ -1894,32 +2158,33 @@
       }
 
       function step(index) {
-        if (index >= features.length) {
+        if (index >= jobs.length) {
           if (made) { toast(t('gen.generateDone'), 'success'); }
           failures.forEach(function (failed) {
             var key = (failed.err && failed.err.status === 501) ? 'gen.generateNotReady' : 'gen.generateFailed';
             if (failed.err && failed.err.code === 'insufficient') {
               toast(errorMessage(failed.err, 'gen.generateFailed'), 'danger');
             } else {
-              toast(fill(t(key), { name: nameOf(failed.feature) }), 'danger');
+              toast(fill(t(key), { name: nameOf(failed.job) }), 'danger');
             }
           });
           load();
           return;
         }
-        var feature = features[index];
-        toast(fill(t('gen.generating'), { name: nameOf(feature) }), 'info');
+        var job = jobs[index];
+        toast(fill(t('gen.generating'), { name: nameOf(job) }), 'info');
         Api.generations.generate({
           project_id: String(projectId),
-          feature_key: feature.feature_key,
+          feature_key: job.feature.feature_key,
+          target: job.target || null,
           report_id: confirmed.reportId || null,
           lang: (App.getLang && App.getLang()) || 'ja'
         }).then(function (result) {
           if (result && result.queued) {
-            toast(fill(t('gen.queuedLocal'), { name: nameOf(feature) }), 'info');
+            toast(fill(t('gen.queuedLocal'), { name: nameOf(job) }), 'info');
             return waitForJob(result.job_id).then(function (outcome) {
               if (outcome === 'done') { made += 1; }
-              else if (outcome === 'failed') { failures.push({ feature: feature, err: null }); }
+              else if (outcome === 'failed') { failures.push({ job: job, err: null }); }
               else { toast(t('gen.queuedTimeout'), 'info'); }
               step(index + 1);
             });
@@ -1927,8 +2192,8 @@
           made += 1;
           step(index + 1);
         }, function (err) {
-          console.error('[screens-generate] 生成に失敗しました', feature.feature_key, err);
-          failures.push({ feature: feature, err: err });
+          console.error('[screens-generate] 生成に失敗しました', job.target, job.feature.feature_key, err);
+          failures.push({ job: job, err: err });
           step(index + 1);
         });
       }
