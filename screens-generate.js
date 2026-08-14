@@ -13,7 +13,7 @@
  *
  * 画面遷移は index.html に書かれたハッシュ経路をそのまま使う:
  *   '#/S8?id=<プロジェクトID>' '#/S11?id=<プロジェクトID>' '#/S13?id=...'
- *   '#/S14?id=...&gen=<生成物ID>' '#/S15?id=...&gen=...&section=<番号>' '#/S16?id=...' '#/S17'
+ *   '#/S14?id=...&gen=<生成物ID>' '#/S15?id=...&gen=...&section=<番号>' '#/S17'
  *   プロジェクトに紐づく画面の id は「プロジェクトID」（app.js の PROJECT_SCOPED と同じ約束）。
  *
  * i18n.js が実際に公開している名前だけを使う:
@@ -25,7 +25,7 @@
  * api.js（window.Api）から使う名前は api.js が実際に公開しているものだけ:
  *   Api.projects.get(id)
  *   Api.generations.list(options) / .get(id) / .update(id, patch)
- *   Api.generations.generate(payload)  S16経由で来たときだけ。中身づくりと
+ *   Api.generations.generate(payload)  S12経由で来たときだけ。中身づくりと
  *     クレジット消費は generate-content Edge Function（サーバー側）が行う
  *   Api.analysisReports.list(options)
  *   Api.users.get(id)
@@ -1184,7 +1184,7 @@
     function footerActions() {
       var box = el('div', 'stack stack--group');
       box.appendChild(button('btn btn--secondary btn--block', t('generate.addMore'), function () {
-        go('S16', { id: projectId });
+        go('S12', { id: projectId });
       }));
       box.appendChild(button('btn btn--primary btn--block', t('generate.saveAndReturn'), function () {
         go('S8', { id: projectId });
@@ -1197,7 +1197,7 @@
       var box = el('div', 'empty');
       box.appendChild(el('p', 'empty__text', fill(t('gen.emptyKind'), { name: name })));
       box.appendChild(button('btn btn--primary', t('gen.generateThis'), function () {
-        go('S16', { id: projectId });
+        go('S12', { id: projectId });
       }));
       container.appendChild(box);
     }
@@ -1756,7 +1756,7 @@
         var emptyBox = el('div', 'empty');
         emptyBox.appendChild(el('p', 'empty__text', t('generate.empty')));
         emptyBox.appendChild(button('btn btn--primary', t('creditConfirm.runGenerate'), function () {
-          go('S16', { id: projectId });
+          go('S12', { id: projectId });
         }));
         screen.appendChild(emptyBox);
         screen.appendChild(footerActions());
@@ -1787,7 +1787,7 @@
         var noPreview = el('div', 'empty');
         noPreview.appendChild(el('p', 'empty__text', t('gen.previewNone')));
         noPreview.appendChild(button('btn btn--primary', t('creditConfirm.runGenerate'), function () {
-          go('S16', { id: projectId });
+          go('S12', { id: projectId });
         }));
         previewSection.appendChild(noPreview);
       }
@@ -1851,8 +1851,8 @@
       fitAllFrames();
     }
 
-    /* ---- S16 から来た直後の生成実行 ----
-       creditConfirmed は一度きり読んで消す（戻る・再訪で二重生成しないため）。
+    /* ---- S12（生成プロンプトの確認）から来た直後の生成実行 ----
+       generateRequest は一度きり読んで消す（戻る・再訪で二重生成しないため）。
        消費はここでは行わない。generate-content Edge Function が LLM 成功後に
        消費+保存を1トランザクションで行うので、失敗時にクレジットは動かない。 */
     function runGeneration(confirmed) {
@@ -1935,10 +1935,10 @@
       step(0);
     }
 
-    var confirmed = App.state && App.state.creditConfirmed;
-    if (confirmed && confirmed.mode === 'generate' && String(confirmed.projectId) === String(projectId)) {
-      App.state.creditConfirmed = null;
-      runGeneration(confirmed);
+    var requested = App.state && App.state.generateRequest;
+    if (requested && String(requested.projectId) === String(projectId)) {
+      App.state.generateRequest = null;
+      runGeneration(requested);
     } else {
       load();
     }
@@ -2021,7 +2021,7 @@
       }).then(function (generation) {
         if (!generation) {
           showErrorScreen(root, t('gen.editTargetMissing'), null,
-            button('btn btn--primary btn--block', t('creditConfirm.runGenerate'), function () { go('S16', { id: projectId }); }));
+            button('btn btn--primary btn--block', t('creditConfirm.runGenerate'), function () { go('S12', { id: projectId }); }));
           return;
         }
         state.generation = generation;
@@ -2574,7 +2574,7 @@
       }).then(function (generation) {
         if (!generation) {
           showErrorScreen(root, t('generate.empty'), null,
-            button('btn btn--primary btn--block', t('creditConfirm.runGenerate'), function () { go('S16', { id: projectId }); }));
+            button('btn btn--primary btn--block', t('creditConfirm.runGenerate'), function () { go('S12', { id: projectId }); }));
           return;
         }
         state.generation = generation;

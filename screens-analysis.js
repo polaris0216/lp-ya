@@ -43,15 +43,18 @@
  *              modal__actions--1 / t-note / t-danger / t-center / t-sub / t-body /
  *              num / break-url / clamp-2
  *
- * ---- S16 クレジット消費確認との受け渡し（screens-credit.js の綴りに合わせる）----
- *   こちらから渡す params
- *     '#/S16?id=<pid>&mode=analysis&reportId=<rid>'   S10 の「分析を実行」
- *     '#/S16?id=<pid>&mode=generate&reportId=<rid>'   S12 の「この内容で生成」
- *   S16 が引き落としたあとに残すもの（S11 はこれを見てから収集を実行する）
- *     App.state.creditConfirmed = { mode, features, total, unlimited,
- *                                   projectId, reportId, generationId, at }
- *   機能キーは S16 / S18 / S19 と同じ綴り：competitor_analysis（競合LP分析）、
- *   generation（クラファンLP・自社LP生成）。既定値も S16 と同じ 40 / 60 を使う。
+ * ---- 消費ポイント ----
+ *   確認だけの画面（旧 S16）は廃止した。何にいくらかかるかは、それを実行する
+ *   画面に出す（S11 は分析の 40P、S12 は 選んだ層 × 成果物 の積み上げ）。
+ *   引き落とすのは各 Edge Function が成功したあと。画面側では引き落とさない。
+ *   機能キーは a2f58db45_feature_credits と同じ綴り：
+ *     competitor_analysis 40 / own_lp 60 / crowdfunding_lp 60 /
+ *     kv_creative 30 / meta_ads 30
+ *
+ * ---- S13 生成結果への受け渡し ----
+ *   S12 の「この内容で生成する」で置く。S13 は一度だけ読んで消す。
+ *     App.state.generateRequest = { projectId, reportId, targets: ['A', ...],
+ *                                   features: [{ feature_key, kind, credit_cost }], at }
  *
  * ---- 分析レポート1行の使い方（a2f58db45_analysis_reports）----
  *   projects_id      プロジェクトID
@@ -108,11 +111,9 @@
   var MAX_URLS = 5;
   var LOCALES = ['ja', 'en', 'ko'];
 
-  /* 機能キーと既定値は screens-credit.js（S16）と同じにする */
+  /* 機能キーと既定値は a2f58db45_feature_credits と同じにする */
   var FEATURE_ANALYSIS = 'competitor_analysis';
-  var FEATURE_GENERATE = 'generation';
   var COST_ANALYSIS_FALLBACK = 40;
-  var COST_GENERATE_FALLBACK = 60;
 
   var STATUS_DRAFT = 'draft';
   var STATUS_PENDING = 'pending';
@@ -123,6 +124,16 @@
 
   /* 生成プロンプトの種類。この順で S12 に並ぶ */
   var PROMPT_KINDS = ['own_lp', 'crowdfunding_lp', 'kv', 'meta_ads'];
+
+  /* 成果物と、消費ポイントを引く機能キー（a2f58db45_feature_credits の綴り）。
+     KV だけ画面側の呼び名と機能キーがずれているので、ここで対応させる */
+  var KIND_FEATURE = {
+    own_lp: 'own_lp',
+    crowdfunding_lp: 'crowdfunding_lp',
+    kv: 'kv_creative',
+    meta_ads: 'meta_ads'
+  };
+  var KIND_COST_FALLBACK = { own_lp: 60, crowdfunding_lp: 60, kv: 30, meta_ads: 30 };
 
   /* 生成プロンプト1本ぶんを、ターゲット層と成果物の組で正規化する。
      { target, kind, brief, images: [{slot, prompt}], videos: [{slot, prompt}] }
@@ -261,6 +272,9 @@
       '商品の事実、競合に共通していた型、書いてはいけないこと。下の全プロンプトの先頭に付きます。',
       'Product facts, the patterns shared by competitors, and what must not be written. Prepended to every prompt below.',
       '상품의 사실, 경쟁사에 공통된 형태, 써서는 안 되는 것. 아래 모든 프롬프트 앞에 붙습니다.'
+    ],
+    'pr.costLine': [
+      'この分析で {n}P 使います（残高 {b}P）', 'Uses {n}P (balance {b}P)', '이 분석에 {n}P 사용합니다(잔액 {b}P)'
     ],
     'pr.apiNote': [
       '画像と動画のAPIはまだ接続していません。いまは指示文だけが作られ、実際の生成はこちらで確定します。',
@@ -957,7 +971,7 @@
     return null;
   }
 
-  /* 呼び出し側の綴りが2通りある（S8・S16 は reportId、S13 は report） */
+  /* 呼び出し側の綴りが2通りある（S8 は reportId、S13 は report） */
   function resolveReportId(params) {
     if (params && params.reportId) { return String(params.reportId); }
     if (params && params.report) { return String(params.report); }
@@ -972,15 +986,6 @@
   function rememberProjectId(id) {
     if (App.state && typeof App.state === 'object') { App.state.projectId = String(id); }
     if (window.Api && window.Api.storage) { window.Api.storage.set('projectId', id); }
-  }
-
-  /* S16 がクレジットを引き落としたしるし。使ったら消して、戻るたびに再実行しないようにする */
-  function takeCreditConfirmed(mode, reportRowId) {
-    var confirmed = App.state && App.state.creditConfirmed;
-    if (!confirmed || confirmed.mode !== mode) { return null; }
-    if (confirmed.reportId && reportRowId && String(confirmed.reportId) !== String(reportRowId)) { return null; }
-    App.state.creditConfirmed = null;
-    return confirmed;
   }
 
   function noProjectScreen(root) {
@@ -1775,7 +1780,11 @@
 
     var reportId = resolveReportId(params);
     var forceRun = !!(params && (params.run === '1' || params.run === 'true'));
-    var view = { report: null };
+    var view = { report: null, analysisCost: COST_ANALYSIS_FALLBACK };
+
+    costOf(FEATURE_ANALYSIS, COST_ANALYSIS_FALLBACK).then(function (value) {
+      view.analysisCost = value;
+    });
 
     function load() {
       clearBanner();
@@ -1793,9 +1802,8 @@
         view.report = row;
         rememberReportId(row.id);
 
-        /* S16 がクレジットを引き落としたあとに来たか、実行待ちのまま残っていたら収集する */
-        var paid = takeCreditConfirmed('analysis', row.id);
-        if (paid || forceRun || row.analysis_status === STATUS_PENDING) {
+        /* 実行待ちのまま残っているか、S10 から実行して来たら収集する */
+        if (forceRun || row.analysis_status === STATUS_PENDING) {
           runCollection();
           return;
         }
@@ -1902,8 +1910,12 @@
       add(wrap, head);
 
       add(wrap, emptyBox(t('s11.draftBody'), t('creditConfirm.runAnalysis'), function () {
-        go('S16', { id: projectId, mode: 'analysis', reportId: view.report.id });
+        runCollection();
       }));
+      add(wrap, el('p', 't-note t-center', t('pr.costLine', {
+        n: formatNumber(hasUnlimited() ? 0 : view.analysisCost),
+        b: formatNumber(currentBalance())
+      })));
 
       var actions = el('div', 'stack');
       add(actions, button('btn btn--secondary btn--block', t('s11.reAnalyze'), function () {
@@ -2570,9 +2582,10 @@
       targets: [],      /* {label, name, age, gender} S4 で決めた層 */
       picked: {},       /* label -> true 作るものだけ選ぶ */
       openTarget: '',
-      cost: COST_GENERATE_FALLBACK,
+      kindCost: {},     /* 成果物ごとの消費ポイント */
       saving: false
     };
+    PROMPT_KINDS.forEach(function (kind) { view.kindCost[kind] = KIND_COST_FALLBACK[kind]; });
 
     function load() {
       clearBanner();
@@ -2584,12 +2597,14 @@
 
       Promise.all([
         fetchReport,
-        costOf(FEATURE_GENERATE, COST_GENERATE_FALLBACK),
-        window.Api.projects.get(String(projectId)).catch(function () { return null; })
+        window.Api.projects.get(String(projectId)).catch(function () { return null; }),
+        Promise.all(PROMPT_KINDS.map(function (kind) {
+          return costOf(KIND_FEATURE[kind], KIND_COST_FALLBACK[kind]);
+        }))
       ]).then(function (results) {
         var report = results[0];
-        view.cost = results[1];
-        view.project = results[2];
+        view.project = results[1];
+        PROMPT_KINDS.forEach(function (kind, index) { view.kindCost[kind] = results[2][index]; });
 
         if (!report) {
           drawNoReport();
@@ -2718,12 +2733,20 @@
       window.Api.analysisReports.update(view.report.id, { prompts: promptPayload() }).then(function (row) {
         view.saving = false;
         view.report = row;
-        go('S16', {
-          id: projectId,
-          mode: 'generate',
-          reportId: row.id,
-          targets: picked.join(',')
-        });
+
+        /* 何を作るかは S13 に直接渡す。消費は generate-content Edge Function が
+           成功したあとに行うので、ここでは引き落とさない */
+        App.state = App.state || {};
+        App.state.generateRequest = {
+          projectId: String(projectId),
+          reportId: String(row.id),
+          targets: picked,
+          features: PROMPT_KINDS.map(function (kind) {
+            return { feature_key: KIND_FEATURE[kind], kind: kind, credit_cost: view.kindCost[kind] || 0 };
+          }),
+          at: new Date().toISOString()
+        };
+        go('S13', { id: projectId, reportId: row.id });
       }, function (err) {
         view.saving = false;
         console.error('[screens-analysis] 生成プロンプトの保存に失敗しました', err);
@@ -2858,6 +2881,13 @@
       return wrap;
     }
 
+    /* 選んだ層 × 4種類ぶんを積み上げる */
+    function totalCost() {
+      var perTarget = 0;
+      PROMPT_KINDS.forEach(function (kind) { perTarget += view.kindCost[kind] || 0; });
+      return perTarget * Math.max(pickedLabels().length, view.targets.length ? 0 : 1);
+    }
+
     function creditSection() {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
@@ -2866,7 +2896,7 @@
 
       var unlimited = hasUnlimited();
       var balance = currentBalance();
-      var cost = unlimited ? 0 : view.cost;
+      var cost = unlimited ? 0 : totalCost();
       var after = balance - cost;
 
       var card = el('div', 'card card--soft');
@@ -2884,13 +2914,27 @@
       add(card, foot);
       add(section, card);
 
+      /* 何にいくらかかるのかは、実行するこの画面に出す */
+      if (!unlimited && pickedLabels().length) {
+        var info = el('div', 'info-list');
+        PROMPT_KINDS.forEach(function (kind) {
+          var row = el('div', 'info-row');
+          add(row, el('span', 'info-row__key', t('prompt.' + kind)));
+          add(row, el('span', 'info-row__val num',
+            formatNumber(view.kindCost[kind] || 0) + t('common.creditShort')
+            + ' × ' + pickedLabels().length));
+          add(info, row);
+        });
+        add(section, info);
+      }
+
       if (unlimited) {
         add(section, el('div', 'note-box', t('s12.unlimited')));
       } else if (after < 0) {
         add(section, el('div', 'warn-box',
           t('creditConfirm.insufficientWarning') + '　' + t('s12.shortage', { n: formatNumber(-after) })));
         add(section, button('btn btn--secondary btn--block', t('creditConfirm.charge'), function () {
-          go('S17', { returnTo: 'S16', id: projectId, mode: 'generate', reportId: view.report.id });
+          go('S17', { returnTo: 'S12', id: projectId, reportId: view.report.id });
         }));
       }
       return section;

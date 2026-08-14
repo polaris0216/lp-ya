@@ -89,7 +89,6 @@
     S13: { tab: 'S4', back: 'S8', auth: true, admin: false },
     S14: { tab: null, back: 'S13', auth: true, admin: false },
     S15: { tab: null, back: 'S13', auth: true, admin: false },
-    S16: { tab: null, back: 'S8', auth: true, admin: false },
     S17: { tab: 'S17', back: 'S3', auth: true, admin: false },
     S18: { tab: 'S18', back: 'S3', auth: true, admin: true },
     S19: { tab: null, back: 'S18', auth: true, admin: true },
@@ -97,7 +96,7 @@
   };
 
   /* プロジェクトに紐づく画面は、戻り先を作るときに選択中のプロジェクトIDを付ける */
-  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15', 'S16'];
+  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15'];
 
   /* ------------------------------------------------------------------
    * 2. 予備辞書
@@ -148,7 +147,6 @@
       'screen.S13': '生成結果',
       'screen.S14': 'デザイン編集',
       'screen.S15': '実寸プレビュー',
-      'screen.S16': 'ポイント消費確認',
       'screen.S17': 'ポイント',
       'screen.S18': '管理者ダッシュボード',
       'screen.S19': '機能別価格設定',
@@ -231,7 +229,6 @@
       'screen.S13': 'Generated result',
       'screen.S14': 'Design editor',
       'screen.S15': 'Actual size preview',
-      'screen.S16': 'Point confirmation',
       'screen.S17': 'Points',
       'screen.S18': 'Admin dashboard',
       'screen.S19': 'Feature pricing',
@@ -314,7 +311,6 @@
       'screen.S13': '생성 결과',
       'screen.S14': '디자인 편집',
       'screen.S15': '실측 미리보기',
-      'screen.S16': '포인트 사용 확인',
       'screen.S17': '포인트',
       'screen.S18': '관리자 대시보드',
       'screen.S19': '기능별 가격 설정',

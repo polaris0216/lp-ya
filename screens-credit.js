@@ -1,12 +1,14 @@
 /* ============================================================
  * エルピーヤ — screens-credit.js
- * S16 ポイント消費確認（残高と今回の消費だけ）と S17 ポイント の2画面だけを描く。
+ * S17 ポイント（残高・購入・クーポン・利用履歴）だけを描く。
+ * 消費確認の画面（旧 S16）は廃止した。何にいくらかかるかは、
+ * それを実行する画面（S11 の分析・S12 の生成）に出す。
  *
  * ---- 他ファイルとの共通契約（この名前どおりに使う。似た名前を作らない）----
- * 画面登録   App.registerScreen('S16', { render: function (root, params) {} });
+ * 画面登録   App.registerScreen('S17', { render: function (root, params) {} });
  *            第2引数は必ず { render: 関数 } のオブジェクト。関数をそのまま渡さない。
  * 画面遷移   index.html に書かれた経路の綴りをそのまま使う。
- *            location.hash = '#/S16?id=...' （ハッシュルーターは app.js）
+ *            location.hash = '#/S17' （ハッシュルーターは app.js）
  * 通信       api.js の window.Api だけを使う。
  *              Api.users.get(id) / Api.projects.get(id)
  *              Api.credits.featureCosts() / Api.credits.consume(featureKey, memo)
@@ -36,37 +38,15 @@
  *              toast / toast__text / toast--success / toast--danger /
  *              t-note / t-danger / t-ok / num / clamp-1 / clamp-2
  *
- * ---- S16 が受け取る params（呼び出し側はこの綴りで渡すこと）----
- *   id           プロジェクトID（キャンセルの戻り先 S8 と、実行後の遷移先に付ける）
- *   mode         'analysis'（既定）または 'generate'。最初にチェックを入れる機能を決める
- *   features     'kv_generation,meta_ads' のように機能キーをカンマで並べたもの（任意）
- *   reportId     参照する分析レポートID（任意。実行後の遷移先へそのまま引き継ぐ）
- *   generationId 参照する生成物ID（任意。同上）
- *   例: location.hash = '#/S16?id=' + projectId + '&mode=generate&features=crowdfunding_lp,meta_ads'
- *
- * ---- S16 が実行後に残すもの（S11 分析レポート / S13 生成結果 が読む）----
- *   App.state.creditConfirmed = {
- *     mode: 'analysis' | 'generate',
- *     features: [{ feature_key, feature_name, credit_cost }],
- *     total: 消費した合計クレジット,
- *     unlimited: 無制限利用中で消費しなかったか,
- *     projectId, reportId, generationId,
- *     at: ISO文字列
- *   }
- *   分析（mode=analysis）の引き落としと credit_transactions への記録はこの画面が行い、
- *   中身づくりは S11 が creditConfirmed を見て行う。
- *   生成（mode=generate）はこの画面では引き落とさない。S13 が creditConfirmed を見て
- *   generate-content Edge Function を呼び、サーバー側が LLM 成功後に消費+保存する。
- *
  * ---- S17 が受け取る params ----
- *   returnTo    'S16' のとき、消費確認へ戻るボタンを出す
- *   id / mode / features / reportId / generationId  戻るときにそのまま S16 へ返す
+ *   returnTo    'S12' のとき、生成プロンプトの確認へ戻るボタンを出す
+ *   id / reportId  戻るときにそのまま S12 へ返す
  *
  * ---- 機能キー（a2f58db45_feature_credits の実データと同じ綴りを使う）----
  *   competitor_analysis 競合LP分析 / crowdfunding_lp クラファンLP生成 /
  *   own_lp 自社LP生成 / kv_creative KV生成 / meta_ads メタ広告文生成 /
  *   line_contents LINEコンテンツ生成 /
- *   project_create プロジェクト作成（S4 が消費する。S16 の一覧には出さない）
+ *   project_create プロジェクト作成（S4 が消費する）
  *   credit_unit_price は機能ではなく「1クレジットあたりの円」を入れる特別な行。
  *
  * 無い関数は黙って飛ばさない。何が無いのかを console.error に必ず残す。
@@ -515,383 +495,6 @@
   }
 
   /* ============================================================
-   * S16 ポイント消費確認
-   *   残高 / 今回消費 / 実行後残高 / 不足警告
-   *   （機能ごとの内訳は各分析・生成の画面側に出すので、ここには持たない）
-   *   分析を実行・生成を実行・チャージ・キャンセル
-   * ============================================================ */
-  function renderConfirm(root, params) {
-    mounted = { id: 'S16', root: root, params: params };
-    setHeader(t('creditConfirm.title'), true);
-
-    var query = params || {};
-    var projectId = projectIdFrom(query);
-    var reportId = textOf(query.reportId).trim();
-    var generationId = textOf(query.generationId).trim();
-    var mode = textOf(query.mode).trim();
-    if (mode !== 'analysis' && mode !== 'generate') {
-      mode = reportId ? 'generate' : 'analysis';
-    }
-
-    var state = {
-      user: null,
-      project: null,
-      features: [],
-      selected: {},
-      busy: false
-    };
-
-    /* 集計の貼り替え先（チェックのたびに画面全体を描き直さない） */
-    var nodes = {
-      balanceValue: null,
-      costValue: null,
-      afterValue: null,
-      warnHost: null,
-      analysisButton: null,
-      generateButton: null
-    };
-
-    function selectedFeatures() {
-      return state.features.filter(function (feature) { return !!state.selected[feature.key]; });
-    }
-
-    function totalCost() {
-      var sum = 0;
-      selectedFeatures().forEach(function (feature) { sum += Math.max(0, feature.cost); });
-      return sum;
-    }
-
-    function balanceOf() {
-      return Math.max(0, Math.round(Number(state.user && state.user.credit_balance) || 0));
-    }
-
-    function unlimited() {
-      return hasUnlimited(state.user);
-    }
-
-    function afterBalance() {
-      if (unlimited()) { return balanceOf(); }
-      return balanceOf() - totalCost();
-    }
-
-    function shortage() {
-      var lack = totalCost() - balanceOf();
-      return lack > 0 ? lack : 0;
-    }
-
-    function hasAnalysisChecked() {
-      var found = false;
-      selectedFeatures().forEach(function (feature) {
-        if (feature.kind === 'analysis') { found = true; }
-      });
-      return found;
-    }
-
-    function hasGenerateChecked() {
-      var found = false;
-      selectedFeatures().forEach(function (feature) {
-        if (feature.kind !== 'analysis') { found = true; }
-      });
-      return found;
-    }
-
-    function initSelection() {
-      var wanted = {};
-      var raw = textOf(query.features).trim();
-      if (raw) {
-        raw.split(',').forEach(function (part) {
-          var key = part.trim();
-          if (key) { wanted[key] = true; }
-        });
-      }
-
-      state.features.forEach(function (feature) {
-        if (raw) { state.selected[feature.key] = !!wanted[feature.key]; return; }
-        if (mode === 'analysis') { state.selected[feature.key] = feature.kind === 'analysis'; return; }
-        state.selected[feature.key] = feature.key === 'generation';
-      });
-
-      var any = false;
-      state.features.forEach(function (feature) {
-        if (state.selected[feature.key]) { any = true; }
-      });
-      if (!any && state.features.length) {
-        state.selected[state.features[0].key] = true;
-      }
-    }
-
-    function load() {
-      clearBanner();
-      showSkeleton(root);
-
-      loadUser().then(function (user) {
-        state.user = user;
-        return loadFeatureRows();
-      }).then(function (rows) {
-        state.features = buildFeatureList(rows);
-        initSelection();
-        if (!projectId) {
-          state.project = null;
-          paint();
-          return null;
-        }
-        return window.Api.projects.get(projectId).then(function (project) {
-          state.project = project;
-          paint();
-          return project;
-        }, function (err) {
-          /* プロジェクト名は見出しに添えるだけなので、取れなくてもこの画面は使える */
-          console.warn('[screens-point] プロジェクト名を取得できませんでした（見出しの補足だけを省きます）', err);
-          state.project = null;
-          paint();
-          return null;
-        });
-      }).catch(function (err) {
-        if (err && err.code === 'noUser') {
-          console.error('[screens-point] ログイン中のユーザーがいないため S1 ログインへ戻します。');
-          go('S1');
-          return;
-        }
-        console.error('[screens-point] ポイント消費確認の読み込みに失敗しました', err);
-        showErrorScreen(root, errorMessage(err, 'credit.loadFailed'), load);
-      });
-    }
-
-    function goCharge() {
-      var keys = [];
-      selectedFeatures().forEach(function (feature) { keys.push(feature.key); });
-      go('S17', {
-        returnTo: 'S16',
-        id: projectId,
-        mode: mode,
-        features: keys.join(','),
-        reportId: reportId,
-        generationId: generationId
-      });
-    }
-
-    function goCancel() {
-      if (projectId) { go('S8', { id: projectId }); return; }
-      go('S3');
-    }
-
-    function setDisabled(node, disabled) {
-      if (!node) { return; }
-      node.disabled = !!disabled;
-      node.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-    }
-
-    function paintWarn() {
-      if (!nodes.warnHost) { return; }
-      clear(nodes.warnHost);
-
-      if (unlimited()) {
-        var okBox = el('div', 'note-box');
-        okBox.appendChild(el('p', null, tl('local.unlimitedNotice')));
-        nodes.warnHost.appendChild(okBox);
-        return;
-      }
-
-      var lack = shortage();
-      if (!lack) { return; }
-
-      var box = el('div', 'warn-box');
-      box.setAttribute('role', 'alert');
-      box.appendChild(el('p', null, t('creditConfirm.insufficientWarning')));
-      box.appendChild(el('p', null,
-        t('creditConfirm.balance') + ' ' + formatNumber(balanceOf()) + t('common.creditShort') +
-        ' / ' + t('creditConfirm.thisTime') + ' ' + formatNumber(totalCost()) + t('common.creditShort') +
-        ' / ' + tl('local.shortage') + ' ' + formatNumber(lack) + t('common.creditShort')));
-      box.appendChild(button('btn btn--text', t('creditConfirm.charge'), goCharge));
-      nodes.warnHost.appendChild(box);
-    }
-
-    function paintButtons() {
-      var blocked = state.busy || (!unlimited() && shortage() > 0);
-      setDisabled(nodes.analysisButton, blocked || !hasAnalysisChecked());
-      setDisabled(nodes.generateButton, blocked || !hasGenerateChecked());
-      if (!state.busy) {
-        if (nodes.analysisButton) { nodes.analysisButton.textContent = t('creditConfirm.runAnalysis'); }
-        if (nodes.generateButton) { nodes.generateButton.textContent = t('creditConfirm.runGenerate'); }
-      }
-    }
-
-    function refreshSummary() {
-      if (nodes.balanceValue) { nodes.balanceValue.textContent = formatNumber(balanceOf()); }
-      if (nodes.costValue) { nodes.costValue.textContent = formatNumber(totalCost()); }
-      if (nodes.afterValue) {
-        nodes.afterValue.textContent = formatNumber(afterBalance()) + t('common.creditShort');
-        nodes.afterValue.className = (!unlimited() && shortage() > 0) ? 'info-row__val num t-danger' : 'info-row__val num';
-      }
-      paintWarn();
-      paintButtons();
-    }
-
-    function setBusy(on) {
-      state.busy = on;
-      if (on) {
-        if (nodes.analysisButton) { nodes.analysisButton.textContent = tl('local.executing'); }
-        if (nodes.generateButton) { nodes.generateButton.textContent = tl('local.executing'); }
-      }
-      paintButtons();
-    }
-
-    function execute(kind) {
-      if (state.busy) { return; }
-
-      if (!state.features.length) {
-        toast(tl('local.noFeature'), 'danger');
-        return;
-      }
-      if (kind === 'analysis' && !hasAnalysisChecked()) {
-        toast(tl('local.needAnalysisFeature'), 'danger');
-        return;
-      }
-      if (kind === 'generate' && !hasGenerateChecked()) {
-        toast(tl('local.needGenerateFeature'), 'danger');
-        return;
-      }
-      if (!apiReady()) {
-        toast(t('common.error'), 'danger');
-        return;
-      }
-
-      var entries = selectedFeatures();
-      var total = totalCost();
-      var isUnlimited = unlimited();
-
-      if (!isUnlimited && total > balanceOf()) {
-        refreshSummary();
-        toast(t('creditConfirm.insufficientWarning'), 'danger');
-        return;
-      }
-
-      setBusy(true);
-      clearBanner();
-
-      /* ここではもう引き落とさない。生成は generate-content、分析は analyze-competitor の
-         各 Edge Function が成功後に消費+保存を1トランザクションで行う（先に消費すると
-         失敗時の返金経路が要るため）。この画面は消費内容の確認と実行の起点だけ。 */
-      Promise.resolve().then(function () {
-        App.state = App.state || {};
-        App.state.creditConfirmed = {
-          mode: kind,
-          features: entries.map(function (entry) {
-            return { feature_key: entry.key, feature_name: entry.name, credit_cost: entry.cost };
-          }),
-          total: isUnlimited ? 0 : total,
-          unlimited: isUnlimited,
-          projectId: projectId,
-          reportId: reportId || null,
-          generationId: generationId || null,
-          at: new Date().toISOString()
-        };
-
-        toast(t('common.saved'), 'success');
-
-        if (kind === 'analysis') {
-          go('S11', { id: projectId, reportId: reportId });
-        } else {
-          go('S13', { id: projectId, reportId: reportId, generationId: generationId });
-        }
-      }).catch(function (err) {
-        setBusy(false);
-        console.error('[screens-point] ポイントの引き落としに失敗しました', err);
-        var message = errorMessage(err, 'creditConfirm.executeFailed');
-        if (err && err.chargedCount) { message = message + ' ' + tl('local.consumeFailedPartial'); }
-        showBanner(message, function () { execute(kind); });
-        toast(message, 'danger');
-        /* 途中まで引き落とされている場合があるので、残高を取り直してから集計を出し直す */
-        loadUser().then(function (user) {
-          state.user = user;
-          refreshSummary();
-        }, function (reloadErr) {
-          console.error('[screens-point] 残高の取り直しにも失敗しました', reloadErr);
-        });
-      });
-    }
-
-    function paint() {
-      clearBanner();
-      clear(root);
-
-      var screen = el('div', 'screen');
-
-      /* 見出し */
-      var head = el('header', 'screen__head');
-      head.appendChild(el('h2', 'screen__title', t('creditConfirm.title')));
-      if (state.project && textOf(state.project.project_name)) {
-        head.appendChild(el('p', 'screen__lead clamp-2', textOf(state.project.project_name)));
-      }
-      screen.appendChild(head);
-
-      /* 残高 */
-      var balanceCard = el('div', 'card card--gradient');
-      balanceCard.appendChild(el('span', 'card__label', t('creditConfirm.balance')));
-      var balanceValueWrap = el('span');
-      nodes.balanceValue = el('span', 'card__value num', formatNumber(balanceOf()));
-      balanceValueWrap.appendChild(nodes.balanceValue);
-      balanceValueWrap.appendChild(el('span', 'card__unit', t('common.creditShort')));
-      balanceCard.appendChild(balanceValueWrap);
-      if (unlimited()) {
-        balanceCard.appendChild(el('span', 'card__sub',
-          tl('local.unlimitedBadge') + ' / ' + t('credit.expiry') + ' ' + formatDate(state.user.unlimited_until)));
-      }
-      screen.appendChild(balanceCard);
-
-      /* 今回消費 */
-      var costCard = el('div', 'card card--soft');
-      costCard.appendChild(el('span', 'card__label', t('creditConfirm.thisTime')));
-      var costValueWrap = el('span');
-      nodes.costValue = el('span', 'card__value num', formatNumber(totalCost()));
-      costValueWrap.appendChild(nodes.costValue);
-      costValueWrap.appendChild(el('span', 'card__unit', t('common.creditShort')));
-      costCard.appendChild(costValueWrap);
-      screen.appendChild(costCard);
-
-      /* 実行後残高 */
-      var info = el('div', 'info-list');
-      var afterRow = el('div', 'info-row');
-      afterRow.appendChild(el('span', 'info-row__key', t('creditConfirm.afterExecution')));
-      nodes.afterValue = el('span', 'info-row__val num', formatNumber(afterBalance()) + t('common.creditShort'));
-      afterRow.appendChild(nodes.afterValue);
-      info.appendChild(afterRow);
-      screen.appendChild(info);
-
-      /* 不足警告・無制限の案内 */
-      nodes.warnHost = el('div', 'stack stack--tight');
-      screen.appendChild(nodes.warnHost);
-
-      /* 分析を実行 / 生成を実行 */
-      var runRow = el('div', 'btn-row');
-      nodes.analysisButton = button(
-        mode === 'analysis' ? 'btn btn--primary' : 'btn btn--secondary',
-        t('creditConfirm.runAnalysis'),
-        function () { execute('analysis'); }
-      );
-      nodes.generateButton = button(
-        mode === 'generate' ? 'btn btn--primary' : 'btn btn--secondary',
-        t('creditConfirm.runGenerate'),
-        function () { execute('generate'); }
-      );
-      runRow.appendChild(nodes.analysisButton);
-      runRow.appendChild(nodes.generateButton);
-      screen.appendChild(runRow);
-
-      /* チャージ / キャンセル */
-      var subRow = el('div', 'btn-row');
-      subRow.appendChild(button('btn btn--secondary', t('creditConfirm.charge'), goCharge));
-      subRow.appendChild(button('btn btn--secondary', t('creditConfirm.cancel'), goCancel));
-      screen.appendChild(subRow);
-
-      root.appendChild(screen);
-      refreshSummary();
-    }
-
-    load();
-  }
-
-  /* ============================================================
    * S17 クレジット
    *   残高 / 購入プラン選択と購入処理 / クーポンコード登録 / 利用履歴（新しい順）
    * ============================================================ */
@@ -1301,16 +904,10 @@
       historySection.appendChild(nodes.historyHost);
       screen.appendChild(historySection);
 
-      /* 戻る導線 */
-      if (returnTo === 'S16') {
+      /* 戻る導線。生成プロンプトの確認から来ていれば、そこへ返す */
+      if (returnTo === 'S12' && query.id) {
         screen.appendChild(button('btn btn--secondary btn--block', tl('local.backToConfirm'), function () {
-          go('S16', {
-            id: query.id,
-            mode: query.mode,
-            features: query.features,
-            reportId: query.reportId,
-            generationId: query.generationId
-          });
+          go('S12', { id: query.id, reportId: query.reportId });
         }));
       }
 
@@ -1341,15 +938,10 @@
     if (!mounted.id || !mounted.root) { return; }
     if (!document.body.contains(mounted.root)) { return; }
     if (currentScreenId() !== mounted.id) { return; }
-    if (mounted.id === 'S16') { renderConfirm(mounted.root, mounted.params); }
     if (mounted.id === 'S17') { renderCredit(mounted.root, mounted.params); }
   });
 
   /* ---------- 画面登録（第2引数は必ず { render: 関数 }） ---------- */
-  App.registerScreen('S16', {
-    render: function (root, params) { renderConfirm(root, params); }
-  });
-
   App.registerScreen('S17', {
     render: function (root, params) { renderCredit(root, params); }
   });

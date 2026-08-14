@@ -559,7 +559,7 @@
     'preview.backToGenerate': ['生成結果へ戻る', 'Back to generated results', '생성 결과로 돌아가기'],
     'preview.currentlyShowing': ['表示中', 'Now showing', '현재 표시 중'],
 
-    // ==== creditConfirm: S16 クレジット消費確認 ====
+    // ==== creditConfirm: 消費ポイントの言い回し（S11・S12・S13 が使う） ====
     'creditConfirm.title': ['ポイント消費確認', 'Confirm point use', '포인트 사용 확인'],
     'creditConfirm.balance': ['残高', 'Balance', '잔액'],
     'creditConfirm.thisTime': ['今回消費', 'This action costs', '이번 소모량'],
