@@ -1330,6 +1330,10 @@
     global.Api.generationJobs.get(id).then(function (row) {
     if (!watch || watch.jobId !== id) { return; }
     watch.status = String(row.status || 'pending');
+    /* 進めている側が段数を書いていれば、本当の割合を出す */
+    watch.done = Number(row.progress_done);
+    watch.total = Number(row.progress_total);
+    watch.note = row.progress_note ? String(row.progress_note) : '';
     watch.error = String(row.error || '');
     if (watch.status === 'done') {
       var applied = onDone(row.result || {}, row);
@@ -1363,9 +1367,20 @@
     return !!watch && watch.status !== 'processing' && watch.status !== 'done' && watch.status !== 'failed';
   }
 
+  /* 進めている側が「何段中の何段目か」を書いていれば、それが本当の進み具合。
+     曲線を描くのはこれが無いときだけにする（無いまま曲線を出すと、
+     12%で止まって見え、処理が始まった瞬間に92%まで飛んで、また止まって見える） */
+  function hasRealProgress() {
+    return !!watch && watch.total > 0 && watch.done >= 0 && !isNaN(watch.done);
+  }
+
   function progressValue() {
     if (!watch) { return 0; }
     if (watch.status === 'done') { return 100; }
+    if (hasRealProgress()) {
+      /* 段が終わるたびに増える。書き戻しぶんを残して 96% を上限にする */
+      return Math.min(96, Math.round((watch.done / watch.total) * 96));
+    }
     var sec = (new Date().getTime() - watch.startedAt) / 1000;
     if (isIndeterminate()) {
       /* まだ誰も拾っていない状態。ここで大きな数字を出すと「もうすぐ終わる」と
@@ -1458,8 +1473,12 @@
     meter.appendChild(bar);
     panel.appendChild(meter);
 
+    /* 進めている側が一言を書いていれば、それをそのまま出す。
+       「2ページ中1ページを読み終えました」のほうが、割合より状況が分かる */
     var message = failed ? (t('job.failed') + (watch.error ? '：' + watch.error : ''))
-    : (done ? t(opts.doneKey || 'job.done') : (watch.status === 'processing' ? t('job.running') : t('job.queued')));
+    : (done ? t(opts.doneKey || 'job.done')
+      : (watch.note ? watch.note
+        : (watch.status === 'processing' ? t('job.running') : t('job.queued'))));
     watch.msgNode = wEl('p', 'jobwatch__msg' + (failed ? ' t-danger' : ''), isStalled() ? t('job.stalled') : message);
     panel.appendChild(watch.msgNode);
 
