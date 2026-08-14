@@ -1528,6 +1528,31 @@ a.list-row:active { opacity: .88; }
 
 .thumb__remove:active { opacity: .88; }
 
+/* 商品カットの印（S4）。★が付いたものだけを素材生成の見本に渡す */
+.thumb__pick {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .46);
+  color: var(--c-white);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.thumb__pick--on {
+  background: var(--c-sub);
+  color: var(--c-white);
+}
+
+.thumb__pick:active { opacity: .88; }
+
 .thumb-add {
   position: relative;
   aspect-ratio: 1 / 1;

@@ -138,6 +138,21 @@
       'There is nothing waiting to be made.',
       '생성 대기 중인 소재가 없습니다.'
     ],
+    'gen.assetRenderAll': ['未生成の素材をまとめて生成', 'Produce every missing asset', '미생성 소재를 한 번에 생성'],
+    'gen.assetRendering': ['素材を生成しています', 'Producing the assets', '소재를 생성하는 중입니다'],
+    'gen.assetRenderQueued': [
+      '{n}件の素材を生成に出しました。できあがると、この一覧が埋まります。',
+      '{n} assets were sent for production. This list fills in as they arrive.',
+      '{n}건의 소재를 생성에 보냈습니다. 완성되면 이 목록이 채워집니다.'
+    ],
+    'gen.assetRenderFailed': ['素材の生成に出せませんでした。', 'The assets could not be sent for production.', '소재를 생성에 보내지 못했습니다.'],
+    'gen.assetNeedShots': [
+      '先に商品入力ページで、商品が写っている写真に★を付けてください。見本が無いと、AIが商品の見た目を作り変えてしまいます。',
+      'Star the photos that actually show the product on the product input page first. Without a reference the AI invents its own version of the product.',
+      '먼저 상품 입력 페이지에서 상품이 찍힌 사진에 ★를 표시해 주세요. 견본이 없으면 AI가 상품의 겉모습을 마음대로 만들어 버립니다.'
+    ],
+    'gen.assetShots': ['見本にする商品写真 {n}枚', '{n} product shots used as the reference', '견본으로 사용할 상품 사진 {n}장'],
+    'gen.assetToInput': ['商品入力へ', 'Go to product input', '상품 입력으로'],
     'gen.assetApiNote': [
       '画像・動画のAPIはまだ接続していません。いまは指示文をコピーして ChatGPT と segmind で作り、できたURLをここに貼ります。キーを入れたら、この欄は自動で埋まります。',
       'The image and video APIs are not connected yet. For now, copy the instruction, make the asset in ChatGPT or segmind, and paste the URL here. Once the keys are in, this fills itself.',
@@ -1117,6 +1132,8 @@
       showSkeleton(root);
       Api.projects.get(projectId).then(function (project) {
         data.project = project;
+        /* 素材の見本にするのは、S4 で★を付けた商品カットだけ */
+        data.productShots = asArray(project && project.product_shot_urls).map(String).filter(Boolean);
         return Api.generations.list({
           eq: { projects_id: String(projectId) },
           order: 'created_at.desc',
@@ -1270,10 +1287,93 @@
       note.appendChild(el('p', null, t('gen.assetApiNote')));
       section.appendChild(note);
 
+      section.appendChild(renderAllBar(rows));
+
       rows.forEach(function (one) {
         section.appendChild(assetCard(one));
       });
       return section;
+    }
+
+    /* ---- 未生成の素材をまとめて生成に出す ----
+       ChatGPT（画像）と segmind（動画）には、指示文だけでなく
+       S4 で★を付けた商品カットを一緒に渡す。見本が無いと、AIが
+       商品の見た目を作り変えてしまうため。 */
+    function renderAllBar(rows) {
+      var box = el('div', 'stack stack--tight');
+      var waiting = rows.filter(function (one) { return !one.url; });
+      var shots = data.productShots || [];
+
+      if (!shots.length) {
+        var warn = el('div', 'warn-box');
+        warn.appendChild(el('p', null, t('gen.assetNeedShots')));
+        box.appendChild(warn);
+        box.appendChild(button('btn btn--secondary btn--block', t('gen.assetToInput'), function () {
+          go('S4', { id: projectId });
+        }));
+        return box;
+      }
+
+      box.appendChild(el('p', 't-note', fill(t('gen.assetShots'), { n: shots.length })));
+
+      var run = button('btn btn--primary btn--block', t('gen.assetRenderAll'), function () {
+        if (!waiting.length) { return; }
+        run.disabled = true;
+        run.textContent = t('gen.assetRendering');
+        renderAllAssets(waiting, shots, run);
+      });
+      if (!waiting.length) { run.disabled = true; }
+      box.appendChild(run);
+      return box;
+    }
+
+    function renderAllAssets(waiting, shots, run) {
+      if (!Api.analysis || typeof Api.analysis.run !== 'function') {
+        console.error('[screens-generate] Api.analysis.run がありません。api.js を確認してください。');
+        toast(t('gen.assetRenderFailed'), 'danger');
+        run.disabled = false;
+        run.textContent = t('gen.assetRenderAll');
+        return;
+      }
+
+      Api.analysis.run({
+        mode: 'asset_render',
+        projects_id: String(projectId),
+        product_shots: shots,
+        assets: waiting.map(function (one) {
+          return {
+            generation_id: String(one.generation.id),
+            content_type: one.generation.content_type,
+            target: one.generation.variant_label || '',
+            column: one.column,
+            index: one.index,
+            kind: one.kind,
+            slot: one.slot,
+            prompt: one.prompt
+          };
+        }),
+        lang: (App.getLang && App.getLang()) || 'ja'
+      }).then(function (result) {
+        function done() { load(); }
+        if (result && result.queued && App.watchJob) {
+          toast(fill(t('gen.assetRenderQueued'), { n: waiting.length }), 'success');
+          App.watchJob({
+            jobId: result.job_id,
+            titleKey: 'job.titleAssets',
+            doneKey: 'job.doneAssets',
+            noteKey: 'job.noteAssets',
+            urls: [],
+            onDone: done
+          });
+          return;
+        }
+        done();
+      }, function (err) {
+        console.error('[screens-generate] 素材の一括生成に出せませんでした', err);
+        toast(errorMessage(err, 'gen.assetRenderFailed'), 'danger');
+        run.disabled = false;
+        run.textContent = t('gen.assetRenderAll');
+      });
     }
 
     function assetCard(one) {

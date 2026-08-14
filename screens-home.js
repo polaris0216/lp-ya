@@ -726,7 +726,7 @@
     for (si = 0; si < stale.length; si += 1) { stale[si].parentNode.removeChild(stale[si]); }
     setHeader(t('project.createTitle'), true);
 
-    var form = { name: '', features: '', price: '', target: '', images: [], rewards: [],
+    var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
       category: '', fundingGoal: '', valueProp: '', brandTone: '',
       refUrls: [''], brandColors: [], brandFonts: {}, targets: [], videos: [] };
     var user = null;
@@ -744,6 +744,7 @@
     var priceError = null;
     var submitButton = null;
     var imagesHost = null;
+    var productShotNote = null;
     var rewardsHost = null;
     var rewardsEmpty = null;
     var discountNodes = [];
@@ -820,6 +821,7 @@
       form.target = text(row.target_audience);
       form.brandTone = text(row.brand_tone);
       form.images = list(row.image_urls).map(String);
+      form.productShots = list(row.product_shot_urls).map(String);
       form.videos = list(row.video_urls).map(String);
       form.brandColors = list(row.brand_colors).map(String);
       form.brandFonts = row.brand_fonts && typeof row.brand_fonts === 'object' ? row.brand_fonts : {};
@@ -931,8 +933,12 @@
 
       /* 商品写真 */
       var photoPanel = panel('product.photoPanel', 'product.photoPanelDesc');
+      photoPanel.appendChild(el('p', 'field__hint', t('s4.productShotHint')));
       imagesHost = el('div', 'thumb-grid');
       photoPanel.appendChild(imagesHost);
+      productShotNote = el('p', 'field__hint');
+      productShotNote.hidden = true;
+      photoPanel.appendChild(productShotNote);
       photoPanel.appendChild(buildDropzone('home-create-images'));
       videosHost = el('div', 'stack');
       photoPanel.appendChild(videosHost);
@@ -1957,12 +1963,37 @@
         cell.appendChild(image);
         var remove = button('thumb__remove', '×', function () {
           form.images.splice(index, 1);
+          var at = form.productShots.indexOf(source);
+          if (at !== -1) { form.productShots.splice(at, 1); }
           paintImages();
         });
         remove.setAttribute('aria-label', t('common.delete'));
         cell.appendChild(remove);
+
+        /* 集めた写真には仕様の図版やレビュー画面も混ざる。
+           商品そのものが写っているものだけを選んでおくと、
+           KV・LP・広告の素材を作るときの参照として AI に渡せる */
+        var picked = form.productShots.indexOf(source) !== -1;
+        var mark = button('thumb__pick' + (picked ? ' thumb__pick--on' : ''),
+          picked ? '★' : '☆', function () {
+            if (picked) { form.productShots.splice(form.productShots.indexOf(source), 1); }
+            else { form.productShots.push(source); }
+            paintImages();
+          });
+        mark.setAttribute('aria-pressed', picked ? 'true' : 'false');
+        mark.setAttribute('aria-label', t('s4.productShot'));
+        mark.title = t('s4.productShot');
+        cell.appendChild(mark);
+
         imagesHost.appendChild(cell);
       });
+
+      if (productShotNote) {
+        productShotNote.textContent = t('s4.productShotCount', {
+          n: form.productShots.length, m: form.images.length
+        });
+        productShotNote.hidden = form.images.length === 0;
+      }
 
       imagesHost.hidden = form.images.length === 0;
       if (dropzone) { dropzone.hidden = form.images.length >= MAX_IMAGES; }
@@ -2179,6 +2210,10 @@
         product_features: form.features.trim() || null,
         target_audience: primaryTargetName(),
         image_urls: form.images.slice(),
+        /* 素材生成で AI に渡すのは、商品が写っているものだけ */
+        product_shot_urls: form.productShots.filter(function (url) {
+          return form.images.indexOf(url) !== -1;
+        }),
         video_urls: form.videos.slice(),
         rewards: rewardsValue(),
         category: form.category || null,

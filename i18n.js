@@ -219,6 +219,17 @@
 
     // 商品入力（ttalkkak-ai.com の「① 상품 입력」タブに合わせた項目）
     'product.photoPanel': ['商品写真', 'Product photos', '상품 사진'],
+    's4.productShot': ['商品カットとして使う', 'Use as a product shot', '상품 컷으로 사용'],
+    's4.productShotHint': [
+      '★を付けた写真だけを、KV・LP・広告の素材を作るときの見本としてAIに渡します。商品そのものが写っているものを選んでください（仕様の図版やレビュー画面は外す）。',
+      'Only the photos you star are handed to the AI as the reference when producing key visuals, LPs and ads. Pick the ones that actually show the product — leave out spec graphics and review screenshots.',
+      '★를 표시한 사진만 KV·LP·광고 소재를 만들 때 참고로 AI에 전달합니다. 상품 자체가 찍힌 것을 선택해 주세요(사양 도표나 리뷰 화면은 제외).'
+    ],
+    's4.productShotCount': [
+      '商品カット {n}枚 / 収集した写真 {m}枚',
+      '{n} product shots of {m} photos',
+      '상품 컷 {n}장 / 수집한 사진 {m}장'
+    ],
     'product.photoPanelDesc': ['参考ページから集めた写真と動画がすべてここに並びます。足りないカットは下から追加してください。生成AIに参考として一緒に渡します。', 'Every photo and video collected from the reference page appears here. Add any missing shots below. They are passed to the AI as reference material.', '참고 페이지에서 수집한 사진과 동영상이 모두 여기에 표시됩니다.'],
     'product.dropzone': ['クリックまたはドラッグして写真を追加', 'Click or drag to add photos', '클릭 또는 드래그하여 사진 추가'],
     'product.dropzoneSub': ['PNG / JPG（自動で圧縮して保存）・手動での追加は15枚まで', 'PNG / JPG (compressed automatically) · up to 15 added by hand', 'PNG / JPG (자동 압축 저장) · 직접 추가는 15장까지'],
@@ -277,6 +288,9 @@
     'job.titleTargets': ['ターゲット案を作成中', 'Building target segments', '타깃 안 생성 중'],
     'job.titleAnalysis': ['競合LPを分析中', 'Analyzing competitor pages', '경쟁 상세페이지 분석 중'],
     'job.titlePrompts': ['生成プロンプトを作成中', 'Writing the generation prompts', '생성 프롬프트 작성 중'],
+    'job.titleAssets': ['画像と動画を生成中', 'Producing images and video', '이미지와 동영상 생성 중'],
+    'job.doneAssets': ['できました。素材を貼り付けました', 'Done. The assets have been attached', '완료했습니다. 소재를 붙였습니다'],
+    'job.noteAssets': ['この画面を閉じても生成は続きます。できあがると素材の一覧が埋まります。', 'You can close this. The asset list fills in as they arrive.', '이 화면을 닫아도 생성은 계속됩니다. 완성되면 소재 목록이 채워집니다.'],
     'job.donePrompts': ['できました。生成プロンプトの画面に進みます', 'Done. Opening the generation prompts', '완료했습니다. 생성 프롬프트 화면으로 이동합니다'],
     'job.notePrompts': ['この画面を閉じても処理は続きます。完了すると生成プロンプトの画面に進みます。', 'You can close this. The prompts open when it is done.', '이 화면을 닫아도 처리는 계속됩니다. 완료되면 생성 프롬프트 화면으로 이동합니다.'],
     'job.queued': ['受け付けました。処理の順番を待っています', 'Queued. Waiting for a worker', '접수했습니다. 처리 순서를 기다리는 중입니다'],
