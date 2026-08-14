@@ -910,6 +910,8 @@ a.card:active,
 .textarea::placeholder { color: #9B94AE; }
 
 /* 生成プロンプトの編集欄（S12）。長文をそのまま読むので、等幅で高めに取る */
+.textarea--short { min-height: 96px; }
+
 .textarea--prompt {
   min-height: 220px;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace);
@@ -1159,6 +1161,25 @@ a.card:active,
 .chip--mute {
   color: var(--c-text-sub);
   font-weight: 400;
+}
+
+/* 競合が達成したか伸びなかったか（S10）。選んだ側だけ色を持たせる */
+.chip--sm {
+  min-height: 0;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.chip--success {
+  background: var(--c-success);
+  border-color: transparent;
+  color: var(--c-white);
+}
+
+.chip--failure {
+  background: var(--c-danger);
+  border-color: transparent;
+  color: var(--c-white);
 }
 
 /* -----------------------------------------------------------------------------
