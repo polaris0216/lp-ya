@@ -74,15 +74,15 @@
    *    admin : 管理者のみか
    * ------------------------------------------------------------------ */
   var SCREENS = {
-    S1: { tab: null, back: null, auth: false, admin: false },
-    S2: { tab: null, back: 'S1', auth: false, admin: false },
+    S1: { tab: null, back: null, auth: false, admin: false, nav: false },
+    S2: { tab: null, back: 'S1', auth: false, admin: false, nav: false },
+    S0: { tab: null, back: null, auth: false, admin: false, noBack: true, nav: false },
     S3: { tab: 'S3', back: null, auth: true, admin: false },
     S4: { tab: 'S4', back: 'S3', auth: true, admin: false },
     S5: { tab: 'S3', back: 'S3', auth: true, admin: false },
     S6: { tab: null, back: 'S5', auth: true, admin: false },
     S7: { tab: null, back: 'S5', auth: true, admin: false },
     S8: { tab: 'S3', back: 'S3', auth: true, admin: false },
-    S9: { tab: 'S4', back: 'S8', auth: true, admin: false },
     S10: { tab: null, back: 'S8', auth: true, admin: false },
     S11: { tab: null, back: 'S8', auth: true, admin: false },
     S12: { tab: null, back: 'S11', auth: true, admin: false },
@@ -97,7 +97,7 @@
   };
 
   /* プロジェクトに紐づく画面は、戻り先を作るときに選択中のプロジェクトIDを付ける */
-  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15', 'S16'];
+  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15', 'S16'];
 
   /* ------------------------------------------------------------------
    * 2. 予備辞書
@@ -115,7 +115,7 @@
       'common.ok': 'OK',
       'common.close': '閉じる',
       'common.confirm': '確認',
-      'common.creditUnit': 'CR',
+      'common.creditUnit': 'P',
       'common.justNow': 'たった今',
       'common.minutesAgo': '{n}分前',
       'common.hoursAgo': '{n}時間前',
@@ -130,26 +130,26 @@
       'common.loginRequired': 'この画面を使うにはログインが必要です。',
       'tab.home': 'ホーム',
       'tab.create': '作成',
-      'tab.credit': 'クレジット',
+      'tab.credit': 'ポイント',
       'tab.admin': '管理',
       'tab.settings': '設定',
+      'screen.S0': 'エルピーヤ',
       'screen.S1': 'ログイン',
       'screen.S2': '会員登録',
       'screen.S3': 'マイプロジェクト',
-      'screen.S4': '新規プロジェクト',
+      'screen.S4': '商品入力',
       'screen.S5': 'プロジェクト操作',
       'screen.S6': '名前を変更',
       'screen.S7': 'プロジェクトを削除',
       'screen.S8': 'プロジェクト詳細',
-      'screen.S9': '商品登録',
       'screen.S10': '競合LP分析',
       'screen.S11': '分析レポート',
       'screen.S12': '生成内容の確認',
       'screen.S13': '生成結果',
       'screen.S14': 'デザイン編集',
       'screen.S15': '実寸プレビュー',
-      'screen.S16': 'クレジット消費確認',
-      'screen.S17': 'クレジット',
+      'screen.S16': 'ポイント消費確認',
+      'screen.S17': 'ポイント',
       'screen.S18': '管理者ダッシュボード',
       'screen.S19': '機能別価格設定',
       'screen.settings': '設定',
@@ -164,17 +164,17 @@
       'settings.role': '権限',
       'settings.roleAdmin': '管理者',
       'settings.roleUser': '一般ユーザー',
-      'settings.balance': 'クレジット残高',
+      'settings.balance': 'ポイント残高',
       'settings.unlimited': '無制限利用 {date} まで',
       'settings.since': '登録日',
-      'settings.goCredit': 'クレジットを見る',
+      'settings.goCredit': 'ポイントを見る',
       'settings.goAdmin': '管理画面を開く',
       'settings.logout': 'ログアウト',
       'settings.logoutTitle': 'ログアウトしますか？',
       'settings.logoutBody': 'もう一度使うにはログインが必要です。保存したプロジェクトは残ります。',
       'settings.loggedOut': 'ログアウトしました',
       'settings.guest': 'ログインしていません',
-      'settings.guestHint': 'ログインするとプロジェクトとクレジットを利用できます。',
+      'settings.guestHint': 'ログインするとプロジェクトとポイントを利用できます。',
       'settings.login': 'ログインへ',
       'settings.appInfo': 'アプリ情報',
       'settings.version': 'バージョン',
@@ -198,7 +198,7 @@
       'common.ok': 'OK',
       'common.close': 'Close',
       'common.confirm': 'Confirm',
-      'common.creditUnit': 'CR',
+      'common.creditUnit': 'P',
       'common.justNow': 'Just now',
       'common.minutesAgo': '{n} min ago',
       'common.hoursAgo': '{n} h ago',
@@ -213,26 +213,26 @@
       'common.loginRequired': 'Please sign in to use this screen.',
       'tab.home': 'Home',
       'tab.create': 'Create',
-      'tab.credit': 'Credits',
+      'tab.credit': 'Points',
       'tab.admin': 'Admin',
       'tab.settings': 'Settings',
+      'screen.S0': 'エルピーヤ',
       'screen.S1': 'Sign in',
       'screen.S2': 'Create account',
       'screen.S3': 'My projects',
-      'screen.S4': 'New project',
+      'screen.S4': 'Product details',
       'screen.S5': 'Project actions',
       'screen.S6': 'Rename',
       'screen.S7': 'Delete project',
       'screen.S8': 'Project',
-      'screen.S9': 'Product',
       'screen.S10': 'Competitor analysis',
       'screen.S11': 'Analysis report',
       'screen.S12': 'Review before generating',
       'screen.S13': 'Generated result',
       'screen.S14': 'Design editor',
       'screen.S15': 'Actual size preview',
-      'screen.S16': 'Credit confirmation',
-      'screen.S17': 'Credits',
+      'screen.S16': 'Point confirmation',
+      'screen.S17': 'Points',
       'screen.S18': 'Admin dashboard',
       'screen.S19': 'Feature pricing',
       'screen.settings': 'Settings',
@@ -247,17 +247,17 @@
       'settings.role': 'Role',
       'settings.roleAdmin': 'Administrator',
       'settings.roleUser': 'Member',
-      'settings.balance': 'Credit balance',
+      'settings.balance': 'Point balance',
       'settings.unlimited': 'Unlimited until {date}',
       'settings.since': 'Registered',
-      'settings.goCredit': 'View credits',
+      'settings.goCredit': 'View points',
       'settings.goAdmin': 'Open admin',
       'settings.logout': 'Sign out',
       'settings.logoutTitle': 'Sign out?',
       'settings.logoutBody': 'You will need to sign in again. Your saved projects remain.',
       'settings.loggedOut': 'Signed out',
       'settings.guest': 'Not signed in',
-      'settings.guestHint': 'Sign in to use projects and credits.',
+      'settings.guestHint': 'Sign in to use projects and points.',
       'settings.login': 'Go to sign in',
       'settings.appInfo': 'About',
       'settings.version': 'Version',
@@ -281,7 +281,7 @@
       'common.ok': '확인',
       'common.close': '닫기',
       'common.confirm': '확인',
-      'common.creditUnit': 'CR',
+      'common.creditUnit': 'P',
       'common.justNow': '방금',
       'common.minutesAgo': '{n}분 전',
       'common.hoursAgo': '{n}시간 전',
@@ -296,26 +296,26 @@
       'common.loginRequired': '이 화면을 사용하려면 로그인이 필요합니다.',
       'tab.home': '홈',
       'tab.create': '작성',
-      'tab.credit': '크레딧',
+      'tab.credit': '포인트',
       'tab.admin': '관리',
       'tab.settings': '설정',
+      'screen.S0': 'エルピーヤ',
       'screen.S1': '로그인',
       'screen.S2': '회원가입',
       'screen.S3': '내 프로젝트',
-      'screen.S4': '새 프로젝트',
+      'screen.S4': '상품 입력',
       'screen.S5': '프로젝트 작업',
       'screen.S6': '이름 변경',
       'screen.S7': '프로젝트 삭제',
       'screen.S8': '프로젝트 상세',
-      'screen.S9': '상품 등록',
       'screen.S10': '경쟁 LP 분석',
       'screen.S11': '분석 리포트',
       'screen.S12': '생성 내용 확인',
       'screen.S13': '생성 결과',
       'screen.S14': '디자인 편집',
       'screen.S15': '실측 미리보기',
-      'screen.S16': '크레딧 사용 확인',
-      'screen.S17': '크레딧',
+      'screen.S16': '포인트 사용 확인',
+      'screen.S17': '포인트',
       'screen.S18': '관리자 대시보드',
       'screen.S19': '기능별 가격 설정',
       'screen.settings': '설정',
@@ -330,17 +330,17 @@
       'settings.role': '권한',
       'settings.roleAdmin': '관리자',
       'settings.roleUser': '일반 사용자',
-      'settings.balance': '크레딧 잔액',
+      'settings.balance': '포인트 잔액',
       'settings.unlimited': '무제한 이용 {date}까지',
       'settings.since': '가입일',
-      'settings.goCredit': '크레딧 보기',
+      'settings.goCredit': '포인트 보기',
       'settings.goAdmin': '관리 화면 열기',
       'settings.logout': '로그아웃',
       'settings.logoutTitle': '로그아웃할까요?',
       'settings.logoutBody': '다시 사용하려면 로그인이 필요합니다. 저장한 프로젝트는 남습니다.',
       'settings.loggedOut': '로그아웃했습니다',
       'settings.guest': '로그인하지 않았습니다',
-      'settings.guestHint': '로그인하면 프로젝트와 크레딧을 사용할 수 있습니다.',
+      'settings.guestHint': '로그인하면 프로젝트와 포인트을 사용할 수 있습니다.',
       'settings.login': '로그인으로',
       'settings.appInfo': '앱 정보',
       'settings.version': '버전',
@@ -382,7 +382,14 @@
     action: null,
     banner: null,
     main: null,
-    tabbar: null,
+    sidebar: null,
+    sidebarNav: null,
+    sidebarProjects: null,
+    sidebarToggle: null,
+    sidebarBackdrop: null,
+    sidebarRefresh: null,
+    account: null,
+    headerProject: null,
     tabAdmin: null,
     toast: null,
     modal: null
@@ -898,7 +905,7 @@
     if (global.Api && global.Api.credits && isFn(global.Api.credits.hasUnlimited)) {
       return global.Api.credits.hasUnlimited(state.user);
     }
-    console.error('[App] api.js に Api.credits.hasUnlimited がありません。無制限利用の判定ができません。');
+    console.error('[App] api.js に Api.points.hasUnlimited がありません。無制限利用の判定ができません。');
     return false;
   }
 
@@ -942,11 +949,11 @@
   // 消費するクレジット数は渡さない。feature_key だけ渡してサーバーが単価を引く。
   function consumeCredit(featureKey, memo) {
     if (!state.user) {
-      console.error('[App] ログイン中のユーザーがいないためクレジットを消費できません');
+      console.error('[App] ログイン中のユーザーがいないためポイントを消費できません');
       return Promise.reject(new Error('ログインが必要です'));
     }
     var consume = requireApi('credits.consume');
-    if (!consume) { return Promise.reject(new Error('Api.credits.consume がありません')); }
+    if (!consume) { return Promise.reject(new Error('Api.points.consume がありません')); }
     return consume(featureKey, memo).then(function (result) {
       if (result && result.user) { setUser(result.user, { silent: true }); }
       return result;
@@ -971,7 +978,7 @@
     updateAdminTab();
     emit('user', null);
     emit('balance', 0);
-    replace('S1');
+    replace('S0');
   }
 
   /*
@@ -1001,8 +1008,149 @@
    * 10. ヘッダーとタブバー
    * ------------------------------------------------------------------ */
   function updateAdminTab() {
-    if (!dom.tabAdmin) { return; }
-    dom.tabAdmin.hidden = !isAdmin();
+    renderSidebarNav(null);
+  }
+
+  /* ------------------------------------------------------------------
+   * 10b. ヘッダーのアカウント状態と左サイドメニュー
+   * （ttalkkak-ai.com /studio の StudioFrame と同じ持ち物）
+   * ------------------------------------------------------------------ */
+  var SIDEBAR_ITEMS = [
+    { id: 'S3', label: 'tab.home' },
+    { id: 'S4', label: 'tab.create' },
+    { id: 'S17', label: 'tab.credit' },
+    { id: 'S18', label: 'tab.admin', admin: true },
+    { id: 'settings', label: 'tab.settings' }
+  ];
+  var sidebarProjects = [];
+  var sidebarActive = null;
+
+  function headChip(text, className, onClick) {
+    var node = document.createElement(onClick ? 'button' : 'span');
+    node.className = 'head-chip' + (className ? ' ' + className : '');
+    node.textContent = text;
+    if (onClick) {
+      node.type = 'button';
+      node.addEventListener('click', onClick);
+    }
+    return node;
+  }
+
+  function renderAccount() {
+    if (!dom.account) { return; }
+    clear(dom.account);
+    var user = state.user;
+    if (!user) { return; }
+
+    if (isFn(global.Api && global.Api.credits && global.Api.credits.hasUnlimited)
+        && global.Api.credits.hasUnlimited(user)) {
+      dom.account.appendChild(headChip(t('account.unlimited'), 'head-chip--strong', function () { navigate('S17'); }));
+    }
+    dom.account.appendChild(headChip(
+      t('account.balanceChip', { n: formatNumber(Number(user.credit_balance) || 0) + t('common.creditShort') }),
+      'head-chip--strong',
+      function () { navigate('S17'); }
+    ));
+    dom.account.appendChild(headChip(
+      t('account.nameChip', { name: String(user.display_name || user.name || user.email || '') }),
+      null,
+      function () { navigate('settings'); }
+    ));
+  }
+
+  function renderSidebarNav(activeTab) {
+    if (activeTab !== null && activeTab !== undefined) { sidebarActive = activeTab; }
+    if (!dom.sidebarNav) { return; }
+    clear(dom.sidebarNav);
+    SIDEBAR_ITEMS.forEach(function (item) {
+      if (item.admin && !isAdmin()) { return; }
+      var node = document.createElement('button');
+      node.type = 'button';
+      node.className = 'sidebar__item' + (item.id === sidebarActive ? ' sidebar__item--active' : '');
+      node.textContent = t(item.label);
+      if (item.id === sidebarActive) { node.setAttribute('aria-current', 'page'); }
+      node.addEventListener('click', function () {
+        closeSidebar();
+        if (current.id === item.id) { render(true); return; }
+        navigate(item.id, fallbackParams(item.id));
+      });
+      dom.sidebarNav.appendChild(node);
+    });
+  }
+
+  function renderSidebarProjects() {
+    if (!dom.sidebarProjects) { return; }
+    clear(dom.sidebarProjects);
+    if (!state.user) { return; }
+    if (!sidebarProjects.length) {
+      var empty = document.createElement('p');
+      empty.className = 'sidebar__empty';
+      empty.textContent = t('sidebar.noProjects');
+      dom.sidebarProjects.appendChild(empty);
+      return;
+    }
+    var selected = selectedProjectId();
+    sidebarProjects.forEach(function (project) {
+      var id = String(project.id);
+      var node = document.createElement('button');
+      node.type = 'button';
+      node.className = 'sidebar__proj' + (String(selected) === id ? ' sidebar__proj--active' : '');
+      var name = document.createElement('span');
+      name.className = 'sidebar__proj-name';
+      name.textContent = String(project.project_name || project.name || '');
+      node.appendChild(name);
+      var date = document.createElement('span');
+      date.className = 'sidebar__proj-date';
+      date.textContent = shortDate(project.created_at);
+      node.appendChild(date);
+      node.title = name.textContent;
+      node.addEventListener('click', function () {
+        closeSidebar();
+        navigate('S8', { id: id });
+      });
+      dom.sidebarProjects.appendChild(node);
+    });
+  }
+
+  function shortDate(value) {
+    if (!value) { return ''; }
+    var d = new Date(String(value));
+    if (isNaN(d.getTime())) { return ''; }
+    return (d.getMonth() + 1) + '/' + d.getDate();
+  }
+
+  function loadSidebarProjects() {
+    if (!state.user || !global.Api || !global.Api.projects) {
+      sidebarProjects = [];
+      renderSidebarProjects();
+      return;
+    }
+    global.Api.projects.list({
+      eq: { users_id: String(state.user.id) },
+      select: 'id,project_name,name,created_at',
+      limit: 40
+    }).then(function (rows) {
+      sidebarProjects = rows || [];
+      renderSidebarProjects();
+    }, function (err) {
+      console.error('[App] サイドバーのプロジェクト一覧を読めませんでした', err);
+      sidebarProjects = [];
+      renderSidebarProjects();
+    });
+  }
+
+  function openSidebar() {
+    if (!dom.shell) { return; }
+    dom.shell.classList.add('app-shell--sidebar-open');
+    if (dom.sidebarBackdrop) { dom.sidebarBackdrop.hidden = false; }
+    if (dom.sidebarToggle) { dom.sidebarToggle.setAttribute('aria-expanded', 'true'); }
+  }
+
+  function closeSidebar() {
+    if (!dom.shell) { return; }
+    dom.shell.classList.remove('app-shell--sidebar-open');
+    if (dom.sidebarBackdrop) { dom.sidebarBackdrop.hidden = true; }
+    if (dom.sidebarToggle) { dom.sidebarToggle.setAttribute('aria-expanded', 'false'); }
   }
 
   function setTitle(text) {
@@ -1026,29 +1174,265 @@
   function applyChrome(meta, route) {
     setTitle(t('screen.' + route.id));
     if (dom.back) {
-      dom.back.hidden = !(stack.length > 1 || meta.back);
+      dom.back.hidden = !!meta.noBack || !(stack.length > 1 || meta.back);
     }
     setHeaderAction(null);
-    if (dom.tabbar) {
-      dom.tabbar.hidden = !meta.tab;
-      var items = dom.tabbar.querySelectorAll('.tabbar__item');
-      var i;
-      var isActive;
-      for (i = 0; i < items.length; i += 1) {
-        isActive = !!meta.tab && items[i].getAttribute('data-screen') === meta.tab;
-        items[i].classList.toggle('tabbar__item--active', isActive);
-        if (isActive) {
-          items[i].setAttribute('aria-current', 'page');
-        } else {
-          items[i].removeAttribute('aria-current');
-        }
-      }
-    }
     if (dom.shell) {
-      dom.shell.classList.toggle('app-shell--no-tabbar', !meta.tab);
+      /* サイドバーを隠すのはログイン前の3画面だけ。tab の有無で判断すると
+         S10 のような下層画面でもナビごと消えてしまう */
+      dom.shell.classList.toggle('app-shell--no-nav', meta.nav === false);
     }
-    updateAdminTab();
+    renderSidebarNav(meta.tab);
+    renderAccount();
+    closeSidebar();
   }
+
+  /* ------------------------------------------------------------------
+   * 10c. ジョブの進行状況ウィンドウ（商品入力・競合分析で共用）
+   *   App.watchJob({ jobId, titleKey, urls, onDone })
+   * ------------------------------------------------------------------ */
+  function wEl(tag, className, textContent) {
+    var node = document.createElement(tag);
+    if (className) { node.className = className; }
+    if (textContent !== undefined && textContent !== null) { node.textContent = String(textContent); }
+    return node;
+  }
+
+  function wButton(className, label, onClick) {
+    var node = wEl('button', className, label);
+    node.type = 'button';
+    if (onClick) { node.addEventListener('click', onClick); }
+    return node;
+  }
+
+  var opts = {};
+  var onDone = function () {};
+
+  /* --- ジョブの進行状況ウィンドウ ---------------------------------
+   * 大きく出す（周りをクリックすると右下の小窓に畳む）→ 小窓をクリックで戻る。
+   * 閉じても裏でポーリングは続き、完了したらフォームに反映する。
+   * ---------------------------------------------------------------- */
+  var watch = null;   // { jobId, titleKey, startedAt, status, error, timer, tick, root, mini }
+
+  function stopWatch() {
+    if (!watch) { return; }
+    if (watch.timer) { global.clearTimeout(watch.timer); }
+    if (watch.tick) { global.clearInterval(watch.tick); }
+    if (watch.root && watch.root.parentNode) { watch.root.parentNode.removeChild(watch.root); }
+    watch = null;
+  }
+
+  function elapsedText() {
+    var sec = Math.max(0, Math.round((new Date().getTime() - watch.startedAt) / 1000));
+    var m = Math.floor(sec / 60);
+    var sr = sec % 60;
+    return (m ? m + ':' : '') + (m ? (sr < 10 ? '0' + sr : String(sr)) : sr + 's');
+  }
+
+  function watchJob(options) {
+    var o = options || {};
+    opts = o;
+    onDone = typeof o.onDone === 'function' ? o.onDone : function () {};
+    var jobId = o.jobId;
+    var titleKey = o.titleKey || 'job.title';
+    stopWatch();
+    watch = {
+    jobId: jobId,
+    titleKey: titleKey,
+    startedAt: new Date().getTime(),
+    status: 'pending',
+    error: '',
+    mini: false,
+    root: null,
+    timer: null,
+    tick: null
+    };
+    paintWatch();
+    /* 経過時間と進捗だけ書き換える。丸ごと作り直すと入力やクリックを取りこぼす */
+    watch.tick = global.setInterval(tickWatch, 250);
+    pollWatch();
+  }
+
+  function pollWatch() {
+    if (!watch) { return; }
+    var id = watch.jobId;
+    global.Api.generationJobs.get(id).then(function (row) {
+    if (!watch || watch.jobId !== id) { return; }
+    watch.status = String(row.status || 'pending');
+    watch.error = String(row.error || '');
+    if (watch.status === 'done') {
+      var applied = onDone(row.result || {}, row);
+      paintWatch();
+      if (applied) {
+      markDirty();
+      toast(t('job.done'), 'success');
+      /* 反映しただけだと画面を離れた時点で消える。そのまま保存まで済ませる */
+      if (projectId) { saveDraft(); }
+    }
+      /* 100%と完了表示を見せてから畳む。失敗のときは理由が読めるよう残す */
+      watch.timer = global.setTimeout(stopWatch, 2500);
+      return;
+    }
+    if (watch.status === 'failed') { paintWatch(); return; }
+    paintWatch();
+    watch.timer = global.setTimeout(pollWatch, 3000);
+    }, function (err) {
+    if (!watch || watch.jobId !== id) { return; }
+    console.error('[screens-home] ジョブの状態を取れませんでした', err);
+    watch.timer = global.setTimeout(pollWatch, 5000);
+    });
+  }
+
+
+  /* 実際の進み具合はサーバーから取れないので、経過時間から素直に伸ばす。
+     終わっていないうちは 92% で頭打ちにして、完了時だけ 100% にする。 */
+  /* 受付待ちの間は進み具合が分からないので、数字を出さず不定形のバーにする。
+     以前は「6%から38%へ漸近」させていたため、順番待ちのまま38%で止まって見えた。 */
+  function isIndeterminate() {
+    return !!watch && watch.status !== 'processing' && watch.status !== 'done' && watch.status !== 'failed';
+  }
+
+  function progressValue() {
+    if (!watch) { return 0; }
+    if (watch.status === 'done') { return 100; }
+    var sec = (new Date().getTime() - watch.startedAt) / 1000;
+    if (isIndeterminate()) {
+    /* 順番待ちの間も数字は必ず出す。長い時定数でゆっくり伸ばし、
+       途中で止まって見えないようにする（上限は 90%） */
+    return Math.min(90, Math.round(4 + 86 * (1 - Math.exp(-sec / 150))));
+    }
+    /* 読み取りが始まってからは速く、92%まで */
+    var ratio = 1 - Math.exp(-sec / 20);
+    return Math.min(92, Math.round(40 + 52 * ratio));
+  }
+
+  /* 一定時間拾われないなら、待っても始まらないことを伝える */
+  function isStalled() {
+    return isIndeterminate() && (new Date().getTime() - watch.startedAt) > 60000;
+  }
+
+  function stepKey() {
+    if (!watch) { return 'job.stepQueued'; }
+    if (watch.status === 'done') { return 'job.stepApply'; }
+    if (watch.status === 'processing') { return 'job.stepRead'; }
+    return 'job.stepQueued';
+  }
+
+  function tickWatch() {
+    if (!watch || !watch.timeNode) { return; }
+    watch.timeNode.textContent = t('job.elapsed', { t: elapsedText() });
+    var pct = progressValue();
+    if (watch.pctNode) { watch.pctNode.textContent = pct + '%'; }
+    if (watch.fillNode) { watch.fillNode.style.width = pct + '%'; }
+    if (watch.barNode) {
+    if (pct === null) { watch.barNode.removeAttribute('aria-valuenow'); }
+    else { watch.barNode.setAttribute('aria-valuenow', String(pct)); }
+    }
+    if (watch.stepNode) { watch.stepNode.textContent = t(stepKey()); }
+    if (watch.msgNode && isStalled()) { watch.msgNode.textContent = t('job.stalled'); }
+  }
+
+  function paintWatch() {
+    if (!watch) { return; }
+    /* applyAutofill が paint() を呼ぶと root ごと消えるので、毎回 body に作り直す */
+    if (watch.root && watch.root.parentNode) { watch.root.parentNode.removeChild(watch.root); }
+
+    var done = watch.status === 'done';
+    var failed = watch.status === 'failed';
+    var root = wEl('div', 'jobwatch' + (watch.mini ? ' jobwatch--mini' : ''));
+    watch.root = root;
+
+    if (!watch.mini) {
+    var backdrop = wEl('div', 'jobwatch__backdrop');
+    backdrop.addEventListener('click', function () { watch.mini = true; paintWatch(); });
+    root.appendChild(backdrop);
+    }
+
+    var panel = wEl('div', 'jobwatch__panel');
+    panel.setAttribute('role', 'status');
+    panel.setAttribute('aria-live', 'polite');
+
+    var head = wEl('div', 'row row--between');
+    head.appendChild(wEl('span', 'jobwatch__title', t(watch.titleKey)));
+    watch.timeNode = wEl('span', 'jobwatch__time', t('job.elapsed', { t: elapsedText() }));
+    head.appendChild(watch.timeNode);
+    panel.appendChild(head);
+
+    /* バーの上に「今の段階」と「%」、下に進み具合で塗られるバー */
+    var meter = wEl('div', 'jobwatch__meter');
+    var meterHead = wEl('div', 'jobwatch__meter-head');
+    watch.stepNode = wEl('span', 'jobwatch__step', t(stepKey()));
+    meterHead.appendChild(watch.stepNode);
+    var pct = progressValue();
+    watch.pctNode = wEl('span', 'jobwatch__pct', pct + '%');
+    meterHead.appendChild(watch.pctNode);
+    meter.appendChild(meterHead);
+
+    var bar = wEl('div', 'jobwatch__bar' + (failed ? ' is-failed' : (done ? ' is-done' : '')));
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', '100');
+    bar.setAttribute('aria-valuenow', String(pct));
+    watch.barNode = bar;
+    watch.fillNode = wEl('div', 'jobwatch__fill' + ((done || failed) ? '' : ' is-running'));
+    watch.fillNode.style.width = pct + '%';
+    bar.appendChild(watch.fillNode);
+    meter.appendChild(bar);
+    panel.appendChild(meter);
+
+    var message = failed ? (t('job.failed') + (watch.error ? '：' + watch.error : ''))
+    : (done ? t('job.done') : (watch.status === 'processing' ? t('job.running') : t('job.queued')));
+    watch.msgNode = wEl('p', 'jobwatch__msg' + (failed ? ' t-danger' : ''), isStalled() ? t('job.stalled') : message);
+    panel.appendChild(watch.msgNode);
+
+    if (!watch.mini) {
+    var urls = (opts.urls || []);
+    if (urls.length) {
+      panel.appendChild(wEl('span', 'jobwatch__label', t('job.targetUrls')));
+      var list = wEl('ul', 'jobwatch__urls');
+      urls.forEach(function (url) { list.appendChild(wEl('li', 'break-url', url)); });
+      panel.appendChild(list);
+    }
+    panel.appendChild(wEl('p', 'jobwatch__note', t('job.note')));
+    panel.appendChild(wButton('btn btn--secondary btn--block',
+      (done || failed) ? t('common.close') : t('job.minimize'),
+      function () {
+      if (done || failed) { stopWatch(); return; }
+      watch.mini = true;
+      paintWatch();
+      }));
+    } else {
+    var actions = wEl('div', 'jobwatch__mini-actions');
+    if (!done && !failed) {
+      actions.appendChild(wButton('btn btn--text', t('job.expand'), function () { watch.mini = false; paintWatch(); }));
+    }
+    actions.appendChild(wButton('btn btn--text', t('job.dismiss'), stopWatch));
+    panel.appendChild(actions);
+    }
+
+    if (watch.mini) {
+    panel.addEventListener('click', function (event) {
+      if (event.target.tagName === 'BUTTON') { return; }
+      if (done || failed) { return; }
+      watch.mini = false;
+      paintWatch();
+    });
+    }
+
+    root.appendChild(panel);
+    document.body.appendChild(root);
+  }
+
+  /* 落とす位置の目印を消す */
+  function clearDropMarks() {
+    var cards = targetsHost ? targetsHost.querySelectorAll('.target-card') : [];
+    var i;
+    for (i = 0; i < cards.length; i += 1) {
+    cards[i].className = cards[i].className
+      .replace(' is-drop-before', '').replace(' is-drop-after', '');
+    }
+  }
+
 
   /* ------------------------------------------------------------------
    * 11. ルーター
@@ -1259,6 +1643,71 @@
     return user && user.auth_provider === 'google' ? t('settings.providerGoogle') : t('settings.providerEmail');
   }
 
+
+  /* ヘッダーの名前チップから来る画面。自分の使ったポイントの履歴をここに出す。
+     読み込みは後追いで、先に枠だけ返す（renderSettings は同期で組み立てるため）。 */
+  function historySection() {
+    var user = state.user;
+    var host = el('div', { class: 'list' });
+    var section = el('section', { class: 'section' }, [
+      el('div', { class: 'section__head' }, [
+        el('h2', { class: 'section__title', text: t('credit.history') })
+      ]),
+      host
+    ]);
+    if (!user) { return section; }
+
+    host.appendChild(el('p', { class: 'loading-text', text: t('common.loading') }));
+
+    if (!global.Api || !global.Api.credits || !isFn(global.Api.credits.history)) {
+      console.error('[App] Api.credits.history がありません。利用履歴を出せません。');
+      clear(host);
+      host.appendChild(el('p', { class: 'empty__text', text: t('common.error') }));
+      return section;
+    }
+
+    global.Api.credits.history(user.id, 30).then(function (rows) {
+      clear(host);
+      if (!rows || !rows.length) {
+        host.appendChild(el('p', { class: 'empty__text', text: t('credit.historyEmpty') }));
+        return;
+      }
+      rows.forEach(function (row) { host.appendChild(historyRow(row)); });
+    }, function (err) {
+      console.error('[App] 利用履歴を読めませんでした', err);
+      clear(host);
+      host.appendChild(el('p', { class: 'empty__text', text: messageOf(err) }));
+    });
+
+    return section;
+  }
+
+  function historyRow(row) {
+    var amount = Math.round(Number(row.credit_amount === undefined || row.credit_amount === null
+      ? row.amount : row.credit_amount) || 0);
+    var sign = amount > 0 ? '+' : '';
+    var typeKey = 'credit.txType.' + String(row.transaction_type || 'consume');
+    var title = row.feature_key ? featureLabel(row.feature_key) : t(typeKey);
+
+    return el('div', { class: 'list-row' }, [
+      el('div', { class: 'list-row__body' }, [
+        el('span', { class: 'list-row__title clamp-1', text: title }),
+        el('span', { class: 'list-row__sub clamp-1', text: t(typeKey) + ' ・ ' + formatDate(row.created_at) }),
+        row.memo ? el('span', { class: 'list-row__meta clamp-1', text: String(row.memo) }) : null
+      ]),
+      el('span', {
+        class: 'list-row__meta num' + (amount < 0 ? ' t-danger' : ''),
+        text: sign + formatNumber(amount) + t('common.creditShort')
+      })
+    ]);
+  }
+
+  /* feature_key はそのまま出すと読めないので、辞書にあれば訳す */
+  function featureLabel(key) {
+    var name = t('feature.' + key);
+    return name === 'feature.' + key ? String(key) : name;
+  }
+
   function accountSection() {
     var user = state.user;
     if (!user) {
@@ -1407,8 +1856,9 @@
         el('h1', { class: 'screen__title', text: t('screen.settings') }),
         el('p', { class: 'screen__lead', text: t('common.sharedDataNotice') })
       ]),
-      languageSection(),
       accountSection(),
+      historySection(),
+      languageSection(),
       inquirySection(),
       appInfoSection()
     ]));
@@ -1426,34 +1876,37 @@
     dom.action = byId('header-action');
     dom.banner = byId('banner-root');
     dom.main = byId('app');
-    dom.tabbar = byId('tabbar');
-    dom.tabAdmin = byId('tab-admin');
+    dom.sidebar = byId('sidebar');
+    dom.sidebarNav = byId('sidebar-nav');
+    dom.sidebarProjects = byId('sidebar-projects');
+    dom.sidebarToggle = byId('sidebar-toggle');
+    dom.sidebarBackdrop = byId('sidebar-backdrop');
+    dom.sidebarRefresh = byId('sidebar-refresh');
+    dom.account = byId('header-account');
+    dom.headerProject = byId('header-project');
     dom.toast = byId('toast-root');
     dom.modal = byId('modal-root');
-  }
-
-  function tabTargetOf(node) {
-    var target = node;
-    while (target && target !== dom.tabbar) {
-      if (target.getAttribute && target.getAttribute('data-screen')) { return target; }
-      target = target.parentNode;
-    }
-    return null;
   }
 
   function wireChrome() {
     if (dom.back) {
       dom.back.addEventListener('click', function () { back(); });
     }
-    if (dom.tabbar) {
-      dom.tabbar.addEventListener('click', function (event) {
-        var target = tabTargetOf(event.target);
-        if (!target) { return; }
-        var id = target.getAttribute('data-screen');
-        if (current.id === id) { render(true); return; }
-        navigate(id, fallbackParams(id));
+    if (dom.sidebarToggle) {
+      dom.sidebarToggle.addEventListener('click', function () {
+        if (dom.shell && dom.shell.classList.contains('app-shell--sidebar-open')) { closeSidebar(); }
+        else { openSidebar(); }
       });
     }
+    if (dom.sidebarBackdrop) {
+      dom.sidebarBackdrop.addEventListener('click', closeSidebar);
+    }
+    if (dom.sidebarRefresh) {
+      dom.sidebarRefresh.addEventListener('click', loadSidebarProjects);
+    }
+    on('user', function () { renderAccount(); renderSidebarNav(null); loadSidebarProjects(); });
+    on('balance', renderAccount);
+    on('route', renderSidebarProjects);
   }
 
   function onUnhandledRejection(event) {
@@ -1490,12 +1943,12 @@
     restoreUser().then(function () {
       updateAdminTab();
       if (!global.location.hash) {
-        replace(state.user ? 'S3' : 'S1');
+        replace(state.user ? 'S3' : 'S0');
       }
       onHashChange();
     }, function (err) {
       handleError(err);
-      replace('S1');
+      replace('S0');
       onHashChange();
     });
   }
@@ -1549,6 +2002,8 @@
     toast: toast,
     confirm: confirmDialog,
     openModal: openModal,
+    watchJob: watchJob,
+    stopJobWatch: stopWatch,
     openSheet: openSheet,
     closeModal: closeModal,
 

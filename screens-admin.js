@@ -83,7 +83,7 @@
 
   /* ---------- 定数 ---------- */
   var UNIT_PRICE_KEY = 'credit_unit_price';        // feature_credits に置く単価専用の行
-  var UNIT_PRICE_NAME = 'クレジット単価（円）';
+  var UNIT_PRICE_NAME = 'ポイント単価（円）';
   var DEFAULT_UNIT_PRICE = 10;                     // 1クレジット = 10円
   var USER_LIMIT = 50;
   var INQUIRY_LIMIT = 50;
@@ -120,9 +120,9 @@
   /* i18n.js の辞書に無い文言だけをここで持つ。並びは [日本語, English, 한국어] */
   var LOCAL = {
     'local.adminLead': [
-      '単価・機能別クレジット・ユーザー・クーポン・問い合わせをここで管理します',
-      'Manage unit price, feature credits, users, coupons and inquiries here',
-      '단가·기능별 크레딧·사용자·쿠폰·문의를 여기에서 관리합니다'
+      '単価・機能別ポイント・ユーザー・クーポン・問い合わせをここで管理します',
+      'Manage unit price, feature points, users, coupons and inquiries here',
+      '단가·기능별 포인트·사용자·쿠폰·문의를 여기에서 관리합니다'
     ],
     'local.notAdminBody': [
       'この画面は管理者のみが利用できます。ダッシュボードへ戻ります。',
@@ -135,11 +135,11 @@
       '통신 부품(api.js)의 {name}을(를) 찾을 수 없습니다. 앱을 다시 불러와 주세요.'
     ],
     'local.reload': ['再読み込み', 'Reload', '다시 불러오기'],
-    'local.unitPriceSub': ['1クレジットあたりの円', 'Yen per credit', '크레딧당 엔'],
+    'local.unitPriceSub': ['1ポイントあたりの円', 'Yen per point', '포인트당 엔'],
     'local.unitPriceDesc': [
-      '保存するとクレジット購入画面の表示価格に反映されます',
+      '保存するとポイント購入画面の表示価格に反映されます',
       'Saving updates the prices shown on the purchase screen',
-      '저장하면 크레딧 구매 화면의 표시 가격에 반영됩니다'
+      '저장하면 포인트 구매 화면의 표시 가격에 반영됩니다'
     ],
     'local.todaySub': ['本日 {n}件の消費', '{n} charges today', '오늘 {n}건 소비'],
     'local.userSectionDesc': ['登録 {n}人（新しい順）', '{n} registered users (newest first)', '등록 {n}명(최신순)'],
@@ -162,12 +162,12 @@
     ],
     'local.statusChanged': ['{name} を{status}にしました', '{name} is now {status}', '{name} 님을 {status} 상태로 변경했습니다'],
     'local.statusChangeFailed': ['状態の切り替えに失敗しました', 'Failed to change the status', '상태 변경에 실패했습니다'],
-    'local.grantCreditLabel': ['付与するクレジット', 'Credits to grant', '지급할 크레딧'],
+    'local.grantCreditLabel': ['付与するポイント', 'Points to grant', '지급할 포인트'],
     'local.grantUnlimitedLabel': ['無制限利用の日数', 'Days of unlimited access', '무제한 이용 일수'],
     'local.grantAction': ['付与', 'Grant', '지급'],
     'local.grantAmountInvalid': ['1以上の整数を入力してください', 'Please enter a whole number of 1 or more', '1 이상의 정수를 입력해 주세요'],
     'local.grantDaysInvalid': ['1〜365の整数を入力してください', 'Please enter a whole number from 1 to 365', '1~365 사이의 정수를 입력해 주세요'],
-    'local.grantCreditDone': ['{name} に{n}クレジットを付与しました', 'Granted {n} credits to {name}', '{name} 님에게 {n} 크레딧을 지급했습니다'],
+    'local.grantCreditDone': ['{name} に{n}ポイントを付与しました', 'Granted {n} points to {name}', '{name} 님에게 {n} 포인트을 지급했습니다'],
     'local.grantUnlimitedDone': [
       '{name} に無制限利用権を{days}日間付与しました（{until}まで）',
       'Granted {days} days of unlimited access to {name} (until {until})',
@@ -177,17 +177,17 @@
     'local.grantMemo': ['管理画面からの付与', 'Granted from the admin screen', '관리 화면에서 지급'],
     'local.couponSection': ['クーポン発行', 'Issue coupon', '쿠폰 발행'],
     'local.couponSectionDesc': [
-      'クレジットまたは月間無制限利用のクーポンを発行します',
-      'Issue credit coupons or unlimited-access coupons',
-      '크레딧 또는 월간 무제한 이용 쿠폰을 발행합니다'
+      'ポイントまたは月間無制限利用のクーポンを発行します',
+      'Issue point coupons or unlimited-access coupons',
+      '포인트 또는 월간 무제한 이용 쿠폰을 발행합니다'
     ],
     'local.couponCodeLabel': ['クーポンコード', 'Coupon code', '쿠폰 코드'],
     'local.couponCodePlaceholder': ['半角英数字4〜32文字', '4 to 32 letters or numbers', '영문·숫자 4~32자'],
     'local.couponGenerate': ['自動生成', 'Generate', '자동 생성'],
     'local.couponTypeLabel': ['クーポンの種類', 'Coupon type', '쿠폰 종류'],
-    'local.couponTypeCredit': ['クレジット付与', 'Credit grant', '크레딧 지급'],
+    'local.couponTypeCredit': ['ポイント付与', 'Point grant', '포인트 지급'],
     'local.couponTypeUnlimited': ['無制限利用', 'Unlimited access', '무제한 이용'],
-    'local.couponCreditLabel': ['付与クレジット', 'Credits granted', '지급 크레딧'],
+    'local.couponCreditLabel': ['付与ポイント', 'Points granted', '지급 포인트'],
     'local.couponDaysLabel': ['無制限の日数', 'Days of unlimited access', '무제한 일수'],
     'local.couponMaxUsesLabel': ['利用上限（回）', 'Maximum uses', '이용 한도(회)'],
     'local.couponExpiresLabel': ['有効期限（任意）', 'Expiry date (optional)', '유효기간(선택)'],
@@ -219,7 +219,7 @@
     'local.inquiryUpdated': ['対応状況を更新しました', 'The status was updated', '대응 상태를 업데이트했습니다'],
     'local.inquiryUpdateFailed': ['対応状況の更新に失敗しました', 'Failed to update the status', '대응 상태 업데이트에 실패했습니다'],
     'local.noSubject': ['（件名なし）', '(No subject)', '(제목 없음)'],
-    'local.featureListDesc': ['{n}件の機能（1回あたりの消費クレジット）', '{n} features (credits used per run)', '{n}개 기능(1회당 소모 크레딧)'],
+    'local.featureListDesc': ['{n}件の機能（1回あたりの消費ポイント）', '{n} features (points used per run)', '{n}개 기능(1회당 소모 포인트)'],
     'local.featureListEmpty': ['機能が登録されていません。下の入力から行を追加してください', 'No features yet. Add a row with the form below.', '등록된 기능이 없습니다. 아래 입력에서 행을 추가해 주세요'],
     'local.unsavedBadge': ['未保存', 'Unsaved', '미저장'],
     'local.featureNameLabel': ['機能名（任意）', 'Feature name (optional)', '기능 이름(선택)'],
@@ -229,7 +229,7 @@
     'local.featureKeyRequired': ['機能キーを入力してください', 'Please enter a feature key', '기능 키를 입력해 주세요'],
     'local.featureKeyTooLong': ['機能キーは40文字までです', 'A feature key can be up to 40 characters', '기능 키는 40자까지입니다'],
     'local.addRowDone': ['行を追加しました。保存して戻ると反映されます', 'Row added. Save to apply it.', '행을 추가했습니다. 저장하면 반영됩니다'],
-    'local.estimateSub': ['合計 {n}CR × 単価 {price}円', '{n} CR total x {price} yen', '합계 {n}CR × 단가 {price}엔'],
+    'local.estimateSub': ['合計 {n}P × 単価 {price}円', '{n} P total x {price} yen', '합계 {n}P × 단가 {price}엔'],
     'local.savedCount': ['{n}件を保存しました', 'Saved {n} rows', '{n}건을 저장했습니다'],
     'local.nothingToSave': ['変更はありません', 'No changes to save', '변경 사항이 없습니다'],
     'local.saveFailedPartial': [
@@ -440,7 +440,7 @@
     if (credits && typeof credits[name] === 'function') { return credits[name]; }
     if (!missingWarned['Api.credits.' + name]) {
       missingWarned['Api.credits.' + name] = true;
-      console.error('[screens-admin] Api.credits.' + name + ' がありません。api.js を確認してください。');
+      console.error('[screens-admin] Api.points.' + name + ' がありません。api.js を確認してください。');
     }
     return null;
   }
@@ -690,7 +690,9 @@
       coupons: [],
       todayCredits: 0,
       todayCount: 0,
-      couponType: 'credit'
+      couponType: 'credit',
+      selectors: [],        // 収集設定（KV/LP × プラットフォーム）
+      selectorsBusy: false
     };
 
     load();
@@ -702,7 +704,8 @@
         tableList('users', { order: 'created_at.desc', limit: USER_LIMIT }),
         tableList('creditTransactions', { order: 'created_at.desc', limit: TX_SCAN_LIMIT }),
         tableList('inquiries', { order: 'created_at.desc', limit: INQUIRY_LIMIT }),
-        tableList('coupons', { order: 'created_at.desc', limit: COUPON_LIMIT })
+        tableList('coupons', { order: 'created_at.desc', limit: COUPON_LIMIT }),
+        tableList('platformSelectors', { order: 'platform.asc' })
       ]).then(function (results) {
         var featureRows = results[0] || [];
         state.unitPrice = unitPriceOf(featureRows);
@@ -715,6 +718,7 @@
         applyToday(results[2] || []);
         state.inquiries = results[3] || [];
         state.coupons = results[4] || [];
+        state.selectors = results[5] || [];
         draw();
       }, function (err) {
         console.error('[screens-admin] 管理データの読み込みに失敗しました', err);
@@ -753,6 +757,7 @@
       wrap.appendChild(usersSection());
       wrap.appendChild(couponSection());
       wrap.appendChild(inquiriesSection());
+      wrap.appendChild(selectorsSection());
 
       var actions = el('div', 'stack stack--group');
       actions.appendChild(button('btn btn--secondary btn--block', t('admin.featurePricingLink'), function () {
@@ -764,6 +769,99 @@
       wrap.appendChild(actions);
 
       root.appendChild(wrap);
+    }
+
+
+    /* ---- KV / LP 収集設定（運営だけが触る） ---- */
+    var PLATFORM_LABELS = {
+      makuake: 'Makuake',
+      campfire: 'CAMPFIRE',
+      greenfunding: 'GREENFUNDING',
+      machiya: 'Machi-ya',
+      other: 'その他'
+    };
+    var MEDIA_KINDS = ['text', 'image', 'video'];
+
+    function selectorsSection() {
+      var rows = state.selectors.slice().sort(function (a, b) {
+        if (a.platform === b.platform) { return a.kind < b.kind ? -1 : 1; }
+        return a.platform < b.platform ? -1 : 1;
+      });
+
+      var body = el('div', 'stack');
+      var seen = {};
+      rows.forEach(function (row) {
+        if (seen[row.platform]) { return; }
+        seen[row.platform] = true;
+
+        var card = el('div', 'card');
+        var inner = el('div', 'stack');
+        inner.appendChild(el('span', 'card__label', PLATFORM_LABELS[row.platform] || row.platform));
+
+        ['kv', 'lp'].forEach(function (kind) {
+          var conf = null;
+          state.selectors.forEach(function (one) {
+            if (one.platform === row.platform && one.kind === kind) { conf = one; }
+          });
+          if (!conf) { return; }
+
+          var area = el('textarea', 'textarea');
+          area.value = (conf.selectors || []).join('\n');
+          area.setAttribute('placeholder', t('admin.selectorsPlaceholder'));
+          area.addEventListener('input', function () {
+            conf.selectors = area.value.split('\n').map(function (one) {
+              return String(one).trim();
+            }).filter(Boolean);
+          });
+          inner.appendChild(field(t(kind === 'kv' ? 'admin.selectorsKv' : 'admin.selectorsLp'), area));
+
+          var chips = el('div', 'chips');
+          MEDIA_KINDS.forEach(function (media) {
+            var on = (conf.media || []).indexOf(media) !== -1;
+            var chip = button('chip' + (on ? ' chip--selected' : ''), t('admin.media.' + media), function () {
+              var list = (conf.media || []).slice();
+              var at = list.indexOf(media);
+              if (at === -1) { list.push(media); } else { list.splice(at, 1); }
+              conf.media = list;
+              draw();
+            });
+            chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+            chips.appendChild(chip);
+          });
+          inner.appendChild(chips);
+        });
+
+        card.appendChild(inner);
+        body.appendChild(card);
+      });
+
+      var saveButton = button('btn btn--primary btn--block', t('admin.selectorsSave'), saveSelectors);
+      saveButton.disabled = state.selectorsBusy;
+      body.appendChild(saveButton);
+
+      return section(t('admin.selectorsTitle'), t('admin.selectorsDesc'), [body]);
+    }
+
+    function saveSelectors() {
+      if (state.selectorsBusy) { return; }
+      state.selectorsBusy = true;
+      draw();
+      var jobs = state.selectors.map(function (row) {
+        return window.Api.platformSelectors.update(row.id, {
+          selectors: row.selectors || [],
+          media: row.media || MEDIA_KINDS.slice()
+        });
+      });
+      Promise.all(jobs).then(function () {
+        state.selectorsBusy = false;
+        draw();
+        toast(t('admin.selectorsSaved'), 'success');
+      }, function (err) {
+        state.selectorsBusy = false;
+        draw();
+        console.error('[screens-admin] 収集設定を保存できませんでした', err);
+        toast(errorMessage(err), 'danger');
+      });
     }
 
     /* ---- クレジット単価 ---- */
@@ -798,7 +896,7 @@
         };
         var fail = function (err) {
           busy(saveBtn, false, tl('local.saving'), saveLabel);
-          console.error('[screens-admin] クレジット単価の保存に失敗しました', err);
+          console.error('[screens-admin] ポイント単価の保存に失敗しました', err);
           toast(t('admin.saveFailed'), 'danger');
           handleError(err, save);
         };
@@ -846,7 +944,7 @@
         + ' ・ ' + tl('local.joinedLabel') + ' ' + fmtDate(user.created_at);
       var until = unlimitedUntilOf(user);
       if (until) { meta += ' ・ ' + tl('local.unlimitedBadge', { date: fmtDate(until) }); }
-      if (user.is_admin) { meta += ' ・ ' + tl('local.adminBadge'); }
+      meta += ' ・ ' + (user.is_admin ? t('admin.roleAdmin') : t('admin.roleMember'));
       bodyNode.appendChild(el('div', 'list-row__meta clamp-2', meta));
 
       row.appendChild(bodyNode);
@@ -872,6 +970,7 @@
       info.appendChild(infoRow(tl('local.joinedLabel'), fmtDate(user.created_at)));
       info.appendChild(infoRow(tl('local.balanceLabel'), fmtNumber(user.credit_balance) + t('common.creditShort')));
       info.appendChild(infoRow(tl('local.statusLabel'), isActiveUser(user) ? t('admin.userStatusActive') : t('admin.userStatusSuspended')));
+      info.appendChild(infoRow(t('admin.roleLabel'), user.is_admin ? t('admin.roleAdmin') : t('admin.roleMember')));
       var until = unlimitedUntilOf(user);
       info.appendChild(infoRow(t('admin.grantUnlimited'), until ? fmtDate(until) : tl('local.unlimitedNone')));
       modal.appendChild(info);
@@ -897,6 +996,17 @@
       daysRow.appendChild(daysBtn);
       modal.appendChild(el('p', 'modal__body', t('admin.grantUnlimited')));
       modal.appendChild(daysRow);
+
+      /* 管理者権限の付与・停止 */
+      var me = needApp('getUser') ? window.App.getUser() : null;
+      var isSelf = !!(me && String(me.id) === String(user.id));
+      if (!isSelf) {
+        var roleLabel = user.is_admin ? t('admin.revokeAdmin') : t('admin.grantAdmin');
+        var roleBtn = button(user.is_admin ? 'btn btn--danger btn--block' : 'btn btn--secondary btn--block',
+          roleLabel, function () { toggleAdmin(); });
+        modal.appendChild(el('p', 'modal__body', t('admin.roleLabel')));
+        modal.appendChild(roleBtn);
+      }
 
       /* 状態切替と閉じる */
       var actions = el('div', 'modal__actions');
@@ -928,7 +1038,7 @@
           load();
         }, function (err) {
           busy(creditBtn, false, tl('local.processing'), creditLabel);
-          console.error('[screens-admin] クレジットの付与に失敗しました', err);
+          console.error('[screens-admin] ポイントの付与に失敗しました', err);
           toast(tl('local.grantFailed'), 'danger');
           handleError(err, grantCredit);
         });
@@ -962,6 +1072,44 @@
           toast(tl('local.grantFailed'), 'danger');
           handleError(err, grantUnlimited);
         });
+      }
+
+      function toggleAdmin() {
+        var next = !user.is_admin;
+
+        function run() {
+          var setAdmin = creditsFn('setUserAdmin');
+          if (!setAdmin) {
+            toast(tl('local.apiMissing', { name: 'Api.credits.setUserAdmin' }), 'danger');
+            return;
+          }
+          busy(roleBtn, true, tl('local.processing'), roleLabel);
+          setAdmin(user.id, next).then(function () {
+            closeModal();
+            toast(t(next ? 'admin.grantAdminDone' : 'admin.revokeAdminDone',
+              { name: displayNameOf(user) }), 'success');
+            load();
+          }, function (err) {
+            busy(roleBtn, false, tl('local.processing'), roleLabel);
+            console.error('[screens-admin] 管理者権限の変更に失敗しました', err);
+            var detail = String((err && err.detail) || (err && err.message) || '');
+            if (detail.indexOf('cannot_demote_self') !== -1) { toast(t('admin.cannotDemoteSelf'), 'danger'); return; }
+            if (detail.indexOf('last_admin') !== -1) { toast(t('admin.lastAdmin'), 'danger'); return; }
+            toast(t('admin.roleChangeFailed'), 'danger');
+          });
+        }
+
+        var confirmFn = needApp('confirm');
+        if (confirmFn) {
+          confirmFn({
+            title: t(next ? 'admin.grantAdminConfirm' : 'admin.revokeAdminConfirm'),
+            message: t(next ? 'admin.grantAdminBody' : 'admin.revokeAdminBody', { name: displayNameOf(user) }),
+            confirmLabel: next ? t('admin.grantAdmin') : t('admin.revokeAdmin'),
+            danger: !next
+          }, run);
+          return;
+        }
+        run();
       }
 
       function toggleStatus() {
@@ -1308,7 +1456,7 @@
         build(rows || []);
         draw();
       }, function (err) {
-        console.error('[screens-admin] 機能別クレジットの読み込みに失敗しました', err);
+        console.error('[screens-admin] 機能別ポイントの読み込みに失敗しました', err);
         showLoadError(root, err, load);
       });
     }
@@ -1595,7 +1743,7 @@
       }, function (err) {
         state.saving = false;
         busy(state.saveBtn, false, tl('local.saving'), saveLabel);
-        console.error('[screens-admin] 機能別クレジットの保存に失敗しました（保存できた件数 ' + saved + '）', err);
+        console.error('[screens-admin] 機能別ポイントの保存に失敗しました（保存できた件数 ' + saved + '）', err);
         toast(saved > 0 ? tl('local.saveFailedPartial') : t('featurePricing.saveFailed'), 'danger');
         /* 途中まで保存されている可能性があるので、再試行は保存のやり直しではなく読み直しにする */
         handleError(err, load);

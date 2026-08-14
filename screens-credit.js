@@ -1,6 +1,6 @@
 /* ============================================================
  * エルピーヤ — screens-credit.js
- * S16 クレジット消費確認（機能別消費クレジット・残高表示）と S17 クレジット の2画面だけを描く。
+ * S16 ポイント消費確認（残高と今回の消費だけ）と S17 ポイント の2画面だけを描く。
  *
  * ---- 他ファイルとの共通契約（この名前どおりに使う。似た名前を作らない）----
  * 画面登録   App.registerScreen('S16', { render: function (root, params) {} });
@@ -79,21 +79,21 @@
 
   /* ---------- 依存の確認 ---------- */
   if (typeof App.registerScreen !== 'function') {
-    console.error('[screens-credit] App.registerScreen が見つかりません。index.html の読み込み順（app.js -> screens-credit.js）を確認してください。登録内容は window.App.screens に控えます。');
+    console.error('[screens-point] App.registerScreen が見つかりません。index.html の読み込み順（app.js -> screens-point.js）を確認してください。登録内容は window.App.screens に控えます。');
     App.screens = App.screens || {};
     App.registerScreen = function (id, spec) {
       if (!spec || typeof spec.render !== 'function') {
-        console.error('[screens-credit] registerScreen の第2引数は { render: 関数 } である必��があります。画面ID: ' + id);
+        console.error('[screens-point] registerScreen の第2引数は { render: 関数 } である必��があります。画面ID: ' + id);
         return;
       }
       App.screens[id] = spec;
     };
   }
   if (!window.Api) {
-    console.error('[screens-credit] window.Api が見つかりません。api.js が読み込まれているか確認してください。クレジット消費確認とクレジット画面は動きません。');
+    console.error('[screens-point] window.Api が見つかりません。api.js が読み込まれているか確認してください。ポイント消費確認とポイント画面は動きません。');
   }
   if (!window.I18N || typeof window.I18N.t !== 'function') {
-    console.error('[screens-credit] window.I18N.t が見つかりません。i18n.js が読み込まれているか確認してください。翻訳キーをそのまま表示します。');
+    console.error('[screens-point] window.I18N.t が見つかりません。i18n.js が読み込まれているか確認してください。翻訳キーをそのまま表示します。');
   }
 
   /* ---------- 定数 ---------- */
@@ -124,11 +124,11 @@
   /* i18n.js の辞書に無い文言だけをここで持つ。並びは [日本語, English, 한국어] */
   var LOCAL = {
     'local.selectPlan': ['購入プランを選択', 'Choose a plan', '구매 플랜 선택'],
-    'local.perCredit': ['1クレジットあたり', 'per credit', '크레딧당'],
+    'local.perCredit': ['1ポイントあたり', 'per point', '포인트당'],
     'local.paymentNotice': [
-      '購入を押すと決済ページ（Stripe）が開きます。クレジットは支払いの完了後に反映されます。',
-      'Purchasing opens the Stripe payment page. Credits are added once the payment completes.',
-      '구매를 누르면 결제 페이지(Stripe)가 열립니다. 크레딧은 결제 완료 후 반영됩니다.'
+      '購入を押すと決済ページ（Stripe）が開きます。ポイントは支払いの完了後に反映されます。',
+      'Purchasing opens the Stripe payment page. Points are added once the payment completes.',
+      '구매를 누르면 결제 페이지(Stripe)가 열립니다. 포인트은 결제 완료 후 반영됩니다.'
     ],
     'local.paidPending': [
       'お支払いありがとうございます。反映まで少しかかることがあります。',
@@ -141,18 +141,18 @@
       '구매 플랜을 불러오지 못했습니다.'
     ],
     'local.couponHint': [
-      'クレジットまたは無制限利用権のクーポンを登録できます',
-      'You can redeem credit or unlimited-access coupons',
-      '크레딧 또는 무제한 이용권 쿠폰을 등록할 수 있습니다'
+      'ポイントまたは無制限利用権のクーポンを登録できます',
+      'You can redeem point or unlimited-access coupons',
+      '포인트 또는 무제한 이용권 쿠폰을 등록할 수 있습니다'
     ],
     'local.couponRequired': ['クーポンコードを入力してください', 'Please enter a coupon code', '쿠폰 코드를 입력해 주세요'],
-    'local.couponCreditSuccess': ['{n}クレジットを追加しました', 'Added {n} credits', '{n} 크레딧을 추가했습니다'],
+    'local.couponCreditSuccess': ['{n}ポイントを追加しました', 'Added {n} points', '{n} 포인트을 추가했습니다'],
     'local.couponUnlimitedSuccess': ['無制限利用権を{days}日間追加しました', 'Unlimited access extended by {days} days', '무제한 이용권을 {days}일 추가했습니다'],
     'local.unlimitedBadge': ['無制限利用中', 'Unlimited active', '무제한 이용 중'],
     'local.unlimitedNotice': [
-      '無制限利用中のため、この実行ではクレジットを消費しません',
-      'Unlimited access is active, so this run does not use credits',
-      '무제한 이용 중이므로 이번 실행에서는 크레딧을 소모하지 않습니다'
+      '無制限利用中のため、この実行ではポイントを消費しません',
+      'Unlimited access is active, so this run does not use points',
+      '무제한 이용 중이므로 이번 실행에서는 포인트을 소모하지 않습니다'
     ],
     'local.shortage': ['不足', 'Short by', '부족'],
     'local.needAnalysisFeature': ['競合LP分析にチェックを入れてください', 'Please check competitor LP analysis', '경쟁 LP 분석에 체크해 주세요'],
@@ -160,14 +160,14 @@
     'local.noFeature': ['実行できる機能が登録されていません', 'No runnable features are configured', '실행할 수 있는 기능이 등록되어 있지 않습니다'],
     'local.executing': ['実行中…', 'Running…', '실행 중…'],
     'local.processing': ['処理中…', 'Processing…', '처리 중…'],
-    'local.backToConfirm': ['クレジット消費確認へ戻る', 'Back to credit confirmation', '크레딧 사용 확인으로 돌아가기'],
+    'local.backToConfirm': ['ポイント消費確認へ戻る', 'Back to point confirmation', '포인트 사용 확인으로 돌아가기'],
     'local.consumeFailedPartial': [
       '一部の機能だけ引き落としが終わった状態で失敗しました。利用履歴で消費内容を確認してください。',
       'The charge failed partway through. Please check your history for what was already used.',
       '일부 기능만 차감된 상태에서 실패했습니다. 이용 내역에서 사용 내용을 확인해 주세요.'
     ],
     'local.historyBalanceAfter': ['残高', 'Balance', '잔액'],
-    'local.purchaseCredits': ['{n}クレジット', '{n} credits', '{n} 크레딧']
+    'local.purchaseCredits': ['{n}ポイント', '{n} points', '{n} 포인트']
   };
 
   /* ---------- 小さな道具 ---------- */
@@ -198,7 +198,7 @@
   function tl(key, params) {
     var row = LOCAL[key];
     if (!row) {
-      console.error('[screens-credit] このファイルの辞書に ' + key + ' がありません。キーをそのまま表示します。');
+      console.error('[screens-point] このファイルの辞書に ' + key + ' がありません。キーをそのまま表示します。');
       return key;
     }
     return fillParams(row[localeIndex()] || row[0], params);
@@ -289,7 +289,7 @@
 
   function apiReady() {
     if (window.Api && window.Api.users && window.Api.projects && window.Api.credits && window.Api.featureCredits) { return true; }
-    console.error('[screens-credit] window.Api の中身（users / projects / credits / featureCredits）が揃っていません。api.js を確認してください。');
+    console.error('[screens-point] window.Api の中身（users / projects / points / featureCredits）が揃っていません。api.js を確認してください。');
     return false;
   }
 
@@ -328,9 +328,9 @@
     var backNode = document.getElementById('header-back');
     var actionNode = document.getElementById('header-action');
     if (titleNode) { titleNode.textContent = title; }
-    else { console.error('[screens-credit] index.html に #header-title がありません。'); }
+    else { console.error('[screens-point] index.html に #header-title がありません。'); }
     if (backNode) { backNode.hidden = !showBack; }
-    else { console.error('[screens-credit] index.html に #header-back がありません。'); }
+    else { console.error('[screens-point] index.html に #header-back がありません。'); }
     if (actionNode) { clear(actionNode); }
   }
 
@@ -338,7 +338,7 @@
     if (typeof App.toast === 'function') { App.toast(message, kind); return; }
     var root = document.getElementById('toast-root');
     if (!root) {
-      console.error('[screens-credit] #toast-root が無いため通知を表示できません: ' + message);
+      console.error('[screens-point] #toast-root が無いため通知を表示できません: ' + message);
       return;
     }
     var extra = '';
@@ -360,7 +360,7 @@
   function showBanner(message, onRetry) {
     var root = document.getElementById('banner-root');
     if (!root) {
-      console.error('[screens-credit] #banner-root が無いため通信失敗を表示できません: ' + message);
+      console.error('[screens-point] #banner-root が無いため通信失敗を表示できません: ' + message);
       return;
     }
     clear(root);
@@ -411,7 +411,7 @@
     }
     if (App.state && App.state.user && App.state.user.id) { return String(App.state.user.id); }
     if (window.Api && window.Api.storage) { return window.Api.storage.get('userId'); }
-    console.error('[screens-credit] 現在のユーザーIDを取得できません（App.getUser も App.state も Api.storage も使えません）。');
+    console.error('[screens-point] 現在のユーザーIDを取得できません（App.getUser も App.state も Api.storage も使えません）。');
     return null;
   }
 
@@ -449,7 +449,7 @@
     if (window.Api && window.Api.credits && typeof window.Api.credits.hasUnlimited === 'function') {
       return window.Api.credits.hasUnlimited(user);
     }
-    console.error('[screens-credit] Api.credits.hasUnlimited がありません。無制限利用権は無いものとして扱います。');
+    console.error('[screens-point] Api.points.hasUnlimited がありません。無制限利用権は無いものとして扱います。');
     return false;
   }
 
@@ -467,7 +467,7 @@
   /* ---------- 機能別クレジット（a2f58db45_feature_credits） ---------- */
   function loadFeatureRows() {
     if (!window.Api || !window.Api.credits || typeof window.Api.credits.featureCosts !== 'function') {
-      console.error('[screens-credit] Api.credits.featureCosts がありません。このファイルの既定値だけで表示します。');
+      console.error('[screens-point] Api.points.featureCosts がありません。このファイルの既定値だけで表示します。');
       return Promise.resolve([]);
     }
     return window.Api.credits.featureCosts();
@@ -515,8 +515,9 @@
   }
 
   /* ============================================================
-   * S16 クレジット消費確認（機能別消費クレジット・残高表示）
-   *   残高 / 今回消費 / 機能別単価のチェック集計 / 実行後残高 / 不足警告
+   * S16 ポイント消費確認
+   *   残高 / 今回消費 / 実行後残高 / 不足警告
+   *   （機能ごとの内訳は各分析・生成の画面側に出すので、ここには持たない）
    *   分析を実行・生成を実行・チャージ・キャンセル
    * ============================================================ */
   function renderConfirm(root, params) {
@@ -640,18 +641,18 @@
           return project;
         }, function (err) {
           /* プロジェクト名は見出しに添えるだけなので、取れなくてもこの画面は使える */
-          console.warn('[screens-credit] プロジェクト名を取得できませんでした（見出しの補足だけを省きます）', err);
+          console.warn('[screens-point] プロジェクト名を取得できませんでした（見出しの補足だけを省きます）', err);
           state.project = null;
           paint();
           return null;
         });
       }).catch(function (err) {
         if (err && err.code === 'noUser') {
-          console.error('[screens-credit] ログイン中のユーザーがいないため S1 ログインへ戻します。');
+          console.error('[screens-point] ログイン中のユーザーがいないため S1 ログインへ戻します。');
           go('S1');
           return;
         }
-        console.error('[screens-credit] クレジット消費確認の読み込みに失敗しました', err);
+        console.error('[screens-point] ポイント消費確認の読み込みに失敗しました', err);
         showErrorScreen(root, errorMessage(err, 'credit.loadFailed'), load);
       });
     }
@@ -795,7 +796,7 @@
         }
       }).catch(function (err) {
         setBusy(false);
-        console.error('[screens-credit] クレジットの引き落としに失敗しました', err);
+        console.error('[screens-point] ポイントの引き落としに失敗しました', err);
         var message = errorMessage(err, 'creditConfirm.executeFailed');
         if (err && err.chargedCount) { message = message + ' ' + tl('local.consumeFailedPartial'); }
         showBanner(message, function () { execute(kind); });
@@ -805,31 +806,9 @@
           state.user = user;
           refreshSummary();
         }, function (reloadErr) {
-          console.error('[screens-credit] 残高の取り直しにも失敗しました', reloadErr);
+          console.error('[screens-point] 残高の取り直しにも失敗しました', reloadErr);
         });
       });
-    }
-
-    function featureRow(feature) {
-      var row = el('label', 'check-row');
-
-      var box = el('input', 'check-row__box');
-      box.type = 'checkbox';
-      box.checked = !!state.selected[feature.key];
-      box.addEventListener('change', function () {
-        state.selected[feature.key] = box.checked;
-        refreshSummary();
-      });
-      row.appendChild(box);
-
-      /* check-row__label で幅を、list-row__body で縦並びを受け持つ（どちらも styles.css に実在する） */
-      var body = el('span', 'check-row__label list-row__body');
-      body.appendChild(el('span', 'list-row__title clamp-2', feature.name));
-      body.appendChild(el('span', 'list-row__sub clamp-1', feature.key));
-      row.appendChild(body);
-
-      row.appendChild(el('span', 'list-row__meta num', formatNumber(feature.cost) + t('common.creditShort')));
-      return row;
     }
 
     function paint() {
@@ -869,25 +848,6 @@
       costValueWrap.appendChild(el('span', 'card__unit', t('common.creditShort')));
       costCard.appendChild(costValueWrap);
       screen.appendChild(costCard);
-
-      /* 機能別消費 */
-      var section = el('section', 'section');
-      var sectionHead = el('div', 'section__head');
-      sectionHead.appendChild(el('h3', 'section__title', t('creditConfirm.byFeature')));
-      section.appendChild(sectionHead);
-      section.appendChild(el('p', 'section__desc', t('featurePricing.note')));
-
-      if (!state.features.length) {
-        var emptyBox = el('div', 'empty');
-        emptyBox.appendChild(el('p', 'empty__text', tl('local.noFeature')));
-        emptyBox.appendChild(button('btn btn--primary', t('creditConfirm.cancel'), goCancel));
-        section.appendChild(emptyBox);
-      } else {
-        var list = el('div', 'list');
-        state.features.forEach(function (feature) { list.appendChild(featureRow(feature)); });
-        section.appendChild(list);
-      }
-      screen.appendChild(section);
 
       /* 実行後残高 */
       var info = el('div', 'info-list');
@@ -1008,7 +968,7 @@
           window.Api.credits.history(user.id, HISTORY_LIMIT),
           // プランが取れなくても残高と履歴は出す。購入だけができない状態にする。
           window.Api.credits.plans().catch(function (err) {
-            console.error('[screens-credit] 購入プランを読み込めませんでした', err);
+            console.error('[screens-point] 購入プランを読み込めませんでした', err);
             return [];
           })
         ]);
@@ -1027,11 +987,11 @@
         }
       }).catch(function (err) {
         if (err && err.code === 'noUser') {
-          console.error('[screens-credit] ログイン中のユーザーがいないため S1 ログインへ戻します。');
+          console.error('[screens-point] ログイン中のユーザーがいないため S1 ログインへ戻します。');
           go('S1');
           return;
         }
-        console.error('[screens-credit] クレジット画面の読み込みに失敗しました', err);
+        console.error('[screens-point] ポイント画面の読み込みに失敗しました', err);
         showErrorScreen(root, errorMessage(err, 'credit.loadFailed'), load);
       });
     }
@@ -1173,7 +1133,7 @@
       }).catch(function (err) {
         state.buying = false;
         updateBuyButton();
-        console.error('[screens-credit] 決済ページを開けませんでした', err);
+        console.error('[screens-point] 決済ページを開けませんでした', err);
         var message = errorMessage(err, 'credit.purchaseFailed');
         showBanner(message, purchase);
         toast(message, 'danger');
@@ -1205,7 +1165,7 @@
         return;
       }
       if (!apiReady() || typeof window.Api.credits.redeemCoupon !== 'function') {
-        console.error('[screens-credit] Api.credits.redeemCoupon がありません。クーポンを登録できません。');
+        console.error('[screens-point] Api.points.redeemCoupon がありません。クーポンを登録できません。');
         setCouponError(t('common.error'));
         return;
       }
@@ -1231,7 +1191,7 @@
       }).catch(function (err) {
         state.redeeming = false;
         updateCouponButton();
-        console.error('[screens-credit] クーポンの登録に失敗しました', err);
+        console.error('[screens-point] クーポンの登録に失敗しました', err);
         var message = errorMessage(err, 'credit.couponInvalid');
         setCouponError(message);
         toast(message, 'danger');

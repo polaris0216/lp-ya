@@ -270,7 +270,7 @@
     ],
     's10.summary': ['未収集 {uncollected}件 / エラー {errors}件', 'Not collected: {uncollected} / Errors: {errors}', '미수집 {uncollected}건 / 오류 {errors}건'],
     's10.needUrl': ['競合LPのURLを1件以上追加してください', 'Please add at least one competitor URL', '경쟁 LP URL을 1개 이상 추가해 주세요'],
-    's10.runNote': ['実行するとクレジット消費確認へ進みます（{cost}CR）', 'Running takes you to the credit confirmation screen ({cost} CR)', '실행하면 크레딧 사용 확인으로 이동합니다({cost}CR)'],
+    's10.runNote': ['押すとその場で分析を始めます。{cost}Pを消費します。', 'Starts the analysis right away and uses {cost} P.', '누르면 바로 분석을 시작하고 {cost}P를 사용합니다.'],
     's10.savedDraft': ['入力中の内容を保存しました', 'Your work in progress has been saved', '입력 중인 내용을 저장했습니다'],
     's10.saveFailed': ['競合LPの保存に失敗しました', 'Failed to save the competitor list', '경쟁 LP 저장에 실패했습니다'],
     's10.loadFailed': ['競合分析の読み込みに失敗しました', 'Failed to load the competitor analysis', '경쟁 분석을 불러오지 못했습니다'],
@@ -288,9 +288,9 @@
     ],
     's11.draftTitle': ['この分析はまだ実行されていません', 'This analysis has not been run yet', '이 분석은 아직 실행되지 않았습니다'],
     's11.draftBody': [
-      '競合LPの登録は保存済みです。クレジット消費確認から分析を実行してください。',
-      'Your competitor list is saved. Run the analysis from the credit confirmation screen.',
-      '경쟁 LP 등록은 저장되어 있습니다. 크레딧 사용 확인에서 분석을 실행해 주세요.'
+      '競合LPの登録は保存済みです。ポイント消費確認から分析を実行してください。',
+      'Your competitor list is saved. Run the analysis from the point confirmation screen.',
+      '경쟁 LP 등록은 저장되어 있습니다. 포인트 사용 확인에서 분석을 실행해 주세요.'
     ],
     's11.collecting': ['収集しています…', 'Collecting…', '수집하는 중…'],
     's11.runFailed': ['分析結果の保存に失敗しました', 'Failed to save the analysis result', '분석 결과 저장에 실패했습니다'],
@@ -346,8 +346,8 @@
     's12.moveUp': ['上へ移動', 'Move up', '위로 이동'],
     's12.moveDown': ['下へ移動', 'Move down', '아래로 이동'],
     's12.sectionCount': ['{n}セクション', '{n} sections', '{n}개 섹션'],
-    's12.shortage': ['{n}CR不足しています', 'You are short {n} CR', '{n}CR 부족합니다'],
-    's12.unlimited': ['無制限利用中のためクレジットを消費しません', 'Unlimited use is active, so no credits are spent', '무제한 이용 중이라 크레딧을 소모하지 않습니다'],
+    's12.shortage': ['{n}P不足しています', 'You are short {n} P', '{n}P 부족합니다'],
+    's12.unlimited': ['無制限利用中のためポイントを消費しません', 'Unlimited use is active, so no points are spent', '무제한 이용 중이라 포인트을 소모하지 않습니다'],
     's12.saveFailed': ['生成内容の保存に失敗しました', 'Failed to save what will be generated', '생성 내용 저장에 실패했습니다'],
     's12.needDone': [
       '分析がまだ完了していないため、生成内容を確認できません。',
@@ -779,20 +779,20 @@
     if (window.Api && window.Api.credits && typeof window.Api.credits.hasUnlimited === 'function') {
       return window.Api.credits.hasUnlimited(user);
     }
-    console.error('[screens-analysis] Api.credits.hasUnlimited がありません。無制限利用権は無いものとして扱います。');
+    console.error('[screens-analysis] Api.points.hasUnlimited がありません。無制限利用権は無いものとして扱います。');
     return false;
   }
 
   function costOf(featureKey, fallback) {
     if (!window.Api || !window.Api.credits || typeof window.Api.credits.costOf !== 'function') {
-      console.error('[screens-analysis] Api.credits.costOf がありません。既定値 ' + fallback + 'CR で表示します（feature_key: ' + featureKey + '）。');
+      console.error('[screens-analysis] Api.points.costOf がありません。既定値 ' + fallback + 'P で表示します（feature_key: ' + featureKey + '）。');
       return Promise.resolve(fallback);
     }
     return window.Api.credits.costOf(featureKey).then(function (value) {
       if (value === null || value === undefined) { return fallback; }
       return Number(value) || 0;
     }, function (err) {
-      console.error('[screens-analysis] 機能別クレジットの取得に失敗したため既定値 ' + fallback + 'CR を使います（feature_key: ' + featureKey + '）', err);
+      console.error('[screens-analysis] 機能別ポイントの取得に失敗したため既定値 ' + fallback + 'P を使います（feature_key: ' + featureKey + '）', err);
       return fallback;
     });
   }
@@ -1101,6 +1101,29 @@
       view.lpConf = nextLp;
     }
 
+
+    /* 管理画面（S18）で決めた収集設定を読む。読めなければ画面側の既定に落とす */
+    function adminSelectors() {
+      if (!window.Api || !window.Api.platformSelectors) {
+        return Promise.resolve({ kv: null, lp: null });
+      }
+      return window.Api.platformSelectors.list({ limit: 50 }).then(function (rows) {
+        var out = { kv: {}, lp: {} };
+        (rows || []).forEach(function (row) {
+          var kind = String(row.kind);
+          if (kind !== 'kv' && kind !== 'lp') { return; }
+          out[kind][String(row.platform)] = {
+            selectors: Array.isArray(row.selectors) ? row.selectors : [],
+            media: Array.isArray(row.media) ? row.media : MEDIA_TYPES.slice()
+          };
+        });
+        return out;
+      }, function (err) {
+        console.error('[screens-analysis] 収集設定を読めませんでした。既定値で続行します', err);
+        return { kv: null, lp: null };
+      });
+    }
+
     function load() {
       clearBanner();
       showSkeleton(root);
@@ -1108,16 +1131,19 @@
       Promise.all([
         window.Api.projects.get(projectId),
         loadEditableReport(projectId),
-        costOf(FEATURE_ANALYSIS, COST_ANALYSIS_FALLBACK)
+        costOf(FEATURE_ANALYSIS, COST_ANALYSIS_FALLBACK),
+        /* 収集設定は運営が管理画面で決めるもの。ここでは読むだけ */
+        adminSelectors()
       ]).then(function (results) {
         view.project = results[0];
         view.report = results[1];
         view.cost = results[2];
+        view.adminConf = results[3];
 
         view.entries = view.report ? entriesOf(view.report) : [];
         var keys = usedPlatformKeys(view.entries);
-        view.kvConf = normalizeConfMap(view.report ? view.report.kv_selectors : null, 'kv', keys);
-        view.lpConf = normalizeConfMap(view.report ? view.report.lp_selectors : null, 'lp', keys);
+        view.kvConf = normalizeConfMap(view.adminConf.kv, 'kv', keys);
+        view.lpConf = normalizeConfMap(view.adminConf.lp, 'lp', keys);
 
         if (view.report && view.report.id) { rememberReportId(view.report.id); }
         draw();
@@ -1224,9 +1250,11 @@
       }
       view.saving = true;
       draw();
+      /* 押したらその場で分析を始める。確認画面は挟まない。
+         S11 側が pending のレポートを見つけて収集を走らせる。 */
       persist(STATUS_PENDING).then(function (row) {
         view.saving = false;
-        go('S16', { id: projectId, mode: 'analysis', reportId: row.id });
+        go('S11', { id: projectId, reportId: row.id, run: '1' });
       }, function (err) {
         view.saving = false;
         console.error('[screens-analysis] 分析の開始に失敗しました', err);
@@ -1350,7 +1378,6 @@
 
         add(body, el('span', 'list-row__title break-url', entry.url));
         add(body, el('span', 'list-row__sub', t('analysis.platformAuto') + '：' + platformName(entry.platform)));
-        add(body, platformSelect(entry, index));
         add(row, body);
 
         var removeButton = button('list-row__action', '×', function () { removeUrl(index); });
@@ -1509,8 +1536,6 @@
       }
       add(wrap, listSection);
 
-      add(wrap, selectorSection('kv'));
-      add(wrap, selectorSection('lp'));
 
       add(wrap, el('p', 't-note', t('s10.summary', {
         uncollected: view.entries.length,
@@ -1524,7 +1549,7 @@
       add(actions, el('p', 't-note t-center', t('s10.runNote', { cost: formatNumber(view.cost) })));
 
       var backButton = button('btn btn--secondary btn--block', t('analysis.backToProduct'), function () {
-        saveDraftAndGo('S9');
+        saveDraftAndGo('S4');
       });
       if (view.saving) { backButton.disabled = true; }
       add(actions, backButton);
@@ -1625,29 +1650,28 @@
         });
       }
 
+      /* 進み具合は app.js 共通のポップアップで見せる。
+         外側をクリックすると右下の小窓に畳めて、その間もポーリングは続く。 */
       function waitForJob(jobId) {
-        var POLL_MS = 5000;
-        var LIMIT_MS = 10 * 60 * 1000;
-        var startedAt = Date.now();
-        function tick() {
-          if (Date.now() - startedAt > LIMIT_MS) {
-            showFailure(root, t('sa.analysisFailed'), runCollection);
-            return;
-          }
-          window.Api.generationJobs.get(jobId).then(function (job) {
-            if (job && job.status === 'done') { reloadReport(); return; }
-            if (job && job.status === 'failed') {
-              console.error('[screens-analysis] 分析ジョブが失敗しました', job.error);
-              showFailure(root, t('sa.analysisFailed'), runCollection);
-              return;
-            }
-            setTimeout(tick, POLL_MS);
-          }, function (err) {
-            console.error('[screens-analysis] ジョブの確認に失敗しました。続けて確認します', err);
-            setTimeout(tick, POLL_MS);
-          });
+        if (!App.watchJob) {
+          console.error('[screens-analysis] App.watchJob がありません。app.js を確認してください。');
+          return;
         }
-        setTimeout(tick, POLL_MS);
+        App.watchJob({
+          jobId: jobId,
+          titleKey: 'job.titleAnalysis',
+          urls: urlsOfReport(),
+          onDone: function () { reloadReport(); }
+        });
+      }
+
+      function urlsOfReport() {
+        var list = view.report && view.report.competitor_urls;
+        if (!Array.isArray(list)) { return []; }
+        return list.map(function (one) {
+          if (one && typeof one === 'object') { return String(one.url || ''); }
+          return String(one || '');
+        }).filter(Boolean);
       }
 
       window.Api.analysis.run({
@@ -1655,7 +1679,6 @@
         lang: (App.getLang && App.getLang()) || 'ja'
       }).then(function (result) {
         if (result && result.queued) {
-          toast(t('sa.analysisQueued'), 'info');
           waitForJob(result.job_id);
           return;
         }

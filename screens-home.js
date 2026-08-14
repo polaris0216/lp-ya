@@ -64,13 +64,90 @@
   /* ---------- 定数 ---------- */
   var CREATE_FEATURE_KEY = 'project_create';
   var CREATE_COST_FALLBACK = 10;   // 意図書のメモ「作成に10クレジット消費」。feature_credits に登録があればそちらを使う
-  var MAX_IMAGES = 10;
+  var MAX_IMAGES = 15;
+  var MAX_BRAND_COLORS = 5;
+  var DEFAULT_SWATCH = '#A855F7';
+  var TARGET_LABELS = ['A', 'B', 'C', 'D', 'E'];
+  var FONT_SLOTS = [
+    { key: 'title', label: 'product.fontTitle' },
+    { key: 'subtitle', label: 'product.fontSubtitle' },
+    { key: 'body', label: 'product.fontBody' },
+    { key: 'emphasis', label: 'product.fontEmphasis' }
+  ];
+  var CATEGORY_KEYS = ['tech', 'appliance', 'food', 'fashion', 'bag', 'beauty', 'interior',
+    'outdoor', 'vehicle', 'baby', 'pet', 'craft', 'other'];
+  var FONT_OPTIONS = ['gothic', 'mincho', 'maru', 'gothicBold', 'serifEn', 'sansEn'];
+  /* 外部CDNを使わない方針なので、端末に載っている書体だけで組む */
+  var FONT_STACKS = {
+    gothic: "'Hiragino Sans', 'Yu Gothic', Meiryo, system-ui, sans-serif",
+    mincho: "'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif",
+    maru: "'Hiragino Maru Gothic ProN', 'Yu Gothic', system-ui, sans-serif",
+    gothicBold: "'Hiragino Sans', 'Yu Gothic', Meiryo, system-ui, sans-serif",
+    serifEn: "Georgia, 'Times New Roman', serif",
+    sansEn: "Helvetica, Arial, system-ui, sans-serif"
+  };
+  /* 表示順は「新商品として出やすい順」。値は辞書キーの末尾（tech / food ...）を保存する。
+     翻訳文そのものを保存すると、言語を切り替えたときに保存済みの値と一致しなくなる。 */
+  var CATEGORIES = [
+    'category.tech', 'category.appliance', 'category.food', 'category.fashion',
+    'category.bag', 'category.beauty', 'category.interior', 'category.outdoor',
+    'category.vehicle', 'category.baby', 'category.pet', 'category.craft', 'category.other'
+  ];
   var MAX_NAME = 30;
   var MAX_FEATURES = 300;
   var IMAGE_MAX_EDGE = 1024;       // ponytail: 画像はデータURLのまま projects.image_urls に入れるので長辺1024pxへ縮小する。専用ストレージを使うならここを差し替える。
   var IMAGE_QUALITY = 0.72;
 
   /* ---------- 小さな道具 ---------- */
+
+  /* 参照ページは、そのプラットフォームの主言語のページで読む。
+     自動翻訳された版だと商品名も訴求も原文から崩れるため。
+     戻り値の lang は解析側（Edge Function / ローカル処理）が Accept-Language に使う。 */
+  var PLATFORM_LOCALES = [
+    { match: /(^|\.)wadiz\.kr$/, lang: 'ko', strip: /^\/(ja|en|zh[-\w]*)(?=\/)/ },
+    { match: /(^|\.)tumblbug\.com$/, lang: 'ko', strip: /^\/(ja|en)(?=\/)/ },
+    { match: /(^|\.)alibaba\.com$/, lang: 'en' },
+    { match: /(^|\.)aliexpress\.com$/, lang: 'en' },
+    { match: /(^|\.)1688\.com$/, lang: 'zh-CN' },
+    { match: /(^|\.)jd\.com$/, lang: 'zh-CN' },
+    { match: /(^|\.)tmall\.com$/, lang: 'zh-CN' },
+    { match: /(^|\.)taobao\.com$/, lang: 'zh-CN' },
+    { match: /(^|\.)zeczec\.com$/, lang: 'zh-TW' },
+    { match: /(^|\.)kickstarter\.com$/, lang: 'en', strip: /^\/(ja|de|es|fr|it|nl)(?=\/)/ },
+    { match: /(^|\.)indiegogo\.com$/, lang: 'en' },
+    { match: /(^|\.)makuake\.com$/, lang: 'ja' },
+    { match: /(^|\.)camp-fire\.jp$/, lang: 'ja' },
+    { match: /(^|\.)greenfunding\.jp$/, lang: 'ja' },
+    { match: /(^|\.)machi-ya\.jp$/, lang: 'ja' },
+    { match: /(^|\.)amazon\.co\.jp$/, lang: 'ja' },
+    { match: /(^|\.)rakuten\.co\.jp$/, lang: 'ja' }
+  ];
+
+  function localeOfUrl(raw) {
+    var text = String(raw || '').trim();
+    if (!text) { return null; }
+    var host = '';
+    var path = '';
+    try {
+      var parsed = new window.URL(text);
+      host = parsed.hostname.toLowerCase();
+      path = parsed.pathname;
+    } catch (e) {
+      return { url: text, lang: '' };
+    }
+    var i;
+    for (i = 0; i < PLATFORM_LOCALES.length; i += 1) {
+      var rule = PLATFORM_LOCALES[i];
+      if (!rule.match.test(host)) { continue; }
+      var out = text;
+      if (rule.strip && rule.strip.test(path)) {
+        out = text.replace(path, path.replace(rule.strip, ''));
+      }
+      return { url: out, lang: rule.lang };
+    }
+    return { url: text, lang: '' };
+  }
+
   function t(key, params) {
     if (window.I18N && typeof window.I18N.t === 'function') { return window.I18N.t(key, params); }
     return key;
@@ -152,7 +229,7 @@
 
   function apiReady() {
     if (window.Api && window.Api.users && window.Api.projects && window.Api.credits) { return true; }
-    console.error('[screens-home] window.Api の中身（users / projects / credits）が揃っていません。api.js を確認してください。');
+    console.error('[screens-home] window.Api の中身（users / projects / points）が揃っていません。api.js を確認してください。');
     return false;
   }
 
@@ -195,6 +272,14 @@
     if (backNode) { backNode.hidden = !showBack; }
     else { console.error('[screens-home] index.html に #header-back がありません。'); }
     if (actionNode) { clear(actionNode); }
+  }
+
+
+  /* app.js のモーダルを閉じる。無い環境でも落ちないようにしておく */
+  function dismissModal() {
+    if (window.App && typeof window.App.closeModal === 'function') { window.App.closeModal(); return; }
+    var host = document.getElementById('modal-root');
+    if (host) { host.hidden = true; }
   }
 
   function toast(message, kind) {
@@ -347,7 +432,7 @@
     if (window.Api && window.Api.credits && typeof window.Api.credits.hasUnlimited === 'function') {
       return window.Api.credits.hasUnlimited(user);
     }
-    console.error('[screens-home] Api.credits.hasUnlimited がありません。無制限利用権は無いものとして扱います。');
+    console.error('[screens-home] Api.points.hasUnlimited がありません。無制限利用権は無いものとして扱います。');
     return false;
   }
 
@@ -634,26 +719,57 @@
    * ============================================================ */
   function renderCreate(root, params) {
     mounted = { id: 'S4', root: root, params: params };
+    /* 前回の進行状況ウィンドウが body に残っていたら片づける */
+    if (window.App && typeof window.App.stopJobWatch === 'function') { window.App.stopJobWatch(); }
+    var stale = document.querySelectorAll('.jobwatch, .viewer');
+    var si;
+    for (si = 0; si < stale.length; si += 1) { stale[si].parentNode.removeChild(stale[si]); }
     setHeader(t('project.createTitle'), true);
 
-    var form = { name: '', features: '', price: '', target: '', images: [] };
+    var form = { name: '', features: '', price: '', target: '', images: [], rewards: [],
+      category: '', fundingGoal: '', valueProp: '', brandTone: '',
+      refUrls: [''], brandColors: [], brandFonts: {}, targets: [], videos: [] };
     var user = null;
     var cost = CREATE_COST_FALLBACK;
     var targetCandidates = [];
     var touched = false;
     var busy = false;
+    var projectId = null;   // 名前を付けて作成済みなら、その行のID
+    var dirty = false;      // 未保存の変更があるか
+    var saveButton = null;
+    var dirtyMark = null;
 
     /* 描き直しのたびに入れ替える部品の控え */
     var nameError = null;
     var priceError = null;
     var submitButton = null;
     var imagesHost = null;
+    var rewardsHost = null;
+    var rewardsEmpty = null;
+    var discountNodes = [];
+    var rewardIndex = 0;
+    var rewardAnim = 0;   // 1=次へ -1=前へ。滑り込む向き
+    var refHost = null;
+    var refRunButton = null;
+    var colorsHost = null;
+    var brandColorAdd = null;
+    var targetsHost = null;
+    var targetsEmpty = null;
+    var targetAddButton = null;
+    var targetProposeButton = null;
+    var targetOpen = -1;
+    var dragFrom = -1;    // 掴んでいるカードの位置   // 詳細を開いているカード。-1 はすべて畳んだ状態
+    var targetCountNode = null;
+    var analyzing = false;
+    var dropzone = null;
+    var videosHost = null;
     var warnHost = null;
 
     function load() {
       clearBanner();
       showSkeleton(root);
 
+      var wanted = params && params.id ? String(params.id) : '';
       loadUser().then(function (loaded) {
         user = loaded;
         return Promise.all([
@@ -662,13 +778,21 @@
             eq: { users_id: String(loaded.id) },
             select: 'target_audience',
             limit: 50
-          })
+          }),
+          wanted ? window.Api.projects.get(wanted) : Promise.resolve(null)
         ]);
       }).then(function (results) {
         var configured = results[0];
         cost = (configured === null || configured === undefined) ? CREATE_COST_FALLBACK : Number(configured);
         targetCandidates = uniqueTargets(results[1] || []);
+        if (results[2]) {
+          projectId = String(results[2].id);
+          fillFormFrom(results[2]);
+          selectProject(results[2]);
+        }
         paint();
+        /* まだ作られていないなら、まず名前だけ決めてもらう */
+        if (!projectId) { askProjectName(); }
       }).catch(function (err) {
         if (err && err.code === 'noUser') {
           console.error('[screens-home] ログイン中のユーザーがいないため S1 ログインへ戻します。');
@@ -678,6 +802,48 @@
         console.error('[screens-home] プロジェクト作成画面の読み込みに失敗しました', err);
         showErrorScreen(root, errorMessage(err, 'project.createFailed'), load);
       });
+    }
+
+
+    /* 保存済みの行をフォームに戻す。列が無い/空でも落ちないように素直に読む */
+    function fillFormFrom(row) {
+      function text(value) { return value === null || value === undefined ? '' : String(value); }
+      function list(value) { return isArray(value) ? value : []; }
+      form.name = text(row.project_name || row.name);
+      form.category = text(row.category);
+      form.price = row.price === null || row.price === undefined ? '' : formatNumber(row.price);
+      form.fundingGoal = text(row.funding_goal);
+      form.valueProp = text(row.value_prop);
+      form.features = text(row.product_features);
+      form.target = text(row.target_audience);
+      form.brandTone = text(row.brand_tone);
+      form.images = list(row.image_urls).map(String);
+      form.videos = list(row.video_urls).map(String);
+      form.brandColors = list(row.brand_colors).map(String);
+      form.brandFonts = row.brand_fonts && typeof row.brand_fonts === 'object' ? row.brand_fonts : {};
+      form.targets = list(row.targets).map(function (target, index) {
+        return {
+          label: TARGET_LABELS[index] || String(index + 1),
+          name: text(target && target.name),
+          age: text(target && target.age),
+          gender: text(target && target.gender),
+          rationale: text(target && target.rationale),
+          persona: text(target && target.persona),
+          description: text(target && target.description)
+        };
+      });
+      form.rewards = list(row.rewards).map(function (reward) {
+        return {
+          name: text(reward && reward.name),
+          listPrice: reward && reward.list_price !== null && reward.list_price !== undefined ? formatNumber(reward.list_price) : '',
+          price: reward && reward.price !== null && reward.price !== undefined ? formatNumber(reward.price) : '',
+          qty: reward && reward.quantity !== null && reward.quantity !== undefined ? String(reward.quantity) : '',
+          desc: text(reward && reward.description)
+        };
+      });
+      var refs = list(row.reference_urls).map(String);
+      form.refUrls = refs.length ? refs : [''];
+      dirty = false;
     }
 
     function uniqueTargets(rows) {
@@ -723,144 +889,1011 @@
       head.appendChild(el('p', 'screen__lead', t('project.createSubtitle')));
       screen.appendChild(head);
 
-      /* 残高と今回の消費 */
-      var balance = Number(user.credit_balance) || 0;
-      var costCard = el('div', 'card card--soft');
-      costCard.appendChild(el('span', 'card__label', t('dashboard.creditBalance')));
-      var balanceValue = el('span');
-      balanceValue.appendChild(el('span', 'card__value', formatNumber(balance)));
-      balanceValue.appendChild(el('span', 'card__unit', t('common.creditUnit')));
-      costCard.appendChild(balanceValue);
-      if (cost === CREATE_COST_FALLBACK) {
-        costCard.appendChild(el('span', 'card__sub', t('project.createCreditNote')));
+      /* --- 入力欄。ttalkkak-ai.com の「① 상품 입력」に合わせ、白パネルで区画する --- */
+
+      function panel(titleKey, descKey) {
+        var box = el('section', 'panel');
+        var head = el('div', 'panel__head');
+        head.appendChild(el('span', 'panel__title', t(titleKey)));
+        box.appendChild(head);
+        if (descKey) { box.appendChild(el('p', 'panel__desc', t(descKey))); }
+        return box;
       }
-      var costFoot = el('div', 'card__foot');
-      costFoot.appendChild(el('span', 'card__label', t('creditConfirm.thisTime')));
-      costFoot.appendChild(el('span', 'card__sub', formatNumber(cost) + t('common.creditShort')));
-      costCard.appendChild(costFoot);
-      screen.appendChild(costCard);
 
-      /* 入力欄 */
-      var fields = el('div', 'stack');
+      function textInput(id, value, placeholder, onInput, options) {
+        var opts = options || {};
+        var input = el('input', 'input');
+        input.id = id;
+        input.type = 'text';
+        input.value = value;
+        input.setAttribute('placeholder', placeholder);
+        if (opts.numeric) { input.setAttribute('inputmode', 'numeric'); }
+        if (opts.maxLength) { input.maxLength = opts.maxLength; }
+        input.addEventListener('input', function () { onInput(input.value, input); });
+        return input;
+      }
 
-      /* プロジェクト名 */
-      var nameInput = el('input', 'input');
-      nameInput.id = 'home-create-name';
-      nameInput.type = 'text';
-      nameInput.maxLength = MAX_NAME;
-      nameInput.value = form.name;
-      nameInput.setAttribute('placeholder', t('project.name'));
-      nameInput.addEventListener('input', function () {
-        form.name = nameInput.value;
+      /* 参考ページからのAI自動入力（手入力も残す） */
+      var refPanel = panel('product.refPanel', 'product.refPanelDesc');
+      refHost = el('div', 'stack');
+      refPanel.appendChild(refHost);
+      var refActions = el('div', 'btn-row');
+      refActions.appendChild(button('btn btn--secondary', '＋ ' + t('product.refAdd'), function () {
+        form.refUrls.push('');
+        paintRefUrls();
+      }));
+      refRunButton = button('btn btn--primary', t('product.refRun'), runAutofill);
+      refActions.appendChild(refRunButton);
+      refPanel.appendChild(refActions);
+      screen.appendChild(refPanel);
+
+      /* 商品写真 */
+      var photoPanel = panel('product.photoPanel', 'product.photoPanelDesc');
+      imagesHost = el('div', 'thumb-grid');
+      photoPanel.appendChild(imagesHost);
+      photoPanel.appendChild(buildDropzone('home-create-images'));
+      videosHost = el('div', 'stack');
+      photoPanel.appendChild(videosHost);
+      screen.appendChild(photoPanel);
+
+      /* 商品カテゴリ & 基本情報 */
+      var basicPanel = panel('product.basicPanel', 'product.basicPanelDesc');
+      var basicTop = el('div', 'row--2');
+
+      var categorySelect = el('select', 'select');
+      categorySelect.id = 'home-create-category';
+      var blank = el('option', null, t('product.categoryPlaceholder'));
+      blank.value = '';
+      categorySelect.appendChild(blank);
+      CATEGORIES.forEach(function (key) {
+        var option = el('option', null, t(key));
+        option.value = key.slice('category.'.length);
+        if (form.category === option.value) { option.selected = true; }
+        categorySelect.appendChild(option);
+      });
+      categorySelect.addEventListener('change', function () { form.category = categorySelect.value; });
+      basicTop.appendChild(makeField(t('product.category'), categorySelect, { required: true }).wrap);
+
+      var nameInput = textInput('home-create-name', form.name, t('product.namePlaceholder'), function (value) {
+        form.name = value;
         validate();
-      });
-      nameInput.addEventListener('blur', function () {
-        touched = true;
-        validate();
-      });
-      var nameField = makeField(t('project.name'), nameInput, {
-        required: true,
-        hint: t('projectRename.hint')
-      });
+      }, { maxLength: MAX_NAME });
+      nameInput.addEventListener('blur', function () { touched = true; validate(); });
+      var nameField = makeField(t('project.name'), nameInput, { required: true, hint: t('projectRename.hint') });
       nameError = nameField.error;
-      fields.appendChild(nameField.wrap);
+      basicTop.appendChild(nameField.wrap);
+      basicPanel.appendChild(basicTop);
 
-      /* 商品の特徴 */
+      /* 定価はリワードごとに持たせるので、ここには置かない */
+      var fundingInput = textInput('home-create-funding', form.fundingGoal, t('product.fundingGoalPlaceholder'), function (value) {
+        form.fundingGoal = value;
+      }, {});
+      basicPanel.appendChild(makeField(t('product.fundingGoal'), fundingInput, {}).wrap);
+      screen.appendChild(basicPanel);
+
+      /* リワード（販売）価格・数量 */
+      var rewardPanel = panel('product.rewardPanel', 'product.rewardPanelDesc');
+      rewardsEmpty = el('p', 'panel__desc', t('product.rewardEmpty'));
+      rewardPanel.appendChild(rewardsEmpty);
+      rewardsHost = el('div', 'stack');
+      rewardPanel.appendChild(rewardsHost);
+      rewardPanel.querySelector('.panel__head').appendChild(
+        button('btn btn--secondary btn--sm panel__action', '＋ ' + t('product.rewardAdd'), function () {
+          form.rewards.push({ name: '', listPrice: '', price: '', qty: '', desc: '' });
+          rewardIndex = form.rewards.length - 1;
+          rewardAnim = 1;
+          paintRewards();
+        }));
+      screen.appendChild(rewardPanel);
+
+      /* 訴求メッセージ */
+      var messagePanel = panel('product.messagePanel', 'product.messagePanelDesc');
+
+      var valueInput = textInput('home-create-value', form.valueProp, t('product.valuePropPlaceholder'), function (value) {
+        form.valueProp = value;
+      }, {});
+      messagePanel.appendChild(makeField(t('product.valueProp'), valueInput, {}).wrap);
+
       var featuresInput = el('textarea', 'textarea');
       featuresInput.id = 'home-create-features';
       featuresInput.maxLength = MAX_FEATURES;
       featuresInput.value = form.features;
-      featuresInput.setAttribute('placeholder', t('product.features'));
-      var featuresCounter = el('span', 'counter', form.features.length + ' / ' + MAX_FEATURES);
+      featuresInput.setAttribute('placeholder', t('product.featuresPlaceholder'));
+      var featuresCounter = el('span', 'counter', form.features.length + ' / ' + MAX_FEATURES + t('common.characters'));
       featuresInput.addEventListener('input', function () {
         form.features = featuresInput.value;
-        featuresCounter.textContent = form.features.length + ' / ' + MAX_FEATURES;
+        featuresCounter.textContent = form.features.length + ' / ' + MAX_FEATURES + t('common.characters');
       });
-      var featuresField = makeField(t('product.features'), featuresInput, {
-        counter: featuresCounter,
-        hint: t('product.featuresMax')
-      });
-      fields.appendChild(featuresField.wrap);
+      messagePanel.appendChild(makeField(t('product.featuresLabel'), featuresInput, { counter: featuresCounter }).wrap);
 
-      /* 価格 / ターゲット（スケッチのとおり横並び） */
-      var pair = el('div', 'row--2');
-
-      var priceInput = el('input', 'input');
-      priceInput.id = 'home-create-price';
-      priceInput.type = 'text';
-      priceInput.value = form.price;
-      priceInput.setAttribute('inputmode', 'numeric');
-      priceInput.setAttribute('placeholder', t('product.price'));
-      priceInput.addEventListener('input', function () {
-        form.price = priceInput.value;
-        validate();
+      var toneInput = textInput('home-create-tone', form.brandTone, t('product.brandTonePlaceholder'), function (value) {
+        form.brandTone = value;
+      }, {});
+      messagePanel.appendChild(makeField(t('product.brandTone'), toneInput, {}).wrap);
+      screen.appendChild(messagePanel);
+      /* ターゲット案 A〜E */
+      var targetPanel = panel('product.targetPanel', 'product.targetPanelDesc');
+      targetCountNode = el('span', 'panel__count', t('product.targetCount', { n: form.targets.length }));
+      targetCountNode.hidden = form.targets.length === 0;
+      targetPanel.querySelector('.panel__title').appendChild(targetCountNode);
+      targetProposeButton = button('btn btn--primary', t('product.targetPropose'), proposeTargets);
+      targetPanel.appendChild(targetProposeButton);
+      targetPanel.appendChild(el('p', 'field__hint', t('product.targetPriorityNote')));
+      targetsEmpty = el('p', 'panel__desc', t('product.targetEmpty'));
+      targetPanel.appendChild(targetsEmpty);
+      targetsHost = el('div', 'stack');
+      targetPanel.appendChild(targetsHost);
+      targetAddButton = button('btn btn--secondary', '＋ ' + t('product.targetAdd'), function () {
+        if (form.targets.length >= TARGET_LABELS.length) { return; }
+        form.targets.push({ label: TARGET_LABELS[form.targets.length], name: '', age: '', gender: '', rationale: '', persona: '', description: '' });
+        targetOpen = form.targets.length - 1;
+        paintTargets();
       });
-      priceInput.addEventListener('blur', function () {
-        var digits = digitsOf(form.price);
-        if (digits && isDigits(digits)) {
-          form.price = formatNumber(digits);
-          priceInput.value = form.price;
-        }
-        touched = true;
-        validate();
-      });
-      var priceField = makeField(t('product.price'), priceInput, {});
-      priceError = priceField.error;
-      pair.appendChild(priceField.wrap);
+      targetPanel.appendChild(targetAddButton);
+      screen.appendChild(targetPanel);
 
-      var targetInput = el('input', 'input');
-      targetInput.id = 'home-create-target';
-      targetInput.type = 'text';
-      targetInput.value = form.target;
-      targetInput.setAttribute('placeholder', t('product.target'));
-      targetInput.addEventListener('input', function () {
-        form.target = targetInput.value;
-        paintTargetChips();
+      /* ブランド指定（色・フォント） */
+      var brandPanel = panel('product.brandPanel', 'product.brandPanelDesc');
+      brandPanel.appendChild(el('span', 'field__label', t('product.brandColors')));
+      colorsHost = el('div', 'swatches');
+      brandPanel.appendChild(colorsHost);
+      brandPanel.appendChild(el('p', 'field__hint', t('product.brandColorsHint')));
+      brandColorAdd = button('btn btn--secondary', '＋ ' + t('product.brandColorAdd'), function () {
+        if (form.brandColors.length >= MAX_BRAND_COLORS) { return; }
+        form.brandColors.push(DEFAULT_SWATCH);
+        paintBrandColors();
       });
-      var targetField = makeField(t('product.target'), targetInput, {});
-      var chipsHost = el('div', 'chips');
-      targetField.wrap.insertBefore(chipsHost, targetField.error);
-      pair.appendChild(targetField.wrap);
+      brandPanel.appendChild(brandColorAdd);
 
-      function paintTargetChips() {
-        clear(chipsHost);
-        targetCandidates.forEach(function (candidate) {
-          var selected = form.target.trim() === candidate;
-          var chip = button('chip' + (selected ? ' chip--selected' : ''), candidate, function () {
-            form.target = candidate;
-            targetInput.value = candidate;
-            paintTargetChips();
-          });
-          chip.setAttribute('aria-pressed', selected ? 'true' : 'false');
-          chipsHost.appendChild(chip);
+      brandPanel.appendChild(el('div', 'divider'));
+      brandPanel.appendChild(el('span', 'field__label', t('product.brandFonts')));
+      var fontGrid = el('div', 'row--2');
+      FONT_SLOTS.forEach(function (slot) {
+        var select = el('select', 'select');
+        select.id = 'home-create-font-' + slot.key;
+        var auto = el('option', null, t('product.fontAuto'));
+        auto.value = '';
+        select.appendChild(auto);
+        FONT_OPTIONS.forEach(function (key) {
+          var option = el('option', null, t('font.' + key));
+          option.value = key;
+          option.style.fontFamily = FONT_STACKS[key];
+          if (form.brandFonts[slot.key] === key) { option.selected = true; }
+          select.appendChild(option);
         });
-      }
-      paintTargetChips();
+        select.addEventListener('change', function () {
+          form.brandFonts[slot.key] = select.value;
+          select.style.fontFamily = select.value ? FONT_STACKS[select.value] : '';
+        });
+        select.style.fontFamily = form.brandFonts[slot.key] ? FONT_STACKS[form.brandFonts[slot.key]] : '';
+        fontGrid.appendChild(makeField(t(slot.label), select, {}).wrap);
+      });
+      brandPanel.appendChild(fontGrid);
+      screen.appendChild(brandPanel);
 
-      fields.appendChild(pair);
-
-      /* 商品画像 */
-      var imagesField = el('div', 'field');
-      imagesField.appendChild(el('span', 'field__label', t('product.images')));
-      imagesHost = el('div', 'thumb-grid');
-      imagesField.appendChild(imagesHost);
-      imagesField.appendChild(el('p', 'field__hint', t('product.imagesMax')));
-      fields.appendChild(imagesField);
-
-      screen.appendChild(fields);
 
       /* 残高不足などの警告置き場 */
       warnHost = el('div');
       screen.appendChild(warnHost);
 
-      /* 作成する */
-      submitButton = button('btn btn--primary btn--block', t('project.createButton'), submitCreate);
-      screen.appendChild(submitButton);
+      /* 保存は「途中保存（更新・無料）」と「完了して詳細へ」の2つ。
+         行はすでに作成済みなので、ここでポイントは減らない */
+      var footer = el('div', 'form-actions');
+      dirtyMark = el('span', 'form-actions__mark', t('project.unsavedMark'));
+      dirtyMark.hidden = !dirty;
+      footer.appendChild(dirtyMark);
+      var footerButtons = el('div', 'form-actions__buttons');
+      saveButton = button('btn btn--secondary', t('project.saveDraft'), saveDraft);
+      footerButtons.appendChild(saveButton);
+      submitButton = button('btn btn--primary', t('project.finish'), submitCreate);
+      footerButtons.appendChild(submitButton);
+      footer.appendChild(footerButtons);
+      screen.appendChild(footer);
+
+      /* どの入力でも未保存の印が立つように、画面ごと拾う */
+      screen.addEventListener('input', markDirty);
+      screen.addEventListener('change', markDirty);
 
       root.appendChild(screen);
 
       paintImages();
+      paintRewards();
+      paintRefUrls();
+      paintBrandColors();
+      paintTargets();
       validate();
+    }
+
+    /* --- 参考ページURL --- */
+    function paintRefUrls() {
+      if (!refHost) { return; }
+      clear(refHost);
+      form.refUrls.forEach(function (url, index) {
+        var row = el('div', 'row--input-action');
+        var input = el('input', 'input');
+        input.type = 'url';
+        input.value = url;
+        input.setAttribute('placeholder', 'https://');
+        input.setAttribute('aria-label', t('product.refUrl') + ' ' + (index + 1));
+        input.addEventListener('input', function () { form.refUrls[index] = input.value; });
+        row.appendChild(input);
+        var remove = button('btn btn--text', t('common.delete'), function () {
+          form.refUrls.splice(index, 1);
+          if (!form.refUrls.length) { form.refUrls.push(''); }
+          paintRefUrls();
+        });
+        row.appendChild(remove);
+        refHost.appendChild(row);
+      });
+    }
+
+    function filledRefUrls() {
+      var out = [];
+      form.refUrls.forEach(function (url) {
+        var text = String(url || '').trim();
+        if (text) { out.push(text); }
+      });
+      return out;
+    }
+
+    /* 解析側に渡す形。プラットフォームの主言語のURLに直し、言語も添える */
+    function refTargets() {
+      var out = [];
+      filledRefUrls().forEach(function (url) {
+        var info = localeOfUrl(url);
+        if (info) { out.push({ url: info.url, lang: info.lang }); }
+      });
+      return out;
+    }
+
+    /* --- ブランドカラー --- */
+    function paintBrandColors() {
+      if (!colorsHost) { return; }
+      clear(colorsHost);
+      form.brandColors.forEach(function (value, index) {
+        var cell = el('div', 'swatch');
+        var picker = el('input', 'swatch__input');
+        picker.type = 'color';
+        picker.value = normalizeHex(value);
+        picker.setAttribute('aria-label', t('product.brandColors') + ' ' + (index + 1));
+        var code = el('input', 'swatch__code');
+        code.type = 'text';
+        code.value = normalizeHex(value);
+        code.setAttribute('aria-label', t('product.brandColors') + ' ' + (index + 1));
+        picker.addEventListener('input', function () {
+          form.brandColors[index] = picker.value;
+          code.value = picker.value;
+        });
+        code.addEventListener('input', function () {
+          var hex = normalizeHex(code.value);
+          form.brandColors[index] = hex;
+          picker.value = hex;
+        });
+        cell.appendChild(picker);
+        cell.appendChild(code);
+        var remove = button('swatch__remove', '×', function () {
+          form.brandColors.splice(index, 1);
+          paintBrandColors();
+        });
+        remove.setAttribute('aria-label', t('common.delete'));
+        cell.appendChild(remove);
+        colorsHost.appendChild(cell);
+      });
+      if (brandColorAdd) {
+        brandColorAdd.disabled = form.brandColors.length >= MAX_BRAND_COLORS;
+      }
+    }
+
+    /* #RRGGBB に寄せる。input[type=color] はこの形しか受け取らない */
+    function normalizeHex(value) {
+      var text = String(value || '').trim();
+      if (text.charAt(0) !== '#') { text = '#' + text; }
+      if (/^#[0-9a-fA-F]{3}$/.test(text)) {
+        text = '#' + text.charAt(1) + text.charAt(1) + text.charAt(2) + text.charAt(2) + text.charAt(3) + text.charAt(3);
+      }
+      return /^#[0-9a-fA-F]{6}$/.test(text) ? text.toUpperCase() : DEFAULT_SWATCH;
+    }
+
+    /* --- ターゲット案 A〜E --- */
+    function paintTargets() {
+      if (!targetsHost) { return; }
+      clear(targetsHost);
+      if (targetsEmpty) { targetsEmpty.hidden = form.targets.length > 0; }
+      if (targetCountNode) {
+        targetCountNode.textContent = t('product.targetCount', { n: form.targets.length });
+        targetCountNode.hidden = form.targets.length === 0;
+      }
+
+      form.targets.forEach(function (target, index) {
+        target.label = TARGET_LABELS[index] || String(index + 1);
+        var card = el('article', 'target-card');
+
+        /* 見出し行：A〜E の札 ＋ 何番目の案か ＋ 削除 */
+        var open = targetOpen === index;
+        if (open) { card.className += ' is-open'; }
+
+        /* 畳んだ状態でも「誰か」が分かるよう、名前と年代だけは出す */
+        var head = el('div', 'target-card__head');
+        head.setAttribute('role', 'button');
+        head.setAttribute('tabindex', '0');
+        head.setAttribute('aria-expanded', open ? 'true' : 'false');
+        head.setAttribute('aria-label', t(open ? 'product.targetClose' : 'product.targetOpen'));
+        head.appendChild(el('span', 'target-card__grip', '⋮⋮'));
+        head.appendChild(el('span', 'target-badge', target.label));
+        var summary = el('span', 'target-card__summary');
+        summary.appendChild(el('span', 'target-card__name',
+          String(target.name || '').trim() || t('product.targetUnnamed')));
+        var age = String(target.age || '').trim();
+        if (age) { summary.appendChild(el('span', 'target-card__age', age)); }
+        head.appendChild(summary);
+        if (index === 0) { head.appendChild(el('span', 'target-card__top', t('product.targetTop'))); }
+
+        var remove = button('target-card__remove', '', function () {
+          form.targets.splice(index, 1);
+          if (targetOpen === index) { targetOpen = -1; }
+          paintTargets();
+          markDirty();
+        });
+        remove.appendChild(svgIcon('M6 6l12 12M18 6L6 18'));
+        remove.setAttribute('aria-label', t('common.delete'));
+        head.appendChild(remove);
+
+        var caret = el('span', 'target-card__caret');
+        caret.appendChild(svgIcon('M6 9l6 6 6-6'));
+        head.appendChild(caret);
+
+        /* 掴んで上下に動かすと優先順位が変わる */
+        head.draggable = true;
+        head.addEventListener('dragstart', function (event) {
+          dragFrom = index;
+          card.className += ' is-dragging';
+          if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            /* Firefox は何か入れないとドラッグが始まらない */
+            event.dataTransfer.setData('text/plain', String(index));
+          }
+        });
+        head.addEventListener('dragend', function () {
+          dragFrom = -1;
+          clearDropMarks();
+          card.className = card.className.replace(' is-dragging', '');
+        });
+        head.addEventListener('dragover', function (event) {
+          if (dragFrom === -1 || dragFrom === index) { return; }
+          event.preventDefault();
+          if (event.dataTransfer) { event.dataTransfer.dropEffect = 'move'; }
+          clearDropMarks();
+          card.className += dragFrom > index ? ' is-drop-before' : ' is-drop-after';
+        });
+        head.addEventListener('drop', function (event) {
+          event.preventDefault();
+          if (dragFrom === -1 || dragFrom === index) { return; }
+          var moved = form.targets.splice(dragFrom, 1)[0];
+          form.targets.splice(index, 0, moved);
+          if (targetOpen === dragFrom) { targetOpen = index; }
+          else if (targetOpen === index) { targetOpen = dragFrom; }
+          dragFrom = -1;
+          paintTargets();
+          markDirty();
+        });
+
+        /* 削除の押下では開閉しない */
+        head.addEventListener('click', function (event) {
+          if (event.target.closest('button')) { return; }
+          targetOpen = open ? -1 : index;
+          paintTargets();
+        });
+        head.addEventListener('keydown', function (event) {
+          if (event.key !== 'Enter' && event.key !== ' ') { return; }
+          event.preventDefault();
+          targetOpen = open ? -1 : index;
+          paintTargets();
+        });
+        card.appendChild(head);
+
+        if (!open) { targetsHost.appendChild(card); return; }
+
+        var body = el('div', 'target-card__body');
+
+        /* 誰か（名前） */
+        var nameField = el('div', 'field');
+        nameField.appendChild(el('span', 'field__label', t('product.targetName')));
+        var name = el('input', 'input');
+        name.type = 'text';
+        name.value = target.name || '';
+        name.setAttribute('placeholder', t('product.targetNamePlaceholder'));
+        name.addEventListener('input', function () { target.name = name.value; });
+        nameField.appendChild(name);
+        body.appendChild(nameField);
+
+        /* 年代・性別は入力後もラベルが残るよう、見出し付きで置く */
+        var who = el('div', 'target-card__who');
+        [
+          { key: 'age', label: 'product.targetAge', ph: 'product.targetAgePlaceholder' },
+          { key: 'gender', label: 'product.targetGender', ph: 'product.targetGenderPlaceholder' }
+        ].forEach(function (slot) {
+          var field = el('div', 'field');
+          field.appendChild(el('span', 'field__label', t(slot.label)));
+          var input = el('input', 'input');
+          input.type = 'text';
+          input.value = target[slot.key] || '';
+          input.setAttribute('placeholder', t(slot.ph));
+          input.addEventListener('input', function () { target[slot.key] = input.value; });
+          field.appendChild(input);
+          who.appendChild(field);
+        });
+        body.appendChild(who);
+
+        /* なぜこの層を選んだのか（AIが埋める。手入力なら空欄のままでよい） */
+        var rationaleField = el('div', 'field');
+        var rationaleLabel = el('span', 'field__label', t('product.targetRationale'));
+        rationaleLabel.appendChild(el('span', 'field__ai', 'AI'));
+        rationaleField.appendChild(rationaleLabel);
+        var rationale = el('textarea', 'textarea textarea--ai');
+        rationale.value = target.rationale || '';
+        rationale.setAttribute('placeholder', t('product.targetRationalePlaceholder'));
+        rationale.addEventListener('input', function () { target.rationale = rationale.value; });
+        rationaleField.appendChild(rationale);
+        body.appendChild(rationaleField);
+
+        /* どんな人物か（ペルソナ） */
+        var personaField = el('div', 'field');
+        personaField.appendChild(el('span', 'field__label', t('product.targetPersona')));
+        var persona = el('textarea', 'textarea');
+        persona.value = target.persona || '';
+        persona.setAttribute('placeholder', t('product.targetPersonaPlaceholder'));
+        persona.addEventListener('input', function () { target.persona = persona.value; });
+        personaField.appendChild(persona);
+        body.appendChild(personaField);
+
+        /* なぜ刺さるか */
+        var descField = el('div', 'field');
+        descField.appendChild(el('span', 'field__label', t('product.targetDescLabel')));
+        var desc = el('textarea', 'textarea');
+        desc.value = target.description || '';
+        desc.setAttribute('placeholder', t('product.targetDesc'));
+        desc.addEventListener('input', function () { target.description = desc.value; });
+        descField.appendChild(desc);
+        body.appendChild(descField);
+
+        card.appendChild(body);
+        targetsHost.appendChild(card);
+      });
+
+      if (targetAddButton) {
+        targetAddButton.disabled = form.targets.length >= TARGET_LABELS.length;
+      }
+    }
+
+    /* --- 収集した写真・動画の拡大表示 -------------------------------
+     * サムネイルを押すと大きく出す。左右で送り、背景・× ・Esc で閉じる。
+     * ---------------------------------------------------------------- */
+    var viewer = null;   // { items, index, root, onKey }
+
+    function mediaList() {
+      var list = [];
+      form.images.forEach(function (url) { list.push({ type: 'image', url: url }); });
+      form.videos.forEach(function (url) { list.push({ type: 'video', url: url }); });
+      return list;
+    }
+
+
+    /* 丸ボタンの中身。文字だと書体ごとに重心がずれるので図形で描く */
+    function iconButton(className, path, labelKey, onClick) {
+      var node = button(className, '', onClick);
+      node.appendChild(svgIcon(path));
+      node.setAttribute('aria-label', t(labelKey));
+      return node;
+    }
+
+    function svgIcon(path) {
+      var ns = 'http://www.w3.org/2000/svg';
+      var svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('width', '20');
+      svg.setAttribute('height', '20');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.setAttribute('aria-hidden', 'true');
+      var d = document.createElementNS(ns, 'path');
+      d.setAttribute('d', path);
+      svg.appendChild(d);
+      return svg;
+    }
+
+    function closeViewer() {
+      if (!viewer) { return; }
+      document.removeEventListener('keydown', viewer.onKey);
+      if (viewer.root && viewer.root.parentNode) { viewer.root.parentNode.removeChild(viewer.root); }
+      viewer = null;
+    }
+
+    function openViewer(index) {
+      var items = mediaList();
+      if (!items.length) { return; }
+      closeViewer();
+      viewer = { items: items, index: Math.max(0, Math.min(index, items.length - 1)), root: null, onKey: null };
+      viewer.onKey = function (event) {
+        if (event.key === 'Escape') { closeViewer(); return; }
+        if (event.key === 'ArrowRight') { stepViewer(1); }
+        if (event.key === 'ArrowLeft') { stepViewer(-1); }
+      };
+      document.addEventListener('keydown', viewer.onKey);
+      paintViewer();
+    }
+
+    function stepViewer(delta) {
+      if (!viewer) { return; }
+      var next = viewer.index + delta;
+      if (next < 0) { next = viewer.items.length - 1; }
+      if (next >= viewer.items.length) { next = 0; }
+      viewer.index = next;
+      paintViewer();
+    }
+
+    function paintViewer() {
+      if (!viewer) { return; }
+      if (viewer.root && viewer.root.parentNode) { viewer.root.parentNode.removeChild(viewer.root); }
+
+      var item = viewer.items[viewer.index];
+      var root = el('div', 'viewer');
+      viewer.root = root;
+
+      var backdrop = el('div', 'viewer__backdrop');
+      backdrop.addEventListener('click', closeViewer);
+      root.appendChild(backdrop);
+
+      var stage = el('div', 'viewer__stage');
+      if (item.type === 'video') {
+        var media = document.createElement('video');
+        media.className = 'viewer__media';
+        media.src = item.url;
+        media.controls = true;
+        media.autoplay = true;
+        media.playsInline = true;
+        stage.appendChild(media);
+      } else {
+        var image = el('img', 'viewer__media');
+        image.src = item.url;
+        image.alt = '';
+        stage.appendChild(image);
+      }
+      root.appendChild(stage);
+
+      root.appendChild(iconButton('viewer__close', 'M6 6l12 12M18 6L6 18', 'common.close', closeViewer));
+
+      root.appendChild(el('span', 'viewer__count', (viewer.index + 1) + ' / ' + viewer.items.length));
+
+      if (viewer.items.length > 1) {
+        root.appendChild(iconButton('viewer__nav viewer__nav--prev', 'M15 19L8 12l7-7', 'viewer.prev', function () { stepViewer(-1); }));
+        root.appendChild(iconButton('viewer__nav viewer__nav--next', 'M9 5l7 7-7 7', 'viewer.next', function () { stepViewer(1); }));
+      }
+
+      document.body.appendChild(root);
+    }
+
+    /* 進行状況ウィンドウは app.js の共通実装を使う（競合分析と同じ見た目） */
+    function startWatch(jobId, titleKey) {
+      if (!window.App || typeof window.App.watchJob !== 'function') {
+        console.error('[screens-home] App.watchJob がありません。app.js を確認してください。');
+        toast(t('product.refQueued'), 'success');
+        return;
+      }
+      window.App.watchJob({
+        jobId: jobId,
+        titleKey: titleKey,
+        urls: filledRefUrls(),
+        onDone: function (result) {
+          if (!applyAutofill(result || {})) { return; }
+          markDirty();
+          toast(t('job.done'), 'success');
+          /* 反映しただけだと画面を離れた時点で消える。そのまま保存まで済ませる */
+          if (projectId) { saveDraft(); }
+        }
+      });
+    }
+
+    /* --- AI呼び出し。鍵未接続の開発中は {queued:true} が返り、後から反映される --- */
+    function setAnalyzing(on, node, labelKey) {
+      analyzing = on;
+      [refRunButton, targetProposeButton].forEach(function (b) {
+        if (b) { b.disabled = on; }
+      });
+      if (node) { node.textContent = on ? t('product.refRunning') : t(labelKey); }
+    }
+
+    function analysisApiReady() {
+      if (window.Api && window.Api.analysis && typeof window.Api.analysis.run === 'function') { return true; }
+      console.error('[screens-home] Api.analysis.run がありません。api.js を確認してください。');
+      return false;
+    }
+
+    function applyAutofill(result) {
+      if (!result || typeof result !== 'object') { return false; }
+      var touchedAny = false;
+      /* 基本情報。すでに手で入れてある欄は上書きしない */
+      if (result.category && CATEGORY_KEYS.indexOf(String(result.category)) !== -1) {
+        form.category = String(result.category);
+        touchedAny = true;
+      }
+      if (result.product_name && !form.name.trim()) {
+        form.name = String(result.product_name).slice(0, MAX_NAME);
+        touchedAny = true;
+      }
+      if (result.price !== undefined && result.price !== null && String(result.price) !== '') {
+        var priceDigits = digitsOf(result.price);
+        if (priceDigits && isDigits(priceDigits)) { form.price = formatNumber(priceDigits); touchedAny = true; }
+      }
+      if (result.funding_goal) { form.fundingGoal = String(result.funding_goal); touchedAny = true; }
+      if (isArray(result.rewards)) {
+        form.rewards = result.rewards.map(function (row) {
+          return {
+            name: String((row && row.name) || ''),
+            listPrice: (row && row.list_price !== undefined && row.list_price !== null) ? formatNumber(digitsOf(row.list_price)) : '',
+            price: (row && row.price !== undefined && row.price !== null) ? formatNumber(digitsOf(row.price)) : '',
+            qty: (row && row.quantity !== undefined && row.quantity !== null) ? String(row.quantity) : '',
+            desc: String((row && row.description) || '')
+          };
+        });
+        touchedAny = true;
+      }
+      if (result.value_prop) { form.valueProp = String(result.value_prop); touchedAny = true; }
+      if (result.brand_tone) { form.brandTone = String(result.brand_tone); touchedAny = true; }
+      if (result.target_audience) { form.target = String(result.target_audience); touchedAny = true; }
+      if (result.product_features) { form.features = String(result.product_features); touchedAny = true; }
+      if (isArray(result.brand_colors)) {
+        form.brandColors = result.brand_colors.slice(0, MAX_BRAND_COLORS).map(normalizeHex);
+        touchedAny = true;
+      }
+      if (result.brand_fonts && typeof result.brand_fonts === 'object') {
+        FONT_SLOTS.forEach(function (slot) {
+          var value = result.brand_fonts[slot.key];
+          if (value && FONT_OPTIONS.indexOf(String(value)) !== -1) { form.brandFonts[slot.key] = String(value); }
+        });
+        touchedAny = true;
+      }
+      if (isArray(result.images)) {
+        var added = 0;
+        result.images.forEach(function (url) {
+          var text = String(url || '').trim();
+          if (!text || text.indexOf('http') !== 0) { return; }
+          if (form.images.indexOf(text) !== -1) { return; }
+          /* 参照ページから集めた分は打ち切らない。MAX_IMAGES は手動追加の上限 */
+          form.images.push(text);
+          added += 1;
+        });
+        if (added) { touchedAny = true; }
+      }
+      if (isArray(result.videos)) {
+        result.videos.forEach(function (url) {
+          var text = String(url || '').trim();
+          if (!text || text.indexOf('http') !== 0) { return; }
+          if (form.videos.indexOf(text) !== -1) { return; }
+          form.videos.push(text);
+          touchedAny = true;
+        });
+      }
+      if (isArray(result.targets)) {
+        targetOpen = -1;
+        form.targets = result.targets.slice(0, TARGET_LABELS.length).map(function (row, index) {
+          return {
+            label: TARGET_LABELS[index],
+            name: String((row && row.name) || ''),
+            age: String((row && row.age) || ''),
+            gender: String((row && row.gender) || ''),
+            rationale: String((row && row.rationale) || ''),
+            persona: String((row && row.persona) || ''),
+            description: String((row && row.description) || '')
+          };
+        });
+        touchedAny = true;
+      }
+      if (touchedAny) { paint(); }
+      return touchedAny;
+    }
+
+    function isArray(value) {
+      return Object.prototype.toString.call(value) === '[object Array]';
+    }
+
+    function runAutofill() {
+      if (analyzing) { return; }
+      var urls = filledRefUrls();
+      if (!urls.length) {
+        toast(t('product.refNoUrl'), 'danger');
+        return;
+      }
+      if (!analysisApiReady()) { toast(t('common.error'), 'danger'); return; }
+
+      setAnalyzing(true, refRunButton, 'product.refRun');
+      window.Api.analysis.run({
+        mode: 'product_autofill',
+        urls: refTargets().map(function (r) { return r.url; }),
+        targets_lang: refTargets(),
+        collect: ['images', 'videos'],
+        product: { name: form.name.trim(), category: form.category, price: digitsOf(form.price) }
+      }).then(function (result) {
+        setAnalyzing(false, refRunButton, 'product.refRun');
+        if (result && result.queued) { startWatch(result.job_id, 'job.title'); return; }
+        var before = form.images.length;
+        if (applyAutofill(result && result.content ? result.content : result)) {
+          var pulled = form.images.length - before;
+          toast(pulled > 0 ? t('product.refFilledImages', { n: pulled }) : t('product.refFilled'), 'success');
+        } else {
+          toast(t('common.error'), 'danger');
+        }
+      }, function (err) {
+        setAnalyzing(false, refRunButton, 'product.refRun');
+        console.error('[screens-home] 参考ページの読み取りに失敗しました', err);
+        toast(errorMessage(err), 'danger');
+      });
+    }
+
+    function proposeTargets() {
+      if (analyzing) { return; }
+      if (!analysisApiReady()) { toast(t('common.error'), 'danger'); return; }
+
+      setAnalyzing(true, targetProposeButton, 'product.targetPropose');
+      window.Api.analysis.run({
+        mode: 'target_proposal',
+        urls: filledRefUrls(),
+        product: {
+          name: form.name.trim(),
+          category: form.category,
+          price: digitsOf(form.price),
+          features: form.features.trim(),
+          value_prop: form.valueProp.trim()
+        }
+      }).then(function (result) {
+        setAnalyzing(false, targetProposeButton, 'product.targetPropose');
+        if (result && result.queued) { startWatch(result.job_id, 'job.titleTargets'); return; }
+        if (applyAutofill(result && result.content ? result.content : result)) {
+          toast(t('product.refFilled'), 'success');
+        } else {
+          toast(t('common.error'), 'danger');
+        }
+      }, function (err) {
+        setAnalyzing(false, targetProposeButton, 'product.targetPropose');
+        console.error('[screens-home] ターゲット案の生成に失敗しました', err);
+        toast(errorMessage(err), 'danger');
+      });
+    }
+
+    /* 入力中に描き直すとフォーカスが飛ぶので、追加・削除・送りのときだけ呼ぶこと。
+       段階が増えても縦に伸びないよう、1枚ずつ出して左右のボタンで送る。 */
+    function paintRewards() {
+      if (!rewardsHost) { return; }
+      clear(rewardsHost);
+      discountNodes = [];
+      var total = form.rewards.length;
+      if (rewardsEmpty) { rewardsEmpty.hidden = total > 0; }
+      if (!total) { return; }
+
+      if (rewardIndex >= total) { rewardIndex = total - 1; }
+      if (rewardIndex < 0) { rewardIndex = 0; }
+      var index = rewardIndex;
+      var reward = form.rewards[index];
+
+      var carousel = el('div', 'reward-carousel');
+      var prev = iconButton('reward-nav', 'M15 19L8 12l7-7', 'product.rewardPrev', function () { stepReward(-1); });
+      prev.disabled = total < 2;
+      carousel.appendChild(prev);
+
+      var card = el('article', 'reward-card'
+        + (rewardAnim > 0 ? ' is-from-right' : (rewardAnim < 0 ? ' is-from-left' : '')));
+      rewardAnim = 0;
+
+      var head = el('div', 'reward-card__head');
+      head.appendChild(el('span', 'reward-badge', String(index + 1)));
+      head.appendChild(el('span', 'reward-card__title', t('product.rewardCardTitle', { n: index + 1 })));
+      head.appendChild(el('span', 'reward-card__pos', t('product.rewardPosition', { n: index + 1, total: total })));
+      var remove = button('target-card__remove', '', function () {
+        form.rewards.splice(index, 1);
+        if (rewardIndex >= form.rewards.length) { rewardIndex = form.rewards.length - 1; }
+        paintRewards();
+        markDirty();
+      });
+      remove.appendChild(svgIcon('M6 6l12 12M18 6L6 18'));
+      remove.setAttribute('aria-label', t('common.delete'));
+      head.appendChild(remove);
+      card.appendChild(head);
+
+      var body = el('div', 'reward-card__body');
+
+      body.appendChild(labeledInput('product.rewardName', 'product.rewardNamePlaceholder',
+        reward.name, false, null, function (value) { reward.name = value; }));
+
+      /* 定価 → リワード価格 の順に置き、価格の下に定価比を出す */
+      var pair = el('div', 'reward-card__pair');
+      pair.appendChild(labeledInput('product.rewardListPrice', 'product.rewardListPricePlaceholder',
+        reward.listPrice, true, 'unit.yen', function (value) {
+          reward.listPrice = value;
+          refreshDiscounts();
+        }));
+      var priceField = labeledInput('product.rewardPrice', 'product.rewardPricePlaceholder',
+        reward.price, true, 'unit.yen', function (value) {
+          reward.price = value;
+          refreshDiscounts();
+        });
+      var mark = el('span', 'discount-mark');
+      priceField.appendChild(mark);
+      discountNodes[index] = mark;
+      pair.appendChild(priceField);
+      pair.appendChild(labeledInput('product.rewardQty', 'product.rewardQtyPlaceholder',
+        reward.qty, true, 'unit.count', function (value) { reward.qty = value; }, 'product.rewardQtyHint'));
+      body.appendChild(pair);
+
+      var descField = el('div', 'field');
+      descField.appendChild(el('span', 'field__label', t('product.rewardDesc')));
+      var desc = el('textarea', 'textarea');
+      desc.value = reward.desc || '';
+      desc.setAttribute('placeholder', t('product.rewardDescPlaceholder'));
+      desc.addEventListener('input', function () { reward.desc = desc.value; });
+      descField.appendChild(desc);
+      body.appendChild(descField);
+
+      card.appendChild(body);
+      carousel.appendChild(card);
+
+      var next = iconButton('reward-nav', 'M9 5l7 7-7 7', 'product.rewardNext', function () { stepReward(1); });
+      next.disabled = total < 2;
+      carousel.appendChild(next);
+      rewardsHost.appendChild(carousel);
+
+      /* 何段階目を見ているかの点。押しても移れる */
+      if (total > 1) {
+        var dots = el('div', 'reward-dots');
+        form.rewards.forEach(function (item, dotIndex) {
+          var dot = button('reward-dot' + (dotIndex === index ? ' is-current' : ''), '', function () {
+            if (dotIndex === rewardIndex) { return; }
+            rewardAnim = dotIndex > rewardIndex ? 1 : -1;
+            rewardIndex = dotIndex;
+            paintRewards();
+          });
+          dot.setAttribute('aria-label', t('product.rewardCardTitle', { n: dotIndex + 1 }));
+          dots.appendChild(dot);
+        });
+        rewardsHost.appendChild(dots);
+      }
+
+      refreshDiscounts();
+    }
+
+    function stepReward(delta) {
+      var total = form.rewards.length;
+      if (total < 2) { return; }
+      rewardAnim = delta;
+      rewardIndex = (rewardIndex + delta + total) % total;
+      paintRewards();
+    }
+
+    /* 定価とリワード価格から割引率を出す。定価より高い構成（2台セット等）は
+       割引として出さず、そのまま「高い」と書く。嘘の%OFFを出さないため。 */
+    function refreshDiscounts() {
+      form.rewards.forEach(function (reward, index) {
+        var baseDigits = digitsOf(reward.listPrice);
+        var base = baseDigits && isDigits(baseDigits) ? Number(baseDigits) : null;
+        var node = discountNodes[index];
+        if (!node) { return; }
+        var digits = digitsOf(reward.price);
+        var value = digits && isDigits(digits) ? Number(digits) : null;
+        if (!value) { node.textContent = ''; node.className = 'discount-mark'; return; }
+        if (!base) {
+          node.textContent = t('product.discountNeedPrice');
+          node.className = 'discount-mark discount-mark--hint';
+          return;
+        }
+        if (value < base) {
+          node.textContent = t('product.discountOff', { n: Math.round((1 - value / base) * 100) });
+          node.className = 'discount-mark discount-mark--off';
+        } else if (value > base) {
+          node.textContent = t('product.discountOver', { n: Math.round((value / base - 1) * 100) });
+          node.className = 'discount-mark discount-mark--over';
+        } else {
+          node.textContent = '';
+          node.className = 'discount-mark';
+        }
+      });
+    }
+
+    /* 見出し付きの入力欄。単位キーを渡すと右端に単位を出す */
+    function labeledInput(labelKey, placeholderKey, value, numeric, unitKey, onInput, hintKey) {
+      var field = el('div', 'field');
+      field.appendChild(el('span', 'field__label', t(labelKey)));
+      var input = el('input', 'input');
+      input.type = 'text';
+      input.value = value || '';
+      input.setAttribute('placeholder', t(placeholderKey));
+      if (numeric) { input.setAttribute('inputmode', 'numeric'); }
+      input.addEventListener('input', function () { onInput(input.value); });
+      if (unitKey) {
+        var wrap = el('div', 'input-unit');
+        wrap.appendChild(input);
+        wrap.appendChild(el('span', 'input-unit__label', t(unitKey)));
+        field.appendChild(wrap);
+      } else {
+        field.appendChild(input);
+      }
+      if (hintKey) { field.appendChild(el('p', 'field__hint', t(hintKey))); }
+      return field;
+    }
+
+    function rewardInput(placeholder, value, numeric, onInput) {
+      var input = el('input', 'input');
+      input.type = 'text';
+      input.value = value;
+      if (numeric) { input.setAttribute('inputmode', 'numeric'); }
+      input.setAttribute('placeholder', placeholder);
+      input.setAttribute('aria-label', placeholder);
+      input.addEventListener('input', function () { onInput(input.value); });
+      return input;
+    }
+
+    /* 空行は捨て、価格と数量は数値にしてから rewards 列に入れる */
+    function brandFontsValue() {
+      var out = {};
+      FONT_SLOTS.forEach(function (slot) {
+        var value = form.brandFonts[slot.key];
+        if (value) { out[slot.key] = value; }
+      });
+      return out;
+    }
+
+    /* 名前も説明も空の案は捨てる */
+    /* 既存の画面や生成が読む target_audience は、最優先（A）の層を入れておく */
+    function primaryTargetName() {
+      var first = form.targets[0];
+      var name = first ? String(first.name || '').trim() : '';
+      if (name) {
+        var age = String(first.age || '').trim();
+        var gender = String(first.gender || '').trim();
+        return name + (age || gender ? '（' + [age, gender].filter(Boolean).join('・') + '）' : '');
+      }
+      return form.target.trim() || null;
+    }
+
+    function targetsValue() {
+      var out = [];
+      form.targets.forEach(function (target, index) {
+        var name = String(target.name || '').trim();
+        var desc = String(target.description || '').trim();
+        var age = String(target.age || '').trim();
+        var gender = String(target.gender || '').trim();
+        var persona = String(target.persona || '').trim();
+        var rationale = String(target.rationale || '').trim();
+        if (!name && !desc && !age && !gender && !persona && !rationale) { return; }
+        out.push({
+          label: TARGET_LABELS[index] || String(index + 1),
+          name: name, age: age, gender: gender,
+          rationale: String(target.rationale || '').trim(),
+          persona: String(target.persona || '').trim(),
+          description: desc
+        });
+      });
+      return out;
+    }
+
+    function rewardsValue() {
+      var out = [];
+      form.rewards.forEach(function (reward) {
+        var name = String(reward.name || '').trim();
+        var desc = String(reward.desc || '').trim();
+        var price = digitsOf(reward.price);
+        var qty = digitsOf(reward.qty);
+        if (!name && !desc && !price && !qty) { return; }
+        var listPrice = digitsOf(reward.listPrice);
+        out.push({
+          name: name,
+          list_price: listPrice && isDigits(listPrice) ? Number(listPrice) : null,
+          price: price && isDigits(price) ? Number(price) : null,
+          quantity: qty && isDigits(qty) ? Number(qty) : null,
+          description: desc || null
+        });
+      });
+      return out;
     }
 
     function paintImages() {
@@ -872,6 +1905,15 @@
         var image = el('img', 'thumb__img');
         image.src = source;
         image.alt = '';
+        image.setAttribute('role', 'button');
+        image.setAttribute('tabindex', '0');
+        image.setAttribute('aria-label', t('viewer.open'));
+        image.addEventListener('click', function () { openViewer(index); });
+        image.addEventListener('keydown', function (event) {
+          if (event.key !== 'Enter' && event.key !== ' ') { return; }
+          event.preventDefault();
+          openViewer(index);
+        });
         cell.appendChild(image);
         var remove = button('thumb__remove', '×', function () {
           form.images.splice(index, 1);
@@ -882,23 +1924,75 @@
         imagesHost.appendChild(cell);
       });
 
-      if (form.images.length < MAX_IMAGES) {
-        var picker = el('label', 'thumb-add tap');
-        picker.appendChild(el('span', null, '＋'));
-        picker.appendChild(el('span', null, t('common.add')));
-        var fileInput = el('input', 'file-input');
-        fileInput.type = 'file';
-        fileInput.id = 'home-create-images';
-        fileInput.accept = 'image/*';
-        fileInput.multiple = true;
-        picker.setAttribute('for', fileInput.id);
-        fileInput.addEventListener('change', function () {
-          addFiles(fileInput.files);
-          fileInput.value = '';
+      imagesHost.hidden = form.images.length === 0;
+      if (dropzone) { dropzone.hidden = form.images.length >= MAX_IMAGES; }
+      paintVideos();
+    }
+
+    /* 参照ページから集めた動画。再生できる形でそのまま並べる */
+    function paintVideos() {
+      if (!videosHost) { return; }
+      clear(videosHost);
+      videosHost.hidden = form.videos.length === 0;
+      if (!form.videos.length) { return; }
+
+      videosHost.appendChild(el('span', 'field__label', t('product.videos') + '（' + form.videos.length + '）'));
+      var grid = el('div', 'video-grid');
+      form.videos.forEach(function (url, index) {
+        var cell = el('div', 'video-cell');
+        var media = document.createElement('video');
+        media.className = 'video-cell__player';
+        media.src = url;
+        media.controls = true;
+        media.preload = 'metadata';
+        media.muted = true;
+        media.playsInline = true;
+        cell.appendChild(media);
+        var zoom = button('video-cell__zoom', '⤢', function () {
+          openViewer(form.images.length + index);
         });
-        picker.appendChild(fileInput);
-        imagesHost.appendChild(picker);
-      }
+        zoom.setAttribute('aria-label', t('viewer.open'));
+        cell.appendChild(zoom);
+        var remove = button('thumb__remove', '×', function () {
+          form.videos.splice(index, 1);
+          paintVideos();
+        });
+        remove.setAttribute('aria-label', t('common.delete'));
+        cell.appendChild(remove);
+        grid.appendChild(cell);
+      });
+      videosHost.appendChild(grid);
+      videosHost.appendChild(el('p', 'field__hint', t('product.videosHint')));
+    }
+
+    /* 写真の追加口。クリックでもドロップでも同じ addFiles に流す */
+    function buildDropzone(inputId) {
+      dropzone = el('div', 'dropzone');
+      dropzone.appendChild(el('span', null, t('product.dropzone')));
+      dropzone.appendChild(el('span', 'dropzone__sub', t('product.dropzoneSub')));
+
+      /* 透明な input を枠いっぱいに敷く。クリックもドロップもブラウザ自身が処理するので、
+         JSでクリックを転送する必要がなく、Safari や WebView でも同じ動きになる */
+      var fileInput = el('input', 'dropzone__input');
+      fileInput.type = 'file';
+      fileInput.id = inputId;
+      fileInput.accept = 'image/*';
+      fileInput.multiple = true;
+      fileInput.setAttribute('aria-label', t('product.dropzone'));
+      fileInput.addEventListener('change', function () {
+        addFiles(fileInput.files);
+        fileInput.value = '';
+      });
+      dropzone.appendChild(fileInput);
+
+      /* 見た目の変化だけ。既定動作は止めない（止めると input がドロップを受け取れない） */
+      ['dragenter', 'dragover'].forEach(function (name) {
+        dropzone.addEventListener(name, function () { dropzone.classList.add('dropzone--over'); });
+      });
+      ['dragleave', 'dragend', 'drop'].forEach(function (name) {
+        dropzone.addEventListener(name, function () { dropzone.classList.remove('dropzone--over'); });
+      });
+      return dropzone;
     }
 
     function addFiles(files) {
@@ -969,6 +2063,17 @@
       reader.readAsDataURL(file);
     }
 
+    /* 既存の画面や生成が読む projects.price は、最初の段階の定価を入れておく */
+    function firstListPrice() {
+      var found = null;
+      form.rewards.forEach(function (reward) {
+        if (found !== null) { return; }
+        var digits = digitsOf(reward.listPrice);
+        if (digits && isDigits(digits)) { found = Number(digits); }
+      });
+      return found;
+    }
+
     function priceValue() {
       var digits = digitsOf(form.price);
       if (!digits) { return null; }
@@ -988,15 +2093,14 @@
           nameError.textContent = '';
         }
       }
-      if (priceError) {
-        priceError.textContent = priceOk ? '' : t('product.priceInvalid');
-      }
 
       var ok = nameOk && priceOk;
       if (submitButton) {
-        submitButton.disabled = busy || !ok;
-        submitButton.setAttribute('aria-disabled', (busy || !ok) ? 'true' : 'false');
+        var blocked = busy || !ok || !projectId;
+        submitButton.disabled = blocked;
+        submitButton.setAttribute('aria-disabled', blocked ? 'true' : 'false');
       }
+      if (saveButton) { saveButton.disabled = busy || !projectId; }
       return ok;
     }
 
@@ -1005,7 +2109,7 @@
       if (!submitButton) { return; }
       submitButton.disabled = on;
       submitButton.setAttribute('aria-disabled', on ? 'true' : 'false');
-      submitButton.textContent = on ? t('common.loading') : t('project.createButton');
+      submitButton.textContent = on ? t('common.loading') : t('project.finish');
     }
 
     function showShortage(shortage) {
@@ -1022,73 +2126,175 @@
       warnHost.appendChild(box);
     }
 
+    /* --- 先に名前だけ作る → 以後は途中保存で更新 ------------------- */
+
+    /* フォームの中身を projects の列の形にする。作成にも更新にも同じ形を使う */
+    function formPayload() {
+      var name = form.name.trim();
+      return {
+        project_name: name,
+        name: name,
+        product_name: name,
+        price: firstListPrice(),
+        product_features: form.features.trim() || null,
+        target_audience: primaryTargetName(),
+        image_urls: form.images.slice(),
+        video_urls: form.videos.slice(),
+        rewards: rewardsValue(),
+        category: form.category || null,
+        funding_goal: form.fundingGoal.trim() || null,
+        value_prop: form.valueProp.trim() || null,
+        brand_tone: form.brandTone.trim() || null,
+        brand_colors: form.brandColors.slice(),
+        brand_fonts: brandFontsValue(),
+        reference_urls: filledRefUrls(),
+        targets: targetsValue()
+      };
+    }
+
+    /* 名前を聞くだけの入口。ここで行を作ってしまうので、以後の保存は無料の更新になる */
+    function askProjectName() {
+      var box = el('div', 'modal');
+      box.appendChild(el('h2', 'modal__title', t('project.nameFirstTitle')));
+      var body = el('div', 'modal__body');
+      body.appendChild(el('p', null, t('project.nameFirstBody')));
+      var input = el('input', 'input');
+      input.type = 'text';
+      input.id = 'home-create-name-first';
+      input.maxLength = MAX_NAME;
+      input.value = form.name;
+      input.setAttribute('placeholder', t('product.namePlaceholder'));
+      body.appendChild(input);
+      var error = el('p', 'field__error');
+      body.appendChild(error);
+      box.appendChild(body);
+
+      var actions = el('div', 'modal__actions');
+      var cancel = button('btn btn--secondary', t('common.cancel'), function () {
+        dismissModal();
+        go('S3');
+      });
+      actions.appendChild(cancel);
+      var create = button('btn btn--primary', t('project.nameFirstCreate'), function () {
+        var name = input.value.trim();
+        if (!name) { error.textContent = t('project.nameRequired'); input.focus(); return; }
+        if (name.length > MAX_NAME) { error.textContent = t('projectRename.tooLong'); return; }
+        form.name = name;
+        create.disabled = true;
+        create.textContent = t('common.loading');
+        createShell(name).then(function () {
+          dismissModal();
+        }, function (err) {
+          create.disabled = false;
+          create.textContent = t('project.nameFirstCreate');
+          error.textContent = errorMessage(err, 'project.createFailed');
+        });
+      });
+      actions.appendChild(create);
+      box.appendChild(actions);
+
+      input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); create.click(); }
+      });
+
+      window.App.openModal(box, { closeOnBackdrop: false });
+      input.focus();
+    }
+
+    /* 名前だけの行を作って消費も確定させる。ここから先の保存は無料 */
+    function createShell(name) {
+      if (!apiReady()) { return Promise.reject(new Error('api')); }
+      var unlimited = hasUnlimited(user);
+      var balance = Number(user.credit_balance) || 0;
+      if (!unlimited && balance < cost) {
+        showShortage(cost - balance);
+        return Promise.reject({ code: 'insufficient' });
+      }
+      return window.Api.projects.insert({
+        users_id: String(user.id),
+        project_name: name,
+        name: name,
+        status: 'active',
+        product_name: name
+      }).then(function (created) {
+        if (unlimited) { return { project: created, user: user }; }
+        return window.Api.credits.consume(CREATE_FEATURE_KEY, name).then(function (result) {
+          return { project: created, user: result.user };
+        }, function (creditErr) {
+          console.error('[screens-home] ポイントを引き落とせなかったため、作成したプロジェクトを取り消します', creditErr);
+          return window.Api.projects.remove(created.id).then(function () {
+            return Promise.reject(creditErr);
+          }, function () { return Promise.reject(creditErr); });
+        });
+      }).then(function (result) {
+        syncUser(result.user);
+        selectProject(result.project);
+        projectId = String(result.project.id);
+        dirty = false;
+        toast(t('common.created'), 'success');
+        /* 再読み込みしても同じプロジェクトの続きになるよう、URLにIDを載せる */
+        window.location.hash = '#/S4?id=' + encodeURIComponent(projectId);
+        paint();
+        return result.project;
+      });
+    }
+
+    /* 途中保存。作成済みの行を更新するだけなので消費は無い */
+    function saveDraft() {
+      if (!projectId || busy) { return; }
+      if (!apiReady()) { toast(t('common.error'), 'danger'); return; }
+      setSaving(true);
+      window.Api.projects.update(projectId, formPayload()).then(function () {
+        dirty = false;
+        setSaving(false);
+        paintSaveState();
+        toast(t('project.saved'), 'success');
+      }, function (err) {
+        setSaving(false);
+        console.error('[screens-home] 途中保存に失敗しました', err);
+        toast(errorMessage(err, 'project.saveFailed'), 'danger');
+      });
+    }
+
+    function setSaving(on) {
+      busy = on;
+      if (saveButton) {
+        saveButton.disabled = on;
+        saveButton.textContent = on ? t('common.loading') : t('project.saveDraft');
+      }
+    }
+
+    function paintSaveState() {
+      if (!dirtyMark) { return; }
+      dirtyMark.hidden = !dirty;
+    }
+
+    /* 入力のたびに「未保存」を立てる */
+    function markDirty() {
+      dirty = true;
+      paintSaveState();
+    }
+
     function submitCreate() {
-      if (busy) { return; }
+      if (busy || !projectId) { return; }
       touched = true;
       if (!validate()) { return; }
       if (!apiReady()) {
         toast(t('common.error'), 'danger');
         return;
       }
-
-      var balance = Number(user.credit_balance) || 0;
-      var unlimited = hasUnlimited(user);
-      if (!unlimited && balance < cost) {
-        showShortage(cost - balance);
-        toast(t('creditConfirm.insufficientWarning'), 'danger');
-        return;
-      }
-      if (warnHost) { clear(warnHost); }
-
-      var name = form.name.trim();
       setBusy(true);
       clearBanner();
-
-      /* projects も列が二重化している（name/project_name）。NOT NULL 側は name と
-         status で、どちらもデフォルトが無い。送らないと 23502 で必ず失敗する。 */
-      window.Api.projects.insert({
-        users_id: String(user.id),
-        project_name: name,
-        name: name,
-        status: 'active',
-        product_name: name,
-        price: priceValue(),
-        product_features: form.features.trim() || null,
-        target_audience: form.target.trim() || null,
-        image_urls: form.images.slice()
-      }).then(function (created) {
-        if (unlimited) {
-          return { project: created, user: user };
-        }
-        // 消費するクレジット数は送らない。feature_key だけ渡してサーバーが単価を引く。
-        return window.Api.credits.consume(CREATE_FEATURE_KEY, name).then(function (result) {
-          return { project: created, user: result.user };
-        }, function (creditErr) {
-          console.error('[screens-home] クレジットを引き落とせなかったため、作成したプロジェクトを取り消します', creditErr);
-          return window.Api.projects.remove(created.id).then(function () {
-            return Promise.reject(creditErr);
-          }, function (removeErr) {
-            console.error('[screens-home] 取り消しにも失敗しました。projects id=' + created.id + ' を確認してください', removeErr);
-            return Promise.reject(creditErr);
-          });
-        });
-      }).then(function (result) {
-        syncUser(result.user);
-        selectProject(result.project);
-        toast(t('common.created'), 'success');
-        go('S8', { id: result.project.id });
-      }).catch(function (err) {
+      window.Api.projects.update(projectId, formPayload()).then(function (row) {
+        dirty = false;
+        selectProject(row);
+        toast(t('common.saved'), 'success');
+        go('S8', { id: projectId });
+      }, function (err) {
         setBusy(false);
         validate();
-        console.error('[screens-home] プロジェクトの作成に失敗しました', err);
-        if (err && err.code === 'insufficient') {
-          showShortage(err.shortage);
-          toast(t('creditConfirm.insufficientWarning'), 'danger');
-          return;
-        }
-        var message = errorMessage(err, 'project.createFailed');
-        showBanner(message, submitCreate);
-        toast(message, 'danger');
+        console.error('[screens-home] プロジェクトの保存に失敗しました', err);
+        toast(errorMessage(err, 'project.saveFailed'), 'danger');
       });
     }
 
