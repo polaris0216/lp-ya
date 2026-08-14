@@ -1189,7 +1189,7 @@
 
   /* ------------------------------------------------------------------
    * 10c. ジョブの進行状況ウィンドウ（商品入力・競合分析で共用）
-   *   App.watchJob({ jobId, titleKey, urls, onDone })
+   *   App.watchJob({ jobId, titleKey, urls, onDone, doneKey, noteKey })
    * ------------------------------------------------------------------ */
   function wEl(tag, className, textContent) {
     var node = document.createElement(tag);
@@ -1297,9 +1297,9 @@
     if (watch.status === 'done') { return 100; }
     var sec = (new Date().getTime() - watch.startedAt) / 1000;
     if (isIndeterminate()) {
-    /* 順番待ちの間も数字は必ず出す。長い時定数でゆっくり伸ばし、
-       途中で止まって見えないようにする（上限は 90%） */
-    return Math.min(90, Math.round(4 + 86 * (1 - Math.exp(-sec / 150))));
+      /* まだ誰も拾っていない状態。ここで大きな数字を出すと「もうすぐ終わる」と
+         誤解させるので、低いところで頭打ちにする（上限 12%） */
+      return Math.min(12, Math.round(3 + 9 * (1 - Math.exp(-sec / 40))));
     }
     /* 読み取りが始まってからは速く、92%まで */
     var ratio = 1 - Math.exp(-sec / 20);
@@ -1329,6 +1329,11 @@
     else { watch.barNode.setAttribute('aria-valuenow', String(pct)); }
     }
     if (watch.stepNode) { watch.stepNode.textContent = t(stepKey()); }
+    if (isStalled() && watch.fillNode && watch.fillNode.className.indexOf('is-stalled') === -1) {
+      /* 止まったと分かった時点で、縞を止めて色を変える */
+      paintWatch();
+      return;
+    }
     if (watch.msgNode && isStalled()) { watch.msgNode.textContent = t('job.stalled'); }
   }
 
@@ -1374,14 +1379,16 @@
     bar.setAttribute('aria-valuemax', '100');
     bar.setAttribute('aria-valuenow', String(pct));
     watch.barNode = bar;
-    watch.fillNode = wEl('div', 'jobwatch__fill' + ((done || failed) ? '' : ' is-running'));
+    watch.fillNode = wEl('div', 'jobwatch__fill'
+      + ((done || failed || isStalled()) ? '' : ' is-running')
+      + (isStalled() ? ' is-stalled' : ''));
     watch.fillNode.style.width = pct + '%';
     bar.appendChild(watch.fillNode);
     meter.appendChild(bar);
     panel.appendChild(meter);
 
     var message = failed ? (t('job.failed') + (watch.error ? '：' + watch.error : ''))
-    : (done ? t('job.done') : (watch.status === 'processing' ? t('job.running') : t('job.queued')));
+    : (done ? t(opts.doneKey || 'job.done') : (watch.status === 'processing' ? t('job.running') : t('job.queued')));
     watch.msgNode = wEl('p', 'jobwatch__msg' + (failed ? ' t-danger' : ''), isStalled() ? t('job.stalled') : message);
     panel.appendChild(watch.msgNode);
 
@@ -1393,7 +1400,7 @@
       urls.forEach(function (url) { list.appendChild(wEl('li', 'break-url', url)); });
       panel.appendChild(list);
     }
-    panel.appendChild(wEl('p', 'jobwatch__note', t('job.note')));
+    panel.appendChild(wEl('p', 'jobwatch__note', t(opts.noteKey || 'job.note')));
     panel.appendChild(wButton('btn btn--secondary btn--block',
       (done || failed) ? t('common.close') : t('job.minimize'),
       function () {

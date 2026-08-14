@@ -61,8 +61,12 @@
  *   lp_selectors     同上
  *   kv_assets        [{ url, platform, selectors, auto, basisKey, counts, items }]
  *   lp_assets        同上
- *   page_structure   [{ key, label, ratio, cta, priceShown, order }] ← S12 で並び替える
- *   success_factors  [{ key, label, weight, evidence, selected }]    ← S12 でチェックする
+ *   page_structure   { summary, sections: [{ key, title, body, role, hook, emotion, cta, priceShown }] }
+ *                    競合LPを上から区画に割った構造・流れ分析（1段階目）
+ *   success_factors  { summary, items: [{ key, title, body, kind, weight, evidence }] }
+ *   common_points    [{ key, label, body, sources: [url...], weight }] 競合に共通していた型（2段階目）
+ *   prompts          { own_lp, crowdfunding_lp, kv, meta_ads } 生成プロンプト本文（2段階目）
+ *   prompt_status    'none' / 'pending' / 'done' / 'error'
  *   collection_errors[{ url, platform, kind, reasonKey, message }]
  *   analysis_status  'draft'（S10 で保存しただけ）/ 'pending'（実行待ち）/
  *                    'done'（収集済み）/ 'error'（保存に失敗）
@@ -117,6 +121,9 @@
 
   var MEDIA_TYPES = ['text', 'image', 'video'];
 
+  /* 生成プロンプトの種類。この順で S12 に並ぶ */
+  var PROMPT_KINDS = ['own_lp', 'crowdfunding_lp', 'kv', 'meta_ads'];
+
   /* GREENFUNDING は意図書の指定どおりの綴りをそのまま保持する */
   var GF_SELECTOR = 'div[id="container container--project_wide container-flex"]';
 
@@ -170,6 +177,80 @@
    * creditConfirm.* / validation.* / project.*）はここに重ねない。
    * ------------------------------------------------------------------ */
   var LOCAL = {
+    /* ---- 構造・流れ分析（1段階目）と、共通点まとめ＋プロンプト作成（2段階目） ---- */
+    'flow.title': ['構造・流れ分析', 'Structure and flow', '구조·흐름 분석'],
+    'flow.lead': [
+      '競合LPを上から下まで区画に割り、それぞれが読み手に何をさせる区画なのか、次へどう渡しているのかを見ています。',
+      'Each competitor page is split into blocks, showing what each block asks of the reader and how it hands over to the next.',
+      '경쟁 페이지를 위에서 아래로 구획으로 나누고, 각 구획이 독자에게 무엇을 시키는지, 다음으로 어떻게 넘기는지를 봅니다.'
+    ],
+    'flow.role': ['役割', 'Role', '역할'],
+    'flow.hook': ['次へのつなぎ', 'Hand-off', '다음으로 넘기는 방식'],
+    'flow.emotion': ['読み手の状態', 'Reader state', '독자의 상태'],
+    'cp.title': ['競合に共通していた型', 'Patterns shared across competitors', '경쟁사에 공통된 형태'],
+    'cp.lead': [
+      '登録した競合をすべて突き合わせ、多くのページが共通してやっていたことを上から並べています。上にあるものほど「外すと不利になる型」です。',
+      'All registered competitors were compared. What most pages do in common is listed first — the higher it sits, the more costly it is to skip.',
+      '등록한 경쟁사를 모두 대조해, 여러 페이지가 공통으로 하고 있던 것을 위에서부터 나열했습니다. 위에 있을수록 빼면 불리한 형태입니다.'
+    ],
+    'cp.sources': ['{n}件中 {m}件', '{m} of {n} pages', '{n}건 중 {m}건'],
+    'cp.count': ['{n}件', '{n} patterns', '{n}건'],
+    'cp.empty': [
+      'まだ共通点をまとめていません。下のボタンで、競合の分析をひとつにまとめて生成プロンプトを作ります。',
+      'The competitors have not been consolidated yet. Use the button below to merge them and write the generation prompts.',
+      '아직 공통점을 정리하지 않았습니다. 아래 버튼으로 경쟁사 분석을 하나로 합쳐 생성 프롬프트를 만듭니다.'
+    ],
+    'prompt.build': ['共通点をまとめて生成プロンプトを作る', 'Consolidate and write the prompts', '공통점을 정리해 생성 프롬프트 만들기'],
+    'prompt.rebuild': ['プロンプトを作り直す', 'Rewrite the prompts', '프롬프트 다시 만들기'],
+    'prompt.open': ['生成プロンプトを見る', 'Open the generation prompts', '생성 프롬프트 보기'],
+    'prompt.buildFailed': [
+      'プロンプトの作成に失敗しました。時間をおいて実行してください。',
+      'Writing the prompts failed. Please try again later.',
+      '프롬프트 작성에 실패했습니다. 잠시 후 다시 실행해 주세요.'
+    ],
+    'prompt.title': ['生成プロンプト', 'Generation prompts', '생성 프롬프트'],
+    'prompt.lead': [
+      '共通点のまとめから、作るもの別にプロンプトを書き起こしました。そのままでも、直してからでも生成に進めます。',
+      'Prompts were written from the consolidated findings, one per deliverable. Generate as-is, or edit first.',
+      '공통점 정리에서 만들 것별로 프롬프트를 작성했습니다. 그대로도, 고친 뒤에도 생성으로 넘어갈 수 있습니다.'
+    ],
+    'prompt.own_lp': ['自社LP用', 'Own-site LP', '자사 LP용'],
+    'prompt.own_lpDesc': [
+      '自社サイトに置くLP。応援購入ではなく購入が終点なので、返品・保証・配送とカート導線を最後に置きます。',
+      'The LP for your own site. The endpoint is a purchase, not backing, so returns, warranty, shipping and the cart sit at the end.',
+      '자사 사이트에 두는 LP. 응원 구매가 아니라 구매가 종점이므로 반품·보증·배송과 장바구니 동선을 마지막에 둡니다.'
+    ],
+    'prompt.crowdfunding_lp': ['クラファンプラットフォーム用', 'Crowdfunding platform', '크라우드펀딩 플랫폼용'],
+    'prompt.crowdfunding_lpDesc': [
+      'makuake・CAMPFIRE などに載せるLP。応援購入の言い回し、リターン表、開発ストーリー、実行者紹介が要ります。',
+      'The LP for makuake, CAMPFIRE and the like: backing-style wording, a reward table, the development story and a maker introduction.',
+      'makuake·CAMPFIRE 등에 올리는 LP. 응원 구매 표현, 리워드 표, 개발 스토리, 실행자 소개가 필요합니다.'
+    ],
+    'prompt.kv': ['KV（キービジュアル）', 'Key visual', 'KV(키 비주얼)'],
+    'prompt.kvDesc': [
+      '一番上に置く1枚。競合が共通して見せていた画づくりを踏まえた指示です。',
+      'The single image at the top, based on the framing the competitors shared.',
+      '가장 위에 두는 한 장. 경쟁사가 공통으로 보여주던 화면 구성을 반영한 지시입니다.'
+    ],
+    'prompt.meta_ads': ['メタ広告バナー', 'Meta ad banners', '메타 광고 배너'],
+    'prompt.meta_adsDesc': [
+      'Facebook・Instagram の広告バナー。訴求の切り口ごとに複数案を出す指示です。',
+      'Facebook and Instagram ad banners, with several variants by angle.',
+      'Facebook·Instagram 광고 배너. 소구 관점별로 여러 안을 내는 지시입니다.'
+    ],
+    'prompt.notReady': [
+      'まだ生成プロンプトがありません。分析レポートから作成してください。',
+      'There are no generation prompts yet. Create them from the analysis report.',
+      '아직 생성 프롬프트가 없습니다. 분석 리포트에서 만들어 주세요.'
+    ],
+    'prompt.toReport': ['分析レポートへ戻る', 'Back to the report', '분석 리포트로 돌아가기'],
+    'prompt.saveFailed': [
+      'プロンプトの保存に失敗しました。',
+      'Saving the prompts failed.',
+      '프롬프트 저장에 실패했습니다.'
+    ],
+    'prompt.generateWith': ['この内容で生成する', 'Generate with this', '이 내용으로 생성하기'],
+    'prompt.edited': ['編集済み', 'Edited', '수정함'],
     /* ---- この3画面で共通の言い回し ---- */
     'sa.serverAnalysisNote': [
       '分析はサーバーが競合ページを実際に取得して行います。ページの規模により1〜2分かかることがあります。',
@@ -979,14 +1060,32 @@
     if (value === null || value === undefined || value === '') { return []; }
     if (typeof value === 'string') {
       try {
-        var parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [];
+        return asArray(JSON.parse(value));
       } catch (e) {
         console.error('[screens-analysis] JSON列を配列として読めませんでした', value, e);
         return [];
       }
     }
+    /* 分析結果は {summary: '…', items: [...]} のように総括と本体を分けて返ってくる。
+       本体だけ欲しい場面が多いので、中の配列をここで取り出す */
+    if (typeof value === 'object') {
+      var inner = ['items', 'sections', 'points', 'list'];
+      for (var i = 0; i < inner.length; i += 1) {
+        if (Array.isArray(value[inner[i]])) { return value[inner[i]]; }
+      }
+    }
     return [];
+  }
+
+  /* 分析結果の総括文。無ければ空文字 */
+  function summaryOf(value) {
+    if (typeof value === 'string') {
+      try { return summaryOf(JSON.parse(value)); } catch (e) { return ''; }
+    }
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return String(value.summary || '');
+    }
+    return '';
   }
 
   /* competitor_urls と source_platforms を1行ずつの並びに直す */
@@ -1943,12 +2042,13 @@
     }
 
     /* ---- 成功・失敗要因（重要度順・タップで根拠へジャンプ） ---- */
-    function factorSection(factors, jumpTarget) {
+    function factorSection(factors, jumpTarget, factorSummary) {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
       add(head, el('h2', 'section__title', t('sa.factorTitle')));
       add(head, el('span', 't-note', t('report.winPattern')));
       add(section, head);
+      if (factorSummary) { add(section, el('div', 'note-box', factorSummary)); }
 
       if (!factors.length) {
         add(section, emptyBox(t('common.empty')));
@@ -1967,11 +2067,14 @@
           isFailure ? t('sa.factorKindFailure') : t('sa.factorKindSuccess'));
         var titleLine = el('span', 'list-row__title');
         add(titleLine, kindBadge);
-        titleLine.appendChild(document.createTextNode(' ' + labelOf('fac.', factor.key, factor.label)));
+        titleLine.appendChild(document.createTextNode(' ' + labelOf('fac.', factor.key, factor.label || factor.title)));
         add(body, titleLine);
-        add(body, el('span', 'list-row__sub break-url', t('s11.evidence', { url: shortUrl(factor.evidence, 48) })));
+        if (factor.body) { add(body, el('span', 'list-row__sub', factor.body)); }
+        if (factor.evidence) {
+          add(body, el('span', 'list-row__sub break-url', t('s11.evidence', { url: shortUrl(factor.evidence, 48) })));
+        }
         add(row, body);
-        add(row, el('span', 'list-row__meta', t('s11.weight', { n: factor.weight })));
+        if (factor.weight) { add(row, el('span', 'list-row__meta', t('s11.weight', { n: factor.weight }))); }
 
         var jump = button('list-row__action', '›', function () {
           if (jumpTarget && typeof jumpTarget.scrollIntoView === 'function') {
@@ -1993,19 +2096,32 @@
       modal.setAttribute('role', 'dialog');
       modal.setAttribute('aria-modal', 'true');
 
-      var name = labelOf('sec.', section.key, section.label);
+      var name = labelOf('sec.', section.key, section.label || section.title);
       add(modal, el('p', 'modal__title', t('s11.order', { n: index + 1 }) + '　' + name));
 
-      if (LOCAL['secDesc.' + section.key]) {
+      if (section.body) {
+        add(modal, el('p', 'modal__body', section.body));
+      } else if (LOCAL['secDesc.' + section.key]) {
         add(modal, el('p', 'modal__body', t('secDesc.' + section.key)));
       }
 
       var info = el('div', 'info-list');
 
-      var ratioRow = el('div', 'info-row');
-      add(ratioRow, el('span', 'info-row__key', t('s11.ratio')));
-      add(ratioRow, el('span', 'info-row__val num', section.ratio + '%'));
-      add(info, ratioRow);
+      [['flow.role', section.role], ['flow.hook', section.hook], ['flow.emotion', section.emotion]]
+        .forEach(function (pair) {
+          if (!pair[1]) { return; }
+          var row = el('div', 'info-row');
+          add(row, el('span', 'info-row__key', t(pair[0])));
+          add(row, el('span', 'info-row__val', pair[1]));
+          add(info, row);
+        });
+
+      if (section.ratio) {
+        var ratioRow = el('div', 'info-row');
+        add(ratioRow, el('span', 'info-row__key', t('s11.ratio')));
+        add(ratioRow, el('span', 'info-row__val num', section.ratio + '%'));
+        add(info, ratioRow);
+      }
 
       var ctaRow = el('div', 'info-row');
       add(ctaRow, el('span', 'info-row__key', t('s11.hasCta')));
@@ -2024,12 +2140,14 @@
       openModal(modal);
     }
 
-    function structureSection(sections) {
+    function structureSection(sections, flowSummary) {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('report.pageStructure')));
+      add(head, el('h2', 'section__title', t('flow.title')));
       add(head, el('span', 't-note', t('s12.sectionCount', { n: sections.length })));
       add(section, head);
+      add(section, el('p', 'section__desc', t('flow.lead')));
+      if (flowSummary) { add(section, el('div', 'note-box', flowSummary)); }
 
       if (!sections.length) {
         add(section, emptyBox(t('common.empty')));
@@ -2041,12 +2159,20 @@
       sections.forEach(function (one, index) {
         var row = el('li', 'list-row');
         var body = el('div', 'list-row__body');
-        var name = labelOf('sec.', one.key, one.label);
+        var name = labelOf('sec.', one.key, one.label || one.title);
         add(body, el('span', 'list-row__title', t('s11.order', { n: index + 1 }) + '　' + name));
 
-        if (LOCAL['secDesc.' + one.key]) {
+        if (one.body) { add(body, el('span', 'list-row__sub', one.body)); }
+        else if (LOCAL['secDesc.' + one.key]) {
           add(body, el('span', 'list-row__sub', t('secDesc.' + one.key)));
         }
+
+        /* 流れの分析結果。1段階目が書いていれば出す */
+        [['flow.role', one.role], ['flow.hook', one.hook], ['flow.emotion', one.emotion]]
+          .forEach(function (pair) {
+            if (!pair[1]) { return; }
+            add(body, el('span', 'list-row__sub', t(pair[0]) + '：' + pair[1]));
+          });
 
         if (one.cta || one.priceShown) {
           var marks = el('div', 'chips');
@@ -2055,7 +2181,7 @@
           add(body, marks);
         }
         add(row, body);
-        add(row, el('span', 'list-row__meta num', one.ratio + '%'));
+        if (one.ratio) { add(row, el('span', 'list-row__meta num', one.ratio + '%')); }
 
         var open = button('list-row__action', '›', function () { openSection(one, index); });
         open.setAttribute('aria-label', name);
@@ -2166,6 +2292,65 @@
       return section;
     }
 
+    /* ---- 2段階目：1〜複数の競合分析をひとつにまとめ、生成プロンプトを書かせる ----
+       共通点の抽出も、それを踏まえたプロンプトの起草もサーバー側の仕事。
+       この画面は起点と完了待ちだけを持ち、終わったら S12 に渡す。 */
+    function buildPrompts() {
+      var report = view.report;
+      window.Api.analysis.run({
+        mode: 'prompt_build',
+        report_id: String(report.id),
+        lang: (App.getLang && App.getLang()) || 'ja'
+      }).then(function (result) {
+        function done() { go('S12', { id: projectId, reportId: report.id }); }
+        if (result && result.queued && App.watchJob) {
+          App.watchJob({
+            jobId: result.job_id,
+            titleKey: 'job.titlePrompts',
+            doneKey: 'job.donePrompts',
+            noteKey: 'job.notePrompts',
+            urls: entriesOf(report).map(function (one) { return one.url; }).filter(Boolean),
+            onDone: done
+          });
+          return;
+        }
+        done();
+      }, function (err) {
+        console.error('[screens-analysis] 生成プロンプトの作成に失敗しました', err);
+        showBanner(errorMessage(err, 'prompt.buildFailed'), buildPrompts);
+      });
+    }
+
+    /* ---- 2段階目の結果：競合に共通していた型 ---- */
+    function commonSection(points, total) {
+      var section = el('section', 'section');
+      var head = el('div', 'section__head');
+      add(head, el('h2', 'section__title', t('cp.title')));
+      if (points.length) { add(head, el('span', 't-note', t('cp.count', { n: points.length }))); }
+      add(section, head);
+      add(section, el('p', 'section__desc', points.length ? t('cp.lead') : t('cp.empty')));
+      if (!points.length) { return section; }
+
+      var list = el('ul', 'list');
+      list.setAttribute('role', 'list');
+      /* 共通している競合が多い順。同数なら重みの大きい順 */
+      points.slice().sort(function (a, b) {
+        var diff = asArray(b.sources).length - asArray(a.sources).length;
+        return diff !== 0 ? diff : (Number(b.weight) || 0) - (Number(a.weight) || 0);
+      }).forEach(function (one) {
+        var row = el('li', 'list-row');
+        var body = el('div', 'list-row__body');
+        add(body, el('span', 'list-row__title', one.label || one.key));
+        if (one.body) { add(body, el('span', 'list-row__sub', one.body)); }
+        add(row, body);
+        add(row, el('span', 'list-row__meta num',
+          t('cp.sources', { n: total, m: asArray(one.sources).length })));
+        add(list, row);
+      });
+      add(section, list);
+      return section;
+    }
+
     function drawReport() {
       var report = view.report;
       if (report.analysis_status !== STATUS_DONE && report.analysis_status !== STATUS_ERROR) {
@@ -2216,14 +2401,25 @@
 
       var competitorNode = competitorSection(report, kvAssets, lpAssets, errors);
 
-      add(wrap, factorSection(factors, competitorNode));
-      add(wrap, structureSection(sections));
+      add(wrap, factorSection(factors, competitorNode, summaryOf(report.success_factors)));
+      add(wrap, structureSection(sections, summaryOf(report.page_structure)));
       add(wrap, competitorNode);
 
+      add(wrap, commonSection(asArray(report.common_points), entries.length));
+
+      var hasPrompts = report.prompt_status === 'done';
       var actions = el('div', 'stack');
-      add(actions, button('btn btn--primary btn--block', t('report.proceed'), function () {
-        go('S12', { id: projectId, reportId: report.id });
-      }));
+      add(actions, button('btn btn--primary btn--block',
+        hasPrompts ? t('prompt.open') : t('prompt.build'), function () {
+          if (hasPrompts) {
+            go('S12', { id: projectId, reportId: report.id });
+            return;
+          }
+          buildPrompts();
+        }));
+      if (hasPrompts) {
+        add(actions, button('btn btn--secondary btn--block', t('prompt.rebuild'), buildPrompts));
+      }
       add(actions, button('btn btn--secondary btn--block', t('s11.reAnalyze'), function () {
         go('S10', { id: projectId });
       }));
@@ -2243,7 +2439,7 @@
    * 反映する要素のチェック / LPセクション構成の並び替え / 消費クレジット
    * ================================================================== */
   function renderConfirm(root, params) {
-    setHeader(t('reportConfirm.title'));
+    setHeader(t('prompt.title'));
 
     if (!apiReady()) {
       showFailure(root, t('common.error'), function () { renderConfirm(root, params); });
@@ -2261,11 +2457,9 @@
 
     var view = {
       report: null,
-      factors: [],
-      sections: [],
+      prompts: {},
       cost: COST_GENERATE_FALLBACK,
-      saving: false,
-      dragFrom: -1
+      saving: false
     };
 
     function load() {
@@ -2292,23 +2486,15 @@
           return;
         }
 
-        view.factors = asArray(report.success_factors).map(function (one) {
-          return {
-            key: one.key,
-            label: one.label || one.key,
-            weight: Number(one.weight) || 0,
-            evidence: one.evidence || '',
-            selected: one.selected === undefined ? true : !!one.selected
-          };
-        });
-        view.sections = asArray(report.page_structure).map(function (one) {
-          return {
-            key: one.key,
-            label: one.label || one.key,
-            ratio: Number(one.ratio) || 0,
-            cta: !!one.cta,
-            priceShown: !!one.priceShown
-          };
+        if (report.prompt_status !== 'done') {
+          drawNoPrompts();
+          return;
+        }
+
+        var stored = report.prompts && typeof report.prompts === 'object' ? report.prompts : {};
+        view.prompts = {};
+        PROMPT_KINDS.forEach(function (kind) {
+          view.prompts[kind] = String(stored[kind] || '');
         });
         draw();
       }, function (err) {
@@ -2345,187 +2531,56 @@
       root.appendChild(wrap);
     }
 
-    function selectedCount() {
-      var count = 0;
-      view.factors.forEach(function (one) { if (one.selected) { count += 1; } });
-      return count;
-    }
-
-    function moveSection(from, to) {
-      if (to < 0 || to >= view.sections.length || from === to) { return; }
-      var moved = view.sections.splice(from, 1)[0];
-      view.sections.splice(to, 0, moved);
-      draw();
+    function drawNoPrompts() {
+      clear(root);
+      var wrap = el('div', 'screen');
+      var head = el('div', 'screen__head');
+      add(head, el('h1', 'screen__title', t('prompt.title')));
+      add(wrap, head);
+      add(wrap, emptyBox(t('prompt.notReady'), t('prompt.toReport'), function () {
+        go('S11', { id: projectId, reportId: view.report.id });
+      }));
+      root.appendChild(wrap);
     }
 
     function persistAndGo() {
       if (view.saving) { return; }
-      if (!selectedCount()) {
-        toast(t('s12.needOne'), 'danger');
-        return;
-      }
       view.saving = true;
       draw();
 
-      var payload = {
-        success_factors: view.factors.map(function (one) {
-          return {
-            key: one.key,
-            label: one.label,
-            weight: one.weight,
-            evidence: one.evidence,
-            selected: !!one.selected
-          };
-        }),
-        page_structure: view.sections.map(function (one, index) {
-          return {
-            key: one.key,
-            label: one.label,
-            ratio: one.ratio,
-            cta: one.cta,
-            priceShown: one.priceShown,
-            order: index + 1
-          };
-        })
-      };
-
-      window.Api.analysisReports.update(view.report.id, payload).then(function (row) {
+      window.Api.analysisReports.update(view.report.id, { prompts: view.prompts }).then(function (row) {
         view.saving = false;
         view.report = row;
         go('S16', { id: projectId, mode: 'generate', reportId: row.id });
       }, function (err) {
         view.saving = false;
-        console.error('[screens-analysis] 生成内容の保存に失敗しました', err);
-        showBanner(errorMessage(err, 's12.saveFailed'), persistAndGo);
+        console.error('[screens-analysis] 生成プロンプトの保存に失敗しました', err);
+        showBanner(errorMessage(err, 'prompt.saveFailed'), persistAndGo);
         draw();
       });
     }
 
-    function factorSection() {
+    /* ---- 作るもの1種類ぶんのプロンプト。そのままでも直してからでも生成に出せる ---- */
+    function promptSection(kind) {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('reportConfirm.reflectElements')));
-      add(head, el('span', 't-note', t('reportConfirm.reflectedCount', { count: selectedCount() })));
+      add(head, el('h2', 'section__title', t('prompt.' + kind)));
+
+      var original = String((view.report.prompts || {})[kind] || '');
+      if (view.prompts[kind] !== original) {
+        add(head, el('span', 'badge badge--warn', t('prompt.edited')));
+      }
       add(section, head);
-      add(section, el('p', 'section__desc', t('reportConfirm.winPatternNote')));
+      add(section, el('p', 'section__desc', t('prompt.' + kind + 'Desc')));
 
-      if (!view.factors.length) {
-        add(section, emptyBox(t('common.empty'), t('s11.reAnalyze'), function () {
-          go('S10', { id: projectId });
-        }));
-        return section;
-      }
-
-      var list = el('div', 'list');
-      view.factors.forEach(function (factor, index) {
-        var row = el('label', 'check-row');
-        var box = el('input', 'check-row__box');
-        box.type = 'checkbox';
-        box.checked = !!factor.selected;
-        box.addEventListener('change', function () {
-          view.factors[index].selected = box.checked;
-          draw();
-        });
-        add(row, box);
-
-        var textWrap = el('span', 'check-row__label');
-        add(textWrap, el('span', 't-body', labelOf('fac.', factor.key, factor.label)));
-        add(textWrap, el('span', 'check-row__note',
-          t('s11.weight', { n: factor.weight }) + (factor.selected ? '' : '　' + t('s12.excluded'))));
-        add(row, textWrap);
-        add(list, row);
-      });
-      add(section, list);
-
-      var actions = el('div', 'btn-row');
-      add(actions, button('btn btn--secondary btn--sm', t('s12.selectAll'), function () {
-        view.factors.forEach(function (one) { one.selected = true; });
-        draw();
-      }));
-      add(actions, button('btn btn--secondary btn--sm', t('s12.clearAll'), function () {
-        view.factors.forEach(function (one) { one.selected = false; });
-        draw();
-      }));
-      add(section, actions);
-
-      if (!selectedCount()) {
-        add(section, el('p', 'warn-box', t('s12.needOne')));
-      }
-      return section;
-    }
-
-    function structureSection() {
-      var section = el('section', 'section');
-      var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('reportConfirm.sectionOrder')));
-      add(head, el('span', 't-note', t('s12.sectionCount', { n: view.sections.length })));
-      add(section, head);
-      add(section, el('p', 'section__desc', t('s12.orderHint')));
-
-      if (!view.sections.length) {
-        add(section, emptyBox(t('common.empty')));
-        return section;
-      }
-
-      var list = el('ul', 'list');
-      list.setAttribute('role', 'list');
-
-      view.sections.forEach(function (one, index) {
-        var row = el('li', 'list-row list-row--sortable');
-        row.draggable = true;
-
-        var handle = el('span', 'list-row__handle', '≡');
-        handle.setAttribute('aria-hidden', 'true');
-        add(row, handle);
-
-        var body = el('div', 'list-row__body');
-        var name = labelOf('sec.', one.key, one.label);
-        add(body, el('span', 'list-row__title', t('s11.order', { n: index + 1 }) + '　' + name));
-
-        if (LOCAL['secDesc.' + one.key]) {
-          add(body, el('span', 'list-row__sub clamp-2', t('secDesc.' + one.key)));
-        }
-        add(row, body);
-
-        var up = button('list-row__action', '↑', function () { moveSection(index, index - 1); });
-        up.setAttribute('aria-label', t('s12.moveUp') + '：' + name);
-        if (index === 0) { up.disabled = true; }
-        add(row, up);
-
-        var down = button('list-row__action', '↓', function () { moveSection(index, index + 1); });
-        down.setAttribute('aria-label', t('s12.moveDown') + '：' + name);
-        if (index === view.sections.length - 1) { down.disabled = true; }
-        add(row, down);
-
-        row.addEventListener('dragstart', function (event) {
-          view.dragFrom = index;
-          row.classList.add('list-row--dragging');
-          if (event.dataTransfer) {
-            event.dataTransfer.effectAllowed = 'move';
-            try {
-              event.dataTransfer.setData('text/plain', String(index));
-            } catch (e) {
-              /* 設定できない環境でも view.dragFrom で並び替えできるので続行してよい */
-            }
-          }
-        });
-        row.addEventListener('dragover', function (event) { event.preventDefault(); });
-        row.addEventListener('drop', function (event) {
-          event.preventDefault();
-          row.classList.remove('list-row--dragging');
-          var from = view.dragFrom;
-          view.dragFrom = -1;
-          if (from < 0 || from === index) { return; }
-          moveSection(from, index);
-        });
-        row.addEventListener('dragend', function () {
-          row.classList.remove('list-row--dragging');
-          view.dragFrom = -1;
-        });
-
-        add(list, row);
-      });
-      add(section, list);
+      var field = el('textarea', 'textarea textarea--prompt');
+      field.value = view.prompts[kind];
+      field.rows = 10;
+      field.setAttribute('aria-label', t('prompt.' + kind));
+      field.addEventListener('input', function () { view.prompts[kind] = field.value; });
+      /* 打っている最中に draw() し直すと入力が飛ぶので、離れたときだけ描き直す */
+      field.addEventListener('blur', function () { draw(); });
+      add(section, field);
       return section;
     }
 
@@ -2572,18 +2627,17 @@
       var wrap = el('div', 'screen');
 
       var head = el('div', 'screen__head');
-      add(head, el('h1', 'screen__title', t('reportConfirm.title')));
-      add(head, el('p', 'screen__lead', t('s12.lead')));
+      add(head, el('h1', 'screen__title', t('prompt.title')));
+      add(head, el('p', 'screen__lead', t('prompt.lead')));
       add(wrap, head);
 
-      add(wrap, factorSection());
-      add(wrap, structureSection());
+      PROMPT_KINDS.forEach(function (kind) { add(wrap, promptSection(kind)); });
       add(wrap, creditSection());
 
       var actions = el('div', 'stack');
       var generate = button('btn btn--primary btn--block',
-        view.saving ? t('sa.saving') : t('reportConfirm.generateWith'), persistAndGo);
-      if (view.saving || !selectedCount()) { generate.disabled = true; }
+        view.saving ? t('sa.saving') : t('prompt.generateWith'), persistAndGo);
+      if (view.saving) { generate.disabled = true; }
       add(actions, generate);
 
       add(actions, button('btn btn--secondary btn--block', t('reportConfirm.backToReport'), function () {

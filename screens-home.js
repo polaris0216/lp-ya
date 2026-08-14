@@ -758,6 +758,8 @@
     var targetAddButton = null;
     var targetProposeButton = null;
     var targetOpen = -1;
+    var aiTargetOrder = null;   // AIが出したときの並び（順位を戻す用）
+    var targetResetButton = null;
     var dragFrom = -1;    // 掴んでいるカードの位置   // 詳細を開いているカード。-1 はすべて畳んだ状態
     var targetCountNode = null;
     var analyzing = false;
@@ -1018,7 +1020,11 @@
       targetPanel.querySelector('.panel__title').appendChild(targetCountNode);
       targetProposeButton = button('btn btn--primary', t('product.targetPropose'), proposeTargets);
       targetPanel.appendChild(targetProposeButton);
-      targetPanel.appendChild(el('p', 'field__hint', t('product.targetPriorityNote')));
+      var priorityRow = el('div', 'row row--between');
+      priorityRow.appendChild(el('p', 'field__hint', t('product.targetPriorityNote')));
+      targetResetButton = button('btn btn--text btn--sm', t('product.targetResetOrder'), restoreAiOrder);
+      priorityRow.appendChild(targetResetButton);
+      targetPanel.appendChild(priorityRow);
       targetsEmpty = el('p', 'panel__desc', t('product.targetEmpty'));
       targetPanel.appendChild(targetsEmpty);
       targetsHost = el('div', 'stack');
@@ -1195,6 +1201,36 @@
     }
 
     /* --- ターゲット案 A〜E --- */
+    /* AIが出した順番に戻す。名前や説明の編集は保ったまま、並びだけ入れ替える */
+    function restoreAiOrder() {
+      if (!aiTargetOrder) { return; }
+      var rest = [];
+      form.targets.forEach(function (target) {
+        if (aiTargetOrder.indexOf(target) === -1) { rest.push(target); }
+      });
+      var ordered = [];
+      aiTargetOrder.forEach(function (target) {
+        if (form.targets.indexOf(target) !== -1) { ordered.push(target); }
+      });
+      form.targets = ordered.concat(rest);
+      targetOpen = -1;
+      paintTargets();
+      markDirty();
+      toast(t('product.targetOrderRestored'), 'success');
+    }
+
+    /* AIの並びと今の並びが違うときだけ「戻す」を出す */
+    function refreshResetButton() {
+      if (!targetResetButton) { return; }
+      var differs = false;
+      if (aiTargetOrder && aiTargetOrder.length === form.targets.length) {
+        form.targets.forEach(function (target, index) {
+          if (aiTargetOrder[index] !== target) { differs = true; }
+        });
+      }
+      targetResetButton.hidden = !differs;
+    }
+
     function paintTargets() {
       if (!targetsHost) { return; }
       clear(targetsHost);
@@ -1363,6 +1399,7 @@
       if (targetAddButton) {
         targetAddButton.disabled = form.targets.length >= TARGET_LABELS.length;
       }
+      refreshResetButton();
     }
 
     /* --- 収集した写真・動画の拡大表示 -------------------------------
@@ -1578,6 +1615,7 @@
       }
       if (isArray(result.targets)) {
         targetOpen = -1;
+        aiTargetOrder = null;
         form.targets = result.targets.slice(0, TARGET_LABELS.length).map(function (row, index) {
           return {
             label: TARGET_LABELS[index],
@@ -1589,6 +1627,8 @@
             description: String((row && row.description) || '')
           };
         });
+        /* このときの並びが「AIが出した優先順位」。戻せるように控える */
+        aiTargetOrder = form.targets.slice();
         touchedAny = true;
       }
       if (touchedAny) { paint(); }

@@ -909,6 +909,15 @@ a.card:active,
 .input::placeholder,
 .textarea::placeholder { color: #9B94AE; }
 
+/* 生成プロンプトの編集欄（S12）。長文をそのまま読むので、等幅で高めに取る */
+.textarea--prompt {
+  min-height: 220px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace);
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
 .input:focus,
 .textarea:focus,
 .select:focus {
@@ -3194,3 +3203,10 @@ input[type='radio'] {
 }
 
 .textarea--ai:focus { background: var(--c-surface); }
+
+/* 拾われないまま止まっている状態は、進んでいる見た目をやめる */
+.jobwatch__fill.is-stalled {
+  background: var(--c-warn);
+  opacity: 1;
+  animation: none;
+}
