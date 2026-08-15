@@ -2619,10 +2619,10 @@
         /* KV（最初の1画面）と本文は役割が違う。同じ帯に混ぜると、
            どれが最初に目に入る絵なのかが分からない。分けて出す。
            where が無い古いレポートは、分けずに1本の帯で出す */
-        function assetStrip(list, labelText) {
+        function assetStrip(list, labelText, oneRow) {
           if (!list.length) { return; }
           if (labelText) { add(card, el('p', 'card__sub', labelText + '（' + list.length + '）')); }
-          var grid = el('div', 'thumb-strip');
+          var grid = el('div', 'thumb-strip' + (oneRow ? ' thumb-strip--kv' : ''));
           grid.setAttribute('role', 'list');
           grid.setAttribute('aria-label', labelText || t('s11.assetStrip'));
           list.forEach(function (item) {
@@ -2646,7 +2646,8 @@
         var bodyMedia = media.filter(function (item) { return item.where !== 'kv'; });
         if (media.length) {
           if (kvMedia.length) {
-            assetStrip(kvMedia, t('s11.kvAssets'));
+            /* KV は最初の1画面ぶんしか無いので1行で足りる */
+            assetStrip(kvMedia, t('s11.kvAssets'), true);
             assetStrip(bodyMedia, t('s11.lpAssets'));
           } else {
             assetStrip(media, '');
@@ -2680,7 +2681,7 @@
           || asArray(source.factors).some(function (one) { return asArray(one.assets).length; });
 
         if (sections.length) {
-          add(card, el('p', 'card__label', t('s11.sourceFlow')));
+          add(card, el('p', 'src-divider', t('s11.sourceFlow')));
           add(card, el('p', 't-note', t('s11.openHint')));
           if (!hasShots) { add(card, el('p', 'note-box', t('s11.assetsMissing'))); }
           var flow = el('div', 'stack stack--tight');
@@ -2711,7 +2712,7 @@
            見出しに凡例を出し、1件ずつにも札を付ける。 */
         var factors = asArray(source.factors);
         if (factors.length) {
-          add(card, el('p', 'card__label', t('s11.sourceFactors')));
+          add(card, el('p', 'src-divider', t('s11.sourceFactors')));
           add(card, el('p', 't-note', t('s11.factorLegend')));
           var list = el('div', 'stack stack--tight');
           factors.forEach(function (one) {

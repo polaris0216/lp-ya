@@ -1770,6 +1770,8 @@ a.list-row:active { opacity: .88; }
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* 避けたい点は赤で示す。見出しの文字も合わせる */
@@ -1785,6 +1787,10 @@ a.list-row:active { opacity: .88; }
   gap: 4px;
   padding: 10px 0;
   border-bottom: 1px solid var(--c-line);
+  /* 中身（素材の帯）が親より広くならないようにする。
+     これが無いと、帯が区画の面をはみ出して描かれる */
+  align-self: stretch;
+  min-width: 0;
 }
 
 .info-row--stack:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -1834,6 +1840,41 @@ a.list-row:active { opacity: .88; }
 }
 
 .thumb-strip--one .thumb { width: 108px; height: 108px; }
+
+/* KV は最初の1画面ぶんしか無いので1行。3行にすると本文の帯と見分けがつかない */
+.thumb-strip--kv {
+  grid-template-rows: 88px;
+  padding-bottom: 6px;
+}
+
+/* 帯は親の幅に収める。収めないと、中身の広さのまま
+   親（区画の面）の外へはみ出して描かれる */
+.thumb-strip {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 区画の見出しと中身を分ける仕切り。真ん中に置いて大きく太くする */
+.src-divider {
+  margin: 22px 0 12px;
+  text-align: center;
+  font-family: var(--font-sub);
+  font-size: var(--fs-sub);
+  font-weight: 700;
+  color: var(--c-text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.src-divider::before,
+.src-divider::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--c-line);
+}
 
 .thumb {
   position: relative;
