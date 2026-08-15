@@ -2266,6 +2266,10 @@
         titleLine.appendChild(document.createTextNode(' ' + labelOf('fac.', factor.key, factor.label || factor.title)));
         add(body, titleLine);
         if (factor.body) { add(body, el('span', 'list-row__sub', factor.body)); }
+        /* 事実のあとに、自分のLPで何をするか */
+        if (factor.takeaway) {
+          add(body, el('span', 'list-row__sub', '→ ' + factor.takeaway));
+        }
         if (factor.evidence) {
           add(body, el('span', 'list-row__sub break-url', t('s11.evidence', { url: shortUrl(factor.evidence, 48) })));
         }
