@@ -2709,12 +2709,17 @@
             add(flow, foldRow({
               title: (at + 1) + '. ' + (one.title || one.key || ''),
               lead: one.role || '',
+              /* 素材 → 何を表していたか → 読み手の状態 → 役割 → つなぎ。
+                 先に絵と中身を見て、そこで読み手がどうなるかを知ってから、
+                 作り手側の意図（役割・つなぎ）に進む。役割は見出しの下にも
+                 出ているので、ここで先頭に置くと同じ文を2回読むことになる */
               rows: [
-                [t('s11.roleLabel'), one.role],
                 [t('s11.bodyLabel'), one.body],
-                [t('s11.hookLabel'), one.hook],
-                [t('s11.emotionLabel'), one.emotion]
+                [t('s11.emotionLabel'), one.emotion],
+                [t('s11.roleLabel'), one.role],
+                [t('s11.hookLabel'), one.hook]
               ],
+              assetsFirst: true,
               assets: shotsOf(one),
               assetsLabel: t('s11.assetsLabel'),
               marks: [
