@@ -98,9 +98,24 @@
     'gen.saving': ['保存中…', 'Saving…', '저장 중…'],
     'gen.generating': ['{name}を生成しています…（1分ほどかかります）', 'Generating {name}… (takes about a minute)', '{name}을(를) 생성하고 있습니다… (약 1분 소요)'],
     'gen.generatingCount': [
-      '生成しています…（{done} / {total} 件）',
-      'Generating… ({done} / {total})',
-      '생성하고 있습니다… ({done} / {total}건)'
+      '{done} / {total} 件が完了',
+      '{done} / {total} done',
+      '{done} / {total}건 완료'
+    ],
+    'gen.runTitle': ['生成しています', 'Generating', '생성하고 있습니다'],
+    'gen.runElapsed': ['経過 {t}', 'Elapsed {t}', '경과 {t}'],
+    'gen.runQueued': ['順番待ち', 'Waiting', '대기 중'],
+    'gen.runRunning': ['作成中', 'Working', '작성 중'],
+    'gen.runDone': ['完了', 'Done', '완료'],
+    'gen.runFailed': ['失敗', 'Failed', '실패'],
+    'gen.runTimeout': ['まだ作成中', 'Still running', '아직 작성 중'],
+    'gen.runNote': [
+      '1件あたり1〜3分かかります。この画面を離れても作成は続き、'
+        + 'できたものから生成結果に出ます。',
+      'Each item takes 1–3 minutes. You can leave this screen; '
+        + 'items appear in the results as they finish.',
+      '1건당 1~3분 걸립니다. 이 화면을 벗어나도 작성은 계속되며, '
+        + '완료된 것부터 생성 결과에 표시됩니다.'
     ],
     'gen.generateDone': ['生成が完了しました', 'Generation completed', '생성이 완료되었습니다'],
     'gen.generateFailed': ['{name}の生成に失敗しました。ポイントは消費されていません', 'Failed to generate {name}. No points were consumed.', '{name} 생성에 실패했습니다. 포인트은 소비되지 않았습니다'],
@@ -2502,7 +2517,6 @@
         return;
       }
 
-      showSkeleton(root);
       var failures = [];
       var made = 0;
 
@@ -2510,6 +2524,71 @@
         var base = job.feature.feature_name || job.feature.feature_key;
         return job.target ? job.target + '　' + base : base;
       }
+
+      /* ---- 進み具合の表示 ----
+         骨組み（showSkeleton）だけを出していたので、動いているのか
+         止まっているのか画面から分からなかった。1件が数分かかるうえ、
+         トーストは消えるので残らない。何件中の何件目で、いま何を
+         作っていて、それぞれ何分経ったかを、置いたままにする */
+      var startedAll = Date.now();
+      jobs.forEach(function (one) { one.state = 'queued'; one.startedAt = 0; });
+
+      function minutesText(ms) {
+        var sec = Math.max(0, Math.round(ms / 1000));
+        return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+      }
+
+      function stateBadge(job) {
+        if (job.state === 'done') { return el('span', 'badge badge--ok', t('gen.runDone')); }
+        if (job.state === 'failed') { return el('span', 'badge badge--danger', t('gen.runFailed')); }
+        if (job.state === 'timeout') { return el('span', 'badge badge--warn', t('gen.runTimeout')); }
+        if (job.state === 'running') { return el('span', 'badge badge--ok', t('gen.runRunning')); }
+        return el('span', 'badge badge--mute', t('gen.runQueued'));
+      }
+
+      function paintRun() {
+        clear(root);
+        var screen = el('div', 'screen');
+        var card = el('section', 'card');
+
+        var head = el('div', 'section__head');
+        head.appendChild(el('h1', 'section__title', t('gen.runTitle')));
+        head.appendChild(el('span', 'progress__label',
+          fill(t('gen.runElapsed'), { t: minutesText(Date.now() - startedAll) })));
+        card.appendChild(head);
+
+        var pct = Math.round((done / jobs.length) * 100);
+        card.appendChild(el('p', 'progress__label',
+          fill(t('gen.generatingCount'), { done: done, total: jobs.length }) + '　' + pct + '%'));
+        var bar = el('div', 'progress');
+        var fillNode = el('div', 'progress__bar');
+        fillNode.style.width = pct + '%';
+        bar.appendChild(fillNode);
+        card.appendChild(bar);
+
+        var list = el('div', 'stack stack--tight');
+        jobs.forEach(function (one) {
+          var row = el('div', 'info-row');
+          var left = el('span', 'info-row__key', nameOf(one));
+          row.appendChild(left);
+          var right = el('span', 'chips');
+          if (one.state === 'running') {
+            right.appendChild(el('span', 'progress__label', minutesText(Date.now() - one.startedAt)));
+          }
+          right.appendChild(stateBadge(one));
+          row.appendChild(right);
+          list.appendChild(row);
+        });
+        card.appendChild(list);
+
+        card.appendChild(el('p', 't-note', t('gen.runNote')));
+        screen.appendChild(card);
+        root.appendChild(screen);
+      }
+
+      /* 経過時間だけを1秒ごとに書き換える。全部作り直すと重い */
+      var runTimer = setInterval(paintRun, 1000);
+      function stopRunPaint() { clearInterval(runTimer); }
 
       /* 開発モード（サーバーに ANTHROPIC_API_KEY が無い間）は {queued:true} が返る。
          ジョブの完了をポーリングして待つ。待ちきれなくても、生成物は次に
@@ -2540,11 +2619,12 @@
       var RUNNING_MAX = 4;
       var done = 0;
 
-      function progress() {
-        toast(fill(t('gen.generatingCount'), { done: done, total: jobs.length }), 'info');
-      }
+      function progress() { paintRun(); }
 
       function runOne(job) {
+        job.state = 'running';
+        job.startedAt = Date.now();
+        paintRun();
         return Api.generations.generate({
           project_id: String(projectId),
           feature_key: job.feature.feature_key,
@@ -2554,14 +2634,18 @@
         }).then(function (result) {
           if (result && result.queued) {
             return waitForJob(result.job_id).then(function (outcome) {
+              job.state = outcome === 'done' ? 'done'
+                : (outcome === 'failed' ? 'failed' : 'timeout');
               if (outcome === 'done') { made += 1; }
               else if (outcome === 'failed') { failures.push({ job: job, err: null }); }
               else { toast(t('gen.queuedTimeout'), 'info'); }
             });
           }
+          job.state = 'done';
           made += 1;
         }, function (err) {
           console.error('[screens-generate] 生成に失敗しました', job.target, job.feature.feature_key, err);
+          job.state = 'failed';
           failures.push({ job: job, err: err });
         }).then(function () {
           done += 1;
@@ -2570,6 +2654,7 @@
       }
 
       function finish() {
+        stopRunPaint();
         if (made) { toast(t('gen.generateDone'), 'success'); }
         failures.forEach(function (failed) {
           var key = (failed.err && failed.err.status === 501) ? 'gen.generateNotReady' : 'gen.generateFailed';
