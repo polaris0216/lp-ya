@@ -513,7 +513,7 @@
     's11.sourceFactors': ['この競合ページの重要要素', 'Key elements of this competitor page', '이 경쟁 페이지의 중요 요소'],
     's11.openHint': ['項目を押すと詳しく見られます', 'Tap a row to see the details', '항목을 누르면 자세히 볼 수 있습니다'],
     's11.roleLabel': ['この区画の役割', 'What this block does', '이 구획의 역할'],
-    's11.bodyLabel': ['何が置かれていたか', 'What was placed here', '무엇이 놓여 있었는가'],
+    's11.bodyLabel': ['何を表していたか', 'What it showed', '무엇을 나타내고 있었는가'],
     's11.hookLabel': ['次へのつなぎ', 'How it leads to the next block', '다음으로 넘기는 방법'],
     's11.emotionLabel': ['読み手の状態', 'Where the reader is', '읽는 사람의 상태'],
     's11.marksLabel': ['この区画にあるもの', 'What this block contains', '이 구획에 있는 것'],
@@ -2471,19 +2471,13 @@
       add(box, head);
 
       var body = el('div', 'fold__body');
-      (o.rows || []).forEach(function (pair) {
-        var value = pair && pair[1];
-        if (!value) { return; }
-        var row = el('div', 'info-row info-row--stack');
-        add(row, el('span', 'info-row__key', pair[0]));
-        add(row, el('span', 'info-row__val', value));
-        add(body, row);
-      });
 
       /* その区画に置かれていた素材。文字だけだと何の話か分からないので、
-         開いたときに絵も一緒に見せる */
-      var shots = (o.assets || []).filter(Boolean);
-      if (shots.length) {
+         開いたときに絵も一緒に見せる。assetsFirst なら文章より先に出す
+         （先に絵を見てから読むほうが、何の話か掴んでから読める） */
+      function addShots() {
+        var shots = (o.assets || []).filter(Boolean);
+        if (!shots.length) { return; }
         var shotRow = el('div', 'info-row info-row--stack');
         add(shotRow, el('span', 'info-row__key', o.assetsLabel || ''));
         var strip = el('div', 'thumb-strip thumb-strip--one');
@@ -2491,6 +2485,20 @@
         add(shotRow, strip);
         add(body, shotRow);
       }
+
+      if (o.assetsFirst) { addShots(); }
+
+      /* 3つ目は行の見た目を変えたいときの追加クラス */
+      (o.rows || []).forEach(function (pair) {
+        var value = pair && pair[1];
+        if (!value) { return; }
+        var row = el('div', 'info-row info-row--stack' + (pair[2] ? ' ' + pair[2] : ''));
+        add(row, el('span', 'info-row__key', pair[0]));
+        add(row, el('span', 'info-row__val', value));
+        add(body, row);
+      });
+
+      if (!o.assetsFirst) { addShots(); }
 
       var marks = (o.marks || []).filter(function (one) { return one && (one.yes || one.no); });
       if (marks.length) {
@@ -2726,14 +2734,15 @@
           var list = el('div', 'stack stack--tight');
           factors.forEach(function (one) {
             var bad = one.kind === 'failure';
-            /* 先に「何が置かれていたか」（そのページの事実）、
-               そのあとに「真似したい点」（自分のLPで何をするか）。
-               取り出せた分だけ出す。どの要因にも同じ一般論を出すと、
+            /* 素材 → 何を表していたか（そのページの事実）→ 真似したい点
+               （自分のLPで何をするか）の順。先に絵を見てから読むと、
+               何の話か掴んでから文章に入れる。持ち帰るのは最後の1行なので、
+               そこだけ大きく出す。どの要因にも同じ一般論を出すと、
                札の言い換えにしかならず読む意味がなくなる */
             var rows = [[t('s11.bodyLabel'), one.body]];
             if (one.takeaway) {
               rows.push([bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
-                one.takeaway]);
+                one.takeaway, 'info-row--lead' + (bad ? ' info-row--lead-danger' : '')]);
             }
             add(list, foldRow({
               title: one.title || one.key || '',
@@ -2741,6 +2750,7 @@
               badge: bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
               meta: one.weight ? t('s11.weight', { n: one.weight }) : '',
               rows: rows,
+              assetsFirst: true,
               assets: shotsOf(one),
               assetsLabel: t('s11.assetsLabel')
             }));

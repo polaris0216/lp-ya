@@ -1809,6 +1809,33 @@ a.list-row:active { opacity: .88; }
   line-height: 1.75;
 }
 
+/* 持ち帰る1行。素材と事実を見たあとに残るのはここだけなので、
+   面を敷いて縁を立て、文字を大きくして他の行と段を分ける */
+.info-row--lead {
+  margin-top: 4px;
+  padding: 14px 16px;
+  border-bottom: 0;
+  border-left: 3px solid var(--c-sub);
+  border-radius: 0 12px 12px 0;
+  background: var(--c-white);
+  box-shadow: 0 1px 2px rgba(20, 12, 32, .06);
+}
+
+.info-row--lead .info-row__key {
+  color: var(--c-sub);
+  font-weight: 700;
+}
+
+.info-row--lead .info-row__val {
+  font-size: calc(var(--fs-body) * 1.18);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+/* 避けたい点は、真似したい点と取り違えると害があるので色を分ける */
+.info-row--lead-danger { border-left-color: var(--c-danger); }
+.info-row--lead-danger .info-row__key { color: var(--c-danger); }
+
 /* 収集した素材の置き場。100枚を超えることがあり、縦に全部並べると
    ページの流れや要因の話が下へ押し出されて読めなくなる。
    3行の帯に収め、続きは帯の中を横に送って見る。 */
