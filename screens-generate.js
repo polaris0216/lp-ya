@@ -2521,7 +2521,12 @@
       var made = 0;
 
       function nameOf(job) {
-        var base = job.feature.feature_name || job.feature.feature_key;
+        /* 名前が登録されていない機能があり、内部キー（own_lp など）が
+           そのまま画面に出ていた。共通の辞書で日本語名に直す */
+        var key = job.feature.feature_key;
+        var named = t('feature.' + key);
+        var base = job.feature.feature_name
+          || (named === 'feature.' + key ? key : named);
         return job.target ? job.target + '　' + base : base;
       }
 
