@@ -482,6 +482,9 @@
     's11.weightLabel': ['重要度', 'Importance', '중요도'],
     's11.evidenceLabel': ['根拠になった競合LP', 'Where this came from', '근거가 된 경쟁 LP'],
     's20.factorDetail': ['この要因を詳しく見る', 'See this factor in detail', '이 요인을 자세히 보기'],
+    's20.detailLabel': ['競合ページでは、どうだったか', 'How the competitors did it', '경쟁 페이지에서는 어땠는가'],
+    's20.stepsLabel': ['自分のLPでやる手順', 'Steps for your own LP', '자신의 LP에서 할 순서'],
+    's20.sourcesLabel': ['元になった競合LP', 'Where this came from', '근거가 된 경쟁 LP'],
     's11.order': ['{n}番目', 'Position {n}', '{n}번째'],
     's11.ratio': ['本文に占める割合', 'Share of the body', '본문 비중'],
     's11.hasCta': ['CTAあり', 'Has CTA', 'CTA 있음'],
@@ -2245,6 +2248,70 @@
       return section;
     }
 
+    /* 総合分析の素材は、競合ごとに集めた1件（種別・動画のサムネ付き）を
+       URL で引き当てる。クエリの付き方が変わるので ? より前で照らす */
+    function mergedShots(item) {
+      var report = view.report || {};
+      var byUrl = {};
+      asArray(report.kv_assets).concat(asArray(report.lp_assets)).forEach(function (one) {
+        if (one && one.src) { byUrl[String(one.src).split('?')[0]] = one; }
+      });
+      return asArray(item && item.assets).map(function (url) {
+        var key = String(url || '').split('?')[0];
+        return byUrl[key] || (key ? { src: String(url), type: 'image', label: '' } : null);
+      }).filter(Boolean).slice(0, 6);
+    }
+
+    /* 開いたときだけ読む中身。一覧に出ている短い文の言い換えではなく、
+       素材・詳しい説明・自分のLPでの手順・元になったページを足す。
+       古い分析にはこれらが無いので、有る分だけ出す */
+    function addDetail(modal, item) {
+      var shots = mergedShots(item);
+      if (shots.length) {
+        var shotBox = el('div', 'modal__block');
+        add(shotBox, el('span', 'modal__block-key', t('s11.assetsLabel')));
+        var strip = el('div', 'thumb-strip thumb-strip--one');
+        shots.forEach(function (one, at) { add(strip, assetTile(one, shots, at)); });
+        add(shotBox, strip);
+        add(modal, shotBox);
+      }
+
+      if (item.detail) {
+        var detail = el('div', 'modal__block');
+        add(detail, el('span', 'modal__block-key', t('s20.detailLabel')));
+        add(detail, el('p', 'modal__body', item.detail));
+        add(modal, detail);
+      }
+
+      var steps = asArray(item.steps).filter(Boolean);
+      if (steps.length) {
+        var stepBox = el('div', 'modal__block');
+        add(stepBox, el('span', 'modal__block-key', t('s20.stepsLabel')));
+        var ol = el('ol', 'modal__steps');
+        steps.forEach(function (one) { add(ol, el('li', '', one)); });
+        add(stepBox, ol);
+        add(modal, stepBox);
+      }
+
+      var sources = asArray(item.sources).filter(Boolean);
+      if (sources.length) {
+        var srcBox = el('div', 'modal__block');
+        add(srcBox, el('span', 'modal__block-key', t('s20.sourcesLabel')));
+        var ul = el('ul', 'modal__sources');
+        sources.forEach(function (url) {
+          var li = el('li', '');
+          var link = el('a', 'break-url', shortUrl(url, 52));
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          add(li, link);
+          add(ul, li);
+        });
+        add(srcBox, ul);
+        add(modal, srcBox);
+      }
+    }
+
     /* ---- 成功・失敗要因（重要度順・タップで根拠へジャンプ） ---- */
     /* 要因1件をその場で開く。一覧は2行に切り詰めてあるので、
        全文・重要度・根拠のURLはここでしか読めない */
@@ -2286,6 +2353,8 @@
           add(info, row);
         });
       if (info.childNodes.length) { add(modal, info); }
+
+      addDetail(modal, factor);
 
       var actions = el('div', 'modal__actions modal__actions--1');
       add(actions, button('btn btn--secondary', t('common.close'), closeModal));
@@ -2388,6 +2457,8 @@
       add(priceRow, el('span', 'info-row__val', section.priceShown ? t('common.yes') : t('common.no')));
       add(info, priceRow);
       add(modal, info);
+
+      addDetail(modal, section);
 
       var actions = el('div', 'modal__actions modal__actions--1');
       add(actions, button('btn btn--secondary', t('common.close'), closeModal));

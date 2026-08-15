@@ -2717,6 +2717,42 @@ a.list-row:active { opacity: .88; }
   overflow-wrap: break-word;
 }
 
+/* 開いたときだけ読む中身。見出しと中身を1つの塊にして、
+   どこまでが1項目なのかを分かるようにする */
+.modal__block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.modal__block-key {
+  font-size: var(--fs-note);
+  letter-spacing: .04em;
+  color: var(--c-text-sub);
+}
+
+/* 手順。番号を落とすと「どれから」が消えるので、番号は残す */
+.modal__steps {
+  margin: 0;
+  padding-left: 1.35em;
+  font-size: var(--fs-body);
+  line-height: 1.7;
+}
+
+.modal__steps li + li { margin-top: 4px; }
+
+.modal__sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-note);
+  line-height: 1.6;
+}
+
+.modal__sources li + li { margin-top: 4px; }
+.modal__sources a { color: var(--c-sub); }
+
 /* 持ち帰る1行。長い文なので、値を右に寄せる .info-row の枠には入れない
    （枠に文字が貼り付いて行が崩れる） */
 .modal__lead {
