@@ -2007,12 +2007,15 @@
           if (!items.length) {
             add(group, el('p', 't-note', t('s11.noAsset')));
           } else {
-            /* 画像（src あり）はサムネイルのグリッドで全件、それ以外は行で全件見せる */
-            var hasThumb = function (item) {
-              return (item.type === 'image' || item.type === 'gif') && item.src;
+            /* 絵が出せるものはサムネイルのグリッドで全件、それ以外は行で全件見せる。
+               動画は src が YouTube のページなので、絵は poster を使う */
+            var thumbOf = function (item) {
+              if ((item.type === 'image' || item.type === 'gif') && item.src) { return item.src; }
+              if (item.type === 'video' && item.poster) { return item.poster; }
+              return '';
             };
-            var withSrc = items.filter(hasThumb);
-            var rest = items.filter(function (item) { return !hasThumb(item); });
+            var withSrc = items.filter(function (item) { return !!thumbOf(item); });
+            var rest = items.filter(function (item) { return !thumbOf(item); });
 
             if (withSrc.length) {
               var grid = el('div', 'thumb-grid');
@@ -2022,10 +2025,12 @@
                 tile.target = '_blank';
                 tile.rel = 'noopener';
                 var img = el('img', 'thumb__img');
-                img.src = item.src;
+                img.src = thumbOf(item);
                 img.alt = itemName(item);
                 img.loading = 'lazy';
                 add(tile, img);
+                if (item.type === 'gif') { add(tile, el('span', 'thumb__tag', 'GIF')); }
+                if (item.type === 'video') { add(tile, el('span', 'thumb__tag', t('media.video'))); }
                 add(grid, tile);
               });
               add(group, grid);
@@ -2467,15 +2472,22 @@
           video: Number(counts.video) || 0
         })));
 
-        /* 拾った素材。最初の8枚だけ並べ、残りは件数で示す */
-        var media = asArray(source.items).filter(function (item) {
-          return (item.type === 'image' || item.type === 'gif') && item.src;
-        });
-        /* GIF を先に出す。動きで見せている区画がそのページの勝負どころで、
-           静止画に混ぜて並べると、先頭8枚に1本も入らないことがある */
-        media.sort(function (a, b) {
-          return (b.type === 'gif' ? 1 : 0) - (a.type === 'gif' ? 1 : 0);
-        });
+        /* 拾った素材。最初の8枚だけ並べ、残りは件数で示す。
+           動画は src が YouTube のページなので、絵は poster を使う */
+        var thumbSrc = function (item) {
+          if ((item.type === 'image' || item.type === 'gif') && item.src) { return item.src; }
+          if (item.type === 'video' && item.poster) { return item.poster; }
+          return '';
+        };
+        var media = asArray(source.items).filter(function (item) { return !!thumbSrc(item); });
+        /* 動画 → GIF → 静止画の順。紹介動画はそのページのいちばん強い素材で、
+           静止画に混ぜて並べると先頭8枚から漏れる。GIF も同じ理由で前に出す */
+        var rank = function (item) {
+          if (item.type === 'video') { return 2; }
+          if (item.type === 'gif') { return 1; }
+          return 0;
+        };
+        media.sort(function (a, b) { return rank(b) - rank(a); });
         if (media.length) {
           var grid = el('div', 'thumb-grid');
           media.slice(0, 8).forEach(function (item) {
@@ -2484,11 +2496,12 @@
             tile.target = '_blank';
             tile.rel = 'noopener';
             var img = el('img', 'thumb__img');
-            img.src = item.src;
+            img.src = thumbSrc(item);
             img.alt = item.label || '';
             img.loading = 'lazy';
             add(tile, img);
             if (item.type === 'gif') { add(tile, el('span', 'thumb__tag', 'GIF')); }
+            if (item.type === 'video') { add(tile, el('span', 'thumb__tag', t('media.video'))); }
             add(grid, tile);
           });
           add(card, grid);
