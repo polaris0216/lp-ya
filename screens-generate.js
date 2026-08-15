@@ -97,6 +97,11 @@
     'gen.untitledSection': ['無題のセクション', 'Untitled section', '제목 없는 섹션'],
     'gen.saving': ['保存中…', 'Saving…', '저장 중…'],
     'gen.generating': ['{name}を生成しています…（1分ほどかかります）', 'Generating {name}… (takes about a minute)', '{name}을(를) 생성하고 있습니다… (약 1분 소요)'],
+    'gen.generatingCount': [
+      '生成しています…（{done} / {total} 件）',
+      'Generating… ({done} / {total})',
+      '생성하고 있습니다… ({done} / {total}건)'
+    ],
     'gen.generateDone': ['生成が完了しました', 'Generation completed', '생성이 완료되었습니다'],
     'gen.generateFailed': ['{name}の生成に失敗しました。ポイントは消費されていません', 'Failed to generate {name}. No points were consumed.', '{name} 생성에 실패했습니다. 포인트은 소비되지 않았습니다'],
     'gen.generateNotReady': ['{name}はまだ生成に対応していません。ポイントは消費されていません', '{name} is not supported yet. No points were consumed.', '{name}은(는) 아직 생성을 지원하지 않습니다. 포인트은 소비되지 않았습니다'],
