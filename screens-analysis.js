@@ -479,7 +479,9 @@
     's11.tapLp': ['タップするとLP本文を上から順に読めます', 'Tap to read the LP body from the top', '탭하면 LP 본문을 위에서부터 읽을 수 있습니다'],
     's11.weight': ['重要度 {n}', 'Importance {n}', '중요도 {n}'],
     's11.evidence': ['根拠：{url}', 'Evidence: {url}', '근거: {url}'],
-    's11.jumpDone': ['根拠の競合LPまで移動しました', 'Jumped to the competitor it came from', '근거가 된 경쟁 LP로 이동했습니다'],
+    's11.weightLabel': ['重要度', 'Importance', '중요도'],
+    's11.evidenceLabel': ['根拠になった競合LP', 'Where this came from', '근거가 된 경쟁 LP'],
+    's20.factorDetail': ['この要因を詳しく見る', 'See this factor in detail', '이 요인을 자세히 보기'],
     's11.order': ['{n}番目', 'Position {n}', '{n}번째'],
     's11.ratio': ['本文に占める割合', 'Share of the body', '본문 비중'],
     's11.hasCta': ['CTAあり', 'Has CTA', 'CTA 있음'],
@@ -2244,7 +2246,44 @@
     }
 
     /* ---- 成功・失敗要因（重要度順・タップで根拠へジャンプ） ---- */
-    function factorSection(factors, jumpTarget, factorSummary) {
+    /* 要因1件をその場で開く。一覧は2行に切り詰めてあるので、
+       全文・重要度・根拠のURLはここでしか読めない */
+    function openFactor(factor) {
+      var bad = factor.kind === 'failure';
+      var modal = el('div', 'modal');
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+
+      var title = el('p', 'modal__title');
+      add(title, el('span', bad ? 'badge badge--danger' : 'badge badge--ok',
+        bad ? t('sa.factorKindFailure') : t('sa.factorKindSuccess')));
+      title.appendChild(document.createTextNode(
+        ' ' + labelOf('fac.', factor.key, factor.label || factor.title)));
+      add(modal, title);
+
+      if (factor.body) { add(modal, el('p', 'modal__body', factor.body)); }
+
+      var info = el('div', 'info-list');
+      [[bad ? t('s11.factorInstead') : t('s11.factorSuccess'), factor.takeaway],
+        [t('s11.weightLabel'), factor.weight ? String(factor.weight) : ''],
+        [t('s11.evidenceLabel'), factor.evidence]]
+        .forEach(function (pair) {
+          if (!pair[1]) { return; }
+          var row = el('div', 'info-row info-row--stack');
+          add(row, el('span', 'info-row__key', pair[0]));
+          add(row, el('span', 'info-row__val' + (pair[0] === t('s11.evidenceLabel') ? ' break-url' : ''),
+            pair[1]));
+          add(info, row);
+        });
+      add(modal, info);
+
+      var actions = el('div', 'modal__actions modal__actions--1');
+      add(actions, button('btn btn--secondary', t('common.close'), closeModal));
+      add(modal, actions);
+      openModal(modal);
+    }
+
+    function factorSection(factors, factorSummary) {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
       add(head, el('h2', 'section__title', t('sa.factorTitle')));
@@ -2282,17 +2321,11 @@
         add(row, body);
         if (factor.weight) { add(row, el('span', 'list-row__meta', t('s11.weight', { n: factor.weight }))); }
 
-        /* 総合分析の側には競合別のカードが無いので、そのときは分析レポートへ送る */
-        var jump = button('list-row__action', '›', function () {
-          if (jumpTarget && typeof jumpTarget.scrollIntoView === 'function') {
-            jumpTarget.scrollIntoView({ block: 'start' });
-            toast(t('s11.jumpDone'));
-            return;
-          }
-          go('S11', { id: projectId, reportId: view.report ? view.report.id : null });
-        });
-        jump.setAttribute('aria-label', t('report.byCompetitor'));
-        add(row, jump);
+        /* 中身をその場で開く。別の画面へ送ると、いま読んでいた並びを
+           見失って戻ってくることになる */
+        var open = button('list-row__action', '›', function () { openFactor(factor); });
+        open.setAttribute('aria-label', t('s20.factorDetail'));
+        add(row, open);
         add(list, row);
       });
       add(section, list);
@@ -2956,7 +2989,7 @@
         /* ---- 総合分析: 全リンクを突き合わせた結果 ---- */
         add(wrap, commonSection(asArray(report.common_points), entries.length));
         add(wrap, structureSection(sections, summaryOf(report.page_structure)));
-        add(wrap, factorSection(factors, null, summaryOf(report.success_factors)));
+        add(wrap, factorSection(factors, summaryOf(report.success_factors)));
 
         var kvSection = el('section', 'section');
         add(kvSection, assetCard(kvAssets, 'kv'));
