@@ -2586,10 +2586,6 @@
         var card = el('article', 'carousel__card card'
           + (dir > 0 ? ' is-from-right' : (dir < 0 ? ' is-from-left' : '')));
 
-        /* 何件目かは、カードの上辺に貼り付く耳として出す（工程の耳と同じ形）。
-           小さな灰色の字だと、何ページ目を見ているのかを探すことになる */
-        add(card, el('span', 'src-card__tab', t('s11.sourcePos', { n: index + 1, total: sources.length })));
-
         /* 見出し行: プラットフォーム / 成否 */
         var top = el('div', 'src-card__head');
         var chips = el('div', 'chips');
@@ -2752,6 +2748,12 @@
         });
 
         var cardView = el('div', 'carousel__view');
+        /* 何件目かは、カードの枠の外（上辺）に貼り付く耳として出す。
+           カードの中に置くと枠の内側の飾りに見え、何ページ目を見ているのかを
+           毎回探すことになる。カードは左右に滑るが、耳は動かさない
+           （番号が滑ると、どこを見ているかがかえって分かりにくい） */
+        add(cardView, el('span', 'src-card__tab',
+          t('s11.sourcePos', { n: index + 1, total: sources.length })));
         add(cardView, card);
         if (leaving && dir) { slideOut(cardView, leaving, dir); }
         add(carousel, cardView);

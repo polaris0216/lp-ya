@@ -1926,13 +1926,16 @@ a.list-row:active { opacity: .88; }
 }
 
 /* 何件目を見ているかは、いちばん先に知りたいこと。
-   工程の耳と同じ形にして、カードの上辺に貼り付いた札として出す。
-   カードの内側の余白のぶんだけ外へ出して、札の下辺とカードの上辺をそろえる */
+   カードの枠の外（上辺）に貼り付く耳として出す。
+   下側の角を落とし、下辺をカードの枠に1px重ねて、
+   カードと1枚につながって見えるようにする */
 .src-card__tab {
-  align-self: flex-start;
-  margin: calc(var(--sp-group) * -1) 0 2px calc(var(--sp-group) * -1);
-  padding: 9px 18px;
-  border-radius: var(--r-card) 12px 12px 0;
+  display: inline-block;
+  position: relative;
+  z-index: 1;
+  margin-bottom: -1px;
+  padding: 9px 20px;
+  border-radius: 14px 14px 0 0;
   background: var(--grad-main);
   color: var(--c-white);
   font-family: var(--font-sub);
@@ -1942,6 +1945,9 @@ a.list-row:active { opacity: .88; }
   line-height: 1.3;
   white-space: nowrap;
 }
+
+/* 耳が付く側の角は落とす。丸いままだと耳とカードのあいだに隙間が見える */
+.carousel__view .src-card__tab + .carousel__card { border-top-left-radius: 0; }
 
 .carousel__card .thumb-grid { margin-top: 2px; }
 .carousel__card .list { margin-top: -2px; }
