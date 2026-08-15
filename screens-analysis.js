@@ -501,6 +501,7 @@
     's11.errSelectorMissing': ['セレクタが空のため収集できませんでした', 'The selector was empty, so nothing could be collected', '셀렉터가 비어 있어 수집하지 못했습니다'],
     's11.errMediaNone': ['収集する種別が選ばれておらず、結果が空でした', 'No content type was selected, so the result was empty', '수집할 종류가 선택되지 않아 결과가 비었습니다'],
     's11.errNotFound': ['指定セレクタがページに見つかりませんでした', 'The given selector was not found on the page', '지정한 셀렉터를 페이지에서 찾지 못했습니다'],
+    's11.assetStrip': ['収集した素材（横に送って見る）', 'Collected assets (scroll sideways)', '수집한 소재(옆으로 넘겨서 보기)'],
     's11.kindKv': ['KV', 'KV', 'KV'],
     's11.kindLp': ['LP本文', 'LP body', 'LP 본문'],
     's11.createdAt': ['作成日時', 'Created', '생성 일시'],
@@ -2017,7 +2018,11 @@
             var rest = items.filter(function (item) { return !thumbOf(item); });
 
             if (withSrc.length) {
-              var grid = el('div', 'thumb-grid');
+              /* ここも3行の帯。縦に積むと、下にある種別の切り替えや
+                 収集エラーの説明まで届かなくなる */
+              var grid = el('div', 'thumb-strip');
+              grid.setAttribute('role', 'list');
+              grid.setAttribute('aria-label', t('s11.assetStrip'));
               withSrc.forEach(function (item) {
                 var tile = el('a', 'thumb');
                 tile.href = item.src;
@@ -2471,9 +2476,11 @@
           video: Number(counts.video) || 0
         })));
 
-        /* 拾った素材は全件並べる。何をどれだけ使って売っているページなのかは
+        /* 拾った素材は全件出す。何をどれだけ使って売っているページなのかは
            枚数そのものが答えなので、8枚で打ち切ると判断材料が消える。
-           絵は遅延読み込み（loading=lazy）なので、並べても最初の表示は重くならない。
+           ただし100枚を超えることがあり、縦に全部並べるとページの流れや
+           要因の話が下へ押し出されて読めない。3行の帯に収め、
+           続きは帯の中を横に送って見る。
            動画は src が YouTube のページなので、絵は poster を使う */
         var thumbSrc = function (item) {
           if ((item.type === 'image' || item.type === 'gif') && item.src) { return item.src; }
@@ -2490,7 +2497,9 @@
         };
         media.sort(function (a, b) { return rank(b) - rank(a); });
         if (media.length) {
-          var grid = el('div', 'thumb-grid');
+          var grid = el('div', 'thumb-strip');
+          grid.setAttribute('role', 'list');
+          grid.setAttribute('aria-label', t('s11.assetStrip'));
           media.forEach(function (item) {
             var tile = el('a', 'thumb');
             tile.href = item.src;

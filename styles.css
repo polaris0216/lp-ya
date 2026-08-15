@@ -1668,6 +1668,29 @@ a.list-row:active { opacity: .88; }
   gap: 8px;
 }
 
+/* 収集した素材の置き場。100枚を超えることがあり、縦に全部並べると
+   ページの流れや要因の話が下へ押し出されて読めなくなる。
+   3行の帯に収め、続きは帯の中を横に送って見る。 */
+.thumb-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, 88px);
+  grid-auto-columns: 88px;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  /* 影と枠が切れないよう内側に余白を取り、その分を外へ戻す */
+  padding: 2px 2px 10px;
+  margin: 0 -2px;
+  scrollbar-width: thin;
+}
+
+.thumb-strip .thumb {
+  width: 88px;
+  height: 88px;
+  aspect-ratio: auto;
+}
+
 .thumb {
   position: relative;
   aspect-ratio: 1 / 1;
