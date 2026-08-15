@@ -528,11 +528,14 @@
     's11.noPrice': ['価格の表示なし', 'No price shown', '가격 표시 없음'],
     's11.noCta': ['CTAなし', 'No CTA', 'CTA 없음'],
     's11.factorSuccess': ['真似したい点', 'Worth copying', '따라 하고 싶은 점'],
-    's11.factorFailure': ['避けたい点', 'Worth avoiding', '피하고 싶은 점'],
+    's11.factorFailure': ['反省点', 'Weak point', '반성할 점'],
+    /* 反省点のカードで「では自分はどうするか」を出すときの見出し。
+       ここに「反省点」と書くと、上の札と同じ言葉が2度出て中身が伝わらない */
+    's11.factorInstead': ['代わりにやること', 'Do this instead', '대신 할 일'],
     's11.factorLegend': [
-      '赤は「避けたい点」（このページの弱いところ）です',
-      'Red marks the weak points to avoid',
-      '빨간색은 "피하고 싶은 점"(이 페이지의 약한 부분)입니다'
+      '赤は「反省点」（この参照LPの弱いところ）です',
+      'Red marks this page’s weak points',
+      '빨간색은 "반성할 점"(이 참조 LP의 약한 부분)입니다'
     ],
     'error.pageUnreadable': [
       'このページを開けませんでした。URLが変わっていないか確認してください。',
@@ -2741,7 +2744,7 @@
                札の言い換えにしかならず読む意味がなくなる */
             var rows = [[t('s11.bodyLabel'), one.body]];
             if (one.takeaway) {
-              rows.push([bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
+              rows.push([bad ? t('s11.factorInstead') : t('s11.factorSuccess'),
                 one.takeaway, 'info-row--lead' + (bad ? ' info-row--lead-danger' : '')]);
             }
             add(list, foldRow({
