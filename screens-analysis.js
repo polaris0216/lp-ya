@@ -2263,19 +2263,29 @@
 
       if (factor.body) { add(modal, el('p', 'modal__body', factor.body)); }
 
+      /* 持ち帰る1行は、枠の中の行ではなく独立した塊にする。
+         長い文を .info-list の行に入れると、枠に文字が貼り付いて崩れる */
+      if (factor.takeaway) {
+        var lead = el('div', 'modal__lead' + (bad ? ' modal__lead--danger' : ''));
+        add(lead, el('span', 'modal__lead-key',
+          bad ? t('s11.factorInstead') : t('s11.factorSuccess')));
+        add(lead, el('p', 'modal__lead-val', factor.takeaway));
+        add(modal, lead);
+      }
+
+      /* 枠の中は短い値だけ。左が見出し、右が値の横並び */
       var info = el('div', 'info-list');
-      [[bad ? t('s11.factorInstead') : t('s11.factorSuccess'), factor.takeaway],
-        [t('s11.weightLabel'), factor.weight ? String(factor.weight) : ''],
+      [[t('s11.weightLabel'), factor.weight ? String(factor.weight) : ''],
         [t('s11.evidenceLabel'), factor.evidence]]
         .forEach(function (pair) {
           if (!pair[1]) { return; }
-          var row = el('div', 'info-row info-row--stack');
+          var row = el('div', 'info-row');
           add(row, el('span', 'info-row__key', pair[0]));
-          add(row, el('span', 'info-row__val' + (pair[0] === t('s11.evidenceLabel') ? ' break-url' : ''),
-            pair[1]));
+          add(row, el('span', 'info-row__val'
+            + (pair[0] === t('s11.evidenceLabel') ? ' break-url' : ' num'), pair[1]));
           add(info, row);
         });
-      add(modal, info);
+      if (info.childNodes.length) { add(modal, info); }
 
       var actions = el('div', 'modal__actions modal__actions--1');
       add(actions, button('btn btn--secondary', t('common.close'), closeModal));
@@ -2299,7 +2309,10 @@
       var list = el('ul', 'list');
       list.setAttribute('role', 'list');
       factors.forEach(function (factor) {
-        var row = el('li', 'list-row');
+        /* 行そのものを押せるようにする。矢印だけだと、開けることに
+           気づかないうえ、狙って押す必要がある */
+        var item = el('li', '');
+        var row = button('list-row list-row--tap', '', function () { openFactor(factor); });
         var body = el('div', 'list-row__body');
 
         /* kind 無し（旧データ）は成功要因として扱う */
@@ -2321,12 +2334,12 @@
         add(row, body);
         if (factor.weight) { add(row, el('span', 'list-row__meta', t('s11.weight', { n: factor.weight }))); }
 
-        /* 中身をその場で開く。別の画面へ送ると、いま読んでいた並びを
-           見失って戻ってくることになる */
-        var open = button('list-row__action', '›', function () { openFactor(factor); });
-        open.setAttribute('aria-label', t('s20.factorDetail'));
-        add(row, open);
-        add(list, row);
+        /* 押せる印。行がボタンなので、ここは飾り */
+        add(row, el('span', 'list-row__action', '›'));
+        row.setAttribute('aria-label',
+          labelOf('fac.', factor.key, factor.label || factor.title) + '　' + t('s20.factorDetail'));
+        add(item, row);
+        add(list, item);
       });
       add(section, list);
       return section;
@@ -2399,7 +2412,8 @@
       var list = el('ul', 'list');
       list.setAttribute('role', 'list');
       sections.forEach(function (one, index) {
-        var row = el('li', 'list-row');
+        var item = el('li', '');
+        var row = button('list-row list-row--tap', '', function () { openSection(one, index); });
         var body = el('div', 'list-row__body');
         var name = labelOf('sec.', one.key, one.label || one.title);
         add(body, el('span', 'list-row__title', t('s11.order', { n: index + 1 }) + '　' + name));
@@ -2425,10 +2439,10 @@
         add(row, body);
         if (one.ratio) { add(row, el('span', 'list-row__meta num', one.ratio + '%')); }
 
-        var open = button('list-row__action', '›', function () { openSection(one, index); });
-        open.setAttribute('aria-label', name);
-        add(row, open);
-        add(list, row);
+        add(row, el('span', 'list-row__action', '›'));
+        row.setAttribute('aria-label', name);
+        add(item, row);
+        add(list, item);
       });
       add(section, list);
       return section;

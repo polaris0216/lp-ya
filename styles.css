@@ -1496,6 +1496,21 @@ a.list-row:active { opacity: .88; }
 
 .list-row__action:active { opacity: .88; }
 
+/* 行そのものがボタンのとき。矢印だけを的にすると、開けることに
+   気づかないうえ、狙って押す必要がある */
+.list-row--tap {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.list-row--tap:hover { background: var(--c-bg); }
+.list-row--tap:active { opacity: .9; }
+
+/* 飾りになった矢印。押せる的ではないので、当たり判定は出さない */
+.list-row--tap .list-row__action { pointer-events: none; }
+
 .list-row__chevron {
   flex: 0 0 auto;
   width: 20px;
@@ -2698,6 +2713,35 @@ a.list-row:active { opacity: .88; }
 .modal__body {
   font-size: var(--fs-body);
   line-height: var(--lh-body);
+  color: var(--c-text);
+  overflow-wrap: break-word;
+}
+
+/* 持ち帰る1行。長い文なので、値を右に寄せる .info-row の枠には入れない
+   （枠に文字が貼り付いて行が崩れる） */
+.modal__lead {
+  padding: 14px 16px;
+  border-left: 3px solid var(--c-sub);
+  border-radius: 0 var(--r-control) var(--r-control) 0;
+  background: var(--c-bg);
+}
+
+.modal__lead--danger { border-left-color: var(--c-danger); }
+
+.modal__lead-key {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--fs-note);
+  font-weight: 700;
+  color: var(--c-sub);
+}
+
+.modal__lead--danger .modal__lead-key { color: var(--c-danger); }
+
+.modal__lead-val {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: 1.6;
   color: var(--c-text);
   overflow-wrap: break-word;
 }
