@@ -2586,9 +2586,12 @@
         var card = el('article', 'carousel__card card'
           + (dir > 0 ? ' is-from-right' : (dir < 0 ? ' is-from-left' : '')));
 
-        /* 見出し行: 何番目 / プラットフォーム / 成否 */
+        /* 何件目かは、カードの上辺に貼り付く耳として出す（工程の耳と同じ形）。
+           小さな灰色の字だと、何ページ目を見ているのかを探すことになる */
+        add(card, el('span', 'src-card__tab', t('s11.sourcePos', { n: index + 1, total: sources.length })));
+
+        /* 見出し行: プラットフォーム / 成否 */
         var top = el('div', 'src-card__head');
-        add(top, el('span', 'card__label', t('s11.sourcePos', { n: index + 1, total: sources.length })));
         var chips = el('div', 'chips');
         add(chips, el('span', 'badge', platformName(source.platform)));
         if (source.outcome === 'success' || source.outcome === 'failure') {
