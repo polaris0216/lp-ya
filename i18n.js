@@ -230,6 +230,11 @@
       'Only the photos you star are handed to the AI as the reference when producing key visuals, LPs and ads. Pick the ones that actually show the product — leave out spec graphics and review screenshots.',
       '★를 표시한 사진만 KV·LP·광고 소재를 만들 때 참고로 AI에 전달합니다. 상품 자체가 찍힌 것을 선택해 주세요(사양 도표나 리뷰 화면은 제외).'
     ],
+    's4.gifNote': [
+      '動くGIFです。開く・畳む・使うところなど、止まった写真では伝わらない場面が入っています',
+      'An animated GIF — it carries what a still cannot: opening, folding, the product in use.',
+      '움직이는 GIF입니다. 펼치고 접고 사용하는 장면 등, 정지 사진으로는 전달되지 않는 부분이 담겨 있습니다'
+    ],
     's4.productShotCount': [
       '商品カット {n}枚 / 収集した写真 {m}枚',
       '{n} product shots of {m} photos',

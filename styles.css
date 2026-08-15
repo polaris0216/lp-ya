@@ -1701,6 +1701,22 @@ a.list-row:active { opacity: .88; }
 .thumb__remove:active { opacity: .88; }
 
 /* 商品カットの印（S4）。★が付いたものだけを素材生成の見本に渡す */
+/* 動く素材の印。★（左下）と ×（右上）を避けて左上に置く */
+.thumb__tag {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .58);
+  color: var(--c-white);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
 .thumb__pick {
   position: absolute;
   left: 2px;
@@ -3293,18 +3309,45 @@ input[type='radio'] {
 
 .reward-card:focus-within { border-color: var(--c-accent); }
 
-/* 送った向きから滑り込ませる。一瞬で入れ替わると、どちらへ動いたか分からないため */
-.reward-card.is-from-right { animation: reward-in-right .22s cubic-bezier(.2, .8, .3, 1); }
-.reward-card.is-from-left { animation: reward-in-left .22s cubic-bezier(.2, .8, .3, 1); }
+/* 送るときは、出ていく1枚と入ってくる1枚を同じ速さ・同じ曲線で並べて動かす。
+   入ってくる側だけを動かすと、前のカードが消えた瞬間だけが目に残って引っかかる。
+   2枚が地続きに流れることで、はじめて「隣へ移った」と見える */
+.reward-card.is-from-right { animation: reward-in-right var(--reward-slide) var(--reward-ease) both; }
+.reward-card.is-from-left { animation: reward-in-left var(--reward-slide) var(--reward-ease) both; }
 
+/* 出ていく1枚。入ってくる1枚と重ねるので、流れの上から外す */
+.reward-card.is-leaving-left,
+.reward-card.is-leaving-right {
+  position: absolute;
+  top: var(--reward-view-pad);
+  left: var(--reward-view-pad);
+  right: var(--reward-view-pad);
+  pointer-events: none;
+}
+
+.reward-card.is-leaving-left { animation: reward-out-left var(--reward-slide) var(--reward-ease) both; }
+.reward-card.is-leaving-right { animation: reward-out-right var(--reward-slide) var(--reward-ease) both; }
+
+/* 105% は、切り抜き枠の余白ぶんまで完全に外へ逃がすため。
+   端に細く残ると、そこで色が瞬いて動きが途切れて見える */
 @keyframes reward-in-right {
-  from { opacity: 0; transform: translateX(24px); }
-  to { opacity: 1; transform: translateX(0); }
+  from { transform: translateX(105%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes reward-in-left {
-  from { opacity: 0; transform: translateX(-24px); }
-  to { opacity: 1; transform: translateX(0); }
+  from { transform: translateX(-105%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes reward-out-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-105%); }
+}
+
+@keyframes reward-out-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(105%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3405,10 +3448,25 @@ input[type='radio'] {
 
 /* リワードは1枚ずつ。左右のボタンで送る */
 .reward-carousel {
+  --reward-slide: .52s;
+  /* 動き出しと止まり際の両方をゆるめる。片側だけゆるめると、
+     残る側が弾かれたように見えて「急」と感じる */
+  --reward-ease: cubic-bezier(.45, .05, .15, 1);
+  --reward-view-pad: 16px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 8px;
+}
+
+/* 滑り込む途中のカードが矢印の上や枠の外へはみ出さないよう、ここで切る。
+   影が切れないように内側へ余白を取り、その分を外側の負の余白で戻す */
+.reward-carousel__view {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--reward-view-pad);
+  margin: calc(var(--reward-view-pad) * -1);
 }
 
 .reward-nav {
@@ -3461,7 +3519,7 @@ input[type='radio'] {
   height: 8px;
   border-radius: 50%;
   background: var(--c-line);
-  transition: background .15s, transform .15s;
+  transition: background var(--reward-slide) var(--reward-ease), transform var(--reward-slide) var(--reward-ease);
 }
 
 .reward-dot:hover::before { background: var(--c-text-sub); }

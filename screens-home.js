@@ -1713,6 +1713,9 @@
        段階が増えても縦に伸びないよう、1枚ずつ出して左右のボタンで送る。 */
     function paintRewards() {
       if (!rewardsHost) { return; }
+      /* 描き直す前に、いま出ている1枚を手元に残す。あとで新しい枠に置き直して
+         出ていく側として動かす。これがないと前のカードだけ瞬間的に消える */
+      var leaving = rewardAnim && !reducedMotion() ? rewardsHost.querySelector('.reward-card') : null;
       clear(rewardsHost);
       discountNodes = [];
       var total = form.rewards.length;
@@ -1729,8 +1732,9 @@
       prev.disabled = total < 2;
       carousel.appendChild(prev);
 
+      var dir = rewardAnim;
       var card = el('article', 'reward-card'
-        + (rewardAnim > 0 ? ' is-from-right' : (rewardAnim < 0 ? ' is-from-left' : '')));
+        + (dir > 0 ? ' is-from-right' : (dir < 0 ? ' is-from-left' : '')));
       rewardAnim = 0;
 
       var head = el('div', 'reward-card__head');
@@ -1783,7 +1787,10 @@
       body.appendChild(descField);
 
       card.appendChild(body);
-      carousel.appendChild(card);
+      var cardView = el('div', 'reward-carousel__view');
+      cardView.appendChild(card);
+      if (leaving && dir) { slideOut(cardView, leaving, dir); }
+      carousel.appendChild(cardView);
 
       var next = iconButton('reward-nav', 'M9 5l7 7-7 7', 'product.rewardNext', function () { stepReward(1); });
       next.disabled = total < 2;
@@ -1807,6 +1814,24 @@
       }
 
       refreshDiscounts();
+    }
+
+    /* OS側で「視差効果を減らす」が入っているときは動かさない */
+    function reducedMotion() {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    /* 前のカードを新しい枠に置き直し、送った向きへ流して捨てる。
+       入力欄が残っているので、触れないようにしてから動かす */
+    function slideOut(view, node, delta) {
+      node.className = 'reward-card ' + (delta > 0 ? 'is-leaving-left' : 'is-leaving-right');
+      node.setAttribute('aria-hidden', 'true');
+      node.querySelectorAll('input, textarea, button').forEach(function (field) { field.tabIndex = -1; });
+      view.appendChild(node);
+      var drop = function () { if (node.parentNode) { node.parentNode.removeChild(node); } };
+      node.addEventListener('animationend', drop);
+      /* アニメーションが走らなかったときの保険。残ると次の1枚に重なる */
+      setTimeout(drop, 1200);
     }
 
     function stepReward(delta) {
@@ -1962,6 +1987,15 @@
           openViewer(index);
         });
         cell.appendChild(image);
+
+        /* GIF は止まった写真では伝わらない場面（開く・畳む・使うところ）が入っている。
+           一覧では動いて見えるが、静止画と混ざると見分けが付かないので印を付ける */
+        if (/\.gif(\?|$)/i.test(source)) {
+          var tag = el('span', 'thumb__tag', 'GIF');
+          tag.title = t('s4.gifNote');
+          cell.appendChild(tag);
+        }
+
         var remove = button('thumb__remove', '×', function () {
           form.images.splice(index, 1);
           var at = form.productShots.indexOf(source);
