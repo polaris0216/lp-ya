@@ -517,6 +517,7 @@
     's11.hookLabel': ['次へのつなぎ', 'How it leads to the next block', '다음으로 넘기는 방법'],
     's11.emotionLabel': ['読み手の状態', 'Where the reader is', '읽는 사람의 상태'],
     's11.marksLabel': ['この区画にあるもの', 'What this block contains', '이 구획에 있는 것'],
+    's11.assetsLabel': ['ここに置かれていた素材', 'The assets placed here', '여기에 놓여 있던 소재'],
     's11.noPrice': ['価格の表示なし', 'No price shown', '가격 표시 없음'],
     's11.noCta': ['CTAなし', 'No CTA', 'CTA 없음'],
     's11.factorSuccess': ['真似したい点', 'Worth copying', '따라 하고 싶은 점'],
@@ -2442,6 +2443,31 @@
         add(body, row);
       });
 
+      /* その区画に置かれていた素材。文字だけだと何の話か分からないので、
+         開いたときに絵も一緒に見せる */
+      var shots = (o.assets || []).filter(Boolean);
+      if (shots.length) {
+        var shotRow = el('div', 'info-row info-row--stack');
+        add(shotRow, el('span', 'info-row__key', o.assetsLabel || ''));
+        var strip = el('div', 'thumb-strip thumb-strip--one');
+        shots.forEach(function (item) {
+          var tile = el('a', 'thumb');
+          tile.href = item.src;
+          tile.target = '_blank';
+          tile.rel = 'noopener';
+          var img = el('img', 'thumb__img');
+          img.src = item.poster || item.src;
+          img.alt = item.label || '';
+          img.loading = 'lazy';
+          add(tile, img);
+          if (item.type === 'gif') { add(tile, el('span', 'thumb__tag', 'GIF')); }
+          if (item.type === 'video') { add(tile, el('span', 'thumb__tag', t('media.video'))); }
+          add(strip, tile);
+        });
+        add(shotRow, strip);
+        add(body, shotRow);
+      }
+
       var marks = (o.marks || []).filter(function (one) { return one && (one.yes || one.no); });
       if (marks.length) {
         var chips = el('div', 'chips');
@@ -2603,6 +2629,21 @@
           add(card, grid);
         }
 
+        /* 分析が「この区画にあった」と書いた素材のURLから、
+           収集済みの1件（種別・動画のサムネイル付き）を引き当てる。
+           URLはクエリの付き方が変わることがあるので、?より前で照らす */
+        var byUrl = {};
+        asArray(source.items).forEach(function (item) {
+          if (!item || !item.src) { return; }
+          byUrl[String(item.src).split('?')[0]] = item;
+        });
+        var shotsOf = function (one) {
+          return asArray(one && one.assets).map(function (url) {
+            var key = String(url || '').split('?')[0];
+            return byUrl[key] || (key ? { src: String(url), type: 'image', label: '' } : null);
+          }).filter(Boolean).slice(0, 6);
+        };
+
         /* この競合ページの流れ。
            1行に全部並べると読み切れないので、たたんでおいて押したら開く。
            開いた中では、拾ってあるのに今まで画面に出していなかった
@@ -2622,6 +2663,8 @@
                 [t('s11.hookLabel'), one.hook],
                 [t('s11.emotionLabel'), one.emotion]
               ],
+              assets: shotsOf(one),
+              assetsLabel: t('s11.assetsLabel'),
               marks: [
                 { on: !!one.cta, yes: t('s11.hasCta'), no: t('s11.noCta') },
                 { on: !!one.priceShown, yes: t('s11.hasPrice'), no: t('s11.noPrice') }
@@ -2651,7 +2694,9 @@
                 [bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
                   bad ? t('s11.factorFailureHint') : t('s11.factorSuccessHint')],
                 [t('s11.bodyLabel'), one.body]
-              ]
+              ],
+              assets: shotsOf(one),
+              assetsLabel: t('s11.assetsLabel')
             }));
           });
           add(card, list);

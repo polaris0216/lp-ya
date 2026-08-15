@@ -1689,31 +1689,52 @@ a.list-row:active { opacity: .88; }
   border-radius: var(--r-card);
   background: var(--c-surface);
   overflow: hidden;
+  transition: border-color .18s ease, box-shadow .18s ease;
 }
 
-.fold + .fold { margin-top: 6px; }
+.fold + .fold { margin-top: 8px; }
+
+.fold:hover { border-color: var(--c-line-strong, #ddd6ea); }
+
+/* 開いている1件は影で少し持ち上げ、いま読んでいる場所を分かりやすくする */
+.fold[open] {
+  border-color: transparent;
+  box-shadow: 0 6px 22px rgba(43, 30, 60, .10), 0 0 0 1px rgba(122, 62, 168, .16);
+}
 
 .fold__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 12px;
+  padding: 14px 16px;
   cursor: pointer;
   list-style: none;
 }
 
 .fold__head::-webkit-details-marker { display: none; }
 
-/* 開いているかどうかを、見出しの左の記号で示す */
+/* 開閉の印。文字と同じくらいの大きさにして、押すところだと分かるようにする */
 .fold__head::before {
-  content: '▸';
+  content: '';
   flex: 0 0 auto;
-  color: var(--c-text-sub);
-  font-size: 12px;
-  line-height: 1;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background:
+    linear-gradient(var(--c-text-sub), var(--c-text-sub)) center / 9px 2px no-repeat,
+    linear-gradient(var(--c-text-sub), var(--c-text-sub)) center / 2px 9px no-repeat;
+  background-color: var(--c-bg);
+  transition: transform .18s ease, background-color .18s ease;
 }
 
-.fold[open] > .fold__head::before { content: '▾'; }
+/* 開いたら「＋」を「－」にする（縦棒を消す） */
+.fold[open] > .fold__head::before {
+  background:
+    linear-gradient(var(--c-white), var(--c-white)) center / 9px 2px no-repeat;
+  background-color: var(--c-accent);
+}
+
+.fold--danger[open] > .fold__head::before { background-color: var(--c-danger); }
 
 .fold__titles {
   flex: 1 1 auto;
@@ -1742,29 +1763,44 @@ a.list-row:active { opacity: .88; }
 }
 
 .fold__body {
-  padding: 0 14px 12px;
-  border-top: 1px solid var(--c-line);
-  padding-top: 12px;
+  margin: 0 16px 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--c-bg);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 2px;
 }
 
 /* 避けたい点は赤で示す。見出しの文字も合わせる */
 .fold--danger { border-color: var(--c-danger); }
 .fold--danger .fold__title { color: var(--c-danger); }
 
-/* 見出しと中身を縦に積む情報行（横並びだと本文が細くなって読めない） */
+/* 見出しと中身を縦に積む情報行（横並びだと本文が細くなって読めない）。
+   1件ずつを罫線で区切ると表のように読める */
 .info-row--stack {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.info-row--stack:last-child { border-bottom: 0; padding-bottom: 0; }
+.info-row--stack:first-child { padding-top: 0; }
+
+.info-row--stack .info-row__key {
+  font-size: var(--fs-note);
+  letter-spacing: .04em;
+  color: var(--c-text-sub);
 }
 
 .info-row--stack .info-row__val {
   text-align: left;
   white-space: normal;
+  font-weight: 600;
+  line-height: 1.75;
 }
 
 /* 収集した素材の置き場。100枚を超えることがあり、縦に全部並べると
@@ -1789,6 +1825,15 @@ a.list-row:active { opacity: .88; }
   height: 88px;
   aspect-ratio: auto;
 }
+
+/* 区画の中で見せる素材は点数が少ないので1行。少し大きく出す */
+.thumb-strip--one {
+  grid-template-rows: 108px;
+  grid-auto-columns: 108px;
+  padding-bottom: 6px;
+}
+
+.thumb-strip--one .thumb { width: 108px; height: 108px; }
 
 .thumb {
   position: relative;
