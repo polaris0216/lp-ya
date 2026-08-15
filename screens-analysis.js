@@ -509,8 +509,33 @@
     's11.sourcePos': ['{n} / {total} 件目', 'Competitor {n} of {total}', '{n} / {total}번째'],
     's11.prevSource': ['前の競合LP', 'Previous competitor', '이전 경쟁 LP'],
     's11.nextSource': ['次の競合LP', 'Next competitor', '다음 경쟁 LP'],
-    's11.sourceFlow': ['このページの流れ', 'How this page flows', '이 페이지의 흐름'],
-    's11.sourceFactors': ['このページの要因', 'What worked here', '이 페이지의 요인'],
+    's11.sourceFlow': ['この競合ページの流れ', 'How this competitor page flows', '이 경쟁 페이지의 흐름'],
+    's11.sourceFactors': ['この競合ページの重要要素', 'Key elements of this competitor page', '이 경쟁 페이지의 중요 요소'],
+    's11.openHint': ['項目を押すと詳しく見られます', 'Tap a row to see the details', '항목을 누르면 자세히 볼 수 있습니다'],
+    's11.roleLabel': ['この区画の役割', 'What this block does', '이 구획의 역할'],
+    's11.bodyLabel': ['何が置かれていたか', 'What was placed here', '무엇이 놓여 있었는가'],
+    's11.hookLabel': ['次へのつなぎ', 'How it leads to the next block', '다음으로 넘기는 방법'],
+    's11.emotionLabel': ['読み手の状態', 'Where the reader is', '읽는 사람의 상태'],
+    's11.marksLabel': ['この区画にあるもの', 'What this block contains', '이 구획에 있는 것'],
+    's11.noPrice': ['価格の表示なし', 'No price shown', '가격 표시 없음'],
+    's11.noCta': ['CTAなし', 'No CTA', 'CTA 없음'],
+    's11.factorSuccess': ['真似したい点', 'Worth copying', '따라 하고 싶은 점'],
+    's11.factorFailure': ['避けたい点', 'Worth avoiding', '피하고 싶은 점'],
+    's11.factorSuccessHint': [
+      'このページが伸びた理由。自分のLPにも取り入れる価値がある。',
+      'Why this page did well. Worth bringing into your own LP.',
+      '이 페이지가 잘된 이유. 자신의 LP에도 가져올 가치가 있다.'
+    ],
+    's11.factorFailureHint': [
+      'このページの弱いところ。赤で出しているのはここ。自分のLPでは同じことをしない。',
+      'The weak points of this page, shown in red. Do not repeat them in your own LP.',
+      '이 페이지의 약한 부분. 빨간색으로 표시된 곳. 자신의 LP에서는 같은 실수를 하지 않는다.'
+    ],
+    's11.factorLegend': [
+      '赤は「避けたい点」（このページの弱いところ）です',
+      'Red marks the weak points to avoid',
+      '빨간색은 "피하고 싶은 점"(이 페이지의 약한 부분)입니다'
+    ],
     'error.pageUnreadable': [
       'このページを開けませんでした。URLが変わっていないか確認してください。',
       'Could not open this page. Check whether the URL has changed.',
@@ -2386,6 +2411,53 @@
 
     /* 古いレポートには source_results が無い。
        そのときは登録済みリンクと収集済み素材から、同じ形を組み立てて出す */
+    /* たたんでおいて、押したら中身を開く1件。
+       <details> をそのまま使う（自前の開閉を書くと、キーボードと
+       読み上げの扱いを作り直すことになる）。
+       options: { title, lead?, badge?, meta?, danger?, rows: [[見出し, 本文]...],
+                  marks?: [{on, yes, no}], marksLabel? } */
+    function foldRow(options) {
+      var o = options || {};
+      var box = el('details', 'fold' + (o.danger ? ' fold--danger' : ''));
+      var head = el('summary', 'fold__head');
+
+      var titleWrap = el('div', 'fold__titles');
+      add(titleWrap, el('span', 'fold__title', o.title || ''));
+      if (o.lead) { add(titleWrap, el('span', 'fold__lead clamp-2', o.lead)); }
+      add(head, titleWrap);
+
+      if (o.badge) {
+        add(head, el('span', 'badge ' + (o.danger ? 'badge--danger' : 'badge--ok'), o.badge));
+      }
+      if (o.meta) { add(head, el('span', 'fold__meta', o.meta)); }
+      add(box, head);
+
+      var body = el('div', 'fold__body');
+      (o.rows || []).forEach(function (pair) {
+        var value = pair && pair[1];
+        if (!value) { return; }
+        var row = el('div', 'info-row info-row--stack');
+        add(row, el('span', 'info-row__key', pair[0]));
+        add(row, el('span', 'info-row__val', value));
+        add(body, row);
+      });
+
+      var marks = (o.marks || []).filter(function (one) { return one && (one.yes || one.no); });
+      if (marks.length) {
+        var chips = el('div', 'chips');
+        marks.forEach(function (one) {
+          add(chips, el('span', one.on ? 'badge badge--ok' : 'badge badge--mute', one.on ? one.yes : one.no));
+        });
+        var markRow = el('div', 'info-row info-row--stack');
+        add(markRow, el('span', 'info-row__key', o.marksLabel || ''));
+        add(markRow, chips);
+        add(body, markRow);
+      }
+
+      add(box, body);
+      return box;
+    }
+
     function sourcesOf(report, kvAssets, lpAssets) {
       var saved = asArray(report.source_results);
       if (saved.length) { return saved; }
@@ -2531,38 +2603,56 @@
           add(card, grid);
         }
 
-        /* このページの区画の流れ */
+        /* この競合ページの流れ。
+           1行に全部並べると読み切れないので、たたんでおいて押したら開く。
+           開いた中では、拾ってあるのに今まで画面に出していなかった
+           「次へのつなぎ」「読み手の状態」「CTA・価格の有無」まで見せる。 */
         var sections = asArray(source.sections);
         if (sections.length) {
           add(card, el('p', 'card__label', t('s11.sourceFlow')));
-          var flow = el('ol', 'list');
-          flow.setAttribute('role', 'list');
+          add(card, el('p', 't-note', t('s11.openHint')));
+          var flow = el('div', 'stack stack--tight');
           sections.forEach(function (one, at) {
-            var row = el('li', 'list-row');
-            var body = el('div', 'list-row__body');
-            add(body, el('span', 'list-row__title', (at + 1) + '. ' + (one.title || one.key || '')));
-            if (one.role) { add(body, el('span', 'list-row__sub', one.role)); }
-            if (one.body) { add(body, el('span', 'list-row__sub', one.body)); }
-            add(row, body);
-            add(flow, row);
+            add(flow, foldRow({
+              title: (at + 1) + '. ' + (one.title || one.key || ''),
+              lead: one.role || '',
+              rows: [
+                [t('s11.roleLabel'), one.role],
+                [t('s11.bodyLabel'), one.body],
+                [t('s11.hookLabel'), one.hook],
+                [t('s11.emotionLabel'), one.emotion]
+              ],
+              marks: [
+                { on: !!one.cta, yes: t('s11.hasCta'), no: t('s11.noCta') },
+                { on: !!one.priceShown, yes: t('s11.hasPrice'), no: t('s11.noPrice') }
+              ],
+              marksLabel: t('s11.marksLabel')
+            }));
           });
           add(card, flow);
         }
 
-        /* このページの成功・失敗の要因 */
+        /* この競合ページの重要要素（成功・失敗）。
+           赤が何を指すのか画面に書いていなかったので、
+           見出しに凡例を出し、1件ずつにも札を付ける。 */
         var factors = asArray(source.factors);
         if (factors.length) {
           add(card, el('p', 'card__label', t('s11.sourceFactors')));
-          var list = el('ul', 'list');
-          list.setAttribute('role', 'list');
+          add(card, el('p', 't-note', t('s11.factorLegend')));
+          var list = el('div', 'stack stack--tight');
           factors.forEach(function (one) {
-            var row = el('li', 'list-row' + (one.kind === 'failure' ? ' list-row--danger' : ''));
-            var body = el('div', 'list-row__body');
-            add(body, el('span', 'list-row__title', one.title || one.key || ''));
-            if (one.body) { add(body, el('span', 'list-row__sub', one.body)); }
-            add(row, body);
-            if (one.weight) { add(row, el('span', 'list-row__meta', t('s11.weight', { n: one.weight }))); }
-            add(list, row);
+            var bad = one.kind === 'failure';
+            add(list, foldRow({
+              title: one.title || one.key || '',
+              danger: bad,
+              badge: bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
+              meta: one.weight ? t('s11.weight', { n: one.weight }) : '',
+              rows: [
+                [bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
+                  bad ? t('s11.factorFailureHint') : t('s11.factorSuccessHint')],
+                [t('s11.bodyLabel'), one.body]
+              ]
+            }));
           });
           add(card, list);
         }

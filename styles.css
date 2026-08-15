@@ -1682,6 +1682,91 @@ a.list-row:active { opacity: .88; }
   gap: 8px;
 }
 
+/* たたんでおいて押すと開く1件（競合ページの流れ・重要要素）。
+   閉じているときは見出しだけ、開くと役割・つなぎ・読み手の状態まで出す */
+.fold {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+  overflow: hidden;
+}
+
+.fold + .fold { margin-top: 6px; }
+
+.fold__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.fold__head::-webkit-details-marker { display: none; }
+
+/* 開いているかどうかを、見出しの左の記号で示す */
+.fold__head::before {
+  content: '▸';
+  flex: 0 0 auto;
+  color: var(--c-text-sub);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.fold[open] > .fold__head::before { content: '▾'; }
+
+.fold__titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fold__title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.fold__lead {
+  font-size: var(--fs-note);
+  color: var(--c-text-sub);
+}
+
+.fold__meta {
+  flex: 0 0 auto;
+  font-size: var(--fs-note);
+  color: var(--c-text-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+.fold__body {
+  padding: 0 14px 12px;
+  border-top: 1px solid var(--c-line);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 避けたい点は赤で示す。見出しの文字も合わせる */
+.fold--danger { border-color: var(--c-danger); }
+.fold--danger .fold__title { color: var(--c-danger); }
+
+/* 見出しと中身を縦に積む情報行（横並びだと本文が細くなって読めない） */
+.info-row--stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.info-row--stack .info-row__val {
+  text-align: left;
+  white-space: normal;
+}
+
 /* 収集した素材の置き場。100枚を超えることがあり、縦に全部並べると
    ページの流れや要因の話が下へ押し出されて読めなくなる。
    3行の帯に収め、続きは帯の中を横に送って見る。 */
