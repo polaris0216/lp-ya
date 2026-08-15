@@ -300,6 +300,7 @@
     'wf.input': ['商品入力', 'Product', '상품 입력'],
     'wf.competitor': ['競合LP分析', 'Competitors', '경쟁 LP 분석'],
     'wf.report': ['分析レポート', 'Report', '분석 리포트'],
+    'wf.overall': ['総合分析', 'Overview', '종합 분석'],
     'wf.prompt': ['生成プロンプト', 'Prompts', '생성 프롬프트'],
     'wf.result': ['生成結果', 'Results', '생성 결과'],
 
@@ -530,7 +531,7 @@
     'reportConfirm.sectionOrder': ['LPセクション構成', 'LP section order', 'LP 섹션 구성'],
     'reportConfirm.creditCost': ['消費ポイント', 'Point cost', '소모 포인트'],
     'reportConfirm.generateWith': ['この内容で生成', 'Generate with these settings', '이 내용으로 생성'],
-    'reportConfirm.backToReport': ['分析レポートへ', 'Back to report', '분석 리포트로'],
+    'reportConfirm.backToReport': ['総合分析へ', 'Back to the overview', '종합 분석으로'],
     'reportConfirm.backToAnalysis': ['競合分析へ', 'Back to analysis', '경쟁 분석으로'],
     'reportConfirm.winPatternNote': ['反映する勝ちパターン', 'Winning pattern to apply', '반영할 성공 패턴'],
     'reportConfirm.reflectedCount': ['分析結果 {count}件を反映', 'Applying {count} analysis findings', '분석 결과 {count}건 반영'],

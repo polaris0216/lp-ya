@@ -85,7 +85,8 @@
     S8: { tab: 'S3', back: 'S3', auth: true, admin: false },
     S10: { tab: null, back: 'S8', auth: true, admin: false },
     S11: { tab: null, back: 'S8', auth: true, admin: false },
-    S12: { tab: null, back: 'S11', auth: true, admin: false },
+    S20: { tab: null, back: 'S11', auth: true, admin: false },
+    S12: { tab: null, back: 'S20', auth: true, admin: false },
     S13: { tab: 'S4', back: 'S8', auth: true, admin: false },
     S14: { tab: null, back: 'S13', auth: true, admin: false },
     S15: { tab: null, back: 'S13', auth: true, admin: false },
@@ -96,7 +97,7 @@
   };
 
   /* プロジェクトに紐づく画面は、戻り先を作るときに選択中のプロジェクトIDを付ける */
-  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15'];
+  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S20', 'S12', 'S13', 'S14', 'S15'];
 
   /* プロジェクトを作ってから仕上げるまでの工程。この並びで上にタブを出し、
      どの工程からでも他の工程へ直接行けるようにする。
@@ -106,6 +107,7 @@
     { id: 'S4', labelKey: 'wf.input' },
     { id: 'S10', labelKey: 'wf.competitor' },
     { id: 'S11', labelKey: 'wf.report' },
+    { id: 'S20', labelKey: 'wf.overall' },
     { id: 'S12', labelKey: 'wf.prompt' },
     { id: 'S13', labelKey: 'wf.result' }
   ];
@@ -124,6 +126,7 @@
   var FALLBACK = {
     ja: {
       'common.back': '戻る',
+      'wf.overall': '総合分析',
       'wf.input': '商品入力',
       'wf.competitor': '競合LP分析',
       'wf.report': '分析レポート',

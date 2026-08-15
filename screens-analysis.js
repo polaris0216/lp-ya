@@ -330,7 +330,7 @@
       'There are no generation prompts yet. Create them from the analysis report.',
       '아직 생성 프롬프트가 없습니다. 분석 리포트에서 만들어 주세요.'
     ],
-    'prompt.toReport': ['分析レポートへ戻る', 'Back to the report', '분석 리포트로 돌아가기'],
+    'prompt.toReport': ['総合分析へ戻る', 'Back to the overview', '종합 분석으로 돌아가기'],
     'prompt.saveFailed': [
       'プロンプトの保存に失敗しました。',
       'Saving the prompts failed.',
@@ -451,10 +451,18 @@
 
     /* ---- S11 分析レポート ---- */
     's11.lead': [
-      '競合LPから収集したKV・LPと、そこから読み取った勝ちパターンです。',
-      'The KV and LP content collected from competitor pages, and the winning pattern read from them.',
-      '경쟁 LP에서 수집한 KV·LP와 거기서 읽어 낸 성공 패턴입니다.'
+      '登録した競合リンク1件ずつの結果です。左右のボタンで送ると、次のリンクの結果に移ります。',
+      'One card per competitor link. Use the arrows to move to the next link.',
+      '등록한 경쟁 링크별 결과입니다. 좌우 버튼으로 다음 링크의 결과로 이동합니다.'
     ],
+    's11.toOverall': ['総合分析を見る', 'View the overview', '종합 분석 보기'],
+    'overall.title': ['総合分析', 'Overview', '종합 분석'],
+    'overall.lead': [
+      '登録した競合すべてを突き合わせた結果です。共通していた型・LPの流れ・成功と失敗の要因をまとめています。',
+      'Everything the competitor pages had in common: the shared pattern, the flow, and what worked or fell short.',
+      '등록한 경쟁사를 모두 대조한 결과입니다. 공통된 형·LP 흐름·성공과 실패 요인을 정리했습니다.'
+    ],
+    'overall.toSources': ['リンクごとの結果に戻る', 'Back to the per-link results', '링크별 결과로 돌아가기'],
     's11.draftTitle': ['この分析はまだ実行されていません', 'This analysis has not been run yet', '이 분석은 아직 실행되지 않았습니다'],
     's11.draftBody': [
       '競合LPの登録は保存済みです。ポイント消費確認から分析を実行してください。',
@@ -700,6 +708,13 @@
     Object.keys(params).forEach(function (key) {
       out = out.split('{' + key + '}').join(String(params[key]));
     });
+    /* 差し込み先が残っていたら、そのまま画面に {gif} と出てしまう。
+       実際 GIF の件数を足したとき、呼び出し側1か所が渡し忘れて表に出た。
+       埋まらなかったことに気づけるようにする */
+    var left = out.match(/\{[a-zA-Z_]+\}/g);
+    if (left) {
+      console.error('[screens-analysis] 差し込む値が足りません: ' + left.join(' ') + ' / ' + text);
+    }
     return out;
   }
 
@@ -1776,11 +1791,19 @@
    * S11 分析レポート
    * 収集KV / 収集LP / 成功要因 / ページ構成 / 競合別結果 / 収集エラー
    * ================================================================== */
-  function renderReport(root, params) {
-    setHeader(t('report.title'));
+  /* S11（分析レポート）と S20（総合分析）は、同じレポート1行を別の面から見せる。
+     読むデータも、集め直す手順も、素材の見せ方も同じなので、
+     画面を2つに分けても中身は1つのまま持ち、出す区画だけを mode で変える。
+
+       mode='sources' … リンク1件ずつのカード。そのページが何をどう見せていたか
+       mode='overall' … 全リンクを突き合わせた共通点・流れ・要因 */
+  function renderReport(root, params, mode) {
+    var isOverall = mode === 'overall';
+    var titleKey = isOverall ? 'overall.title' : 'report.title';
+    setHeader(t(titleKey));
 
     if (!apiReady()) {
-      showFailure(root, t('common.error'), function () { renderReport(root, params); });
+      showFailure(root, t('common.error'), function () { renderReport(root, params, mode); });
       return;
     }
 
@@ -2072,12 +2095,14 @@
       add(card, el('span', 'card__label', kind === 'kv' ? t('report.collectedKv') : t('report.collectedLp')));
 
       var counts = totalCounts(assets);
-      var value = el('span', 'card__value num', formatNumber(counts.text + counts.image + counts.video));
+      var value = el('span', 'card__value num',
+        formatNumber(counts.text + counts.image + counts.gif + counts.video));
       add(value, el('span', 'card__unit', kind === 'kv' ? t('s11.kindKv') : t('s11.kindLp')));
       add(card, value);
       add(card, el('span', 'card__sub', t('s11.counts', {
         text: counts.text,
         image: counts.image,
+        gif: counts.gif,
         video: counts.video
       })));
 
@@ -2196,11 +2221,14 @@
         add(row, body);
         if (factor.weight) { add(row, el('span', 'list-row__meta', t('s11.weight', { n: factor.weight }))); }
 
+        /* 総合分析の側には競合別のカードが無いので、そのときは分析レポートへ送る */
         var jump = button('list-row__action', '›', function () {
           if (jumpTarget && typeof jumpTarget.scrollIntoView === 'function') {
             jumpTarget.scrollIntoView({ block: 'start' });
             toast(t('s11.jumpDone'));
+            return;
           }
+          go('S11', { id: projectId, reportId: view.report ? view.report.id : null });
         });
         jump.setAttribute('aria-label', t('report.byCompetitor'));
         add(row, jump);
@@ -2657,8 +2685,8 @@
       var wrap = el('div', 'screen');
 
       var head = el('div', 'screen__head');
-      add(head, el('h1', 'screen__title', t('report.title')));
-      add(head, el('p', 'screen__lead', t('s11.lead')));
+      add(head, el('h1', 'screen__title', t(titleKey)));
+      add(head, el('p', 'screen__lead', t(isOverall ? 'overall.lead' : 's11.lead')));
       add(wrap, head);
 
       var meta = el('div', 'info-list');
@@ -2673,44 +2701,55 @@
       add(meta, dateRow);
       add(wrap, meta);
 
-      var errorNode = errorSection(errors);
-      if (errorNode) { add(wrap, errorNode); }
-
-      var verdictNode = verdictSection(report);
-      if (verdictNode) { add(wrap, verdictNode); }
-
-      var kvSection = el('section', 'section');
-      add(kvSection, assetCard(kvAssets, 'kv'));
-      add(wrap, kvSection);
-
-      var lpSection = el('section', 'section');
-      add(lpSection, assetCard(lpAssets, 'lp'));
-      add(wrap, lpSection);
-
-      var competitorNode = competitorSection(report, kvAssets, lpAssets, errors);
-
-      add(wrap, factorSection(factors, competitorNode, summaryOf(report.success_factors)));
-      add(wrap, structureSection(sections, summaryOf(report.page_structure)));
-      add(wrap, competitorNode);
-
-      add(wrap, commonSection(asArray(report.common_points), entries.length));
-
-      var hasPrompts = report.prompt_status === 'done';
       var actions = el('div', 'stack');
-      add(actions, button('btn btn--primary btn--block',
-        hasPrompts ? t('prompt.open') : t('prompt.build'), function () {
-          if (hasPrompts) {
-            go('S12', { id: projectId, reportId: report.id });
-            return;
-          }
-          buildPrompts();
+
+      if (!isOverall) {
+        /* ---- 分析レポート: リンク1件ずつ ---- */
+        var errorNode = errorSection(errors);
+        if (errorNode) { add(wrap, errorNode); }
+
+        var verdictNode = verdictSection(report);
+        if (verdictNode) { add(wrap, verdictNode); }
+
+        add(wrap, competitorSection(report, kvAssets, lpAssets, errors));
+
+        add(actions, button('btn btn--primary btn--block', t('s11.toOverall'), function () {
+          go('S20', { id: projectId, reportId: report.id });
         }));
-      if (hasPrompts) {
-        add(actions, button('btn btn--secondary btn--block', t('prompt.rebuild'), buildPrompts));
+        add(actions, button('btn btn--secondary btn--block', t('s11.reAnalyze'), function () {
+          go('S10', { id: projectId });
+        }));
+      } else {
+        /* ---- 総合分析: 全リンクを突き合わせた結果 ---- */
+        add(wrap, commonSection(asArray(report.common_points), entries.length));
+        add(wrap, structureSection(sections, summaryOf(report.page_structure)));
+        add(wrap, factorSection(factors, null, summaryOf(report.success_factors)));
+
+        var kvSection = el('section', 'section');
+        add(kvSection, assetCard(kvAssets, 'kv'));
+        add(wrap, kvSection);
+
+        var lpSection = el('section', 'section');
+        add(lpSection, assetCard(lpAssets, 'lp'));
+        add(wrap, lpSection);
+
+        var hasPrompts = report.prompt_status === 'done';
+        add(actions, button('btn btn--primary btn--block',
+          hasPrompts ? t('prompt.open') : t('prompt.build'), function () {
+            if (hasPrompts) {
+              go('S12', { id: projectId, reportId: report.id });
+              return;
+            }
+            buildPrompts();
+          }));
+        if (hasPrompts) {
+          add(actions, button('btn btn--secondary btn--block', t('prompt.rebuild'), buildPrompts));
+        }
+        add(actions, button('btn btn--secondary btn--block', t('overall.toSources'), function () {
+          go('S11', { id: projectId, reportId: report.id });
+        }));
       }
-      add(actions, button('btn btn--secondary btn--block', t('s11.reAnalyze'), function () {
-        go('S10', { id: projectId });
-      }));
+
       add(actions, button('btn btn--text', t('sa.toProjectDetail'), function () {
         go('S8', { id: projectId });
       }));
@@ -2863,7 +2902,7 @@
       add(head, el('h1', 'screen__title', t('prompt.title')));
       add(wrap, head);
       add(wrap, emptyBox(t('prompt.notReady'), t('prompt.toReport'), function () {
-        go('S11', { id: projectId, reportId: view.report.id });
+        go('S20', { id: projectId, reportId: view.report.id });
       }));
       root.appendChild(wrap);
     }
@@ -3130,8 +3169,9 @@
       if (view.saving) { generate.disabled = true; }
       add(actions, generate);
 
+      /* プロンプトは総合分析の画面から作るので、1つ前の工程はそちら */
       add(actions, button('btn btn--secondary btn--block', t('reportConfirm.backToReport'), function () {
-        go('S11', { id: projectId, reportId: view.report.id });
+        go('S20', { id: projectId, reportId: view.report.id });
       }));
       add(actions, button('btn btn--secondary btn--block', t('reportConfirm.backToAnalysis'), function () {
         go('S10', { id: projectId });
@@ -3152,7 +3192,11 @@
   });
 
   App.registerScreen('S11', {
-    render: function (root, params) { renderReport(root, params || {}); }
+    render: function (root, params) { renderReport(root, params || {}, 'sources'); }
+  });
+
+  App.registerScreen('S20', {
+    render: function (root, params) { renderReport(root, params || {}, 'overall'); }
   });
 
   App.registerScreen('S12', {
