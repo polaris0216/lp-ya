@@ -510,7 +510,6 @@
     's11.nextSource': ['次の競合LP', 'Next competitor', '다음 경쟁 LP'],
     's11.sourceFlow': ['このページの流れ', 'How this page flows', '이 페이지의 흐름'],
     's11.sourceFactors': ['このページの要因', 'What worked here', '이 페이지의 요인'],
-    's11.moreAssets': ['ほか{n}件の素材', '{n} more assets', '그 외 {n}건의 소재'],
     'error.pageUnreadable': [
       'このページを開けませんでした。URLが変わっていないか確認してください。',
       'Could not open this page. Check whether the URL has changed.',
@@ -2472,7 +2471,9 @@
           video: Number(counts.video) || 0
         })));
 
-        /* 拾った素材。最初の8枚だけ並べ、残りは件数で示す。
+        /* 拾った素材は全件並べる。何をどれだけ使って売っているページなのかは
+           枚数そのものが答えなので、8枚で打ち切ると判断材料が消える。
+           絵は遅延読み込み（loading=lazy）なので、並べても最初の表示は重くならない。
            動画は src が YouTube のページなので、絵は poster を使う */
         var thumbSrc = function (item) {
           if ((item.type === 'image' || item.type === 'gif') && item.src) { return item.src; }
@@ -2480,8 +2481,8 @@
           return '';
         };
         var media = asArray(source.items).filter(function (item) { return !!thumbSrc(item); });
-        /* 動画 → GIF → 静止画の順。紹介動画はそのページのいちばん強い素材で、
-           静止画に混ぜて並べると先頭8枚から漏れる。GIF も同じ理由で前に出す */
+        /* 動画 → GIF → 静止画の順。紹介動画とGIFはそのページの勝負どころなので、
+           静止画の海に埋めずに先へ出す */
         var rank = function (item) {
           if (item.type === 'video') { return 2; }
           if (item.type === 'gif') { return 1; }
@@ -2490,7 +2491,7 @@
         media.sort(function (a, b) { return rank(b) - rank(a); });
         if (media.length) {
           var grid = el('div', 'thumb-grid');
-          media.slice(0, 8).forEach(function (item) {
+          media.forEach(function (item) {
             var tile = el('a', 'thumb');
             tile.href = item.src;
             tile.target = '_blank';
@@ -2505,9 +2506,6 @@
             add(grid, tile);
           });
           add(card, grid);
-          if (media.length > 8) {
-            add(card, el('p', 't-note', t('s11.moreAssets', { n: media.length - 8 })));
-          }
         }
 
         /* このページの区画の流れ */
