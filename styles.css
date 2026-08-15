@@ -444,8 +444,17 @@ table { border-collapse: collapse; width: 100%; }
 }
 
 /* 画面タイトルと戻る（旧ヘッダーの中身） */
+/* 工程の耳は、下までスクロールしても常に見えるようにする。
+   ヘッダー（sticky・z-index 60）のすぐ下に貼り付く。
+   耳が見えていないと、いま何番目の工程にいるのかが分からなくなり、
+   別の工程へ移るのにいちいち上まで戻ることになる。 */
 .app-subhead {
-  position: relative;
+  position: sticky;
+  /* 貼り付く位置はヘッダーの実際の高さ。--h-header は最小値で、
+     中身や端末の切り欠きの分だけ実際は高くなる。ずれると耳の上が
+     ヘッダーの下に潜る。実測値は app.js が --h-header-real に入れる */
+  top: var(--h-header-real, calc(var(--h-header) + var(--safe-top)));
+  z-index: 50;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -930,6 +939,11 @@ a.card:active,
   padding-bottom: 0;
   min-height: 52px;
 }
+
+/* 工程の耳が出ているときは戻る矢印を出さない。
+   どの工程へでも耳から直接移れるうえ、各画面の下に戻る導線があるので、
+   矢印は行を詰めているだけだった */
+.app-subhead--tabs .app-header__back { display: none; }
 
 .wtabs::-webkit-scrollbar { height: 0; }
 

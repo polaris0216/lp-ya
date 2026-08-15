@@ -2021,6 +2021,18 @@
   /* ------------------------------------------------------------------
    * 13. 起動
    * ------------------------------------------------------------------ */
+  /* 工程の耳（.app-subhead）はヘッダーのすぐ下に貼り付く。
+     ヘッダーの高さは中身と端末の切り欠きで変わるので、実測して渡す。
+     CSS の --h-header は最小値でしかなく、そのまま使うと耳の上が
+     ヘッダーの下に潜って読めなくなる。 */
+  function syncHeaderHeight() {
+    if (!dom.header) { return; }
+    var height = Math.round(dom.header.getBoundingClientRect().height);
+    if (height > 0) {
+      document.documentElement.style.setProperty('--h-header-real', height + 'px');
+    }
+  }
+
   function cacheDom() {
     dom.shell = document.querySelector('.app-shell');
     if (!dom.shell) { console.error('[App] index.html に .app-shell がありません'); }
@@ -2074,6 +2086,15 @@
     if (started) { return; }
     started = true;
     cacheDom();
+    syncHeaderHeight();
+    /* ヘッダーは中身（残高・アカウント名）が入ると高くなる。起動時の1回だけでは
+       描画前の高さを掴んでしまい、耳が8pxほどヘッダーの下に潜っていた。
+       大きさが変わるたびに測り直す。 */
+    if (typeof global.ResizeObserver === 'function' && dom.header) {
+      new global.ResizeObserver(syncHeaderHeight).observe(dom.header);
+    } else {
+      global.addEventListener('resize', syncHeaderHeight);
+    }
 
     if (!global.Api) {
       console.error('[App] api.js が読み込まれていません（window.Api がありません）。index.html の読み込み順を確認してください。');
