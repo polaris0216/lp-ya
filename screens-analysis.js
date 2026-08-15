@@ -1772,6 +1772,20 @@
       add(actions, runButton);
       add(actions, el('p', 't-note t-center', t('s10.runNote', { cost: formatNumber(view.cost) })));
 
+      /* 途中保存。入力したURLと収集の設定を下書きとして残し、
+         この工程を「続きから」の戻り先にする */
+      if (App && typeof App.saveProgressButton === 'function') {
+        var saveHere = App.saveProgressButton({
+          projectId: projectId,
+          step: 'S10',
+          save: function () {
+            return view.entries.length ? persist(STATUS_DRAFT) : Promise.resolve(null);
+          }
+        });
+        saveHere.classList.add('btn--block');
+        add(actions, saveHere);
+      }
+
       var backButton = button('btn btn--secondary btn--block', t('analysis.backToProduct'), function () {
         saveDraftAndGo('S4');
       });
@@ -2770,6 +2784,17 @@
         }));
       }
 
+      /* 途中保存。レポートの中身はサーバーにあるので、ここでは
+         「この工程まで進んだ」ことを覚えさせる（続きから戻れるように） */
+      if (App && typeof App.saveProgressButton === 'function') {
+        var saveHere = App.saveProgressButton({
+          projectId: projectId,
+          step: isOverall ? 'S20' : 'S11'
+        });
+        saveHere.classList.add('btn--block');
+        add(actions, saveHere);
+      }
+
       add(actions, button('btn btn--text', t('sa.toProjectDetail'), function () {
         go('S8', { id: projectId });
       }));
@@ -3188,6 +3213,22 @@
         view.saving ? t('sa.saving') : t('prompt.generateWith'), persistAndGo);
       if (view.saving) { generate.disabled = true; }
       add(actions, generate);
+
+      /* 途中保存。編集したプロンプト本文は打っただけでは残らないので、
+         生成へ進まずに離れるときはここで保存する */
+      if (App && typeof App.saveProgressButton === 'function') {
+        var savePrompt = App.saveProgressButton({
+          projectId: projectId,
+          step: 'S12',
+          save: function () {
+            return window.Api.analysisReports.update(view.report.id, { prompts: promptPayload() })
+              .then(function (row) { view.report = row; return row; });
+          }
+        });
+        savePrompt.classList.add('btn--block');
+        if (view.saving) { savePrompt.disabled = true; }
+        add(actions, savePrompt);
+      }
 
       /* プロンプトは総合分析の画面から作るので、1つ前の工程はそちら */
       add(actions, button('btn btn--secondary btn--block', t('reportConfirm.backToReport'), function () {

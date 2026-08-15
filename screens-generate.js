@@ -1753,6 +1753,15 @@
       box.appendChild(button('btn btn--secondary btn--block', t('generate.addMore'), function () {
         go('S12', { id: projectId });
       }));
+
+      /* 途中保存。生成物そのものはサーバーにあるので、ここでは
+         「この工程まで進んだ」ことを覚えさせる（続きから戻れるように） */
+      if (App && typeof App.saveProgressButton === 'function') {
+        var saveHere = App.saveProgressButton({ projectId: projectId, step: 'S13' });
+        saveHere.classList.add('btn--block');
+        box.appendChild(saveHere);
+      }
+
       box.appendChild(button('btn btn--primary btn--block', t('generate.saveAndReturn'), function () {
         go('S8', { id: projectId });
       }));

@@ -1215,6 +1215,60 @@
    *   プロジェクトを選んでいるときだけ出す。今いる工程に印を付け、
    *   ほかの工程は押せばそのまま移れる。
    * ------------------------------------------------------------------ */
+  /* 工程の途中保存ボタン。
+     途中保存が商品入力にしか無く、そこから先の工程は離れると
+     どこまでやったか分からなくなっていた。どの工程でも同じ場所に置く。
+
+     やることは2つ:
+       ・その画面が持っている未保存の中身を保存する（save で受け取る。
+         競合LP分析ならURL一覧、生成プロンプトなら編集した本文）
+       ・いまの工程をプロジェクトに覚えさせる（projects.last_step）。
+         プロジェクト詳細の「続きから」がこれを見て戻り先を決める。
+     読むだけの画面（分析レポート・総合分析・生成結果）は中身が
+     すでにサーバーにあるので、2つ目だけを行う。
+
+     options: { projectId, step, save?（Promiseを返す関数）, label? } */
+  function saveProgressButton(options) {
+    var o = options || {};
+    var node = button({ label: o.label || t('project.saveDraft'), variant: 'secondary' });
+    var busy = false;
+
+    node.addEventListener('click', function () {
+      if (busy) { return; }
+      if (!o.projectId) {
+        console.error('[App] saveProgressButton に projectId がありません。工程は覚えられません。');
+        toast(t('project.saveFailed'), 'danger');
+        return;
+      }
+      if (!global.Api || !global.Api.projects) {
+        console.error('[App] Api.projects がありません。api.js を確認してください。');
+        toast(t('project.saveFailed'), 'danger');
+        return;
+      }
+      busy = true;
+      node.disabled = true;
+      node.textContent = t('common.loading');
+
+      var pre = (typeof o.save === 'function') ? o.save() : null;
+      Promise.resolve(pre).then(function () {
+        return global.Api.projects.update(String(o.projectId), { last_step: String(o.step || '') });
+      }).then(function () {
+        busy = false;
+        node.disabled = false;
+        node.textContent = o.label || t('project.saveDraft');
+        toast(t('project.saved'), 'success');
+      }, function (err) {
+        busy = false;
+        node.disabled = false;
+        node.textContent = o.label || t('project.saveDraft');
+        console.error('[App] 途中保存に失敗しました', err);
+        toast(messageOf(err) || t('project.saveFailed'), 'danger');
+      });
+    });
+
+    return node;
+  }
+
   /* 見出しと耳は同じことを言うので、耳が出ているあいだは見出しを引っ込める */
   function setSubheadTabs(on) {
     if (dom.title) { dom.title.hidden = !!on; }
@@ -2107,6 +2161,7 @@
     stopJobWatch: stopWatch,
     openSheet: openSheet,
     closeModal: closeModal,
+    saveProgressButton: saveProgressButton,
 
     getUser: getUser,
     setUser: setUser,

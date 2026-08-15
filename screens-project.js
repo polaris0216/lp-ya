@@ -80,14 +80,26 @@
     return key;
   }
 
+  /* 途中保存で覚えた工程の呼び名。綴りは app.js の WORKFLOW と同じものを使う
+     （別の名前を作ると、タブの表示と戻り先の説明が食い違う） */
+  var WORKFLOW_LABEL = {
+    S4: 'wf.input',
+    S10: 'wf.competitor',
+    S11: 'wf.report',
+    S20: 'wf.overall',
+    S12: 'wf.prompt',
+    S13: 'wf.result'
+  };
+
   /* i18n.js の辞書に無い、このファイルだけの文言。並びは [日本語, English, 한국어] */
   var LOCAL = {
+    'local.resume': ['続きから（{step}）', 'Resume ({step})', '이어서 하기({step})'],
     'local.photoUploading': ['商品写真をアップロードしています…', 'Uploading product photos…', '상품 사진을 업로드하는 중…'],
     'local.photoUploaded': ['商品写真をアップロードしました', 'Product photos uploaded', '상품 사진을 업로드했습니다'],
     'local.photoUploadFailed': ['一部の写真をアップロードできませんでした', 'Some photos could not be uploaded', '일부 사진을 업로드하지 못했습니다']
   };
 
-  function tl(key) {
+  function tl(key, params) {
     var row = LOCAL[key];
     if (!row) { return key; }
     var code = 'ja';
@@ -95,7 +107,13 @@
       code = String(window.I18N.getLocale() || 'ja');
     }
     var index = code === 'en' ? 1 : (code === 'ko' ? 2 : 0);
-    return row[index] || row[0];
+    var text = row[index] || row[0];
+    if (params) {
+      Object.keys(params).forEach(function (name) {
+        text = text.split('{' + name + '}').join(String(params[name]));
+      });
+    }
+    return text;
   }
 
   function el(tag, className, textContent) {
@@ -641,6 +659,18 @@
         section.appendChild(empty);
       }
       screen.appendChild(section);
+
+      /* 途中保存した工程があれば、そこへ戻す道を最初に出す。
+         保存した本人が次に開くのはたいていその続きなので、
+         一覧の中から工程を探し直させない */
+      var lastStep = String((data.project && data.project.last_step) || '');
+      if (lastStep && WORKFLOW_LABEL[lastStep]) {
+        var resume = button('btn btn--primary btn--block',
+          tl('local.resume', { step: t(WORKFLOW_LABEL[lastStep]) }), function () {
+            go(lastStep, { id: projectId });
+          });
+        screen.appendChild(resume);
+      }
 
       /* 商品を登録 / 競合LP分析（スケッチのとおり横並び） */
       var mainRow = el('div', 'btn-row');
