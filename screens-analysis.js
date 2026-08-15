@@ -518,6 +518,13 @@
     's11.emotionLabel': ['読み手の状態', 'Where the reader is', '읽는 사람의 상태'],
     's11.marksLabel': ['この区画にあるもの', 'What this block contains', '이 구획에 있는 것'],
     's11.assetsLabel': ['ここに置かれていた素材', 'The assets placed here', '여기에 놓여 있던 소재'],
+    's11.kvAssets': ['KV（最初の1画面）の素材', 'Key visual assets', 'KV(첫 화면)의 소재'],
+    's11.lpAssets': ['LP本文の素材', 'Body assets', 'LP 본문의 소재'],
+    's11.assetsMissing': [
+      'この区画の素材は、古い分析には記録されていません。再分析すると、区画ごとに素材が並びます。',
+      'Per-block assets are not stored in this older analysis. Re-run it to see them here.',
+      '이 구획의 소재는 이전 분석에는 기록되어 있지 않습니다. 다시 분석하면 구획별 소재가 표시됩니다.'
+    ],
     's11.noPrice': ['価格の表示なし', 'No price shown', '가격 표시 없음'],
     's11.noCta': ['CTAなし', 'No CTA', 'CTA 없음'],
     's11.factorSuccess': ['真似したい点', 'Worth copying', '따라 하고 싶은 점'],
@@ -2608,11 +2615,17 @@
           return 0;
         };
         media.sort(function (a, b) { return rank(b) - rank(a); });
-        if (media.length) {
+
+        /* KV（最初の1画面）と本文は役割が違う。同じ帯に混ぜると、
+           どれが最初に目に入る絵なのかが分からない。分けて出す。
+           where が無い古いレポートは、分けずに1本の帯で出す */
+        function assetStrip(list, labelText) {
+          if (!list.length) { return; }
+          if (labelText) { add(card, el('p', 'card__sub', labelText + '（' + list.length + '）')); }
           var grid = el('div', 'thumb-strip');
           grid.setAttribute('role', 'list');
-          grid.setAttribute('aria-label', t('s11.assetStrip'));
-          media.forEach(function (item) {
+          grid.setAttribute('aria-label', labelText || t('s11.assetStrip'));
+          list.forEach(function (item) {
             var tile = el('a', 'thumb');
             tile.href = item.src;
             tile.target = '_blank';
@@ -2627,6 +2640,17 @@
             add(grid, tile);
           });
           add(card, grid);
+        }
+
+        var kvMedia = media.filter(function (item) { return item.where === 'kv'; });
+        var bodyMedia = media.filter(function (item) { return item.where !== 'kv'; });
+        if (media.length) {
+          if (kvMedia.length) {
+            assetStrip(kvMedia, t('s11.kvAssets'));
+            assetStrip(bodyMedia, t('s11.lpAssets'));
+          } else {
+            assetStrip(media, '');
+          }
         }
 
         /* 分析が「この区画にあった」と書いた素材のURLから、
@@ -2649,9 +2673,16 @@
            開いた中では、拾ってあるのに今まで画面に出していなかった
            「次へのつなぎ」「読み手の状態」「CTA・価格の有無」まで見せる。 */
         var sections = asArray(source.sections);
+        /* 区画ごとの素材は、分析のときに記録していないと出せない。
+           出ない理由が画面から分からないと「壊れている」に見えるので、
+           古いレポートではその旨と直し方（再分析）を出す */
+        var hasShots = sections.some(function (one) { return asArray(one.assets).length; })
+          || asArray(source.factors).some(function (one) { return asArray(one.assets).length; });
+
         if (sections.length) {
           add(card, el('p', 'card__label', t('s11.sourceFlow')));
           add(card, el('p', 't-note', t('s11.openHint')));
+          if (!hasShots) { add(card, el('p', 'note-box', t('s11.assetsMissing'))); }
           var flow = el('div', 'stack stack--tight');
           sections.forEach(function (one, at) {
             add(flow, foldRow({
