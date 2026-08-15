@@ -1215,6 +1215,174 @@
    *   プロジェクトを選んでいるときだけ出す。今いる工程に印を付け、
    *   ほかの工程は押せばそのまま移れる。
    * ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------
+   * 10a-2. 集めた写真・動画の拡大表示
+   *   一覧の絵は小さく、何が写っているか分からない。押したら大きく出し、
+   *   左右でその一覧の中を送れるようにする。
+   *   同じものを画面ごとに書くと直しが片方に入らないので、ここに1つだけ置く。
+   *
+   *   items: [{ type:'image'|'gif'|'video', src|url, poster?, label? }]
+   * ------------------------------------------------------------------ */
+  var viewerState = null;
+
+  function viewerSrcOf(item) {
+    return String((item && (item.src || item.url)) || '');
+  }
+
+  /* 一覧に並ぶ絵は、配信側で小さく切り出した版（?width=184&height=104&fit=crop）
+     であることが多い。これをそのまま大きく出しても、184pxの絵が伸びるだけで
+     何も見えるようにならない。大きさ指定を外した URL を先に試し、
+     それが取れなければ元の URL に戻す。 */
+  function viewerFullSrc(url) {
+    var cut = url.indexOf('?');
+    if (cut === -1) { return ''; }
+    var base = url.slice(0, cut);
+    var kept = url.slice(cut + 1).split('&').filter(function (pair) {
+      var name = pair.split('=')[0].toLowerCase();
+      /* 署名は消すと 404 になるので残す。大きさ・切り抜きの指定だけ外す */
+      return ['width', 'height', 'fit', 'dpr', 'quality', 'w', 'h'].indexOf(name) === -1;
+    });
+    var full = base + (kept.length ? '?' + kept.join('&') : '');
+    return full === url ? '' : full;
+  }
+
+  /* YouTube や Vimeo は動画ファイルではなくページのURL。
+     <video> に渡しても鳴らないので、埋め込みの形に直して枠で出す */
+  function viewerEmbedOf(url) {
+    var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
+    if (yt) { return 'https://www.youtube.com/embed/' + yt[1] + '?autoplay=1'; }
+    var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vm) { return 'https://player.vimeo.com/video/' + vm[1] + '?autoplay=1'; }
+    return '';
+  }
+
+  function closeViewer() {
+    if (!viewerState) { return; }
+    document.removeEventListener('keydown', viewerState.onKey, true);
+    if (viewerState.root && viewerState.root.parentNode) {
+      viewerState.root.parentNode.removeChild(viewerState.root);
+    }
+    var back = viewerState.lastFocus;
+    viewerState = null;
+    if (back && isFn(back.focus)) { back.focus(); }
+  }
+
+  function stepViewer(delta) {
+    if (!viewerState) { return; }
+    var total = viewerState.items.length;
+    var next = (viewerState.index + delta + total) % total;
+    viewerState.index = next;
+    paintViewer();
+  }
+
+  function viewerIcon(className, path, labelKey, onClick) {
+    var node = button({ label: '', variant: 'secondary', onClick: onClick });
+    node.className = className;
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('width', '22');
+    svg.setAttribute('height', '22');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    var d = document.createElementNS(ns, 'path');
+    d.setAttribute('d', path);
+    svg.appendChild(d);
+    node.appendChild(svg);
+    node.setAttribute('aria-label', t(labelKey));
+    return node;
+  }
+
+  function paintViewer() {
+    if (!viewerState) { return; }
+    if (viewerState.root && viewerState.root.parentNode) {
+      viewerState.root.parentNode.removeChild(viewerState.root);
+    }
+
+    var item = viewerState.items[viewerState.index] || {};
+    var url = viewerSrcOf(item);
+    var root = el('div', { class: 'viewer' });
+    viewerState.root = root;
+
+    var backdrop = el('div', { class: 'viewer__backdrop' });
+    backdrop.addEventListener('click', closeViewer);
+    root.appendChild(backdrop);
+
+    var stage = el('div', { class: 'viewer__stage' });
+    var embed = item.type === 'video' ? viewerEmbedOf(url) : '';
+    if (embed) {
+      var frame = document.createElement('iframe');
+      frame.className = 'viewer__media viewer__media--frame';
+      frame.src = embed;
+      frame.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+      frame.setAttribute('allowfullscreen', 'true');
+      frame.setAttribute('title', item.label || '');
+      stage.appendChild(frame);
+    } else if (item.type === 'video') {
+      var media = document.createElement('video');
+      media.className = 'viewer__media';
+      media.src = url;
+      media.controls = true;
+      media.autoplay = true;
+      media.playsInline = true;
+      if (item.poster) { media.poster = item.poster; }
+      stage.appendChild(media);
+    } else {
+      var image = el('img', { class: 'viewer__media' });
+      image.alt = item.label || '';
+      var full = viewerFullSrc(url);
+      /* 大きい版が取れなければ、一度だけ元の URL に戻す */
+      if (full) {
+        image.addEventListener('error', function fallback() {
+          image.removeEventListener('error', fallback);
+          image.src = url;
+        });
+      }
+      image.src = full || url;
+      stage.appendChild(image);
+    }
+    root.appendChild(stage);
+
+    root.appendChild(viewerIcon('viewer__close', 'M6 6l12 12M18 6L6 18', 'common.close', closeViewer));
+    root.appendChild(el('span', {
+      class: 'viewer__count',
+      text: (viewerState.index + 1) + ' / ' + viewerState.items.length
+    }));
+
+    if (viewerState.items.length > 1) {
+      root.appendChild(viewerIcon('viewer__nav viewer__nav--prev', 'M15 19L8 12l7-7', 'viewer.prev',
+        function () { stepViewer(-1); }));
+      root.appendChild(viewerIcon('viewer__nav viewer__nav--next', 'M9 5l7 7-7 7', 'viewer.next',
+        function () { stepViewer(1); }));
+    }
+
+    document.body.appendChild(root);
+  }
+
+  function openViewer(items, index) {
+    var list = (items || []).filter(function (one) { return one && viewerSrcOf(one); });
+    if (!list.length) { return; }
+    closeViewer();
+    viewerState = {
+      items: list,
+      index: Math.max(0, Math.min(Number(index) || 0, list.length - 1)),
+      root: null,
+      lastFocus: document.activeElement,
+      onKey: null
+    };
+    viewerState.onKey = function (event) {
+      if (event.key === 'Escape') { closeViewer(); return; }
+      if (event.key === 'ArrowRight') { stepViewer(1); }
+      if (event.key === 'ArrowLeft') { stepViewer(-1); }
+    };
+    document.addEventListener('keydown', viewerState.onKey, true);
+    paintViewer();
+  }
+
   /* 工程の途中保存ボタン。
      途中保存が商品入力にしか無く、そこから先の工程は離れると
      どこまでやったか分からなくなっていた。どの工程でも同じ場所に置く。
@@ -2182,6 +2350,8 @@
     stopJobWatch: stopWatch,
     openSheet: openSheet,
     closeModal: closeModal,
+    openViewer: openViewer,
+    closeViewer: closeViewer,
     saveProgressButton: saveProgressButton,
 
     getUser: getUser,

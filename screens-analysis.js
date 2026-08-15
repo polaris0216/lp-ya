@@ -2070,10 +2070,9 @@
               var grid = el('div', 'thumb-strip');
               grid.setAttribute('role', 'list');
               grid.setAttribute('aria-label', t('s11.assetStrip'));
-              withSrc.forEach(function (item) {
+              withSrc.forEach(function (item, at) {
                 var tile = el('a', 'thumb');
                 tile.href = item.src;
-                tile.target = '_blank';
                 tile.rel = 'noopener';
                 var img = el('img', 'thumb__img');
                 img.src = thumbOf(item);
@@ -2082,6 +2081,12 @@
                 add(tile, img);
                 if (item.type === 'gif') { add(tile, el('span', 'thumb__tag', 'GIF')); }
                 if (item.type === 'video') { add(tile, el('span', 'thumb__tag', t('media.video'))); }
+                tile.addEventListener('click', function (event) {
+                  if (!App || typeof App.openViewer !== 'function') { return; }
+                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) { return; }
+                  event.preventDefault();
+                  App.openViewer(withSrc, at);
+                });
                 add(grid, tile);
               });
               add(group, grid);
@@ -2419,6 +2424,34 @@
 
     /* 古いレポートには source_results が無い。
        そのときは登録済みリンクと収集済み素材から、同じ形を組み立てて出す */
+    /* 素材1件の札。押すと大きく出し、その並びの中を左右で送れる。
+       別のタブで生のファイルを開いていたころは、1枚見るたびに
+       レポートを離れ、戻ってきて次を押す、の繰り返しだった。
+       list と at を渡すのは、開いたあと同じ並びを行き来させるため。 */
+    function assetTile(item, list, at) {
+      var tile = el('a', 'thumb');
+      /* 押したときは拡大表示に回すが、href は残す。
+         新しいタブで開きたい人（中クリック・右クリック）の道を塞がない */
+      tile.href = item.src;
+      tile.rel = 'noopener';
+      var img = el('img', 'thumb__img');
+      img.src = (item.type === 'video' && item.poster) ? item.poster : item.src;
+      img.alt = item.label || '';
+      img.loading = 'lazy';
+      add(tile, img);
+      if (item.type === 'gif') { add(tile, el('span', 'thumb__tag', 'GIF')); }
+      if (item.type === 'video') { add(tile, el('span', 'thumb__tag', t('media.video'))); }
+
+      tile.addEventListener('click', function (event) {
+        if (!App || typeof App.openViewer !== 'function') { return; }
+        /* 修飾キー付きの押下は、利用者が別タブで開きたいという意思表示 */
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) { return; }
+        event.preventDefault();
+        App.openViewer(list, at);
+      });
+      return tile;
+    }
+
     /* たたんでおいて、押したら中身を開く1件。
        <details> をそのまま使う（自前の開閉を書くと、キーボードと
        読み上げの扱いを作り直すことになる）。
@@ -2457,20 +2490,7 @@
         var shotRow = el('div', 'info-row info-row--stack');
         add(shotRow, el('span', 'info-row__key', o.assetsLabel || ''));
         var strip = el('div', 'thumb-strip thumb-strip--one');
-        shots.forEach(function (item) {
-          var tile = el('a', 'thumb');
-          tile.href = item.src;
-          tile.target = '_blank';
-          tile.rel = 'noopener';
-          var img = el('img', 'thumb__img');
-          img.src = item.poster || item.src;
-          img.alt = item.label || '';
-          img.loading = 'lazy';
-          add(tile, img);
-          if (item.type === 'gif') { add(tile, el('span', 'thumb__tag', 'GIF')); }
-          if (item.type === 'video') { add(tile, el('span', 'thumb__tag', t('media.video'))); }
-          add(strip, tile);
-        });
+        shots.forEach(function (item, at) { add(strip, assetTile(item, shots, at)); });
         add(shotRow, strip);
         add(body, shotRow);
       }
@@ -2625,20 +2645,7 @@
           var grid = el('div', 'thumb-strip' + (oneRow ? ' thumb-strip--kv' : ''));
           grid.setAttribute('role', 'list');
           grid.setAttribute('aria-label', labelText || t('s11.assetStrip'));
-          list.forEach(function (item) {
-            var tile = el('a', 'thumb');
-            tile.href = item.src;
-            tile.target = '_blank';
-            tile.rel = 'noopener';
-            var img = el('img', 'thumb__img');
-            img.src = thumbSrc(item);
-            img.alt = item.label || '';
-            img.loading = 'lazy';
-            add(tile, img);
-            if (item.type === 'gif') { add(tile, el('span', 'thumb__tag', 'GIF')); }
-            if (item.type === 'video') { add(tile, el('span', 'thumb__tag', t('media.video'))); }
-            add(grid, tile);
-          });
+          list.forEach(function (item, at) { add(grid, assetTile(item, list, at)); });
           add(card, grid);
         }
 

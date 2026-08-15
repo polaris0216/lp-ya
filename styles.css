@@ -3197,12 +3197,30 @@ input[type='radio'] {
 }
 
 .viewer__media {
+  /* 小さく切り出された絵でも見えるところまで引き伸ばす。
+     縦横の比は保ち、はみ出さない（contain） */
+  width: auto;
+  height: auto;
   max-width: 100%;
   max-height: 100%;
+  min-width: min(46vw, 520px);
+  object-fit: contain;
   border-radius: var(--r-thumb);
   background: #000;
   box-shadow: 0 24px 70px rgba(0, 0, 0, .55);
   pointer-events: auto;
+}
+
+@media (max-width: 640px) {
+  .viewer__media { min-width: 0; }
+}
+
+/* YouTube などの埋め込みは、中身の大きさを持たないので枠を指定する */
+.viewer__media--frame {
+  width: min(100%, 1120px);
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
 }
 
 .viewer__close,
