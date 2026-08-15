@@ -1911,6 +1911,7 @@ a.list-row:active { opacity: .88; }
 /* 商品カットの印（S4）。★が付いたものだけを素材生成の見本に渡す */
 /* 競合LP別の分析。1件ずつカルーセルで送る */
 .carousel__card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1928,12 +1929,14 @@ a.list-row:active { opacity: .88; }
 /* 何件目を見ているかは、いちばん先に知りたいこと。
    カードの枠の外（上辺）に貼り付く耳として出す。
    下側の角を落とし、下辺をカードの枠に1px重ねて、
-   カードと1枚につながって見えるようにする */
+   カードと1枚につながって見えるようにする。
+   DOM 上はカードの子。こうしておくと左右に送ったとき、
+   カードの transform に乗って耳も一緒に滑る */
 .src-card__tab {
-  display: inline-block;
-  position: relative;
+  position: absolute;
+  left: -1px;
+  bottom: calc(100% + 1px);
   z-index: 1;
-  margin-bottom: -1px;
   padding: 9px 20px;
   border-radius: 14px 14px 0 0;
   background: var(--grad-main);
@@ -1947,7 +1950,7 @@ a.list-row:active { opacity: .88; }
 }
 
 /* 耳が付く側の角は落とす。丸いままだと耳とカードのあいだに隙間が見える */
-.carousel__view .src-card__tab + .carousel__card { border-top-left-radius: 0; }
+.carousel__card:has(.src-card__tab) { border-top-left-radius: 0; }
 
 .carousel__card .thumb-grid { margin-top: 2px; }
 .carousel__card .list { margin-top: -2px; }
@@ -3592,7 +3595,7 @@ input[type='radio'] {
 .carousel__card.is-leaving-left,
 .carousel__card.is-leaving-right {
   position: absolute;
-  top: var(--reward-view-pad);
+  top: var(--reward-view-pad-top, var(--reward-view-pad));
   left: var(--reward-view-pad);
   right: var(--reward-view-pad);
   pointer-events: none;
@@ -3745,8 +3748,16 @@ input[type='radio'] {
   min-width: 0;
   overflow: hidden;
   padding: var(--reward-view-pad);
+  padding-top: var(--reward-view-pad-top, var(--reward-view-pad));
   margin: calc(var(--reward-view-pad) * -1);
+  margin-top: calc(var(--reward-view-pad-top, var(--reward-view-pad)) * -1);
 }
+
+/* 耳はカードの外へはみ出す。切り取り枠の上をその分だけ広げないと、
+   滑っている途中の耳が上で切られる。広げた分は外側に場所を取って、
+   ひとつ上の要素と耳が重ならないようにする */
+.carousel--eared { margin-top: 38px; }
+.carousel--eared .carousel__view { --reward-view-pad-top: 56px; }
 
 .reward-nav,
 .carousel__nav {

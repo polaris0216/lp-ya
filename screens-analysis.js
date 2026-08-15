@@ -529,16 +529,6 @@
     's11.noCta': ['CTAなし', 'No CTA', 'CTA 없음'],
     's11.factorSuccess': ['真似したい点', 'Worth copying', '따라 하고 싶은 점'],
     's11.factorFailure': ['避けたい点', 'Worth avoiding', '피하고 싶은 점'],
-    's11.factorSuccessHint': [
-      'このページが伸びた理由。自分のLPにも取り入れる価値がある。',
-      'Why this page did well. Worth bringing into your own LP.',
-      '이 페이지가 잘된 이유. 자신의 LP에도 가져올 가치가 있다.'
-    ],
-    's11.factorFailureHint': [
-      'このページの弱いところ。赤で出しているのはここ。自分のLPでは同じことをしない。',
-      'The weak points of this page, shown in red. Do not repeat them in your own LP.',
-      '이 페이지의 약한 부분. 빨간색으로 표시된 곳. 자신의 LP에서는 같은 실수를 하지 않는다.'
-    ],
     's11.factorLegend': [
       '赤は「避けたい点」（このページの弱いところ）です',
       'Red marks the weak points to avoid',
@@ -2577,7 +2567,7 @@
         var dir = srcAnim;
         srcAnim = 0;
 
-        var carousel = el('div', 'carousel');
+        var carousel = el('div', 'carousel carousel--eared');
         var prev = button('carousel__nav', '‹', function () { stepSource(-1); });
         prev.disabled = sources.length < 2;
         prev.setAttribute('aria-label', t('s11.prevSource'));
@@ -2585,6 +2575,12 @@
 
         var card = el('article', 'carousel__card card'
           + (dir > 0 ? ' is-from-right' : (dir < 0 ? ' is-from-left' : '')));
+
+        /* 何件目かの耳。カードの子にしておくと、左右に送ったときに
+           カードと一緒に滑る。見た目の位置は CSS で枠の外へ出す
+           （カードの外に置くと、カードだけが滑って耳が取り残される） */
+        add(card, el('span', 'src-card__tab',
+          t('s11.sourcePos', { n: index + 1, total: sources.length })));
 
         /* 見出し行: プラットフォーム / 成否 */
         var top = el('div', 'src-card__head');
@@ -2723,16 +2719,21 @@
           var list = el('div', 'stack stack--tight');
           factors.forEach(function (one) {
             var bad = one.kind === 'failure';
+            /* 先に「何が置かれていたか」（そのページの事実）、
+               そのあとに「真似したい点」（自分のLPで何をするか）。
+               取り出せた分だけ出す。どの要因にも同じ一般論を出すと、
+               札の言い換えにしかならず読む意味がなくなる */
+            var rows = [[t('s11.bodyLabel'), one.body]];
+            if (one.takeaway) {
+              rows.push([bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
+                one.takeaway]);
+            }
             add(list, foldRow({
               title: one.title || one.key || '',
               danger: bad,
               badge: bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
               meta: one.weight ? t('s11.weight', { n: one.weight }) : '',
-              rows: [
-                [bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
-                  bad ? t('s11.factorFailureHint') : t('s11.factorSuccessHint')],
-                [t('s11.bodyLabel'), one.body]
-              ],
+              rows: rows,
               assets: shotsOf(one),
               assetsLabel: t('s11.assetsLabel')
             }));
@@ -2748,12 +2749,6 @@
         });
 
         var cardView = el('div', 'carousel__view');
-        /* 何件目かは、カードの枠の外（上辺）に貼り付く耳として出す。
-           カードの中に置くと枠の内側の飾りに見え、何ページ目を見ているのかを
-           毎回探すことになる。カードは左右に滑るが、耳は動かさない
-           （番号が滑ると、どこを見ているかがかえって分かりにくい） */
-        add(cardView, el('span', 'src-card__tab',
-          t('s11.sourcePos', { n: index + 1, total: sources.length })));
         add(cardView, card);
         if (leaving && dir) { slideOut(cardView, leaving, dir); }
         add(carousel, cardView);
