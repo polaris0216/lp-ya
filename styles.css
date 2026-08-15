@@ -1701,6 +1701,25 @@ a.list-row:active { opacity: .88; }
 .thumb__remove:active { opacity: .88; }
 
 /* 商品カットの印（S4）。★が付いたものだけを素材生成の見本に渡す */
+/* 競合LP別の分析。1件ずつカルーセルで送る */
+.carousel__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.src-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.carousel__card .thumb-grid { margin-top: 2px; }
+.carousel__card .list { margin-top: -2px; }
+
 /* 動く素材の印。★（左下）と ×（右上）を避けて左上に置く */
 .thumb__tag {
   position: absolute;
@@ -3312,12 +3331,16 @@ input[type='radio'] {
 /* 送るときは、出ていく1枚と入ってくる1枚を同じ速さ・同じ曲線で並べて動かす。
    入ってくる側だけを動かすと、前のカードが消えた瞬間だけが目に残って引っかかる。
    2枚が地続きに流れることで、はじめて「隣へ移った」と見える */
-.reward-card.is-from-right { animation: reward-in-right var(--reward-slide) var(--reward-ease) both; }
-.reward-card.is-from-left { animation: reward-in-left var(--reward-slide) var(--reward-ease) both; }
+.reward-card.is-from-right,
+.carousel__card.is-from-right { animation: reward-in-right var(--reward-slide) var(--reward-ease) both; }
+.reward-card.is-from-left,
+.carousel__card.is-from-left { animation: reward-in-left var(--reward-slide) var(--reward-ease) both; }
 
 /* 出ていく1枚。入ってくる1枚と重ねるので、流れの上から外す */
 .reward-card.is-leaving-left,
-.reward-card.is-leaving-right {
+.reward-card.is-leaving-right,
+.carousel__card.is-leaving-left,
+.carousel__card.is-leaving-right {
   position: absolute;
   top: var(--reward-view-pad);
   left: var(--reward-view-pad);
@@ -3325,8 +3348,10 @@ input[type='radio'] {
   pointer-events: none;
 }
 
-.reward-card.is-leaving-left { animation: reward-out-left var(--reward-slide) var(--reward-ease) both; }
-.reward-card.is-leaving-right { animation: reward-out-right var(--reward-slide) var(--reward-ease) both; }
+.reward-card.is-leaving-left,
+.carousel__card.is-leaving-left { animation: reward-out-left var(--reward-slide) var(--reward-ease) both; }
+.reward-card.is-leaving-right,
+.carousel__card.is-leaving-right { animation: reward-out-right var(--reward-slide) var(--reward-ease) both; }
 
 /* 105% は、切り抜き枠の余白ぶんまで完全に外へ逃がすため。
    端に細く残ると、そこで色が瞬いて動きが途切れて見える */
@@ -3352,7 +3377,9 @@ input[type='radio'] {
 
 @media (prefers-reduced-motion: reduce) {
   .reward-card.is-from-right,
-  .reward-card.is-from-left { animation: none; }
+  .reward-card.is-from-left,
+  .carousel__card.is-from-right,
+  .carousel__card.is-from-left { animation: none; }
 }
 
 .reward-card__head {
@@ -3447,7 +3474,8 @@ input[type='radio'] {
 .discount-mark--hint { color: var(--c-text-sub); font-weight: 400; }
 
 /* リワードは1枚ずつ。左右のボタンで送る */
-.reward-carousel {
+.reward-carousel,
+.carousel {
   --reward-slide: .52s;
   /* 動き出しと止まり際の両方をゆるめる。片側だけゆるめると、
      残る側が弾かれたように見えて「急」と感じる */
@@ -3461,7 +3489,8 @@ input[type='radio'] {
 
 /* 滑り込む途中のカードが矢印の上や枠の外へはみ出さないよう、ここで切る。
    影が切れないように内側へ余白を取り、その分を外側の負の余白で戻す */
-.reward-carousel__view {
+.reward-carousel__view,
+.carousel__view {
   position: relative;
   min-width: 0;
   overflow: hidden;
@@ -3469,7 +3498,8 @@ input[type='radio'] {
   margin: calc(var(--reward-view-pad) * -1);
 }
 
-.reward-nav {
+.reward-nav,
+.carousel__nav {
   width: 36px;
   height: 36px;
   display: flex;
@@ -3483,9 +3513,12 @@ input[type='radio'] {
   cursor: pointer;
 }
 
-.reward-nav:hover:not(:disabled) { border-color: var(--c-accent); color: var(--c-accent); }
-.reward-nav:disabled { opacity: .35; cursor: not-allowed; }
-.reward-nav svg { display: block; }
+.reward-nav:hover:not(:disabled),
+.carousel__nav:hover:not(:disabled) { border-color: var(--c-accent); color: var(--c-accent); }
+.reward-nav:disabled,
+.carousel__nav:disabled { opacity: .35; cursor: not-allowed; }
+.reward-nav svg,
+.carousel__nav svg { display: block; }
 
 .reward-card__pos {
   flex: 0 0 auto;
@@ -3494,14 +3527,16 @@ input[type='radio'] {
   font-variant-numeric: tabular-nums;
 }
 
-.reward-dots {
+.reward-dots,
+.carousel__dots {
   display: flex;
   justify-content: center;
   gap: 2px;
   margin-top: -6px;
 }
 
-.reward-dot {
+.reward-dot,
+.carousel__dot {
   width: 22px;
   padding: 0;
   border: none;
@@ -3513,7 +3548,8 @@ input[type='radio'] {
 }
 
 /* 見た目は小さな丸。押せる範囲だけ広く取る */
-.reward-dot::before {
+.reward-dot::before,
+.carousel__dot::before {
   content: "";
   width: 8px;
   height: 8px;
@@ -3522,16 +3558,20 @@ input[type='radio'] {
   transition: background var(--reward-slide) var(--reward-ease), transform var(--reward-slide) var(--reward-ease);
 }
 
-.reward-dot:hover::before { background: var(--c-text-sub); }
+.reward-dot:hover::before,
+.carousel__dot:hover::before { background: var(--c-text-sub); }
 
-.reward-dot.is-current::before {
+.reward-dot.is-current::before,
+.carousel__dot.is-current::before {
   background: var(--c-accent);
   transform: scale(1.35);
 }
 
 @media (max-width: 560px) {
-  .reward-carousel { grid-template-columns: 1fr; }
-  .reward-nav { display: none; }
+  .reward-carousel,
+  .carousel { grid-template-columns: 1fr; }
+  .reward-nav,
+  .carousel__nav { display: none; }
 }
 
 /* ターゲットカードの優先順位まわり */

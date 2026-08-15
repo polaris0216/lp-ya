@@ -120,7 +120,8 @@
   var STATUS_DONE = 'done';
   var STATUS_ERROR = 'error';
 
-  var MEDIA_TYPES = ['text', 'image', 'video'];
+  /* GIF は image と分けて数える。動きで見せている区画かどうかが一目で分かるように */
+  var MEDIA_TYPES = ['text', 'image', 'gif', 'video'];
 
   /* 生成プロンプトの種類。この順で S12 に並ぶ */
   var PROMPT_KINDS = ['own_lp', 'crowdfunding_lp', 'kv', 'meta_ads'];
@@ -377,6 +378,7 @@
 
     'media.text': ['テキスト', 'Text', '텍스트'],
     'media.image': ['画像', 'Images', '이미지'],
+    'media.gif': ['GIF', 'GIF', 'GIF'],
     'media.video': ['動画', 'Video', '동영상'],
     'media.all': ['すべて', 'All', '전체'],
 
@@ -461,7 +463,7 @@
     ],
     's11.collecting': ['収集しています…', 'Collecting…', '수집하는 중…'],
     's11.runFailed': ['分析結果の保存に失敗しました', 'Failed to save the analysis result', '분석 결과 저장에 실패했습니다'],
-    's11.counts': ['テキスト{text} / 画像{image} / 動画{video}', 'Text {text} / Images {image} / Video {video}', '텍스트 {text} / 이미지 {image} / 동영상 {video}'],
+    's11.counts': ['テキスト{text} / 画像{image} / GIF{gif} / 動画{video}', 'Text {text} / Images {image} / GIF {gif} / Video {video}', '텍스트 {text} / 이미지 {image} / GIF {gif} / 동영상 {video}'],
     's11.openAll': ['すべて見る', 'View all', '전체 보기'],
     's11.kvOpenTitle': ['収集したKV（{n}件）', 'Collected KV ({n})', '수집한 KV({n}건)'],
     's11.lpOpenTitle': ['収集したLP（{n}件）', 'Collected LP ({n})', '수집한 LP({n}건)'],
@@ -495,6 +497,17 @@
     's11.kindLp': ['LP本文', 'LP body', 'LP 본문'],
     's11.createdAt': ['作成日時', 'Created', '생성 일시'],
     's11.urlCount': ['競合LP {n}件', '{n} competitor LPs', '경쟁 LP {n}건'],
+    's11.sourcePos': ['{n} / {total} 件目', 'Competitor {n} of {total}', '{n} / {total}번째'],
+    's11.prevSource': ['前の競合LP', 'Previous competitor', '이전 경쟁 LP'],
+    's11.nextSource': ['次の競合LP', 'Next competitor', '다음 경쟁 LP'],
+    's11.sourceFlow': ['このページの流れ', 'How this page flows', '이 페이지의 흐름'],
+    's11.sourceFactors': ['このページの要因', 'What worked here', '이 페이지의 요인'],
+    's11.moreAssets': ['ほか{n}件の素材', '{n} more assets', '그 외 {n}건의 소재'],
+    'error.pageUnreadable': [
+      'このページを開けませんでした。URLが変わっていないか確認してください。',
+      'Could not open this page. Check whether the URL has changed.',
+      '이 페이지를 열 수 없었습니다. URL이 변경되지 않았는지 확인해 주세요.'
+    ],
     's11.noAsset': ['収集できたコンテンツがありません', 'Nothing could be collected', '수집된 콘텐츠가 없습니다'],
     's11.reAnalyze': ['競合LPを追加して再分析', 'Add competitors and analyse again', '경쟁 LP를 추가해 재분석'],
     's11.reportEmptyAction': ['競合LP分析を始める', 'Start competitor analysis', '경쟁 LP 분석 시작'],
@@ -1972,8 +1985,11 @@
             add(group, el('p', 't-note', t('s11.noAsset')));
           } else {
             /* 画像（src あり）はサムネイルのグリッドで全件、それ以外は行で全件見せる */
-            var withSrc = items.filter(function (item) { return item.type === 'image' && item.src; });
-            var rest = items.filter(function (item) { return !(item.type === 'image' && item.src); });
+            var hasThumb = function (item) {
+              return (item.type === 'image' || item.type === 'gif') && item.src;
+            };
+            var withSrc = items.filter(hasThumb);
+            var rest = items.filter(function (item) { return !hasThumb(item); });
 
             if (withSrc.length) {
               var grid = el('div', 'thumb-grid');
@@ -2038,12 +2054,12 @@
     }
 
     function totalCounts(assets) {
-      var total = { text: 0, image: 0, video: 0 };
+      var total = { text: 0, image: 0, gif: 0, video: 0 };
       assets.forEach(function (asset) {
         var counts = asset.counts || {};
-        total.text += Number(counts.text) || 0;
-        total.image += Number(counts.image) || 0;
-        total.video += Number(counts.video) || 0;
+        MEDIA_TYPES.forEach(function (type) {
+          total[type] += Number(counts[type]) || 0;
+        });
       });
       return total;
     }
@@ -2296,79 +2312,232 @@
       return section;
     }
 
-    /* ---- 競合LP別の分析（プラットフォーム別に結果と採用セレクタ・エラーを出す） ---- */
+    /* ---- 競合LP別の分析 ----
+       リンク1件につき1枚。左右のボタンかドットで送る。
+       まとめた結果（共通点・成功要因）とは別に、
+       「このリンクは何をどう見せていたか」を1件ずつ確かめられるようにする。 */
+    var srcIndex = 0;
+    var srcAnim = 0;   // 1=次へ -1=前へ。滑り込む向き
+
+    function reducedMotion() {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    /* 前のカードを新しい枠に置き直し、送った向きへ流して捨てる */
+    function slideOut(view, node, delta) {
+      node.className = 'carousel__card ' + (delta > 0 ? 'is-leaving-left' : 'is-leaving-right');
+      node.setAttribute('aria-hidden', 'true');
+      view.appendChild(node);
+      var drop = function () { if (node.parentNode) { node.parentNode.removeChild(node); } };
+      node.addEventListener('animationend', drop);
+      setTimeout(drop, 1200);
+    }
+
+    /* 古いレポートには source_results が無い。
+       そのときは登録済みリンクと収集済み素材から、同じ形を組み立てて出す */
+    function sourcesOf(report, kvAssets, lpAssets) {
+      var saved = asArray(report.source_results);
+      if (saved.length) { return saved; }
+
+      return entriesOf(report).map(function (entry) {
+        var items = [];
+        var counts = { text: 0, image: 0, gif: 0, video: 0 };
+        [kvAssets, lpAssets].forEach(function (groups) {
+          groups.forEach(function (group) {
+            if (group.url !== entry.url) { return; }
+            (group.items || []).forEach(function (item) { items.push(item); });
+            var got = group.counts || {};
+            MEDIA_TYPES.forEach(function (type) { counts[type] += Number(got[type]) || 0; });
+          });
+        });
+        return {
+          url: entry.url, platform: entry.platform, outcome: entry.outcome,
+          title: '', summary: '', sections: [], factors: [], counts: counts, items: items
+        };
+      });
+    }
+
     function competitorSection(report, kvAssets, lpAssets, errors) {
       var section = el('section', 'section');
       section.id = 'report-by-competitor';
 
+      var sources = sourcesOf(report, kvAssets, lpAssets);
+
       var head = el('div', 'section__head');
       add(head, el('h2', 'section__title', t('report.byCompetitor')));
+      if (sources.length) {
+        add(head, el('span', 't-note', t('s11.urlCount', { n: sources.length })));
+      }
       add(section, head);
 
-      var entries = entriesOf(report);
-      if (!entries.length) {
+      if (!sources.length) {
         add(section, emptyBox(t('analysis.empty'), t('s11.reAnalyze'), function () {
           go('S10', { id: projectId });
         }));
         return section;
       }
 
-      var stack = el('div', 'stack');
-      entries.forEach(function (entry) {
-        var card = el('div', 'card');
-        add(card, el('p', 'card__label', platformName(entry.platform)));
-        add(card, el('p', 't-body break-url', entry.url));
-
-        var kv = null;
-        var lp = null;
-        kvAssets.forEach(function (asset) { if (asset.url === entry.url) { kv = asset; } });
-        lpAssets.forEach(function (asset) { if (asset.url === entry.url) { lp = asset; } });
-
-        var info = el('div', 'info-list');
-        [{ kind: 'kv', asset: kv }, { kind: 'lp', asset: lp }].forEach(function (pair) {
-          var kindLabel = pair.kind === 'kv' ? t('s11.kindKv') : t('s11.kindLp');
-
-          var row = el('div', 'info-row');
-          add(row, el('span', 'info-row__key', kindLabel));
-          if (pair.asset) {
-            var counts = pair.asset.counts || {};
-            add(row, el('span', 'info-row__val', t('s11.counts', {
-              text: Number(counts.text) || 0,
-              image: Number(counts.image) || 0,
-              video: Number(counts.video) || 0
-            })));
-          } else {
-            add(row, el('span', 'info-row__val t-danger', t('report.collectionError')));
-          }
-          add(info, row);
-
-          if (pair.asset) {
-            var selectorRow = el('div', 'info-row');
-            add(selectorRow, el('span', 'info-row__key', t('s11.selectorUsed')));
-            add(selectorRow, el('span', 'info-row__val break-url', (pair.asset.selectors || []).join(' , ')));
-            add(info, selectorRow);
-          }
-        });
-        add(card, info);
-
-        if (kv && kv.auto && kv.basisKey) {
-          add(card, el('p', 'card__sub', t('s11.basis') + '：' + t(kv.basisKey)));
-        }
-        if (lp && lp.auto && lp.basisKey) {
-          add(card, el('p', 'card__sub', t('s11.basis') + '：' + t(lp.basisKey)));
-        }
-
-        errors.forEach(function (one) {
-          if (one.url !== entry.url) { return; }
-          var message = LOCAL[one.reasonKey] ? t(one.reasonKey) : (one.message || one.reasonKey);
-          var kindLabel = one.kind === 'kv' ? t('s11.kindKv') : t('s11.kindLp');
-          add(card, el('p', 'warn-box', kindLabel + '：' + message));
-        });
-
-        add(stack, card);
-      });
-      add(section, stack);
+      var host = el('div', 'stack');
+      add(section, host);
+      paintSources();
       return section;
+
+      function stepSource(delta) {
+        if (sources.length < 2) { return; }
+        srcAnim = delta;
+        srcIndex = (srcIndex + delta + sources.length) % sources.length;
+        paintSources();
+      }
+
+      function paintSources() {
+        if (srcIndex >= sources.length) { srcIndex = sources.length - 1; }
+        if (srcIndex < 0) { srcIndex = 0; }
+
+        var leaving = srcAnim && !reducedMotion() ? host.querySelector('.carousel__card') : null;
+        clear(host);
+
+        var index = srcIndex;
+        var source = sources[index];
+        var dir = srcAnim;
+        srcAnim = 0;
+
+        var carousel = el('div', 'carousel');
+        var prev = button('carousel__nav', '‹', function () { stepSource(-1); });
+        prev.disabled = sources.length < 2;
+        prev.setAttribute('aria-label', t('s11.prevSource'));
+        add(carousel, prev);
+
+        var card = el('article', 'carousel__card card'
+          + (dir > 0 ? ' is-from-right' : (dir < 0 ? ' is-from-left' : '')));
+
+        /* 見出し行: 何番目 / プラットフォーム / 成否 */
+        var top = el('div', 'src-card__head');
+        add(top, el('span', 'card__label', t('s11.sourcePos', { n: index + 1, total: sources.length })));
+        var chips = el('div', 'chips');
+        add(chips, el('span', 'badge', platformName(source.platform)));
+        if (source.outcome === 'success' || source.outcome === 'failure') {
+          add(chips, el('span', 'chip chip--sm chip--' + source.outcome, t('oc.' + source.outcome)));
+        }
+        add(top, chips);
+        add(card, top);
+
+        if (source.title) { add(card, el('p', 'card__title', source.title)); }
+
+        var link = el('a', 't-sub break-url', source.url);
+        link.href = source.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        add(card, link);
+
+        if (source.summary) { add(card, el('p', 't-body', source.summary)); }
+
+        var counts = source.counts || {};
+        add(card, el('p', 'card__sub', t('s11.counts', {
+          text: Number(counts.text) || 0,
+          image: Number(counts.image) || 0,
+          gif: Number(counts.gif) || 0,
+          video: Number(counts.video) || 0
+        })));
+
+        /* 拾った素材。最初の8枚だけ並べ、残りは件数で示す */
+        var media = asArray(source.items).filter(function (item) {
+          return (item.type === 'image' || item.type === 'gif') && item.src;
+        });
+        /* GIF を先に出す。動きで見せている区画がそのページの勝負どころで、
+           静止画に混ぜて並べると、先頭8枚に1本も入らないことがある */
+        media.sort(function (a, b) {
+          return (b.type === 'gif' ? 1 : 0) - (a.type === 'gif' ? 1 : 0);
+        });
+        if (media.length) {
+          var grid = el('div', 'thumb-grid');
+          media.slice(0, 8).forEach(function (item) {
+            var tile = el('a', 'thumb');
+            tile.href = item.src;
+            tile.target = '_blank';
+            tile.rel = 'noopener';
+            var img = el('img', 'thumb__img');
+            img.src = item.src;
+            img.alt = item.label || '';
+            img.loading = 'lazy';
+            add(tile, img);
+            if (item.type === 'gif') { add(tile, el('span', 'thumb__tag', 'GIF')); }
+            add(grid, tile);
+          });
+          add(card, grid);
+          if (media.length > 8) {
+            add(card, el('p', 't-note', t('s11.moreAssets', { n: media.length - 8 })));
+          }
+        }
+
+        /* このページの区画の流れ */
+        var sections = asArray(source.sections);
+        if (sections.length) {
+          add(card, el('p', 'card__label', t('s11.sourceFlow')));
+          var flow = el('ol', 'list');
+          flow.setAttribute('role', 'list');
+          sections.forEach(function (one, at) {
+            var row = el('li', 'list-row');
+            var body = el('div', 'list-row__body');
+            add(body, el('span', 'list-row__title', (at + 1) + '. ' + (one.title || one.key || '')));
+            if (one.role) { add(body, el('span', 'list-row__sub', one.role)); }
+            if (one.body) { add(body, el('span', 'list-row__sub', one.body)); }
+            add(row, body);
+            add(flow, row);
+          });
+          add(card, flow);
+        }
+
+        /* このページの成功・失敗の要因 */
+        var factors = asArray(source.factors);
+        if (factors.length) {
+          add(card, el('p', 'card__label', t('s11.sourceFactors')));
+          var list = el('ul', 'list');
+          list.setAttribute('role', 'list');
+          factors.forEach(function (one) {
+            var row = el('li', 'list-row' + (one.kind === 'failure' ? ' list-row--danger' : ''));
+            var body = el('div', 'list-row__body');
+            add(body, el('span', 'list-row__title', one.title || one.key || ''));
+            if (one.body) { add(body, el('span', 'list-row__sub', one.body)); }
+            add(row, body);
+            if (one.weight) { add(row, el('span', 'list-row__meta', t('s11.weight', { n: one.weight }))); }
+            add(list, row);
+          });
+          add(card, list);
+        }
+
+        /* このリンクで読めなかったものがあれば、その1件だけ添える */
+        asArray(errors).forEach(function (one) {
+          if (one.url !== source.url) { return; }
+          var message = LOCAL[one.reasonKey] ? t(one.reasonKey) : (one.message || one.reasonKey);
+          add(card, el('p', 'warn-box', message));
+        });
+
+        var cardView = el('div', 'carousel__view');
+        add(cardView, card);
+        if (leaving && dir) { slideOut(cardView, leaving, dir); }
+        add(carousel, cardView);
+
+        var next = button('carousel__nav', '›', function () { stepSource(1); });
+        next.disabled = sources.length < 2;
+        next.setAttribute('aria-label', t('s11.nextSource'));
+        add(carousel, next);
+        add(host, carousel);
+
+        if (sources.length > 1) {
+          var dots = el('div', 'carousel__dots');
+          sources.forEach(function (one, dotIndex) {
+            var dot = button('carousel__dot' + (dotIndex === index ? ' is-current' : ''), '', function () {
+              if (dotIndex === srcIndex) { return; }
+              srcAnim = dotIndex > srcIndex ? 1 : -1;
+              srcIndex = dotIndex;
+              paintSources();
+            });
+            dot.setAttribute('aria-label', shortUrl(one.url, 40));
+            add(dots, dot);
+          });
+          add(host, dots);
+        }
+      }
     }
 
     function errorSection(errors) {
