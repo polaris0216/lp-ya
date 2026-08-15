@@ -1022,11 +1022,14 @@
     return null;
   }
 
-  /* 呼び出し側の綴りが2通りある（S8 は reportId、S13 は report） */
+  /* 呼び出し側の綴りが2通りある（S8 は reportId、S13 は report）。
+     URL に無いときは、しまってある id を使わず null を返す。
+     この id はプロジェクトごとに分かれておらず、分析をやり直しても
+     古いままなので、新しい結果を出したのに前の結果が開き続ける。
+     URL に無いなら、その場でプロジェクトの最新を取りに行く */
   function resolveReportId(params) {
     if (params && params.reportId) { return String(params.reportId); }
     if (params && params.report) { return String(params.report); }
-    if (window.Api && window.Api.storage) { return window.Api.storage.get('analysisReportId'); }
     return null;
   }
 
@@ -3471,6 +3474,8 @@
 
       assert(resolveReportId({ reportId: 'a' }) === 'a', 'reportId を読む');
       assert(resolveReportId({ report: 'b' }) === 'b', 'report も読む（S13 の綴り）');
+      /* ここが id を返すと、分析をやり直しても前の結果が開き続ける */
+      assert(resolveReportId({ id: 'p1' }) === null, 'URL に無ければ null（最新を取りに行かせる）');
 
       /* 分析の中身はサーバー（analyze-competitor）が作るので、ここでは
          レポート行の読み書きの整形だけを確認する */
