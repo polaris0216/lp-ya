@@ -890,6 +890,69 @@
     accentColor: '#C13584'
   };
 
+  /* 本文の指示に当てはめる素材。参照ページから自動入力で入った写真・GIF・
+     動画と、背景を抜いた商品カットを使う。ここを渡さないと、
+     LPは絵が1枚も無い文字だけのページになる。
+
+     プレビュー（S13）と拡大表示（S15）で必ず同じものを渡すこと。
+     片方だけ渡していたとき、プレビューには絵が出るのに拡大すると
+     文字だけになる、という食い違いが出ていた。 */
+  function assetPoolOf(project) {
+    var imgs = asArray(project && project.image_urls).map(String).filter(Boolean);
+    var cutouts = asArray(project && project.product_cutout_urls).map(String).filter(Boolean);
+    var isGif = function (u) { return String(u).split('?')[0].toLowerCase().slice(-4) === '.gif'; };
+    return {
+      gif: imgs.filter(isGif),
+      photo: cutouts.concat(imgs.filter(function (u) { return !isGif(u); })),
+      video: asArray(project && project.video_urls).map(String).filter(Boolean),
+      used: { gif: 0, photo: 0, video: 0 }
+    };
+  }
+
+  /* 生成物1件をLPのHTMLにする。プレビュー（S13）も拡大表示（S15）も
+     ダウンロードも、必ずここを通す。
+
+     以前は S13 と S15 が別々に組み立てていて、S15 だけ素材と見出しを
+     渡し忘れていた。同じ生成物なのに、プレビューには絵が出るのに
+     拡大すると文字だけになる、という食い違いになっていた。
+     組み立てを1本にすれば、片方だけ直し忘れることが起きない。 */
+  function lpHtmlOf(generation, project, forDownload) {
+    var type = generation.__type || normalizeType(generation.content_type);
+
+    /* 保存済みHTML（デザイン済みのリッチLP）があればそれを使う。
+       自社LPでLINE URLが設定されたら、<!--LINE_BUTTON--> の位置
+       （無ければ </body> 直前）へボタンを差し込む */
+    if (generation.generated_html) {
+      var rich = fillAssetSlots(generation, String(generation.generated_html));
+      if (type === TYPE.OWN) {
+        var href = lineHref(generation.line_button_url);
+        if (href) {
+          var btn = lineButtonMarkup(lineStyleOf(generation), href);
+          if (rich.indexOf('<!--LINE_BUTTON-->') !== -1) {
+            rich = rich.split('<!--LINE_BUTTON-->').join(btn);
+          } else if (rich.indexOf('</body>') !== -1) {
+            rich = rich.replace('</body>', btn + '\n</body>');
+          } else {
+            rich += btn;
+          }
+        }
+      }
+      return rich;
+    }
+
+    return buildHtml({
+      title: generation.headline || (project && project.project_name) || '',
+      sections: sectionsOf(generation, project),
+      assets: assetPoolOf(project),
+      design: designOf(generation),
+      type: type,
+      lineUrl: generation.line_button_url,
+      lineStyle: lineStyleOf(generation),
+      linePosition: generation.line_button_position,
+      forDownload: !!forDownload
+    });
+  }
+
   function designOf(generation) {
     var concept = asObject(generation && generation.creative_concept);
     var saved = asObject(concept.design);
@@ -1860,53 +1923,9 @@
     }
 
     function htmlOf(generation, forDownload) {
-      var type = generation.__type || normalizeType(generation.content_type);
-      /* 保存済みHTML（デザイン済みのリッチLP）があればそれを使う。
-         自社LPでLINE URLが設定されたら、リッチHTML内の <!--LINE_BUTTON--> 位置
-         （無ければ </body> 直前）へボタンを差し込む */
-      if (generation.generated_html) {
-        var rich = fillAssetSlots(generation, String(generation.generated_html));
-        if (type === TYPE.OWN) {
-          var richHref = lineHref(generation.line_button_url);
-          if (richHref) {
-            var richBtn = lineButtonMarkup(lineStyleOf(generation), richHref);
-            if (rich.indexOf('<!--LINE_BUTTON-->') !== -1) {
-              rich = rich.split('<!--LINE_BUTTON-->').join(richBtn);
-            } else if (rich.indexOf('</body>') !== -1) {
-              rich = rich.replace('</body>', richBtn + '\n</body>');
-            } else {
-              rich += richBtn;
-            }
-          }
-        }
-        return rich;
-      }
-      return buildHtml({
-        title: generation.headline || (data.project && data.project.project_name) || '',
-        sections: sectionsOf(generation, data.project),
-        assets: assetPool(),
-        design: designOf(generation),
-        type: type,
-        lineUrl: generation.line_button_url,
-        lineStyle: lineStyleOf(generation),
-        linePosition: generation.line_button_position,
-        forDownload: !!forDownload
-      });
+      return lpHtmlOf(generation, data.project, forDownload);
     }
 
-    /* 本文の指示に当てはめる素材。参照ページから自動入力で入った写真・GIF・
-       動画と、背景を抜いた商品カットを使う。ここを渡さないと、
-       LPは絵が1枚も無い文字だけのページになる */
-    function assetPool() {
-      var imgs = asArray(data.project && data.project.image_urls).map(String).filter(Boolean);
-      var isGif = function (u) { return String(u).split('?')[0].toLowerCase().slice(-4) === '.gif'; };
-      return {
-        gif: imgs.filter(isGif),
-        photo: asArray(data.productCutouts).concat(imgs.filter(function (u) { return !isGif(u); })),
-        video: asArray(data.project && data.project.video_urls).map(String).filter(Boolean),
-        used: { gif: 0, photo: 0, video: 0 }
-      };
-    }
 
     function footerActions() {
       var box = el('div', 'stack stack--group');
@@ -3005,9 +3024,14 @@
         creative_concept: concept,
         headline: first.title || state.generation.headline || '',
         body_text: first.body || state.generation.body_text || '',
+        /* ここで保存したHTMLは、以後どの画面もそのまま出す。
+           素材を渡さずに保存すると、絵の無いLPが焼き付いてしまい、
+           プレビューも拡大表示もダウンロードも文字だけになる */
         generated_html: buildHtml({
-          title: (state.project && state.project.project_name) || '',
+          title: state.generation.headline
+            || (state.project && state.project.project_name) || '',
           sections: state.sections,
+          assets: assetPoolOf(state.project),
           design: state.design,
           type: normalizeType(state.generation.content_type),
           lineUrl: state.generation.line_button_url,
@@ -3547,35 +3571,7 @@
     }
 
     function previewHtml() {
-      /* 生成済みのHTMLがあればそれを出す。sections から組み直すと、
-         デザインの無い見出しの羅列になってしまい、S13 のプレビューと食い違う */
-      if (state.generation && state.generation.generated_html) {
-        var rich = fillAssetSlots(state.generation, String(state.generation.generated_html));
-        if (normalizeType(state.generation.content_type) === TYPE.OWN) {
-          var href = lineHref(state.generation.line_button_url);
-          if (href) {
-            var btn = lineButtonMarkup(lineStyleOf(state.generation), href);
-            if (rich.indexOf('<!--LINE_BUTTON-->') !== -1) {
-              rich = rich.split('<!--LINE_BUTTON-->').join(btn);
-            } else if (rich.indexOf('</body>') !== -1) {
-              rich = rich.replace('</body>', btn + '\n</body>');
-            } else {
-              rich += btn;
-            }
-          }
-        }
-        return rich;
-      }
-      return buildHtml({
-        title: (state.project && state.project.project_name) || '',
-        sections: state.sections,
-        design: state.design,
-        type: normalizeType(state.generation.content_type),
-        lineUrl: state.generation.line_button_url,
-        lineStyle: lineStyleOf(state.generation),
-        linePosition: state.generation.line_button_position,
-        forDownload: false
-      });
+      return lpHtmlOf(state.generation, state.project, false);
     }
 
     /* iframeの高さを中身に合わせる（外側の .preview-stage がスクロールする） */
