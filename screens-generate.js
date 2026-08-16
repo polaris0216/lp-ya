@@ -961,7 +961,108 @@
     return '<div class="line-cta"><a href="' + escapeHtml(href) + '" style="' + base + skin + '">' + escapeHtml(style.label) + '</a></div>';
   }
 
-  function sectionHtml(section, index, design, forDownload) {
+  /* ---- 本文に埋まっている素材の指示 ----
+     生成した本文には ［動画1：…］［GIF：…］のような指示が入っている。
+     これを本文としてそのまま出していたので、画面が指示文の羅列になり、
+     絵が1枚も出ないまま「文字だけのページ」になっていた。
+     指示は本文から外し、代わりに手元の素材をそこへ置く。 */
+  /* 指示の書き方は生成のたびに揺れる（［…］ / […] / ※動画1本目：…）。
+     一つの形に賭けると、形が変わった回だけ絵が消える。
+     いまは section.media に構造化して出させ、ここは古い行のための受け皿。 */
+  var ASSET_DIRECTIVE = /[［\[]([^］\]]{2,200})[］\]]/g;
+  /* ※で始まる行には2種類ある。読み手に伝える注意書き（※重量にはバラつきが
+     あります）は残し、作り手向けの素材の指示（※1枚目の大判画像は…を使用）
+     だけを外す。素材の名前と、作る動作の言葉が両方あるものを指示とみなす */
+  var ASSET_WORD = /動画|GIF|ＧＩＦ|サムネ|写真|画像|図版|カット/;
+  /* 「枚」だけでは足りない。※貼り付けパーツの同梱枚数：のような
+     読み手向けの注記まで落ちてしまうので、作る動作の言葉に限る */
+  var MAKE_WORD = /撮影|撮る|使用|使わない|使う|並べ|横並び|一続き|カットなし|差し替え|配置|直下|本ずつ|枚ずつ/;
+  function isAssetNote(line) {
+    return ASSET_WORD.test(line) && MAKE_WORD.test(line);
+  }
+  var ASSET_NOTE_LINE = /^[※＊*]\s*([^\n]+)$/gim;
+
+  function directiveKind(text) {
+    if (/^動画|ムービー/.test(text)) return 'video';
+    if (/^GIF|ループ|アニメ/i.test(text)) return 'gif';
+    if (/^サムネ|一覧|並び|列/.test(text)) return 'strip';
+    if (/^焼き込み|コピー/.test(text)) return 'caption';
+    if (/^写真|カット|画像|図/.test(text)) return 'photo';
+    return 'note';
+  }
+
+  function splitDirectives(section) {
+    var found = [];
+    /* 生成が構造化して出したものが第一。読み違えようがない */
+    asArray(section && section.media).forEach(function (one) {
+      if (!one) { return; }
+      var text = String(one.note || one.text || '').trim();
+      found.push({ kind: String(one.kind || directiveKind(text)), text: text });
+    });
+    var fromBody = !found.length;
+
+    var prose = String((section && section.body) || '')
+      .replace(ASSET_NOTE_LINE, function (whole, inner) {
+        if (!isAssetNote(inner)) { return whole; }
+        if (fromBody) { found.push({ kind: directiveKind(inner), text: String(inner).trim() }); }
+        return '';
+      })
+      .replace(ASSET_DIRECTIVE, function (whole, inner) {
+        var text = String(inner).trim();
+        if (fromBody) { found.push({ kind: directiveKind(text), text: text }); }
+        return '';
+      });
+    return { directives: found, prose: prose.replace(/\n{3,}/g, '\n\n').trim() };
+  }
+
+  /* 同じ絵を続けて出さないよう頭から配る。尽きたら黙って何も置かない
+     （同じ写真を何度も出すより、無いほうが読み手を惑わせない） */
+  function takeAsset(pool, kind) {
+    if (!pool || !pool[kind]) { return ''; }
+    var used = pool.used[kind] || 0;
+    if (used >= pool[kind].length) { return ''; }
+    pool.used[kind] = used + 1;
+    return pool[kind][used];
+  }
+
+  function mediaMarkup(url, alt) {
+    if (!url) { return ''; }
+    if (/\.(mp4|webm)(\?|$)/i.test(url)) {
+      return '<video src="' + escapeHtml(url) + '" muted playsinline loop autoplay controls'
+        + ' style="display:block;width:100%;height:auto;border-radius:12px;margin-top:20px;"></video>';
+    }
+    return '<img src="' + escapeHtml(url) + '" alt="' + escapeHtml(alt || '') + '" loading="lazy"'
+      + ' style="display:block;width:100%;height:auto;border-radius:12px;margin-top:20px;">';
+  }
+
+  function directiveMarkup(one, pool, design) {
+    if (one.kind === 'caption') {
+      return '<p style="margin-top:20px;padding:16px 18px;border-left:3px solid '
+        + escapeHtml(design.accentColor) + ';background:#FAF8FB;border-radius:0 12px 12px 0;'
+        + 'font-size:' + Math.round(design.bodySize * 1.15) + 'px;font-weight:700;line-height:1.6;">'
+        + escapeHtml(String(one.text).replace(/^焼き込み文字[：:]\s*/, '')) + '</p>';
+    }
+    if (one.kind === 'strip') {
+      var shots = [];
+      for (var i = 0; i < 4; i += 1) {
+        var got = takeAsset(pool, i < 2 ? 'gif' : 'photo');
+        if (got) { shots.push(got); }
+      }
+      if (!shots.length) { return ''; }
+      return '<div style="margin-top:20px;display:grid;'
+        + 'grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">'
+        + shots.map(function (u) {
+          return '<img src="' + escapeHtml(u) + '" alt="" loading="lazy"'
+            + ' style="display:block;width:100%;height:auto;border-radius:10px;">';
+        }).join('') + '</div>';
+    }
+    if (one.kind === 'video') { return mediaMarkup(takeAsset(pool, 'video'), one.text); }
+    if (one.kind === 'gif') { return mediaMarkup(takeAsset(pool, 'gif'), one.text); }
+    if (one.kind === 'photo') { return mediaMarkup(takeAsset(pool, 'photo'), one.text); }
+    return '';
+  }
+
+  function sectionHtml(section, index, design, forDownload, pool) {
     var isHero = index === 0;
     var tag = isHero ? 'h1' : 'h2';
     var titleSize = isHero ? Math.round(design.titleSize * 1.6) : design.titleSize;
@@ -977,8 +1078,16 @@
       if (section.title) {
         out.push('<' + tag + ' style="font-family:' + fontStack(design.titleFont) + ';font-size:' + titleSize + 'px;line-height:1.35;font-weight:600;color:' + escapeHtml(titleColor) + ';margin:0 0 16px;">' + escapeHtml(section.title) + '</' + tag + '>');
       }
-      if (section.body) {
-        out.push('<p style="font-family:' + fontStack(design.bodyFont) + ';font-size:' + design.bodySize + 'px;line-height:1.9;color:' + escapeHtml(bodyColor) + ';margin:0;white-space:pre-wrap;">' + escapeHtml(section.body) + '</p>');
+      /* 指示（動画・GIF・サムネ列）は本文から外し、素材に置き換える。
+         そのまま出していたので、画面が指示文の羅列になっていた */
+      var split = splitDirectives(section);
+      if (split.prose) {
+        out.push('<p style="font-family:' + fontStack(design.bodyFont) + ';font-size:' + design.bodySize + 'px;line-height:1.9;color:' + escapeHtml(bodyColor) + ';margin:0;white-space:pre-wrap;">' + escapeHtml(split.prose) + '</p>');
+      }
+      if (pool) {
+        split.directives.forEach(function (one) {
+          out.push(directiveMarkup(one, pool, design));
+        });
       }
       if (section.type === 'image') {
         if (section.image && forDownload) {
@@ -1029,7 +1138,7 @@
 
     var placed = false;
     sections.forEach(function (section, index) {
-      out.push(sectionHtml(section, index, design, !!o.forDownload));
+      out.push(sectionHtml(section, index, design, !!o.forDownload, o.assets));
       if (href && !placed && position && String(section.key) === position) {
         out.push(lineButtonMarkup(style, href));
         placed = true;
@@ -1773,6 +1882,7 @@
       return buildHtml({
         title: generation.headline || (data.project && data.project.project_name) || '',
         sections: sectionsOf(generation, data.project),
+        assets: assetPool(),
         design: designOf(generation),
         type: type,
         lineUrl: generation.line_button_url,
@@ -1780,6 +1890,20 @@
         linePosition: generation.line_button_position,
         forDownload: !!forDownload
       });
+    }
+
+    /* 本文の指示に当てはめる素材。参照ページから自動入力で入った写真・GIF・
+       動画と、背景を抜いた商品カットを使う。ここを渡さないと、
+       LPは絵が1枚も無い文字だけのページになる */
+    function assetPool() {
+      var imgs = asArray(data.project && data.project.image_urls).map(String).filter(Boolean);
+      var isGif = function (u) { return String(u).split('?')[0].toLowerCase().slice(-4) === '.gif'; };
+      return {
+        gif: imgs.filter(isGif),
+        photo: asArray(data.productCutouts).concat(imgs.filter(function (u) { return !isGif(u); })),
+        video: asArray(data.project && data.project.video_urls).map(String).filter(Boolean),
+        used: { gif: 0, photo: 0, video: 0 }
+      };
     }
 
     function footerActions() {
