@@ -2408,6 +2408,46 @@
         return;
       }
 
+      /* 何を見ているか（層・成果物）を先に決めてから中身に入る。
+         プレビューの下に置くと、絞り込みがあること自体に気づけない */
+      /* ターゲット層の絞り込み。層を分けて作っているときだけ出す */
+      if (data.targets && data.targets.length) {
+        var targetRow = el('div', 'chips');
+        ['all'].concat(data.targets).forEach(function (label) {
+          var on = view.target === label;
+          var chip = button('chip' + (on ? ' chip--selected' : ''),
+            label === 'all' ? t('gen.targetAll') : label, function () {
+              view.target = label;
+              fillBuckets();
+              paint();
+            });
+          chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+          targetRow.appendChild(chip);
+        });
+        screen.appendChild(el('span', 'field__label', t('gen.targetFilter')));
+        screen.appendChild(targetRow);
+      }
+
+      /* タブ */
+      var tabsRow = el('div', 'tabs');
+      tabsRow.setAttribute('role', 'tablist');
+      var tabList = TABS.slice();
+      if (data.buckets.other && data.buckets.other.length) {
+        tabList.push({ key: 'other', type: null, labelKey: 'gen.tabOther' });
+      }
+      tabList.forEach(function (tab) {
+        var isActive = view.tab === tab.key;
+        var item = button('tabs__item' + (isActive ? ' tabs__item--active' : ''), t(tab.labelKey), function () {
+          view.tab = tab.key;
+          paint();
+        });
+        item.setAttribute('role', 'tab');
+        item.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        tabsRow.appendChild(item);
+      });
+      screen.appendChild(tabsRow);
+
+
       /* プレビューは1台ずつ。タブか左右の矢印で PC とスマホを行き来する */
       var target = previewTarget();
       var previewSection = el('section', 'section');
@@ -2485,43 +2525,6 @@
       }));
       previewSection.appendChild(pair);
       screen.appendChild(previewSection);
-
-      /* ターゲット層の絞り込み。層を分けて作っているときだけ出す */
-      if (data.targets && data.targets.length) {
-        var targetRow = el('div', 'chips');
-        ['all'].concat(data.targets).forEach(function (label) {
-          var on = view.target === label;
-          var chip = button('chip' + (on ? ' chip--selected' : ''),
-            label === 'all' ? t('gen.targetAll') : label, function () {
-              view.target = label;
-              fillBuckets();
-              paint();
-            });
-          chip.setAttribute('aria-pressed', on ? 'true' : 'false');
-          targetRow.appendChild(chip);
-        });
-        screen.appendChild(el('span', 'field__label', t('gen.targetFilter')));
-        screen.appendChild(targetRow);
-      }
-
-      /* タブ */
-      var tabsRow = el('div', 'tabs');
-      tabsRow.setAttribute('role', 'tablist');
-      var tabList = TABS.slice();
-      if (data.buckets.other && data.buckets.other.length) {
-        tabList.push({ key: 'other', type: null, labelKey: 'gen.tabOther' });
-      }
-      tabList.forEach(function (tab) {
-        var isActive = view.tab === tab.key;
-        var item = button('tabs__item' + (isActive ? ' tabs__item--active' : ''), t(tab.labelKey), function () {
-          view.tab = tab.key;
-          paint();
-        });
-        item.setAttribute('role', 'tab');
-        item.setAttribute('aria-selected', isActive ? 'true' : 'false');
-        tabsRow.appendChild(item);
-      });
-      screen.appendChild(tabsRow);
 
       /* タブの中身 */
       var body = el('div', 'stack stack--group');
