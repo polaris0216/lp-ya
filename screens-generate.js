@@ -837,7 +837,9 @@
         image: String(o.image || o.image_url || ''),
         titleColor: String(o.titleColor || ''),
         bodyColor: String(o.bodyColor || ''),
-        bg: String(o.bg || '')
+        bg: String(o.bg || ''),
+        /* 区画ごとの素材の指示。ここで捨てると、LPから絵が消える */
+        media: asArray(o.media)
       };
     });
   }
