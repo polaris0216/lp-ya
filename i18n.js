@@ -82,6 +82,16 @@
 
     // ==== sidebar / header: 左サイドメニューとヘッダーのアカウント表示 ====
     'sidebar.myProjects': ['マイプロジェクト', 'My projects', '내 프로젝트'],
+    'sidebar.rename': ['名前を変更', 'Rename', '이름 변경'],
+    'sidebar.duplicate': ['複製', 'Duplicate', '복제'],
+    'sidebar.delete': ['削除', 'Delete', '삭제'],
+    'sidebar.deleteTitle': ['このプロジェクトを削除しますか？', 'Delete this project?', '이 프로젝트를 삭제할까요?'],
+    'sidebar.deleteBody': ['「{name}」を削除します。', '“{name}” will be deleted.', '「{name}」을(를) 삭제합니다.'],
+    'sidebar.deleteNote': [
+      '登録商品・分析レポート・生成物もすべて消えます。元に戻せません。',
+      'Its products, analysis reports and generated items are removed too. This cannot be undone.',
+      '등록 상품·분석 리포트·생성물도 모두 사라집니다. 되돌릴 수 없습니다.'
+    ],
     'sidebar.noProjects': ['まだプロジェクトがありません。「作成」から始めてください。', 'No projects yet. Start from “Create”.', '아직 프로젝트가 없습니다. 작성에서 시작해 주세요.'],
     'account.unlimited': ['無制限', 'Unlimited', '무제한'],
     'account.balanceChip': ['残高：{n}', 'Balance: {n}', '잔액: {n}'],

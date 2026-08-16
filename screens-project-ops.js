@@ -507,6 +507,35 @@
     return candidate;
   }
 
+  /* プロジェクトを1件複製する。S5 の操作メニューと、左のプロジェクト一覧の
+     どちらからも呼ぶので、画面の部品には触らず Promise だけを返す。 */
+  function duplicateProject(project) {
+    return listProjectNames(null).then(null, function (err) {
+      // 名前の重複確認だけの失敗。複製そのものは続ける（黙って消さず記録は残す）。
+      console.warn('[screens-project-ops.js] 既存のプロジェクト名を取得できませんでした。連番なしの名前で複製します。', err);
+      return [];
+    }).then(function (names) {
+      var copyName = uniqueCopyName(project.project_name, names);
+      /* name / status は NOT NULL でデフォルトが無い（screens-home.js の作成側と同じ理由） */
+      return Api.projects.insert({
+        users_id: project.users_id,
+        project_name: copyName,
+        name: copyName,
+        status: project.status || 'active',
+        product_name: project.product_name,
+        price: project.price,
+        product_features: project.product_features,
+        target_audience: project.target_audience,
+        sale_start_date: project.sale_start_date,
+        image_urls: project.image_urls
+      });
+    }).then(function (created) {
+      Api.storage.set('projectId', created.id);
+      toast(t('projectOps.duplicateSuccess'), 'success');
+      return created;
+    });
+  }
+
   // ponytail: 関連データは一覧1回ぶん（最大500件）をまとめて消す。
   //           それを超える場合は残るので、必要になったらサーバー側の cascade delete に移す。
   function removeRelated(id) {
@@ -516,6 +545,21 @@
       return Api.analysisReports.list({ select: 'id', eq: { projects_id: id }, limit: RELATED_LIMIT });
     }).then(function (rows) {
       return Promise.all(rows.map(function (row) { return Api.analysisReports.remove(row.id); }));
+    });
+  }
+
+  /* プロジェクトを1件消す。関連データ → 本体 → 控え の順。
+     S7 の確認画面と、左のプロジェクト一覧のどちらからも呼ぶので、
+     画面の部品には触らず Promise だけを返す。 */
+  function deleteProject(id) {
+    var key = String(id);
+    return removeRelated(key).then(function () {
+      return Api.projects.remove(key);
+    }).then(function () {
+      if (Api.storage.get('projectId') === key) { Api.storage.remove('projectId'); }
+      Api.storage.remove('analysisReportId');
+      Api.storage.remove('generationId');
+      return key;
     });
   }
 
@@ -663,29 +707,7 @@
       button.disabled = true;
       button.textContent = t('ops.duplicating');
       clearBanner();
-
-      listProjectNames(null).then(null, function (err) {
-        // 名前の重複確認だけの失敗。複製そのものは続ける（黙って消さず記録は残す）。
-        console.warn('[screens-project-ops.js] 既存のプロジェクト名を取得できませんでした。連番なしの名前で複製します。', err);
-        return [];
-      }).then(function (names) {
-        var copyName = uniqueCopyName(project.project_name, names);
-        /* name / status は NOT NULL でデフォルトが無い（screens-home.js の作成側と同じ理由） */
-        return Api.projects.insert({
-          users_id: project.users_id,
-          project_name: copyName,
-          name: copyName,
-          status: project.status || 'active',
-          product_name: project.product_name,
-          price: project.price,
-          product_features: project.product_features,
-          target_audience: project.target_audience,
-          sale_start_date: project.sale_start_date,
-          image_urls: project.image_urls
-        });
-      }).then(function (created) {
-        Api.storage.set('projectId', created.id);
-        toast(t('projectOps.duplicateSuccess'), 'success');
+      duplicateProject(project).then(function () {
         goTo('#/S3');
       }, function (err) {
         button.disabled = false;
@@ -1132,6 +1154,15 @@
   /* =========================================================
      画面登録（第2引数は必ず { render: 関数 } オブジェクト）
      ========================================================= */
+
+  /* 左のプロジェクト一覧（app.js）から複製を呼ぶための口。
+     画面を1枚はさまずに同じ処理を通す */
+  window.ProjectOps = {
+    duplicate: function (projectId) {
+      return Api.projects.get(String(projectId)).then(duplicateProject);
+    },
+    remove: deleteProject
+  };
 
   App.registerScreen('S5', { render: function (root, params) { renderOpsMenu(root, params); } });
   App.registerScreen('S6', { render: function (root, params) { renderRename(root, params); } });

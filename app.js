@@ -1116,24 +1116,112 @@
     var selected = selectedProjectId();
     sidebarProjects.forEach(function (project) {
       var id = String(project.id);
-      var node = document.createElement('button');
-      node.type = 'button';
+      /* 外側は div。中に操作アイコンのボタンを置くので、
+         ここをボタンにすると button の入れ子になって押せなくなる */
+      var node = document.createElement('div');
       node.className = 'sidebar__proj' + (String(selected) === id ? ' sidebar__proj--active' : '');
+
+      var open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'sidebar__proj-main';
       var name = document.createElement('span');
       name.className = 'sidebar__proj-name';
       name.textContent = String(project.project_name || project.name || '');
-      node.appendChild(name);
+      open.appendChild(name);
       var date = document.createElement('span');
       date.className = 'sidebar__proj-date';
       date.textContent = shortDate(project.created_at);
-      node.appendChild(date);
-      node.title = name.textContent;
-      node.addEventListener('click', function () {
+      open.appendChild(date);
+      open.title = name.textContent;
+      open.addEventListener('click', function () {
         closeSidebar();
         navigate('S8', { id: id });
       });
+      node.appendChild(open);
+      node.appendChild(projectActions(id, name.textContent));
       dom.sidebarProjects.appendChild(node);
     });
+  }
+
+  /* プロジェクト1件ぶんの操作アイコン（名前変更・複製・削除）。
+     名前変更と削除はもとから S6 / S7 があるのでそこへ渡す。
+     複製だけは画面を持たないので、screens-project-ops.js が出している
+     window.ProjectOps.duplicate をその場で呼ぶ。 */
+  function projectActions(id, label) {
+    var box = document.createElement('div');
+    box.className = 'sidebar__proj-acts';
+
+    function iconButton(kind, titleKey, glyph, onClick) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sidebar__proj-act sidebar__proj-act--' + kind;
+      b.textContent = glyph;
+      b.title = t(titleKey) + '：' + label;
+      b.setAttribute('aria-label', t(titleKey) + '：' + label);
+      b.addEventListener('click', function (event) {
+        /* 親のカードを押したことにしない。押すと詳細へ飛んでしまう */
+        event.stopPropagation();
+        onClick(b);
+      });
+      box.appendChild(b);
+      return b;
+    }
+
+    iconButton('rename', 'sidebar.rename', '✎', function () {
+      closeSidebar();
+      navigate('S6', { id: id });
+    });
+
+    iconButton('duplicate', 'sidebar.duplicate', '⧉', function (b) {
+      if (!global.ProjectOps || !global.ProjectOps.duplicate) {
+        console.error('[App] window.ProjectOps.duplicate がありません。screens-project-ops.js の読み込みを確認してください。');
+        toast(t('common.error'), 'danger');
+        return;
+      }
+      b.disabled = true;
+      global.ProjectOps.duplicate(id).then(function () {
+        b.disabled = false;
+        loadSidebarProjects();
+      }, function (err) {
+        b.disabled = false;
+        console.error('[App] プロジェクトを複製できませんでした', err);
+        toast(t('projectOps.duplicateFailed'), 'danger');
+      });
+    });
+
+    /* 削除は、名前を打ち直させる画面（S7）へ飛ばさず、その場で確認を出す。
+       一覧から消すだけの操作に画面遷移と書き取りを挟むと、
+       消すまでに4手かかっていた。ここは2手で終わらせる。 */
+    iconButton('delete', 'sidebar.delete', '✕', function (b) {
+      confirmDialog({
+        title: t('sidebar.deleteTitle'),
+        message: t('sidebar.deleteBody', { name: label }),
+        note: t('sidebar.deleteNote'),
+        confirmLabel: t('common.yes'),
+        cancelLabel: t('common.no'),
+        danger: true
+      }).then(function (ok) {
+        if (!ok) { return; }
+        if (!global.ProjectOps || !global.ProjectOps.remove) {
+          console.error('[App] window.ProjectOps.remove がありません。screens-project-ops.js の読み込みを確認してください。');
+          toast(t('common.error'), 'danger');
+          return;
+        }
+        b.disabled = true;
+        global.ProjectOps.remove(id).then(function () {
+          toast(t('common.deleted'), 'success');
+          loadSidebarProjects();
+          /* いま開いている画面がこのプロジェクトなら、居場所が無くなる */
+          if (String(selectedProjectId()) === id) { navigate('S3'); }
+        }, function (err) {
+          b.disabled = false;
+          console.error('[App] プロジェクトを削除できませんでした', err);
+          toast(t('projectDelete.failed'), 'danger');
+        });
+      });
+    });
+
+    return box;
   }
 
   function shortDate(value) {
@@ -1800,7 +1888,14 @@
     return out;
   }
 
+  /* いま選んでいるプロジェクト。まず URL を見る。
+     以前は Api.storage だけを見ていたが、そこへ書くのは画面がプロジェクトを
+     読み終えたあと（screens-project.js の paint 内）で、左の一覧を描き直す
+     'route' イベントはそれより先に来る。そのため選択の表示が1手遅れて、
+     「2個目を押しても光らず、3個目を押すと2個目が光る」状態になっていた。
+     URL は遷移した時点で確定しているので、こちらを正とする。 */
   function selectedProjectId() {
+    if (current && current.params && current.params.id) { return String(current.params.id); }
     if (global.Api && global.Api.storage && isFn(global.Api.storage.get)) {
       return global.Api.storage.get('projectId');
     }

@@ -390,15 +390,60 @@ table { border-collapse: collapse; width: 100%; }
 
 .sidebar__proj {
   position: relative;
-  padding: 11px 12px;
   border: 1px solid var(--c-line);
   border-radius: 9px;
   background: var(--c-surface-2);
+  width: 100%;
+}
+
+/* 名前と日付を押すと詳細へ。日付の行は右下のアイコンと同じ高さに来るので、
+   その行だけアイコンぶん右を空ける（名前の行は全幅使える） */
+.sidebar__proj-main {
+  display: block;
+  width: 100%;
+  padding: 11px 12px 10px;
+  border: 0;
+  background: none;
+  border-radius: 9px;
   cursor: pointer;
   text-align: left;
-  width: 100%;
   font-family: inherit;
 }
+
+/* 操作アイコンは右下にまとめて常時出す。日付の行と同じ高さに並ぶので、
+   名前の幅を削らずに済む */
+.sidebar__proj-acts {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 3px;
+}
+
+.sidebar__proj-act {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  background: var(--c-surface);
+  color: var(--c-text-sub);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar__proj-act:hover { background: var(--c-line); color: var(--c-text); }
+.sidebar__proj-act--delete:hover {
+  background: rgba(220, 38, 38, .12);
+  border-color: rgba(220, 38, 38, .35);
+  color: #DC2626;
+}
+.sidebar__proj-act:disabled { opacity: .5; cursor: default; }
+
 
 .sidebar__proj--active {
   border-color: var(--c-main);
@@ -417,7 +462,8 @@ table { border-collapse: collapse; width: 100%; }
 
 .sidebar__proj-date {
   display: block;
-  margin-top: 2px;
+  margin-top: 4px;
+  padding-right: 84px;
   font-size: 11px;
   color: var(--c-text-sub);
 }
@@ -2857,6 +2903,14 @@ label.tap,
 a.tap {
   min-height: var(--tap-min);
 }
+
+/* 左の一覧に並ぶ操作アイコンは、この保険から外す。
+   1項目に3つ横並びなので、44pxだと縦に伸びて名前の行まで覆ってしまう。
+   ponytail: 当たり判定は見た目どおりの24pxで、44pxの推奨より小さい。
+   見えない当たり判定を44pxに広げる手もあるが、3つが重なって
+   隣のアイコンを誤爆するので採らない。指で触る端末で取りこぼすようなら、
+   横並びをやめて「…」1つに畳む。 */
+.sidebar__proj-act { min-height: 0; }
 
 button.icon-btn,
 button.list-row__action,
