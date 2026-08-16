@@ -4016,3 +4016,15 @@ input[type='radio'] {
   opacity: 1;
   animation: none;
 }
+
+/* 生成中に結果を見ているときの帯。数字と「表示」を1行に並べる */
+.run-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-item);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-group);
+}
+
+.run-banner .btn { width: auto; flex: 0 0 auto; }

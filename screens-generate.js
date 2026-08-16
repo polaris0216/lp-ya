@@ -109,6 +109,16 @@
     'gen.runDone': ['完了', 'Done', '완료'],
     'gen.runFailed': ['失敗', 'Failed', '실패'],
     'gen.runTimeout': ['まだ作成中', 'Still running', '아직 작성 중'],
+    'gen.runSeeDone': [
+      'できたものを見る（{n}件）',
+      'See what is done ({n})',
+      '완료된 것 보기({n}건)'
+    ],
+    'gen.runFresh': [
+      '新しく{n}件できました。表示する',
+      '{n} new — show them',
+      '새로 {n}건 완료. 표시'
+    ],
     'gen.runNote': [
       '1件あたり1〜3分かかります。この画面を離れても作成は続き、'
         + 'できたものから生成結果に出ます。',
@@ -1301,6 +1311,10 @@
       device: 'pc',   /* プレビューで見せている端末。'pc' か 'phone' */
       making: {}      /* いま作っている素材の印。'生成物ID:列:番号' → true */
     };
+    /* 生成中の状態。層 × 成果物ぶんの仕事が並ぶので、全部終わるまで
+       20分以上かかる。できたものを途中で見られるように、生成の進み具合を
+       画面のどこからでも読めるところに置く */
+    var run = { active: false, done: 0, total: 0, startedAt: 0, fresh: 0, viewing: false };
     var data = { project: null, generations: [], buckets: {}, user: null, report: null, metrics: {} };
 
     if (!projectId) {
@@ -2335,11 +2349,45 @@
     }
 
     /* ---- 画面の描き直し ---- */
+    /* 結果を見ているあいだも、生成が続いていることと、新しくできた件数を出す。
+       これが無いと、途中で見に来た人には「これで全部」に見えてしまう */
+    function runElapsed() {
+      var sec = Math.max(0, Math.round((Date.now() - run.startedAt) / 1000));
+      return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+    }
+
+    /* 帯だけを差し替える。画面ごと作り直すと、開いていたタブや
+       スクロール位置を失って、読んでいた場所へ戻れなくなる */
+    function refreshBanner() {
+      var old = root.querySelector('.run-banner');
+      if (!old) { return; }
+      var next = runBanner();
+      if (next) { old.replaceWith(next); } else { old.remove(); }
+    }
+
+    function runBanner() {
+      if (!run.active) { return null; }
+      var box = el('div', 'note-box run-banner');
+      box.appendChild(el('span', 'progress__label',
+        fill(t('gen.generatingCount'), { done: run.done, total: run.total })
+        + '　' + fill(t('gen.runElapsed'), { t: runElapsed() })));
+      if (run.fresh > 0) {
+        box.appendChild(button('btn btn--secondary btn--sm',
+          fill(t('gen.runFresh'), { n: run.fresh }), function () {
+            run.fresh = 0;
+            load();
+          }));
+      }
+      return box;
+    }
+
     function paint() {
       clear(root);
       var screen = el('div', 'screen');
 
       var head = el('header', 'screen__head');
+      var banner = runBanner();
+      if (banner) { screen.insertBefore(banner, screen.firstChild); }
       head.appendChild(el('h2', 'screen__title', t('generate.title')));
       head.appendChild(el('p', 'screen__lead', t('generate.completed')));
       var competitors = data.report ? asArray(data.report.competitor_urls).length : 0;
@@ -2537,6 +2585,8 @@
          作っていて、それぞれ何分経ったかを、置いたままにする */
       var startedAll = Date.now();
       jobs.forEach(function (one) { one.state = 'queued'; one.startedAt = 0; });
+      run.active = true; run.done = 0; run.total = jobs.length;
+      run.startedAt = startedAll; run.fresh = 0; run.viewing = false;
 
       function minutesText(ms) {
         var sec = Math.max(0, Math.round(ms / 1000));
@@ -2552,6 +2602,9 @@
       }
 
       function paintRun() {
+        /* 結果を見ているときに描き直すと、読んでいた画面を奪ってしまう。
+           そのときは上の帯（runBanner）だけが数字を伝える */
+        if (run.viewing) { return; }
         clear(root);
         var screen = el('div', 'screen');
         var card = el('section', 'card');
@@ -2587,6 +2640,16 @@
         card.appendChild(list);
 
         card.appendChild(el('p', 't-note', t('gen.runNote')));
+        /* できたものは、全部そろう前に見られるようにする。
+           層 × 成果物ぶん並ぶので、待つと20分を超える */
+        if (run.done > 0) {
+          card.appendChild(button('btn btn--primary btn--block',
+            fill(t('gen.runSeeDone'), { n: run.done }), function () {
+              run.viewing = true;
+              run.fresh = 0;
+              load();
+            }));
+        }
         screen.appendChild(card);
         root.appendChild(screen);
       }
@@ -2654,12 +2717,18 @@
           failures.push({ job: job, err: err });
         }).then(function () {
           done += 1;
+          run.done = done;
+          if (job.state === 'done') { run.fresh += 1; }
           progress();
+          /* 結果を見ている最中なら、上の帯の数字だけを書き換える */
+          if (run.viewing) { refreshBanner(); }
         });
       }
 
       function finish() {
         stopRunPaint();
+        run.active = false;
+        if (run.viewing) { load(); return; }
         if (made) { toast(t('gen.generateDone'), 'success'); }
         failures.forEach(function (failed) {
           var key = (failed.err && failed.err.status === 501) ? 'gen.generateNotReady' : 'gen.generateFailed';
