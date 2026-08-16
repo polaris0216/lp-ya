@@ -823,12 +823,6 @@
   api.rpc = rpc;
   api.fn = callFunction;
 
-  /* 生成。中身づくりとクレジット消費は generate-content Edge Function（サーバー側）が
-     LLM成功後に1トランザクションで行う。LLM の応答を待つため、タイムアウトだけ長く取る。 */
-  api.generations.generate = function (payload) {
-    return callFunction('generate-content', payload || {}, 'POST', { timeoutMs: 120000 });
-  };
-
   /* ---------- ファイル（商品写真などの画像）----------
      保存先は Storage の公開バケット `lp-assets`。パスの先頭は必ず自分の user_id
      （009 のポリシーがそれ以外への書き込みを拒否する）。

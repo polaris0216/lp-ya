@@ -9,7 +9,7 @@
  *            location.hash = '#/S8?id=...' （ハッシュルーターは app.js）
  * 通信       api.js の window.Api だけを使う。
  *              Api.users.get(id) / Api.projects.list(options) / Api.projects.insert(row)
- *              Api.projects.remove(id) / Api.generations.list(options)
+ *              Api.projects.remove(id) / Api.analysisReports.list(options)
  *              Api.creditTransactions.list(options)
  *              Api.credits.costOf(featureKey) / Api.credits.consume(userId, credits, featureKey, memo)
  *              Api.credits.hasUnlimited(user) / Api.storage.get|set|clearSelection
@@ -468,22 +468,23 @@
           filters: { created_at: 'gte.' + monthStartString() },
           limit: 500
         });
-        var generations = ids.length
-          ? window.Api.generations.list({ in: { projects_id: ids }, select: 'projects_id', limit: 1000 })
+        /* 「進行中」は分析まで進んだかで決める。生成の機能は作り直し中 */
+        var reports = ids.length
+          ? window.Api.analysisReports.list({ in: { projects_id: ids }, select: 'projects_id', limit: 1000 })
           : Promise.resolve([]);
 
-        return Promise.all([monthly, generations]);
+        return Promise.all([monthly, reports]);
       }).then(function (results) {
         var transactions = results[0] || [];
-        var generations = results[1] || [];
+        var reports = results[1] || [];
         var used = 0;
         transactions.forEach(function (tx) {
           used += Math.abs(Number(tx.credit_amount) || 0);
         });
         data.monthlyUsed = used;
-        data.generatedIds = {};
-        generations.forEach(function (row) {
-          if (row && row.projects_id) { data.generatedIds[String(row.projects_id)] = true; }
+        data.analyzedIds = {};
+        reports.forEach(function (row) {
+          if (row && row.projects_id) { data.analyzedIds[String(row.projects_id)] = true; }
         });
         paint(data);
       }).catch(function (err) {
@@ -498,7 +499,7 @@
     }
 
     function isInProgress(data, project) {
-      return !data.generatedIds[String(project.id)];
+      return !data.analyzedIds[String(project.id)];
     }
 
     function matches(project, keyword) {

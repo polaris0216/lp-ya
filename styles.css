@@ -1014,6 +1014,13 @@ a.card:active,
 
 .wtabs__item:active { opacity: .88; }
 
+/* まだ画面が無い工程。全体で何工程あるかは見せたいので耳は出し、押せなくする */
+.wtabs__item--pending {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.wtabs__item--pending:active { opacity: .45; }
+
 .wtabs__item--active {
   background: var(--c-surface);
   color: var(--c-text);

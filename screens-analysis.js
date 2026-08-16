@@ -17,7 +17,7 @@
  *            業務データは localStorage に置かない（保存先は Supabase）。
  * 文言       i18n.js の window.I18N.t(key) を使う。辞書に無いキーは作らず、
  *            このファイル内の LOCAL（ja / en / ko の3言語）で補って t(key) で引く。
- *            LOCAL のキーは 'sa.' 's10.' 's11.' 's12.' 'sec.' 'secDesc.' 'fac.'
+ *            LOCAL のキーは 'sa.' 's10.' 's11.' 'report.' 'sec.' 'secDesc.' 'fac.'
  *            'item.' 'media.' で始め、i18n.js のキーと衝突させない。
  * DOM        index.html が用意した id だけを触る。
  *              #header-title / #header-back / #header-action /
@@ -123,52 +123,15 @@
   /* GIF は image と分けて数える。動きで見せている区画かどうかが一目で分かるように */
   var MEDIA_TYPES = ['text', 'image', 'gif', 'video'];
 
-  /* 生成プロンプトの種類。この順で S12 に並ぶ */
-  var PROMPT_KINDS = ['own_lp', 'crowdfunding_lp', 'kv', 'meta_ads'];
-
-  /* 成果物と、消費ポイントを引く機能キー（a2f58db45_feature_credits の綴り）。
-     KV だけ画面側の呼び名と機能キーがずれているので、ここで対応させる */
-  var KIND_FEATURE = {
-    own_lp: 'own_lp',
-    crowdfunding_lp: 'crowdfunding_lp',
-    kv: 'kv_creative',
-    meta_ads: 'meta_ads'
-  };
-  var KIND_COST_FALLBACK = { own_lp: 60, crowdfunding_lp: 60, kv: 30, meta_ads: 30 };
-
-  /* 生成プロンプト1本ぶんを、ターゲット層と成果物の組で正規化する。
-     { target, kind, brief, images: [{slot, prompt}], videos: [{slot, prompt}] }
-     画像は ChatGPT image2、動画は segmind に渡す前提で書かせる。 */
-  function promptItemsOf(report) {
-    var raw = report && report.prompts;
-    if (typeof raw === 'string') {
-      try { raw = JSON.parse(raw); } catch (e) { raw = null; }
-    }
-    if (!raw || typeof raw !== 'object') { return []; }
-
-    function slots(list) {
-      return asArray(list).map(function (one) {
-        if (typeof one === 'string') { return { slot: '', prompt: one }; }
-        return { slot: String(one.slot || ''), prompt: String(one.prompt || '') };
-      });
-    }
-
-    if (Array.isArray(raw.items)) {
-      return raw.items.map(function (one) {
-        return {
-          target: String(one.target || ''),
-          kind: String(one.kind || ''),
-          brief: String(one.brief || ''),
-          images: slots(one.images),
-          videos: slots(one.videos)
-        };
-      }).filter(function (one) { return PROMPT_KINDS.indexOf(one.kind) !== -1; });
-    }
-
-    /* ターゲット層別にする前の形（成果物ごとに本文1本だけ）。捨てずに読む */
-    return PROMPT_KINDS.filter(function (kind) { return raw[kind]; }).map(function (kind) {
-      return { target: '', kind: kind, brief: String(raw[kind]), images: [], videos: [] };
-    });
+  /* 終了すると目標金額を画面から消す媒体。実測:
+       Kickstarter … 終了案件は「8,023人のバッカーが$3,305,917プレッジしました」だけ
+                     になり、目標金額が出ない（出ている案件もある）
+       Indiegogo   … 終了案件（InDemand）は「total funded by N backers」だけ
+     どちらも達成率が計算できないので、成否は人が決めるしかない。 */
+  function hidesGoal(url) {
+    var host = '';
+    try { host = new URL(String(url)).hostname.toLowerCase(); } catch (e) { return false; }
+    return /(^|\.)(kickstarter\.com|indiegogo\.com)$/.test(host);
   }
 
   /* 競合の結果。失敗例は「避けるべき型」の根拠になる */
@@ -248,11 +211,16 @@
     'oc.title': ['この競合の結果', 'How it did', '이 경쟁사의 결과'],
     'oc.success': ['達成した', 'Succeeded', '달성함'],
     'oc.failure': ['伸びなかった', 'Fell short', '부진했음'],
-    'oc.unknown': ['未指定', 'Not set', '미지정'],
+    'oc.unknown': ['自動判定', 'Judge automatically', '자동 판정'],
+    'oc.needManual': [
+      'この媒体は終了後に目標金額を伏せることがあります。成否を選んでおいてください',
+      'This platform can hide the goal after a campaign ends. Please pick the outcome here.',
+      '이 매체는 종료 후 목표 금액을 숨기는 경우가 있습니다. 성패를 직접 선택해 주세요'
+    ],
     'oc.hint': [
-      '高額を達成した競合だけでなく、伸びなかった競合も貼ってください。失敗例に共通していた型は「避けるべき型」としてまとめに出ます。',
-      'Add the ones that fell short as well as the winners. Patterns shared by the failures are surfaced as things to avoid.',
-      '고액을 달성한 경쟁사뿐 아니라 부진했던 경쟁사도 붙여 주세요. 실패 사례에 공통된 형태는 「피해야 할 형태」로 정리됩니다.'
+      'ここで選べば、その指定がそのまま使われます。選ばなかったものだけ、分析のときに自動判定します（応援購入総額 ÷ 目標金額 が100%以上なら「達成した」）。高額を達成した競合だけでなく、伸びなかった競合も貼ってください。失敗例に共通していた型は「避けるべき型」としてまとめに出ます。',
+      'What you pick here is what gets used. Anything you leave unset is judged automatically during analysis (total raised ÷ goal, 100% or more counts as succeeded). Add the ones that fell short as well as the winners — patterns shared by the failures are surfaced as things to avoid.',
+      '여기서 선택하면 그 지정이 그대로 사용됩니다. 선택하지 않은 것만 분석 시 자동 판정합니다(응원 구매 총액 ÷ 목표 금액이 100% 이상이면 「달성함」). 고액을 달성한 경쟁사뿐 아니라 부진했던 경쟁사도 붙여 주세요.'
     ],
     'cp.do': ['真似すべき型', 'Do this', '따라야 할 형태'],
     'cp.avoid': ['避けるべき型', 'Avoid this', '피해야 할 형태'],
@@ -287,57 +255,6 @@
       'The competitors have not been consolidated yet. Use the button below to merge them and write the generation prompts.',
       '아직 공통점을 정리하지 않았습니다. 아래 버튼으로 경쟁사 분석을 하나로 합쳐 생성 프롬프트를 만듭니다.'
     ],
-    'prompt.build': ['共通点をまとめて生成プロンプトを作る', 'Consolidate and write the prompts', '공통점을 정리해 생성 프롬프트 만들기'],
-    'prompt.rebuild': ['プロンプトを作り直す', 'Rewrite the prompts', '프롬프트 다시 만들기'],
-    'prompt.open': ['生成プロンプトを見る', 'Open the generation prompts', '생성 프롬프트 보기'],
-    'prompt.buildFailed': [
-      'プロンプトの作成に失敗しました。時間をおいて実行してください。',
-      'Writing the prompts failed. Please try again later.',
-      '프롬프트 작성에 실패했습니다. 잠시 후 다시 실행해 주세요.'
-    ],
-    'prompt.title': ['生成プロンプト', 'Generation prompts', '생성 프롬프트'],
-    'prompt.lead': [
-      '共通点のまとめから、作るもの別にプロンプトを書き起こしました。そのままでも、直してからでも生成に進めます。',
-      'Prompts were written from the consolidated findings, one per deliverable. Generate as-is, or edit first.',
-      '공통점 정리에서 만들 것별로 프롬프트를 작성했습니다. 그대로도, 고친 뒤에도 생성으로 넘어갈 수 있습니다.'
-    ],
-    'prompt.own_lp': ['自社LP用', 'Own-site LP', '자사 LP용'],
-    'prompt.own_lpDesc': [
-      '自社サイトに置くLP。応援購入ではなく購入が終点なので、返品・保証・配送とカート導線を最後に置きます。',
-      'The LP for your own site. The endpoint is a purchase, not backing, so returns, warranty, shipping and the cart sit at the end.',
-      '자사 사이트에 두는 LP. 응원 구매가 아니라 구매가 종점이므로 반품·보증·배송과 장바구니 동선을 마지막에 둡니다.'
-    ],
-    'prompt.crowdfunding_lp': ['クラファンプラットフォーム用', 'Crowdfunding platform', '크라우드펀딩 플랫폼용'],
-    'prompt.crowdfunding_lpDesc': [
-      'makuake・CAMPFIRE などに載せるLP。応援購入の言い回し、リターン表、開発ストーリー、実行者紹介が要ります。',
-      'The LP for makuake, CAMPFIRE and the like: backing-style wording, a reward table, the development story and a maker introduction.',
-      'makuake·CAMPFIRE 등에 올리는 LP. 응원 구매 표현, 리워드 표, 개발 스토리, 실행자 소개가 필요합니다.'
-    ],
-    'prompt.kv': ['KV（キービジュアル）', 'Key visual', 'KV(키 비주얼)'],
-    'prompt.kvDesc': [
-      '一番上に置く1枚。競合が共通して見せていた画づくりを踏まえた指示です。',
-      'The single image at the top, based on the framing the competitors shared.',
-      '가장 위에 두는 한 장. 경쟁사가 공통으로 보여주던 화면 구성을 반영한 지시입니다.'
-    ],
-    'prompt.meta_ads': ['メタ広告バナー', 'Meta ad banners', '메타 광고 배너'],
-    'prompt.meta_adsDesc': [
-      'Facebook・Instagram の広告バナー。訴求の切り口ごとに複数案を出す指示です。',
-      'Facebook and Instagram ad banners, with several variants by angle.',
-      'Facebook·Instagram 광고 배너. 소구 관점별로 여러 안을 내는 지시입니다.'
-    ],
-    'prompt.notReady': [
-      'まだ生成プロンプトがありません。分析レポートから作成してください。',
-      'There are no generation prompts yet. Create them from the analysis report.',
-      '아직 생성 프롬프트가 없습니다. 분석 리포트에서 만들어 주세요.'
-    ],
-    'prompt.toReport': ['総合分析へ戻る', 'Back to the overview', '종합 분석으로 돌아가기'],
-    'prompt.saveFailed': [
-      'プロンプトの保存に失敗しました。',
-      'Saving the prompts failed.',
-      '프롬프트 저장에 실패했습니다.'
-    ],
-    'prompt.generateWith': ['この内容で生成する', 'Generate with this', '이 내용으로 생성하기'],
-    'prompt.edited': ['編集済み', 'Edited', '수정함'],
     /* ---- この3画面で共通の言い回し ---- */
     'sa.serverAnalysisNote': [
       '分析はサーバーが競合ページを実際に取得して行います。ページの規模により1〜2分かかることがあります。',
@@ -550,29 +467,9 @@
     's11.noAsset': ['収集できたコンテンツがありません', 'Nothing could be collected', '수집된 콘텐츠가 없습니다'],
     's11.reAnalyze': ['競合LPを追加して再分析', 'Add competitors and analyse again', '경쟁 LP를 추가해 재분석'],
     's11.reportEmptyAction': ['競合LP分析を始める', 'Start competitor analysis', '경쟁 LP 분석 시작'],
+    /* 構造・流れ分析の区画数。もとは S12 の文言だったが、レポート画面が使う */
+    'report.sectionCount': ['{n}セクション', '{n} sections', '{n}개 섹션'],
 
-    /* ---- S12 分析内容確認 ---- */
-    's12.lead': [
-      '生成に反映する勝ちパターンを確認します。外した要素は生成に使いません。',
-      'Check the winning pattern that will be applied. Unchecked items are left out of the generation.',
-      '생성에 반영할 성공 패턴을 확인합니다. 해제한 요소는 생성에 사용하지 않습니다.'
-    ],
-    's12.selectAll': ['すべて選ぶ', 'Select all', '모두 선택'],
-    's12.clearAll': ['すべて外す', 'Clear all', '모두 해제'],
-    's12.needOne': ['反映する要素を1つ以上選んでください', 'Please keep at least one element', '반영할 요소를 1개 이상 선택해 주세요'],
-    's12.excluded': ['除外中', 'Excluded', '제외됨'],
-    's12.orderHint': ['↑↓ボタン、またはドラッグで並び替えできます。', 'Reorder with the up and down buttons, or by dragging.', '↑↓ 버튼이나 드래그로 순서를 바꿀 수 있습니다.'],
-    's12.moveUp': ['上へ移動', 'Move up', '위로 이동'],
-    's12.moveDown': ['下へ移動', 'Move down', '아래로 이동'],
-    's12.sectionCount': ['{n}セクション', '{n} sections', '{n}개 섹션'],
-    's12.shortage': ['{n}P不足しています', 'You are short {n} P', '{n}P 부족합니다'],
-    's12.unlimited': ['無制限利用中のためポイントを消費しません', 'Unlimited use is active, so no points are spent', '무제한 이용 중이라 포인트을 소모하지 않습니다'],
-    's12.saveFailed': ['生成内容の保存に失敗しました', 'Failed to save what will be generated', '생성 내용 저장에 실패했습니다'],
-    's12.needDone': [
-      '分析がまだ完了していないため、生成内容を確認できません。',
-      'The analysis is not finished yet, so there is nothing to confirm.',
-      '분석이 아직 완료되지 않아 생성 내용을 확인할 수 없습니다.'
-    ],
 
     /* ---- ページ構成のセクション名と説明 ---- */
     'sec.firstview': ['ファーストビュー', 'First view', '퍼스트 뷰'],
@@ -1422,7 +1319,11 @@
         return;
       }
 
-      view.entries.push({ url: parsed.url, platform: detectPlatform(parsed.host, parsed.path), outcome: 'success' });
+      /* 既定は「判定不可」。以前は 'success' を入れていたので、
+         目標未達のページを貼っても「達成した」と表示されていた。
+         成否は分析のときに公開データ（目標金額・応援購入総額）から
+         機械判定して上書きされる。ここで先に決めつけない。 */
+      view.entries.push({ url: parsed.url, platform: detectPlatform(parsed.host, parsed.path), outcome: 'unknown' });
       view.inputValue = '';
       view.inputError = '';
       syncConfMaps();
@@ -1622,6 +1523,12 @@
 
         add(body, el('span', 'list-row__title break-url', entry.url));
         add(body, el('span', 'list-row__sub', t('analysis.platformAuto') + '：' + platformName(entry.platform)));
+        /* 目標金額を出さない媒体は、分析しても成否が決まらない。
+           回してから「判定待ち」に気づくと、選び直してもう一度40P使うことになる。
+           貼った時点で知らせる。 */
+        if (hidesGoal(entry.url) && entry.outcome === 'unknown') {
+          add(body, el('span', 'list-row__sub t-danger', t('oc.needManual')));
+        }
 
         var picks = el('div', 'chips');
         ['success', 'failure'].forEach(function (kind) {
@@ -2470,7 +2377,7 @@
       var section = el('section', 'section');
       var head = el('div', 'section__head');
       add(head, el('h2', 'section__title', t('flow.title')));
-      add(head, el('span', 't-note', t('s12.sectionCount', { n: sections.length })));
+      add(head, el('span', 't-note', t('report.sectionCount', { n: sections.length })));
       add(section, head);
       add(section, el('p', 'section__desc', t('flow.lead')));
       if (flowSummary) { add(section, el('div', 'note-box', flowSummary)); }
@@ -2724,6 +2631,10 @@
         add(chips, el('span', 'badge', platformName(source.platform)));
         if (source.outcome === 'success' || source.outcome === 'failure') {
           add(chips, el('span', 'chip chip--sm chip--' + source.outcome, t('oc.' + source.outcome)));
+        } else {
+          /* 判定できなかったことも出す。黙って何も出さないと、
+             「判定した結果ふつう」なのか「判定していない」のか分からない */
+          add(chips, el('span', 'chip chip--sm chip--mute', t('oc.unknown')));
         }
         add(top, chips);
         add(card, top);
@@ -2944,36 +2855,6 @@
       return section;
     }
 
-    /* ---- 2段階目：1〜複数の競合分析をひとつにまとめ、生成プロンプトを書かせる ----
-       共通点の抽出も、それを踏まえたプロンプトの起草もサーバー側の仕事。
-       この画面は起点と完了待ちだけを持ち、終わったら S12 に渡す。 */
-    function buildPrompts() {
-      var report = view.report;
-      window.Api.analysis.run({
-        mode: 'prompt_build',
-        report_id: String(report.id),
-        lang: (App.getLang && App.getLang()) || 'ja'
-      }).then(function (result) {
-        function done() { go('S12', { id: projectId, reportId: report.id }); }
-        if (result && result.queued && App.watchJob) {
-          App.watchJob({
-            jobId: result.job_id,
-            titleKey: 'job.titlePrompts',
-            doneKey: 'job.donePrompts',
-            noteKey: 'job.notePrompts',
-            urls: entriesOf(report).map(function (one) { return one.url; }).filter(Boolean),
-            onDone: done
-          });
-          return;
-        }
-        done();
-      }, function (err) {
-        console.error('[screens-analysis] 生成プロンプトの作成に失敗しました', err);
-        showBanner(errorMessage(err, 'prompt.buildFailed'), buildPrompts);
-      });
-    }
-
-    /* ---- 2段階目の結果：競合に共通していた型 ---- */
     function commonSection(points, total) {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
@@ -3084,18 +2965,6 @@
         add(lpSection, assetCard(lpAssets, 'lp'));
         add(wrap, lpSection);
 
-        var hasPrompts = report.prompt_status === 'done';
-        add(actions, button('btn btn--primary btn--block',
-          hasPrompts ? t('prompt.open') : t('prompt.build'), function () {
-            if (hasPrompts) {
-              go('S12', { id: projectId, reportId: report.id });
-              return;
-            }
-            buildPrompts();
-          }));
-        if (hasPrompts) {
-          add(actions, button('btn btn--secondary btn--block', t('prompt.rebuild'), buildPrompts));
-        }
         add(actions, button('btn btn--secondary btn--block', t('overall.toSources'), function () {
           go('S11', { id: projectId, reportId: report.id });
         }));
@@ -3123,445 +2992,6 @@
     load();
   }
 
-  /* ==================================================================
-   * S12 分析内容確認（生成に反映する勝ちパターンの確認）
-   * 反映する要素のチェック / LPセクション構成の並び替え / 消費クレジット
-   * ================================================================== */
-  function renderConfirm(root, params) {
-    setHeader(t('prompt.title'));
-
-    if (!apiReady()) {
-      showFailure(root, t('common.error'), function () { renderConfirm(root, params); });
-      return;
-    }
-
-    var projectId = resolveProjectId(params);
-    if (!projectId) {
-      noProjectScreen(root);
-      return;
-    }
-    rememberProjectId(projectId);
-
-    var reportId = resolveReportId(params);
-
-    var view = {
-      report: null,
-      project: null,
-      base: '',
-      items: [],        /* {target, kind, brief, images, videos} */
-      targets: [],      /* {label, name, age, gender} S4 で決めた層 */
-      picked: {},       /* label -> true 作るものだけ選ぶ */
-      openTarget: '',
-      kindCost: {},     /* 成果物ごとの消費ポイント */
-      saving: false
-    };
-    PROMPT_KINDS.forEach(function (kind) { view.kindCost[kind] = KIND_COST_FALLBACK[kind]; });
-
-    function load() {
-      clearBanner();
-      showSkeleton(root);
-
-      var fetchReport = reportId
-        ? window.Api.analysisReports.get(reportId)
-        : loadLatestReport(projectId);
-
-      Promise.all([
-        fetchReport,
-        window.Api.projects.get(String(projectId)).catch(function () { return null; }),
-        Promise.all(PROMPT_KINDS.map(function (kind) {
-          return costOf(KIND_FEATURE[kind], KIND_COST_FALLBACK[kind]);
-        }))
-      ]).then(function (results) {
-        var report = results[0];
-        view.project = results[1];
-        PROMPT_KINDS.forEach(function (kind, index) { view.kindCost[kind] = results[2][index]; });
-
-        if (!report) {
-          drawNoReport();
-          return;
-        }
-        view.report = report;
-        rememberReportId(report.id);
-
-        if (report.analysis_status !== STATUS_DONE) {
-          drawNotReady();
-          return;
-        }
-
-        if (report.prompt_status !== 'done') {
-          drawNoPrompts();
-          return;
-        }
-
-        var stored = report.prompts && typeof report.prompts === 'object' ? report.prompts : {};
-        view.base = String(stored.base || '');
-        view.items = promptItemsOf(report);
-
-        /* 層はプロジェクト（S4 のターゲット案）が本体。プロンプト側にしか
-           出てこない層があれば、それも見えるように足しておく */
-        var seen = {};
-        view.targets = asArray(view.project && view.project.targets).map(function (one) {
-          var label = String(one.label || '');
-          seen[label] = true;
-          return {
-            label: label,
-            name: String(one.name || ''),
-            age: String(one.age || ''),
-            gender: String(one.gender || '')
-          };
-        }).filter(function (one) { return one.label; });
-
-        view.items.forEach(function (one) {
-          if (one.target && !seen[one.target]) {
-            seen[one.target] = true;
-            view.targets.push({ label: one.target, name: '', age: '', gender: '' });
-          }
-        });
-
-        /* 既定は最初の層だけ。20本まとめて作らせない */
-        view.picked = {};
-        if (view.targets.length) { view.picked[view.targets[0].label] = true; }
-        view.openTarget = view.targets.length ? view.targets[0].label : '';
-        draw();
-      }, function (err) {
-        if (err && err.code === 'notfound') {
-          drawNoReport();
-          return;
-        }
-        console.error('[screens-analysis] 分析内容確認の読み込みに失敗しました', err);
-        showFailure(root, errorMessage(err, 'report.loadFailed'), load);
-      });
-    }
-
-    function drawNoReport() {
-      clear(root);
-      var wrap = el('div', 'screen');
-      var head = el('div', 'screen__head');
-      add(head, el('h1', 'screen__title', t('reportConfirm.title')));
-      add(wrap, head);
-      add(wrap, emptyBox(t('report.empty'), t('s11.reportEmptyAction'), function () {
-        go('S10', { id: projectId });
-      }));
-      root.appendChild(wrap);
-    }
-
-    function drawNotReady() {
-      clear(root);
-      var wrap = el('div', 'screen');
-      var head = el('div', 'screen__head');
-      add(head, el('h1', 'screen__title', t('reportConfirm.title')));
-      add(wrap, head);
-      add(wrap, emptyBox(t('s12.needDone'), t('report.title'), function () {
-        go('S11', { id: projectId, reportId: view.report.id });
-      }));
-      root.appendChild(wrap);
-    }
-
-    function drawNoPrompts() {
-      clear(root);
-      var wrap = el('div', 'screen');
-      var head = el('div', 'screen__head');
-      add(head, el('h1', 'screen__title', t('prompt.title')));
-      add(wrap, head);
-      add(wrap, emptyBox(t('prompt.notReady'), t('prompt.toReport'), function () {
-        go('S20', { id: projectId, reportId: view.report.id });
-      }));
-      root.appendChild(wrap);
-    }
-
-    function pickedLabels() {
-      return view.targets.filter(function (one) { return view.picked[one.label]; })
-        .map(function (one) { return one.label; });
-    }
-
-    /* 編集した内容を、読み込んだときと同じ形に戻す */
-    function promptPayload() {
-      return {
-        base: view.base,
-        items: view.items.map(function (one) {
-          return {
-            target: one.target,
-            kind: one.kind,
-            brief: one.brief,
-            images: one.images.map(function (a) { return { slot: a.slot, prompt: a.prompt, provider: 'chatgpt_image2' }; }),
-            videos: one.videos.map(function (a) { return { slot: a.slot, prompt: a.prompt, provider: 'segmind' }; })
-          };
-        })
-      };
-    }
-
-    function persistAndGo() {
-      if (view.saving) { return; }
-      var picked = pickedLabels();
-      if (view.targets.length && !picked.length) {
-        toast(t('pr.needTarget'), 'danger');
-        return;
-      }
-      view.saving = true;
-      draw();
-
-      window.Api.analysisReports.update(view.report.id, { prompts: promptPayload() }).then(function (row) {
-        view.saving = false;
-        view.report = row;
-
-        /* 何を作るかは S13 に直接渡す。消費は generate-content Edge Function が
-           成功したあとに行うので、ここでは引き落とさない */
-        App.state = App.state || {};
-        App.state.generateRequest = {
-          projectId: String(projectId),
-          reportId: String(row.id),
-          targets: picked,
-          features: PROMPT_KINDS.map(function (kind) {
-            return { feature_key: KIND_FEATURE[kind], kind: kind, credit_cost: view.kindCost[kind] || 0 };
-          }),
-          at: new Date().toISOString()
-        };
-        go('S13', { id: projectId, reportId: row.id });
-      }, function (err) {
-        view.saving = false;
-        console.error('[screens-analysis] 生成プロンプトの保存に失敗しました', err);
-        showBanner(errorMessage(err, 'prompt.saveFailed'), persistAndGo);
-        draw();
-      });
-    }
-
-    /* ---- 作る層を選ぶ ---- */
-    function targetSection() {
-      var section = el('section', 'section');
-      var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('pr.targets')));
-      var picked = pickedLabels();
-      add(head, el('span', 't-note', t('pr.selected', { n: picked.length, m: picked.length * PROMPT_KINDS.length })));
-      add(section, head);
-      add(section, el('p', 'section__desc', t('pr.targetsHint')));
-
-      if (!view.targets.length) {
-        add(section, emptyBox(t('common.empty')));
-        return section;
-      }
-
-      var chips = el('div', 'chips');
-      view.targets.forEach(function (one) {
-        var on = !!view.picked[one.label];
-        var name = one.label + (one.name ? '　' + one.name : '');
-        var meta = [one.age, one.gender].filter(Boolean).join('・');
-        var chip = button('chip' + (on ? ' chip--selected' : ''), name + (meta ? '（' + meta + '）' : ''), function () {
-          view.picked[one.label] = !on;
-          if (!on) { view.openTarget = one.label; }
-          draw();
-        });
-        chip.setAttribute('aria-pressed', on ? 'true' : 'false');
-        add(chips, chip);
-      });
-      add(section, chips);
-      return section;
-    }
-
-    /* ---- 全プロンプトの先頭に付く前提 ---- */
-    function baseSection() {
-      var section = el('section', 'section');
-      var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('pr.base')));
-      add(section, head);
-      add(section, el('p', 'section__desc', t('pr.baseHint')));
-      add(section, promptField(t('pr.base'), view.base, function (value) { view.base = value; }));
-      return section;
-    }
-
-    /* ---- 編集欄1つ。打っている間は描き直さない（入力が飛ぶため） ---- */
-    function promptField(label, value, onChange, rows) {
-      var field = el('textarea', 'textarea textarea--prompt' + (rows ? ' textarea--short' : ''));
-      field.value = value;
-      field.rows = rows || 10;
-      field.setAttribute('aria-label', label);
-      field.addEventListener('input', function () { onChange(field.value); });
-      field.addEventListener('blur', function () { draw(); });
-      return field;
-    }
-
-    /* ---- 層1つ ✕ 成果物1種類ぶん ---- */
-    function itemSection(item) {
-      var section = el('section', 'section');
-      var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('prompt.' + item.kind)));
-      add(section, head);
-      add(section, el('p', 'section__desc', t('prompt.' + item.kind + 'Desc')));
-
-      add(section, el('span', 'field__label', t('pr.brief')));
-      add(section, promptField(t('pr.brief'), item.brief, function (value) { item.brief = value; }));
-
-      [['images', 'pr.images'], ['videos', 'pr.videos']].forEach(function (pair) {
-        var list = item[pair[0]];
-        if (!list.length) { return; }
-        add(section, el('span', 'field__label', t(pair[1])));
-        list.forEach(function (asset, index) {
-          var label = asset.slot || (index + 1) + '';
-          add(section, el('span', 'field__hint', label));
-          add(section, promptField(label, asset.prompt, function (value) { asset.prompt = value; }, 4));
-        });
-      });
-
-      if (!item.images.length && !item.videos.length) {
-        add(section, el('p', 't-note', t('pr.noAsset')));
-      }
-      return section;
-    }
-
-    /* ---- 選んだ層を切り替えて中身を見る ---- */
-    function promptBody() {
-      var wrap = el('div', 'stack');
-      var picked = pickedLabels();
-
-      /* 層に紐づかない古い形のプロンプトは、そのまま並べる */
-      if (!view.targets.length || !view.items.some(function (one) { return one.target; })) {
-        view.items.forEach(function (item) { add(wrap, itemSection(item)); });
-        return wrap;
-      }
-
-      if (!picked.length) {
-        add(wrap, emptyBox(t('pr.needTarget')));
-        return wrap;
-      }
-      if (picked.indexOf(view.openTarget) === -1) { view.openTarget = picked[0]; }
-
-      if (picked.length > 1) {
-        var tabs = el('div', 'tabs');
-        picked.forEach(function (label) {
-          var on = view.openTarget === label;
-          var tab = button('tabs__item' + (on ? ' tabs__item--active' : ''), label, function () {
-            view.openTarget = label;
-            draw();
-          });
-          tab.setAttribute('aria-pressed', on ? 'true' : 'false');
-          add(tabs, tab);
-        });
-        add(wrap, tabs);
-      }
-
-      var shown = view.items.filter(function (one) { return one.target === view.openTarget; });
-      if (!shown.length) {
-        add(wrap, emptyBox(t('prompt.notReady')));
-        return wrap;
-      }
-      /* 自社LP → クラファンLP → KV → メタ広告 の順で並べる */
-      PROMPT_KINDS.forEach(function (kind) {
-        shown.filter(function (one) { return one.kind === kind; })
-          .forEach(function (item) { add(wrap, itemSection(item)); });
-      });
-      return wrap;
-    }
-
-    /* 選んだ層 × 4種類ぶんを積み上げる */
-    function totalCost() {
-      var perTarget = 0;
-      PROMPT_KINDS.forEach(function (kind) { perTarget += view.kindCost[kind] || 0; });
-      return perTarget * Math.max(pickedLabels().length, view.targets.length ? 0 : 1);
-    }
-
-    function creditSection() {
-      var section = el('section', 'section');
-      var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('reportConfirm.creditCost')));
-      add(section, head);
-
-      var unlimited = hasUnlimited();
-      var balance = currentBalance();
-      var cost = unlimited ? 0 : totalCost();
-      var after = balance - cost;
-
-      var card = el('div', 'card card--soft');
-      add(card, el('p', 'card__label', t('creditConfirm.thisTime')));
-
-      var value = el('p', 'card__value num' + (after < 0 ? ' t-danger' : ''), formatNumber(cost));
-      add(value, el('span', 'card__unit', t('common.creditShort')));
-      add(card, value);
-
-      var foot = el('div', 'card__foot');
-      add(foot, el('span', 'card__sub',
-        t('creditConfirm.balance') + '：' + formatNumber(balance) + t('common.creditShort')));
-      add(foot, el('span', 'card__sub' + (after < 0 ? ' t-danger' : ''),
-        t('creditConfirm.afterExecution') + '：' + formatNumber(after) + t('common.creditShort')));
-      add(card, foot);
-      add(section, card);
-
-      /* 何にいくらかかるのかは、実行するこの画面に出す */
-      if (!unlimited && pickedLabels().length) {
-        var info = el('div', 'info-list');
-        PROMPT_KINDS.forEach(function (kind) {
-          var row = el('div', 'info-row');
-          add(row, el('span', 'info-row__key', t('prompt.' + kind)));
-          add(row, el('span', 'info-row__val num',
-            formatNumber(view.kindCost[kind] || 0) + t('common.creditShort')
-            + ' × ' + pickedLabels().length));
-          add(info, row);
-        });
-        add(section, info);
-      }
-
-      if (unlimited) {
-        add(section, el('div', 'note-box', t('s12.unlimited')));
-      } else if (after < 0) {
-        add(section, el('div', 'warn-box',
-          t('creditConfirm.insufficientWarning') + '　' + t('s12.shortage', { n: formatNumber(-after) })));
-        add(section, button('btn btn--secondary btn--block', t('creditConfirm.charge'), function () {
-          go('S17', { returnTo: 'S12', id: projectId, reportId: view.report.id });
-        }));
-      }
-      return section;
-    }
-
-    function draw() {
-      clear(root);
-      var wrap = el('div', 'screen');
-
-      var head = el('div', 'screen__head');
-      add(head, el('h1', 'screen__title', t('prompt.title')));
-      add(head, el('p', 'screen__lead', t('prompt.lead')));
-      add(wrap, head);
-
-      add(wrap, el('div', 'note-box', t('pr.apiNote')));
-      add(wrap, targetSection());
-      if (view.base) { add(wrap, baseSection()); }
-      add(wrap, promptBody());
-      add(wrap, creditSection());
-
-      var actions = el('div', 'stack');
-      var generate = button('btn btn--primary btn--block',
-        view.saving ? t('sa.saving') : t('prompt.generateWith'), persistAndGo);
-      if (view.saving) { generate.disabled = true; }
-      add(actions, generate);
-
-      /* 途中保存。編集したプロンプト本文は打っただけでは残らないので、
-         生成へ進まずに離れるときはここで保存する */
-      if (App && typeof App.saveProgressButton === 'function') {
-        var savePrompt = App.saveProgressButton({
-          projectId: projectId,
-          step: 'S12',
-          save: function () {
-            return window.Api.analysisReports.update(view.report.id, { prompts: promptPayload() })
-              .then(function (row) { view.report = row; return row; });
-          }
-        });
-        savePrompt.classList.add('btn--block');
-        if (view.saving) { savePrompt.disabled = true; }
-        add(actions, savePrompt);
-      }
-
-      /* プロンプトは総合分析の画面から作るので、1つ前の工程はそちら */
-      add(actions, button('btn btn--secondary btn--block', t('reportConfirm.backToReport'), function () {
-        go('S20', { id: projectId, reportId: view.report.id });
-      }));
-      add(actions, button('btn btn--secondary btn--block', t('reportConfirm.backToAnalysis'), function () {
-        go('S10', { id: projectId });
-      }));
-      add(wrap, actions);
-
-      root.appendChild(wrap);
-    }
-
-    load();
-  }
-
   /* ------------------------------------------------------------------
    * 画面登録（第2引数は必ず { render: 関数 } のオブジェクト）
    * ------------------------------------------------------------------ */
@@ -3575,10 +3005,6 @@
 
   App.registerScreen('S20', {
     render: function (root, params) { renderReport(root, params || {}, 'overall'); }
-  });
-
-  App.registerScreen('S12', {
-    render: function (root, params) { renderConfirm(root, params || {}); }
   });
 
   /* 通信なしの自己チェック（開発時にコンソールから ScreensAnalysis._selfTest()） */

@@ -70,7 +70,7 @@
   var MAX_PRODUCT_NAME = 60;
   var MAX_TARGET = 60;
   var MAX_FEATURES = 300;
-  var PROGRESS_STEPS = 3;           // 商品登録・競合LP分析・生成 の3段階で進捗を出す
+  var PROGRESS_STEPS = 2;           // 商品登録・競合LP分析 の2段階で進捗を出す
   var IMAGE_MAX_EDGE = 1600;        // 商品写真は生成LPにもそのまま載せるので長辺1600pxまで残す
   var IMAGE_QUALITY = 0.82;
 
@@ -86,9 +86,7 @@
     S4: 'wf.input',
     S10: 'wf.competitor',
     S11: 'wf.report',
-    S20: 'wf.overall',
-    S12: 'wf.prompt',
-    S13: 'wf.result'
+    S20: 'wf.overall'
   };
 
   /* i18n.js の辞書に無い、このファイルだけの文言。並びは [日本語, English, 한국어] */
@@ -502,8 +500,7 @@
     function stepList() {
       return [
         { label: t('projectDetail.registerProduct'), done: hasProduct(data.project) },
-        { label: t('analysis.title'), done: data.reports.length > 0 },
-        { label: t('generate.title'), done: data.generations.length > 0 }
+        { label: t('analysis.title'), done: data.reports.length > 0 }
       ];
     }
 
@@ -517,8 +514,7 @@
       var productCount = hasProduct(data.project) ? 1 : 0;
       return [
         t('projectOps.productCount') + ' ' + formatNumber(productCount),
-        t('projectOps.reportCount') + ' ' + formatNumber(data.reports.length),
-        t('generate.title') + ' ' + formatNumber(data.generations.length)
+        t('projectOps.reportCount') + ' ' + formatNumber(data.reports.length)
       ].join(' · ');
     }
 
@@ -540,14 +536,6 @@
         return;
       }
       go('S11', { id: projectId, reportId: data.reports[0].id });
-    }
-
-    function openGeneration() {
-      if (!data.generations.length) {
-        toast(t('generate.empty'), 'danger');
-        return;
-      }
-      go('S13', { id: projectId, generationId: data.generations[0].id });
     }
 
     function productRow() {
@@ -683,7 +671,6 @@
       /* 保存済みのものを開く / ダッシュボードへ戻る */
       var links = el('div', 'stack');
       links.appendChild(button('btn btn--secondary btn--block', t('projectDetail.openReport'), openReport));
-      links.appendChild(button('btn btn--secondary btn--block', t('projectDetail.openGeneration'), openGeneration));
       links.appendChild(button('btn btn--text btn--block', t('projectDetail.backToDashboard'), function () {
         go('S3');
       }));

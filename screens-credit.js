@@ -39,7 +39,6 @@
  *              t-note / t-danger / t-ok / num / clamp-1 / clamp-2
  *
  * ---- S17 が受け取る params ----
- *   returnTo    'S12' のとき、生成プロンプトの確認へ戻るボタンを出す
  *   id / reportId  戻るときにそのまま S12 へ返す
  *
  * ---- 機能キー（a2f58db45_feature_credits の実データと同じ綴りを使う）----
@@ -503,7 +502,6 @@
     setHeader(t('credit.title'), true);
 
     var query = params || {};
-    var returnTo = textOf(query.returnTo).trim();
     // Stripe の success_url から戻ってきた印。付与は webhook 経由なので、
     // 戻ってきた瞬間にはまだ残高が増えていないことがある。
     var justPaid = textOf(query.paid).trim() === '1';
@@ -903,13 +901,6 @@
       nodes.historyHost = el('div');
       historySection.appendChild(nodes.historyHost);
       screen.appendChild(historySection);
-
-      /* 戻る導線。生成プロンプトの確認から来ていれば、そこへ返す */
-      if (returnTo === 'S12' && query.id) {
-        screen.appendChild(button('btn btn--secondary btn--block', tl('local.backToConfirm'), function () {
-          go('S12', { id: query.id, reportId: query.reportId });
-        }));
-      }
 
       screen.appendChild(button('btn btn--secondary btn--block', t('credit.backToDashboard'), function () {
         go('S3');

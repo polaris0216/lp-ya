@@ -86,10 +86,6 @@
     S10: { tab: null, back: 'S8', auth: true, admin: false },
     S11: { tab: null, back: 'S8', auth: true, admin: false },
     S20: { tab: null, back: 'S11', auth: true, admin: false },
-    S12: { tab: null, back: 'S20', auth: true, admin: false },
-    S13: { tab: 'S4', back: 'S8', auth: true, admin: false },
-    S14: { tab: null, back: 'S13', auth: true, admin: false },
-    S15: { tab: null, back: 'S13', auth: true, admin: false },
     S17: { tab: 'S17', back: 'S3', auth: true, admin: false },
     S18: { tab: 'S18', back: 'S3', auth: true, admin: true },
     S19: { tab: null, back: 'S18', auth: true, admin: true },
@@ -97,25 +93,26 @@
   };
 
   /* プロジェクトに紐づく画面は、戻り先を作るときに選択中のプロジェクトIDを付ける */
-  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S20', 'S12', 'S13', 'S14', 'S15'];
+  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S20'];
 
   /* プロジェクトを作ってから仕上げるまでの工程。この並びで上にタブを出し、
      どの工程からでも他の工程へ直接行けるようにする。
-     S12（生成プロンプト）は S11 と S13 のあいだの工程なので、
-     利用者が並びを見失わないようタブにも出す。 */
+     pending は「工程としては残すが、画面はまだ無い」印。耳は出したまま
+     押せなくする。消してしまうと、全体で何工程あるのかが画面から消える。 */
   var WORKFLOW = [
     { id: 'S4', labelKey: 'wf.input' },
     { id: 'S10', labelKey: 'wf.competitor' },
     { id: 'S11', labelKey: 'wf.report' },
     { id: 'S20', labelKey: 'wf.overall' },
-    { id: 'S12', labelKey: 'wf.prompt' },
-    { id: 'S13', labelKey: 'wf.result' }
+    { id: 'S12', labelKey: 'wf.prompt', pending: true },
+    { id: 'S13', labelKey: 'wf.result', pending: true }
   ];
 
   /* 下層の画面にいるときも、どの工程の中にいるのかを示す。
      プロジェクト詳細（S8）は工程ではなく入口の概要なので、ここには入れない。
-     入れると、中身がダッシュボードなのに「商品入力」の耳が光ってしまう。 */
-  var WORKFLOW_OF = { S14: 'S13', S15: 'S13' };
+     入れると、中身がダッシュボードなのに「商品入力」の耳が光ってしまう。
+     いまは下層の画面が無いので空。 */
+  var WORKFLOW_OF = {};
 
   /* ------------------------------------------------------------------
    * 2. 予備辞書
@@ -1561,13 +1558,17 @@
       var active = step.id === here;
       var tab = el('button', {
         type: 'button',
-        class: 'wtabs__item' + (active ? ' wtabs__item--active' : ''),
-        'aria-current': active ? 'step' : null
+        class: 'wtabs__item' + (active ? ' wtabs__item--active' : '')
+          + (step.pending ? ' wtabs__item--pending' : ''),
+        'aria-current': active ? 'step' : null,
+        'aria-disabled': step.pending ? 'true' : null,
+        disabled: step.pending ? true : null,
+        title: step.pending ? t('wf.pending') : null
       }, [
         el('span', { class: 'wtabs__no' }, [String(index + 1)]),
         el('span', { class: 'wtabs__label' }, [t(step.labelKey)])
       ]);
-      if (!active) {
+      if (!active && !step.pending) {
         tab.addEventListener('click', function () { navigate(step.id, { id: projectId }); });
       }
       host.appendChild(tab);
