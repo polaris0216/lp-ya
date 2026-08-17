@@ -729,7 +729,10 @@
 
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
       category: '', fundingGoal: '', valueProp: '', brandTone: '',
-      refUrls: [''], brandColors: [], brandFonts: {}, targets: [], videos: [] };
+      refUrls: [''], brandColors: [], brandFonts: {}, targets: [], videos: [],
+      /* 参照ページの組み立て方。自動入力がワーカー側でプロジェクトへ直接書く。
+         ここは読んで表示するためだけに持つ（画面からは編集しない） */
+      referenceStructure: null };
     var user = null;
     var cost = CREATE_COST_FALLBACK;
     var targetCandidates = [];
@@ -752,6 +755,7 @@
     var rewardIndex = 0;
     var rewardAnim = 0;   // 1=次へ -1=前へ。滑り込む向き
     var refHost = null;
+    var refStructureHost = null;
     var refRunButton = null;
     var colorsHost = null;
     var brandColorAdd = null;
@@ -814,6 +818,9 @@
       function text(value) { return value === null || value === undefined ? '' : String(value); }
       function list(value) { return isArray(value) ? value : []; }
       form.name = text(row.project_name || row.name);
+      form.referenceStructure = (row.reference_structure
+        && isArray(row.reference_structure.sections)
+        && row.reference_structure.sections.length) ? row.reference_structure : null;
       form.category = text(row.category);
       form.price = row.price === null || row.price === undefined ? '' : formatNumber(row.price);
       form.fundingGoal = text(row.funding_goal);
@@ -930,6 +937,10 @@
       refRunButton = button('btn btn--primary', t('product.refRun'), runAutofill);
       refActions.appendChild(refRunButton);
       refPanel.appendChild(refActions);
+      /* 読み取った組み立て方を出す。保存しても見えない場所に置くと、
+         入っているのか失敗したのか画面から分からない */
+      refStructureHost = el('div');
+      refPanel.appendChild(refStructureHost);
       screen.appendChild(refPanel);
 
       /* 商品写真 */
@@ -1113,12 +1124,66 @@
       paintImages();
       paintRewards();
       paintRefUrls();
+      paintRefStructure();
       paintBrandColors();
       paintTargets();
       validate();
     }
 
     /* --- 参考ページURL --- */
+    /* 参照ページから読み取った組み立て方。作るLPの骨格になる。
+       競合分析（日本の市場で何が効くか）とは別物なので、
+       ここでは「元ページが何をどの順で見せていたか」だけを出す。 */
+    function paintRefStructure() {
+      if (!refStructureHost) { return; }
+      clear(refStructureHost);
+      var st = form.referenceStructure;
+      if (!st) { return; }
+      var sections = isArray(st.sections) ? st.sections : [];
+      if (!sections.length) { return; }
+
+      var box = el('div', 'ref-structure');
+      var head = el('div', 'ref-structure__head');
+      head.appendChild(el('span', 'ref-structure__title', t('product.refStructure')));
+      head.appendChild(el('span', 't-note', t('product.refStructureCount', { n: sections.length })));
+      box.appendChild(head);
+      if (st.summary) { box.appendChild(el('p', 'field__hint', String(st.summary))); }
+
+      var list = el('ol', 'ref-structure__list');
+      sections.forEach(function (one) {
+        var li = el('li', 'ref-structure__item');
+        var head = el('div', 'ref-structure__line');
+        head.appendChild(el('span', 'ref-structure__name',
+          String((one && one.title) || (one && one.key) || '')));
+        /* 申し込みへ進ませる区画には印を付ける。骨格を組むとき、
+           どこで背中を押していたかが並びの判断材料になる */
+        if (one && one.cta) { head.appendChild(el('span', 'chip chip--sm', t('product.refStructureCta'))); }
+        /* その区画に置かれていた素材の数。この参照ページは訴求を
+           画像に焼き込んでいることが多く、文字と絵の比が骨格の要になる */
+        var media = one && one.media;
+        if (media) {
+          var parts = [];
+          if (media.image) { parts.push(t('product.refMediaImage', { n: media.image })); }
+          if (media.gif) { parts.push(t('product.refMediaGif', { n: media.gif })); }
+          if (media.video) { parts.push(t('product.refMediaVideo', { n: media.video })); }
+          if (parts.length) { head.appendChild(el('span', 't-note', parts.join(' / '))); }
+        }
+        li.appendChild(head);
+        /* hook はその区画がいちばん強く出している一言。
+           role（読み手に何をさせるか）とは別物なので両方出す */
+        if (one && one.hook) {
+          li.appendChild(el('span', 'ref-structure__hook', '「' + String(one.hook) + '」'));
+        }
+        if (one && one.role) { li.appendChild(el('span', 'ref-structure__role', String(one.role))); }
+        /* body は「何が置かれていたか」の事実。骨格を組むときここが一番効く
+           （例: 説明文のない画像6枚が連続して並ぶ） */
+        if (one && one.body) { li.appendChild(el('span', 'ref-structure__body', String(one.body))); }
+        list.appendChild(li);
+      });
+      box.appendChild(list);
+      refStructureHost.appendChild(box);
+    }
+
     function paintRefUrls() {
       if (!refHost) { return; }
       clear(refHost);
@@ -1659,6 +1724,10 @@
       setAnalyzing(true, refRunButton, 'product.refRun');
       window.Api.analysis.run({
         mode: 'product_autofill',
+        /* 参照ページの組み立て方は、フォームではなくプロジェクトへ直接書く。
+           どのプロジェクトの話かを渡さないと、書き戻し先が分からず捨てられる
+           （実測: AIは9区画で返していたのに保存されず0区画のままだった） */
+        projects_id: projectId ? String(projectId) : null,
         urls: refTargets().map(function (r) { return r.url; }),
         targets_lang: refTargets(),
         collect: ['images', 'videos'],
@@ -2286,18 +2355,31 @@
         go('S3');
       });
       actions.appendChild(cancel);
-      var create = button('btn btn--primary', t('project.nameFirstCreate'), function () {
+      /* ポイントを使うボタンには、消費量をボタン自身に出す。
+         押してから残高が減って気づく、を無くす。
+         無制限のときは金額を出さない（0P は「無料」と読めてしまう） */
+      var createLabel = hasUnlimited(user)
+        ? t('common.costFree', { label: t('project.nameFirstCreate') })
+        : t('common.costOnButton', { label: t('project.nameFirstCreate'), n: formatNumber(cost) });
+      var create = button('btn btn--primary', createLabel, function () {
         var name = input.value.trim();
         if (!name) { error.textContent = t('project.nameRequired'); input.focus(); return; }
         if (name.length > MAX_NAME) { error.textContent = t('projectRename.tooLong'); return; }
         form.name = name;
+        /* 押した瞬間に大きさが変わらないようにする。
+           このボタンは幅が中身で決まるので、文字が短くなると縮んで
+           指の下でボタンが動く。押す前の幅で固定してから差し替える。
+           ポイントも出したまま（押す前と同じ情報なので消す理由がない） */
+        create.style.minWidth = create.offsetWidth + 'px';
         create.disabled = true;
-        create.textContent = t('common.loading');
+        create.textContent = hasUnlimited(user)
+          ? t('common.costFree', { label: t('common.loading') })
+          : t('common.costOnButton', { label: t('common.loading'), n: formatNumber(cost) });
         createShell(name).then(function () {
           dismissModal();
         }, function (err) {
           create.disabled = false;
-          create.textContent = t('project.nameFirstCreate');
+          create.textContent = createLabel;
           error.textContent = errorMessage(err, 'project.createFailed');
         });
       });
