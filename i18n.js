@@ -63,6 +63,10 @@
     'common.optional': ['任意', 'Optional', '선택'],
     'common.search': ['検索', 'Search', '검색'],
     'common.characters': ['文字', 'characters', '자'],
+    /* ポイントを使うボタンには、必ず消費量を並べて出す。
+       押してから確認画面で知るのでは、押す前に判断できない */
+    'common.costOnButton': ['{label}（{n}P）', '{label} ({n}P)', '{label}({n}P)'],
+    'common.costFree': ['{label}（消費なし）', '{label} (no charge)', '{label}(소모 없음)'],
     'common.yes': ['はい', 'Yes', '예'],
     'common.no': ['いいえ', 'No', '아니오'],
     'common.creditUnit': ['ポイント', 'points', '포인트'],
@@ -296,6 +300,12 @@
     'product.refPanelDesc': ['すでに販売している海外クラファンや Alibaba などの商品ページURLを入れると、AIが読み取って商品写真・訴求メッセージ・ターゲット案・ブランドトーン・ブランドカラー・ブランドフォントを下のフォームにまとめて埋めます。写真も自動で取り込みます。すべて手入力したい場合はこのパネルを使わずに下へ進んでください。', 'Paste a URL of an existing product page (overseas crowdfunding, Alibaba, etc.). The AI reads it and fills the form below: product photos, messaging, target segments, brand tone, brand colors and fonts. Photos are pulled in automatically. To type everything yourself, skip this panel.', '이미 판매 중인 해외 크라우드펀딩이나 Alibaba 등 상품 페이지 URL을 넣으면 AI가 읽어 상품 사진·소구 메시지·타깃 안·브랜드 톤·브랜드 컴러·폰트를 아래 폼에 채우고, 사진도 자동으로 가져옵니다.'],
     'product.refUrl': ['参考ページURL', 'Reference page URL', '참고 페이지 URL'],
     'product.refAdd': ['URLを追加', 'Add URL', 'URL 추가'],
+    'product.refStructure': ['参照ページの組み立て方', 'How the reference page is built', '참고 페이지의 구성'],
+    'product.refMediaImage': ['画像{n}', '{n} images', '이미지 {n}'],
+    'product.refMediaGif': ['GIF{n}', '{n} GIFs', 'GIF {n}'],
+    'product.refMediaVideo': ['動画{n}', '{n} videos', '동영상 {n}'],
+    'product.refStructureCta': ['申込導線', 'CTA', '신청 도선'],
+    'product.refStructureCount': ['{n}区画', '{n} sections', '{n}개 구간'],
     'product.refRun': ['AIで自動入力', 'Auto-fill with AI', 'AI로 자동 입력'],
     'product.refRunning': ['読み取り中…', 'Reading…', '읽는 중…'],
     'product.refNoUrl': ['参考ページURLを1件以上入れてください', 'Please enter at least one reference URL', '참고 페이지 URL을 1건 이상 입력해 주세요'],

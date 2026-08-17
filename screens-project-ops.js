@@ -704,6 +704,9 @@
 
     function duplicate(button, project) {
       var label = button.textContent;
+      /* 文字が短くなるとボタンが縮み、押した指の下で動く。
+         押す前の幅で固定してから差し替える */
+      button.style.minWidth = button.offsetWidth + 'px';
       button.disabled = true;
       button.textContent = t('ops.duplicating');
       clearBanner();
@@ -948,6 +951,7 @@
         saveBtn.disabled = true;
         cancelBtn.disabled = true;
         input.disabled = true;
+        saveBtn.style.minWidth = saveBtn.offsetWidth + 'px';
         saveBtn.textContent = t('ops.saving');
         clearBanner();
 
@@ -1117,6 +1121,7 @@
         deleteBtn.disabled = true;
         cancelBtn.disabled = true;
         input.disabled = true;
+        deleteBtn.style.minWidth = deleteBtn.offsetWidth + 'px';
         deleteBtn.textContent = t('ops.deleting');
         clearBanner();
 

@@ -2023,6 +2023,34 @@ a.list-row:active { opacity: .88; }
   flex-wrap: wrap;
 }
 
+/* 競合カードの中に入れる成否判定。カードの他の中身（分析の文章）と
+   混ざらないよう、薄い面で1区画として囲う */
+.verdict-box {
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-control);
+  background: var(--c-surface-2);
+  display: grid;
+  gap: 8px;
+}
+
+.verdict-box__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.verdict-box__title {
+  font-size: var(--fs-note);
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.verdict-box .info-list { margin: 0; }
+
 /* 何件目を見ているかは、いちばん先に知りたいこと。
    カードの枠の外（上辺）に貼り付く耳として出す。
    下側の角を落とし、下辺をカードの枠に1px重ねて、
@@ -4089,3 +4117,76 @@ input[type='radio'] {
 }
 
 .run-banner .btn { width: auto; flex: 0 0 auto; }
+
+
+/* 参照ページから読み取った組み立て方（商品入力の参考ページパネル内）。
+   作るLPの骨格になるので、読み取れたことが画面から分かるようにする */
+.ref-structure {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-control);
+  background: var(--c-surface-2);
+}
+
+.ref-structure__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ref-structure__title {
+  font-size: var(--fs-note);
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.ref-structure__list {
+  margin: 10px 0 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: 6px;
+}
+
+.ref-structure__item {
+  font-size: var(--fs-note);
+  padding-bottom: 8px;
+}
+
+.ref-structure__line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* その区画がいちばん強く出している一言 */
+.ref-structure__hook {
+  display: block;
+  color: var(--c-text);
+  margin-top: 2px;
+}
+
+/* 何が置かれていたかの事実。骨格を組むときの材料 */
+.ref-structure__body {
+  display: block;
+  color: var(--c-text-sub);
+  font-size: 12px;
+  line-height: 1.7;
+  margin-top: 3px;
+}
+
+.ref-structure__name {
+  display: block;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.ref-structure__role {
+  display: block;
+  color: var(--c-text-sub);
+  font-size: 12px;
+  margin-top: 1px;
+}

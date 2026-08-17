@@ -1502,6 +1502,9 @@
         return;
       }
       busy = true;
+      /* 文字が短くなるとボタンが縮み、押した指の下で動く。
+         押す前の幅で固定してから差し替える */
+      node.style.minWidth = node.offsetWidth + 'px';
       node.disabled = true;
       node.textContent = t('common.loading');
 

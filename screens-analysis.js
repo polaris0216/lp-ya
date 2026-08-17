@@ -1708,7 +1708,17 @@
       })));
 
       var actions = el('div', 'stack');
-      var runButton = button('btn btn--primary btn--block', view.saving ? t('sa.saving') : t('analysis.run'), runAnalysis);
+      /* ポイントを使うボタンには、消費量をボタン自身に出す。
+         注記だけだと、押す前に目に入らないまま押されることがある。
+         無制限のときは金額を出さない（0P と書くと「無料」と読めてしまう） */
+      /* 押している間もポイントを出したままにする。
+         消すと文字数が変わってボタンの大きさが動き、押した直後に
+         画面が揺れる。金額は押す前も押した後も同じ情報なので消す理由がない */
+      var runWord = view.saving ? t('sa.saving') : t('analysis.run');
+      var runLabel = hasUnlimited()
+        ? t('common.costFree', { label: runWord })
+        : t('common.costOnButton', { label: runWord, n: formatNumber(view.cost) });
+      var runButton = button('btn btn--primary btn--block', runLabel, runAnalysis);
       if (view.saving || !view.entries.length) { runButton.disabled = true; }
       add(actions, runButton);
       add(actions, el('p', 't-note t-center', t('s10.runNote', { cost: formatNumber(view.cost) })));
@@ -2107,323 +2117,59 @@
     }
 
     /* ---- プロジェクト成否判定（公開データによる機械判定） ---- */
-    function verdictSection(report) {
+    /* ---- プロジェクト成否判定 ----
+       独立したセクションにはしない。競合LP別の分析と、出している対象
+       （リンク1件）も件数も送り方も同じなので、別々に置くと画面に
+       同じカルーセルが2つ並び、送りも2回ずつすることになる。
+       競合カードの中に入れて、1件＝1枚に揃える。 */
+    function verdictsOf(report) {
       var collected = report.collected_assets;
       if (typeof collected === 'string') {
         try { collected = JSON.parse(collected); } catch (e) { collected = null; }
       }
-      var verdicts = (collected && Array.isArray(collected.verdicts)) ? collected.verdicts : [];
-      if (!verdicts.length) { return null; }
-
-      var section = el('section', 'section');
-      var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('sa.verdictTitle')));
-      add(head, el('span', 't-note', t('sa.verdictLead')));
-      add(section, head);
-
-      verdicts.forEach(function (v) {
-        var group = el('div', 'stack stack--tight');
-
-        var badges = el('div', 'chips');
-        var badgeClass = v.verdict === 'success' ? 'badge badge--ok'
-          : v.verdict === 'failure' ? 'badge badge--danger' : 'badge badge--mute';
-        var badgeText = v.verdict === 'success' ? t('sa.verdictSuccess')
-          : v.verdict === 'failure' ? t('sa.verdictFailure') : t('sa.verdictUnknown');
-        add(badges, el('span', badgeClass, badgeText));
-        if (v.ratio !== null && v.ratio !== undefined) {
-          add(badges, el('span', 'badge badge--mute', t('sa.verdictRatio') + ' ' + formatNumber(v.ratio) + '%'));
-        }
-        add(group, badges);
-        add(group, el('p', 't-sub break-url', shortUrl(v.url, 60)));
-
-        var info = el('div', 'info-list');
-        function numRow(labelKey, value, unit) {
-          if (value === null || value === undefined) { return; }
-          var row = el('div', 'info-row');
-          add(row, el('span', 'info-row__key', t(labelKey)));
-          add(row, el('span', 'info-row__val num', formatNumber(value) + unit));
-          add(info, row);
-        }
-        numRow('sa.verdictGoal', v.target_amount, '円');
-        numRow('sa.verdictTotal', v.current_amount, '円');
-        numRow('sa.verdictSupporters', v.supporters, '人');
-        if (info.childNodes.length) { add(group, info); }
-
-        if (v.reason) { add(group, el('p', 'note-box', v.reason)); }
-        add(section, group);
-      });
-      return section;
-    }
-
-    /* 総合分析の素材は、競合ごとに集めた1件（種別・動画のサムネ付き）を
-       URL で引き当てる。クエリの付き方が変わるので ? より前で照らす */
-    function mergedShots(item) {
-      var report = view.report || {};
+      var list = (collected && Array.isArray(collected.verdicts)) ? collected.verdicts : [];
       var byUrl = {};
-      asArray(report.kv_assets).concat(asArray(report.lp_assets)).forEach(function (one) {
-        if (one && one.src) { byUrl[String(one.src).split('?')[0]] = one; }
-      });
-      return asArray(item && item.assets).map(function (url) {
-        var key = String(url || '').split('?')[0];
-        return byUrl[key] || (key ? { src: String(url), type: 'image', label: '' } : null);
-      }).filter(Boolean).slice(0, 6);
+      list.forEach(function (v) { if (v && v.url) { byUrl[String(v.url)] = v; } });
+      return byUrl;
     }
 
-    /* 開いたときだけ読む中身。一覧に出ている短い文の言い換えではなく、
-       素材・詳しい説明・自分のLPでの手順・元になったページを足す。
-       古い分析にはこれらが無いので、有る分だけ出す */
-    function addDetail(modal, item) {
-      var shots = mergedShots(item);
-      if (shots.length) {
-        var shotBox = el('div', 'modal__block');
-        add(shotBox, el('span', 'modal__block-key', t('s11.assetsLabel')));
-        var strip = el('div', 'thumb-strip thumb-strip--one');
-        shots.forEach(function (one, at) { add(strip, assetTile(one, shots, at)); });
-        add(shotBox, strip);
-        add(modal, shotBox);
+    /* 1件ぶんの判定。competitorSection のカードへ差し込む */
+    function verdictBlock(v) {
+      if (!v) { return null; }
+      var box = el('div', 'verdict-box');
+
+      var head = el('div', 'verdict-box__head');
+      add(head, el('span', 'verdict-box__title', t('sa.verdictTitle')));
+      add(head, el('span', 't-note', t('sa.verdictLead')));
+      add(box, head);
+
+      var badges = el('div', 'chips');
+      var badgeClass = v.verdict === 'success' ? 'badge badge--ok'
+        : v.verdict === 'failure' ? 'badge badge--danger' : 'badge badge--mute';
+      var badgeText = v.verdict === 'success' ? t('sa.verdictSuccess')
+        : v.verdict === 'failure' ? t('sa.verdictFailure') : t('sa.verdictUnknown');
+      add(badges, el('span', badgeClass, badgeText));
+      if (v.ratio !== null && v.ratio !== undefined) {
+        add(badges, el('span', 'badge badge--mute',
+          t('sa.verdictRatio') + ' ' + formatNumber(v.ratio) + '%'));
       }
-
-      if (item.detail) {
-        var detail = el('div', 'modal__block');
-        add(detail, el('span', 'modal__block-key', t('s20.detailLabel')));
-        add(detail, el('p', 'modal__body', item.detail));
-        add(modal, detail);
-      }
-
-      var steps = asArray(item.steps).filter(Boolean);
-      if (steps.length) {
-        var stepBox = el('div', 'modal__block');
-        add(stepBox, el('span', 'modal__block-key', t('s20.stepsLabel')));
-        var ol = el('ol', 'modal__steps');
-        steps.forEach(function (one) { add(ol, el('li', '', one)); });
-        add(stepBox, ol);
-        add(modal, stepBox);
-      }
-
-      var sources = asArray(item.sources).filter(Boolean);
-      if (sources.length) {
-        var srcBox = el('div', 'modal__block');
-        add(srcBox, el('span', 'modal__block-key', t('s20.sourcesLabel')));
-        var ul = el('ul', 'modal__sources');
-        sources.forEach(function (url) {
-          var li = el('li', '');
-          var link = el('a', 'break-url', shortUrl(url, 52));
-          link.href = url;
-          link.target = '_blank';
-          link.rel = 'noopener';
-          add(li, link);
-          add(ul, li);
-        });
-        add(srcBox, ul);
-        add(modal, srcBox);
-      }
-    }
-
-    /* ---- 成功・失敗要因（重要度順・タップで根拠へジャンプ） ---- */
-    /* 要因1件をその場で開く。一覧は2行に切り詰めてあるので、
-       全文・重要度・根拠のURLはここでしか読めない */
-    function openFactor(factor) {
-      var bad = factor.kind === 'failure';
-      var modal = el('div', 'modal');
-      modal.setAttribute('role', 'dialog');
-      modal.setAttribute('aria-modal', 'true');
-
-      var title = el('p', 'modal__title');
-      add(title, el('span', bad ? 'badge badge--danger' : 'badge badge--ok',
-        bad ? t('sa.factorKindFailure') : t('sa.factorKindSuccess')));
-      title.appendChild(document.createTextNode(
-        ' ' + labelOf('fac.', factor.key, factor.label || factor.title)));
-      add(modal, title);
-
-      if (factor.body) { add(modal, el('p', 'modal__body', factor.body)); }
-
-      /* 持ち帰る1行は、枠の中の行ではなく独立した塊にする。
-         長い文を .info-list の行に入れると、枠に文字が貼り付いて崩れる */
-      if (factor.takeaway) {
-        var lead = el('div', 'modal__lead' + (bad ? ' modal__lead--danger' : ''));
-        add(lead, el('span', 'modal__lead-key',
-          bad ? t('s11.factorInstead') : t('s11.factorSuccess')));
-        add(lead, el('p', 'modal__lead-val', factor.takeaway));
-        add(modal, lead);
-      }
-
-      /* 枠の中は短い値だけ。左が見出し、右が値の横並び */
-      var info = el('div', 'info-list');
-      [[t('s11.weightLabel'), factor.weight ? String(factor.weight) : ''],
-        [t('s11.evidenceLabel'), factor.evidence]]
-        .forEach(function (pair) {
-          if (!pair[1]) { return; }
-          var row = el('div', 'info-row');
-          add(row, el('span', 'info-row__key', pair[0]));
-          add(row, el('span', 'info-row__val'
-            + (pair[0] === t('s11.evidenceLabel') ? ' break-url' : ' num'), pair[1]));
-          add(info, row);
-        });
-      if (info.childNodes.length) { add(modal, info); }
-
-      addDetail(modal, factor);
-
-      var actions = el('div', 'modal__actions modal__actions--1');
-      add(actions, button('btn btn--secondary', t('common.close'), closeModal));
-      add(modal, actions);
-      openModal(modal);
-    }
-
-    function factorSection(factors, factorSummary) {
-      var section = el('section', 'section');
-      var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('sa.factorTitle')));
-      add(head, el('span', 't-note', t('report.winPattern')));
-      add(section, head);
-      if (factorSummary) { add(section, el('div', 'note-box', factorSummary)); }
-
-      if (!factors.length) {
-        add(section, emptyBox(t('common.empty')));
-        return section;
-      }
-
-      var list = el('ul', 'list');
-      list.setAttribute('role', 'list');
-      factors.forEach(function (factor) {
-        /* 行そのものを押せるようにする。矢印だけだと、開けることに
-           気づかないうえ、狙って押す必要がある */
-        var item = el('li', '');
-        var row = button('list-row list-row--tap', '', function () { openFactor(factor); });
-        var body = el('div', 'list-row__body');
-
-        /* kind 無し（旧データ）は成功要因として扱う */
-        var isFailure = factor.kind === 'failure';
-        var kindBadge = el('span', isFailure ? 'badge badge--danger' : 'badge badge--ok',
-          isFailure ? t('sa.factorKindFailure') : t('sa.factorKindSuccess'));
-        var titleLine = el('span', 'list-row__title');
-        add(titleLine, kindBadge);
-        titleLine.appendChild(document.createTextNode(' ' + labelOf('fac.', factor.key, factor.label || factor.title)));
-        add(body, titleLine);
-        if (factor.body) { add(body, el('span', 'list-row__sub', factor.body)); }
-        /* 事実のあとに、自分のLPで何をするか */
-        if (factor.takeaway) {
-          add(body, el('span', 'list-row__sub', '→ ' + factor.takeaway));
-        }
-        if (factor.evidence) {
-          add(body, el('span', 'list-row__sub break-url', t('s11.evidence', { url: shortUrl(factor.evidence, 48) })));
-        }
-        add(row, body);
-        if (factor.weight) { add(row, el('span', 'list-row__meta', t('s11.weight', { n: factor.weight }))); }
-
-        /* 押せる印。行がボタンなので、ここは飾り */
-        add(row, el('span', 'list-row__action', '›'));
-        row.setAttribute('aria-label',
-          labelOf('fac.', factor.key, factor.label || factor.title) + '　' + t('s20.factorDetail'));
-        add(item, row);
-        add(list, item);
-      });
-      add(section, list);
-      return section;
-    }
-
-    /* ---- ページ構成 ---- */
-    function openSection(section, index) {
-      var modal = el('div', 'modal');
-      modal.setAttribute('role', 'dialog');
-      modal.setAttribute('aria-modal', 'true');
-
-      var name = labelOf('sec.', section.key, section.label || section.title);
-      add(modal, el('p', 'modal__title', t('s11.order', { n: index + 1 }) + '　' + name));
-
-      if (section.body) {
-        add(modal, el('p', 'modal__body', section.body));
-      } else if (LOCAL['secDesc.' + section.key]) {
-        add(modal, el('p', 'modal__body', t('secDesc.' + section.key)));
-      }
+      add(box, badges);
 
       var info = el('div', 'info-list');
-
-      [['flow.role', section.role], ['flow.hook', section.hook], ['flow.emotion', section.emotion]]
-        .forEach(function (pair) {
-          if (!pair[1]) { return; }
-          var row = el('div', 'info-row');
-          add(row, el('span', 'info-row__key', t(pair[0])));
-          add(row, el('span', 'info-row__val', pair[1]));
-          add(info, row);
-        });
-
-      if (section.ratio) {
-        var ratioRow = el('div', 'info-row');
-        add(ratioRow, el('span', 'info-row__key', t('s11.ratio')));
-        add(ratioRow, el('span', 'info-row__val num', section.ratio + '%'));
-        add(info, ratioRow);
+      function numRow(labelKey, value, unit) {
+        if (value === null || value === undefined) { return; }
+        var row = el('div', 'info-row');
+        add(row, el('span', 'info-row__key', t(labelKey)));
+        add(row, el('span', 'info-row__val num', formatNumber(value) + unit));
+        add(info, row);
       }
+      numRow('sa.verdictGoal', v.target_amount, '円');
+      numRow('sa.verdictTotal', v.current_amount, '円');
+      numRow('sa.verdictSupporters', v.supporters, '人');
+      if (info.childNodes.length) { add(box, info); }
 
-      var ctaRow = el('div', 'info-row');
-      add(ctaRow, el('span', 'info-row__key', t('s11.hasCta')));
-      add(ctaRow, el('span', 'info-row__val', section.cta ? t('common.yes') : t('common.no')));
-      add(info, ctaRow);
-
-      var priceRow = el('div', 'info-row');
-      add(priceRow, el('span', 'info-row__key', t('s11.hasPrice')));
-      add(priceRow, el('span', 'info-row__val', section.priceShown ? t('common.yes') : t('common.no')));
-      add(info, priceRow);
-      add(modal, info);
-
-      addDetail(modal, section);
-
-      var actions = el('div', 'modal__actions modal__actions--1');
-      add(actions, button('btn btn--secondary', t('common.close'), closeModal));
-      add(modal, actions);
-      openModal(modal);
-    }
-
-    function structureSection(sections, flowSummary) {
-      var section = el('section', 'section');
-      var head = el('div', 'section__head');
-      add(head, el('h2', 'section__title', t('flow.title')));
-      add(head, el('span', 't-note', t('report.sectionCount', { n: sections.length })));
-      add(section, head);
-      add(section, el('p', 'section__desc', t('flow.lead')));
-      if (flowSummary) { add(section, el('div', 'note-box', flowSummary)); }
-
-      if (!sections.length) {
-        add(section, emptyBox(t('common.empty')));
-        return section;
-      }
-
-      var list = el('ul', 'list');
-      list.setAttribute('role', 'list');
-      sections.forEach(function (one, index) {
-        var item = el('li', '');
-        var row = button('list-row list-row--tap', '', function () { openSection(one, index); });
-        var body = el('div', 'list-row__body');
-        var name = labelOf('sec.', one.key, one.label || one.title);
-        add(body, el('span', 'list-row__title', t('s11.order', { n: index + 1 }) + '　' + name));
-
-        if (one.body) { add(body, el('span', 'list-row__sub', one.body)); }
-        else if (LOCAL['secDesc.' + one.key]) {
-          add(body, el('span', 'list-row__sub', t('secDesc.' + one.key)));
-        }
-
-        /* 流れの分析結果。1段階目が書いていれば出す */
-        [['flow.role', one.role], ['flow.hook', one.hook], ['flow.emotion', one.emotion]]
-          .forEach(function (pair) {
-            if (!pair[1]) { return; }
-            add(body, el('span', 'list-row__sub', t(pair[0]) + '：' + pair[1]));
-          });
-
-        if (one.cta || one.priceShown) {
-          var marks = el('div', 'chips');
-          if (one.cta) { add(marks, el('span', 'badge badge--ok', t('s11.hasCta'))); }
-          if (one.priceShown) { add(marks, el('span', 'badge badge--warn', t('s11.hasPrice'))); }
-          add(body, marks);
-        }
-        add(row, body);
-        if (one.ratio) { add(row, el('span', 'list-row__meta num', one.ratio + '%')); }
-
-        add(row, el('span', 'list-row__action', '›'));
-        row.setAttribute('aria-label', name);
-        add(item, row);
-        add(list, item);
-      });
-      add(section, list);
-      return section;
+      if (v.reason) { add(box, el('p', 'note-box', v.reason)); }
+      return box;
     }
 
     /* ---- 競合LP別の分析 ----
@@ -2571,6 +2317,7 @@
       section.id = 'report-by-competitor';
 
       var sources = sourcesOf(report, kvAssets, lpAssets);
+      var verdictByUrl = verdictsOf(report);
 
       var head = el('div', 'section__head');
       add(head, el('h2', 'section__title', t('report.byCompetitor')));
@@ -2640,6 +2387,11 @@
         add(card, top);
 
         if (source.title) { add(card, el('p', 'card__title', source.title)); }
+
+        /* 公開データからの機械判定。同じリンクの話なので、
+           タイトルとURLのすぐ下に置く */
+        var vBlock = verdictBlock(verdictByUrl[String(source.url)]);
+        if (vBlock) { add(card, vBlock); }
 
         var link = el('a', 't-sub break-url', source.url);
         link.href = source.url;
@@ -2939,9 +2691,6 @@
         /* ---- 分析レポート: リンク1件ずつ ---- */
         var errorNode = errorSection(errors);
         if (errorNode) { add(wrap, errorNode); }
-
-        var verdictNode = verdictSection(report);
-        if (verdictNode) { add(wrap, verdictNode); }
 
         add(wrap, competitorSection(report, kvAssets, lpAssets, errors));
 
