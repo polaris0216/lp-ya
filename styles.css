@@ -4147,27 +4147,8 @@ input[type='radio'] {
 
 /* 参照ページから読み取った組み立て方（商品入力の参考ページパネル内）。
    作るLPの骨格になるので、読み取れたことが画面から分かるようにする */
-.ref-structure {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-control);
-  background: var(--c-surface-2);
-}
-
-.ref-structure__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.ref-structure__title {
-  font-size: var(--fs-note);
-  font-weight: 600;
-  color: var(--c-text);
-}
+/* 参照ページの組み立て方。枠と開閉は .fold に任せ、ここは間だけ */
+.ref-structure { margin-top: 14px; }
 
 .ref-structure__list {
   margin: 10px 0 0;

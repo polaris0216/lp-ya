@@ -1150,12 +1150,20 @@
       var sections = isArray(st.sections) ? st.sections : [];
       if (!sections.length) { return; }
 
-      var box = el('div', 'ref-structure');
-      var head = el('div', 'ref-structure__head');
-      head.appendChild(el('span', 'ref-structure__title', t('product.refStructure')));
-      head.appendChild(el('span', 't-note', t('product.refStructureCount', { n: sections.length })));
+      /* たたんでおく。区画が10前後並ぶと商品入力の画面が縦に長くなり、
+         その下の商品写真やリターンへ届きにくかった。
+         見出しに区画数と要約を出しておき、読みたいときだけ開く。
+         開閉は競合分析の fold と同じ <details>（キーボードと読み上げを
+         作り直さないため）。開いた状態は覚えない。毎回たたむ */
+      var box = el('details', 'fold ref-structure');
+      var head = el('summary', 'fold__head');
+      var titles = el('div', 'fold__titles');
+      titles.appendChild(el('span', 'fold__title', t('product.refStructure')));
+      if (st.summary) { titles.appendChild(el('span', 'fold__lead clamp-2', String(st.summary))); }
+      head.appendChild(titles);
+      head.appendChild(el('span', 'fold__meta', t('product.refStructureCount', { n: sections.length })));
       box.appendChild(head);
-      if (st.summary) { box.appendChild(el('p', 'field__hint', String(st.summary))); }
+      var body = el('div', 'fold__body');
 
       var list = el('ol', 'ref-structure__list');
       sections.forEach(function (one) {
@@ -1188,7 +1196,8 @@
         if (one && one.body) { li.appendChild(el('span', 'ref-structure__body', String(one.body))); }
         list.appendChild(li);
       });
-      box.appendChild(list);
+      body.appendChild(list);
+      box.appendChild(body);
       refStructureHost.appendChild(box);
     }
 
