@@ -22,9 +22,9 @@
 
   var LOCAL = {
     'lp.title': ['LP案', 'LP draft', 'LP 초안'],
-    'lp.lead': ['参照ページの組み立て方を骨格に、競合分析の要因を当て込んで、日本語のLPを区画ごとに起こします。ここで文章を直してから、HTMLに組みます。',
-      'Builds the Japanese LP section by section: the reference page structure as the skeleton, competitor factors applied on top. Edit the copy here, then render to HTML.',
-      '참조 페이지의 구성을 뼈대로, 경쟁 분석 요인을 반영해 일본어 LP를 구획별로 만듭니다. 여기서 문장을 다듬은 뒤 HTML로 조립합니다.'],
+    'lp.lead': ['総合分析の「共通する流れ」を骨格に、勝ち筋と反省点を当て込み、ターゲット層ごとに1本ずつ作ります。層を切り替えて中身を見比べ、文章を直してからHTMLに組みます。',
+      'One draft per target segment: the shared flow from the overall analysis as the skeleton, with the factors applied. Switch segments, edit the copy, then render to HTML.',
+      '종합 분석의 "공통 흐름"을 뼈대로, 성공 요인과 반성할 점을 반영해 타깃층별로 한 편씩 만듭니다. 층을 바꿔가며 비교하고, 문장을 다듬은 뒤 HTML로 조립합니다.'],
     'lp.run': ['LP案を作る', 'Draft the LP', 'LP 초안 만들기'],
     'lp.rerun': ['作り直す', 'Redraft', '다시 만들기'],
     'lp.running': ['作っています…', 'Drafting…', '만드는 중…'],
@@ -35,6 +35,12 @@
       'No competitor analysis yet; drafting from the skeleton only. Run the analysis first to apply what works in Japan.',
       '경쟁 분석이 아직 없어 뼈대만으로 만듭니다. 먼저 분석을 마치면 일본에서 통하는 형식을 반영할 수 있습니다.'],
     'lp.empty': ['まだLP案がありません。', 'No LP draft yet.', '아직 LP 초안이 없습니다.'],
+    'lp.emptyHint': [
+      '総合分析のページで「この分析からLP案を作る」を押すと、ターゲット層ごとに1本ずつ作られます。',
+      'On the overall analysis page, press "Draft LPs from this analysis" to create one per target segment.',
+      '종합 분석 페이지에서 "이 분석으로 LP 초안 만들기"를 누르면 타깃층별로 한 편씩 만들어집니다.'
+    ],
+    'lp.toAnalysis': ['総合分析へ', 'To the overall analysis', '종합 분석으로'],
     'lp.summary': ['この案の流れ', 'Flow of this draft', '이 초안의 흐름'],
     'lp.applied': ['当て込んだ要因', 'Factors applied', '반영한 요인'],
     'lp.sections': ['区画', 'sections', '구획'],
@@ -54,6 +60,8 @@
     'lp.jobTitle': ['LP案を作成中', 'Drafting the LP', 'LP 초안 작성 중'],
     'lp.history': ['前の案', 'Earlier drafts', '이전 초안'],
     'lp.noProject': ['プロジェクトが選ばれていません', 'No project selected', '프로젝트가 선택되지 않았습니다'],
+    'lp.visualHasAsset': ['手持ちの素材 {ref} を使う', 'Use existing asset {ref}', '보유 소재 {ref} 사용'],
+    'lp.variants': ['ターゲット層', 'Target segments', '타깃층'],
     'lp.noAssetsPicked': ['（素材なし）', '(none)', '(없음)']
   };
 
@@ -165,33 +173,15 @@
         add(body, el('p', 'empty', String(err && err.message || err)));
       });
 
-      function hasStructure() {
-        var st = view.project && view.project.reference_structure;
-        return !!(st && isArray(st.sections) && st.sections.length);
-      }
 
-      function costLabel(word) {
-        var unlimited = window.Api && Api.credits && typeof Api.credits.hasUnlimited === 'function'
-          && Api.credits.hasUnlimited(view.user);
-        var cost = (window.Api && Api.credits && typeof Api.credits.costOf === 'function')
-          ? Api.credits.costOf(FEATURE) : 0;
-        if (unlimited || !cost) { return t('common.costFree', { label: word }); }
-        return t('common.costOnButton', { label: word, n: cost });
-      }
 
       function paint() {
         clear(notice); clear(toolbar); clear(body);
 
-        if (!hasStructure()) {
-          add(notice, el('p', 'lp-notice__warn', t('lp.needStructure')));
-        }
-
-        /* 実行ボタン。押している間はサイズが変わらないよう幅を固定する */
-        var word = view.running ? t('lp.running') : (view.gen ? t('lp.rerun') : t('lp.run'));
-        var run = button('btn btn--primary', costLabel(word), startDraft);
-        run.disabled = view.running || !hasStructure();
-        add(toolbar, run);
-        if (run.offsetWidth) { run.style.minWidth = run.offsetWidth + 'px'; }
+        /* 作る入口は総合分析（S20）にある。ここは出来たものを直す画面 */
+        add(toolbar, button('btn btn--secondary', t('lp.toAnalysis'), function () {
+          location.hash = '#/S20?id=' + encodeURIComponent(projectId);
+        }));
 
         if (view.gen) {
           add(toolbar, button('btn btn--secondary', t('lp.toHtml'), function () {
@@ -202,12 +192,42 @@
           save.id = 'lp-save';
           add(toolbar, save);
         }
-        if (view.gens.length > 1) {
+        /* 層ごとに1本できる。同じ回のものを横に並べて、押して切り替える。
+           選ぶのは「どの層に向けたLPを使うか」なので、日付より層が先に要る */
+        var batch = view.gen ? view.gens.filter(function (g) {
+          return (g.created_at || '').slice(0, 16) === (view.gen.created_at || '').slice(0, 16);
+        }) : [];
+        if (batch.length > 1) {
+          var tabs = el('div', 'lp-variants');
+          batch.slice().sort(function (a, b) {
+            return String(a.variant_label || '').localeCompare(String(b.variant_label || ''));
+          }).forEach(function (g) {
+            var on = view.gen && g.id === view.gen.id;
+            var b = button('lp-variant' + (on ? ' lp-variant--on' : ''), '', function () {
+              view.gen = g; view.dirty = false; paint();
+            });
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            add(b, el('span', 'lp-variant__label', String(g.variant_label || '-')));
+            add(b, el('span', 'lp-variant__name', String(g.title || '').slice(0, 28)));
+            add(tabs, b);
+          });
+          add(toolbar, tabs);
+        }
+        /* 過去の回。層の切り替えとは別物なので、日付だけの一覧にする */
+        var rounds = [];
+        var seen = {};
+        view.gens.forEach(function (g) {
+          var when = (g.created_at || '').slice(0, 16);
+          if (seen[when]) { return; }
+          seen[when] = 1;
+          rounds.push(g);
+        });
+        if (rounds.length > 1) {
           var pick = el('select', 'select lp-history');
-          view.gens.forEach(function (g) {
-            var o = el('option', null, (g.created_at || '').slice(0, 16).replace('T', ' ') + '  ' + String(g.title || '').slice(0, 40));
+          rounds.forEach(function (g) {
+            var o = el('option', null, (g.created_at || '').slice(0, 16).replace('T', ' '));
             o.value = g.id;
-            if (view.gen && g.id === view.gen.id) { o.selected = true; }
+            if (view.gen && (g.created_at || '').slice(0, 16) === (view.gen.created_at || '').slice(0, 16)) { o.selected = true; }
             add(pick, o);
           });
           pick.setAttribute('aria-label', t('lp.history'));
@@ -221,6 +241,7 @@
 
         if (!view.gen) {
           add(body, el('p', 'empty', t('lp.empty')));
+          add(body, el('p', 'field__hint', t('lp.emptyHint')));
           return;
         }
         paintDraft();
@@ -233,6 +254,16 @@
 
         var top = el('section', 'panel');
         add(top, el('span', 'panel__title', t('lp.summary')));
+        /* どの層に向けたLPかを最初に出す。5本あるので、見ているものが
+           どれか分からないと直しようがない */
+        var tg = content.target;
+        if (tg && tg.name) {
+          var who = el('p', 'lp-target');
+          add(who, el('span', 'chip chip--sm', String(tg.label || '-')));
+          add(who, el('strong', null, ' ' + String(tg.name)));
+          if (tg.description) { add(who, el('span', 't-note', ' — ' + String(tg.description))); }
+          add(top, who);
+        }
         add(top, el('p', 'lp-summary', String(content.summary || gen.title || '')));
         var applied = isArray(content.applied) ? content.applied : [];
         if (applied.length) {
@@ -303,10 +334,22 @@
         if (!shown) { add(row, el('span', 't-note', t('lp.noAssetsPicked'))); }
         add(strip, row);
         add(li, strip);
-        if (sec.visual) {
+        /* 絵の指示。ここが素材を作る段への申し送りになる。
+           kind（image / gif / video）で作らせる先が変わる */
+        var visuals = isArray(sec.visuals) ? sec.visuals : (sec.visual ? [{ kind: 'image', prompt: sec.visual }] : []);
+        if (visuals.length) {
           var vis = el('div', 'lp-visual');
           add(vis, el('span', 'field__label', t('lp.visual')));
-          add(vis, el('p', 'lp-visual__text', String(sec.visual)));
+          visuals.forEach(function (v) {
+            var row = el('div', 'lp-visual__row');
+            add(row, el('span', 'chip chip--sm', String(v.kind || 'image')));
+            var txt = el('div', 'lp-visual__body');
+            if (v.use) { add(txt, el('span', 'lp-visual__use', String(v.use))); }
+            add(txt, el('p', 'lp-visual__text', String(v.prompt || '')));
+            if (v.asset) { add(txt, el('span', 't-note', t('lp.visualHasAsset', { ref: String(v.asset) }))); }
+            add(row, txt);
+            add(vis, row);
+          });
           add(li, vis);
         }
         return li;
@@ -328,36 +371,6 @@
       }
 
       /* --- 実行 --- */
-      function startDraft() {
-        if (view.running || !hasStructure()) { return; }
-        view.running = true;
-        paint();
-        Api.generationJobs.insert({
-          feature_key: FEATURE,
-          status: 'pending',
-          projects_id: projectId,
-          users_id: view.user && view.user.id ? view.user.id : undefined,
-          payload: {},
-          lang: currentLocale()
-        }).then(function (job) {
-          if (!App.watchJob) { toast(t('lp.jobTitle'), 'success'); return; }
-          App.watchJob({
-            jobId: job.id,
-            titleKey: 'lp.jobTitle',
-            urls: [],
-            onDone: function () {
-              view.running = false;
-              Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 10 })
-                .then(function (rows) { view.gens = rows || []; view.gen = view.gens[0] || null; view.dirty = false; paint(); });
-            }
-          });
-        }).catch(function (err) {
-          view.running = false;
-          paint();
-          console.error('[screens-lp] ジョブを積めませんでした:', err);
-          toast(String(err && err.message || err), 'danger');
-        });
-      }
 
       function saveEdits() {
         if (!view.gen) { return; }

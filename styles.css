@@ -4226,3 +4226,20 @@ input[type='radio'] {
 .lpr-stats { margin: 0 0 10px; }
 .lpr-frame { border: 1px solid var(--c-line); border-radius: var(--r-card); overflow: hidden; background: #fff; }
 .lpr-frame__iframe { display: block; width: 100%; min-height: 600px; border: 0; }
+
+/* ---------- S12 LP案: ターゲット層の切り替えと絵の指示 ---------- */
+.lp-variants { display: flex; flex-wrap: wrap; gap: 6px; }
+.lp-variant {
+  display: flex; align-items: center; gap: 6px;
+  min-height: 0; padding: 7px 12px;
+  border: 1px solid var(--c-line); border-radius: var(--r-control);
+  background: var(--c-surface); color: var(--c-text); cursor: pointer;
+}
+.lp-variant:hover { border-color: var(--c-text-sub); }
+.lp-variant--on { border-color: var(--c-accent); box-shadow: 0 0 0 1px var(--c-accent) inset; }
+.lp-variant__label { font-weight: 700; }
+.lp-variant__name { font-size: var(--fs-note); color: var(--c-text-sub); }
+.lp-target { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 6px 0 10px; }
+.lp-visual__row { display: flex; gap: 8px; margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--c-line); background: #FBF9FC; border-radius: 0 8px 8px 0; }
+.lp-visual__body { min-width: 0; }
+.lp-visual__use { display: block; font-size: var(--fs-note); font-weight: 600; }

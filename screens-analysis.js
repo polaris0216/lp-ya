@@ -454,6 +454,15 @@
     /* 反省点のカードで「では自分はどうするか」を出すときの見出し。
        ここに「反省点」と書くと、上の札と同じ言葉が2度出て中身が伝わらない */
     's11.factorInstead': ['代わりにやること', 'Do this instead', '대신 할 일'],
+    'ov.makeLp': ['この分析からLP案を作る', 'Draft LPs from this analysis', '이 분석으로 LP 초안 만들기'],
+    'ov.makeLpHint': [
+      'ターゲット層ごとに1本ずつ作ります。共通する流れを骨格に、勝ち筋と反省点を当て込み、層に合わせて言葉と絵を変えます。',
+      'One draft per target segment. The shared flow is the skeleton; the factors are applied, and the copy and visuals are tuned per segment.',
+      '타깃층별로 한 편씩 만듭니다. 공통 흐름을 뼈대로, 성공 요인과 반성할 점을 반영해 층에 맞춰 문장과 이미지를 바꿉니다.'
+    ],
+    'ov.makeLpRunning': ['作っています…', 'Drafting…', '만드는 중…'],
+    'ov.makeLpTitle': ['LP案を作成中', 'Drafting the LPs', 'LP 초안 작성 중'],
+    'ov.makeLpQueued': ['LP案の作成を受け付けました', 'LP drafting queued', 'LP 초안 작성을 접수했습니다'],
     'ov.structureTitle': ['共通する流れ', 'The shared flow', '공통되는 흐름'],
     'ov.structureLead': [
       '競合ページを突き合わせて、共通していた区画の並びです。押すと、その区画で何をしていたかと、自分のLPでやることが出ます。',
@@ -2633,6 +2642,44 @@
       return section;
     }
 
+    /* LP案を作る。ジョブを積んで、終わったら S12（LP案）へ渡す。
+       ターゲット層の数だけ本数ができる（層が未設定なら1本） */
+    function startLpDraft(node, report) {
+      if (!window.Api || !Api.generationJobs) {
+        console.error('[screens-analysis] Api.generationJobs がありません。api.js を確認してください。');
+        toast(t('common.error'), 'danger');
+        return;
+      }
+      var label = node.textContent;
+      node.disabled = true;
+      node.style.minWidth = node.offsetWidth + 'px';
+      node.textContent = t('ov.makeLpRunning');
+      Api.generationJobs.insert({
+        feature_key: 'lp_draft',
+        status: 'pending',
+        projects_id: projectId,
+        report_id: report.id,
+        /* 誰の仕事かを入れる。RLS もこれで効く */
+        users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function')
+          ? Api.auth.userId() : undefined,
+        payload: {},
+        lang: currentLocale()
+      }).then(function (job) {
+        if (!App.watchJob) { toast(t('ov.makeLpQueued'), 'success'); return; }
+        App.watchJob({
+          jobId: job.id,
+          titleKey: 'ov.makeLpTitle',
+          urls: [],
+          onDone: function () { go('S12', { id: projectId, reportId: report.id }); }
+        });
+      }).catch(function (err) {
+        node.disabled = false;
+        node.textContent = label;
+        console.error('[screens-analysis] LP案のジョブを積めませんでした:', err);
+        toast(String(err && err.message || err), 'danger');
+      });
+    }
+
     /* ---- 総合分析: 全リンクを突き合わせた「流れ」 ----
        1件ごとの分析（competitorSection）と同じ foldRow で出す。
        違うのは、ここが「何ページに共通していたか」を持っていること。
@@ -2835,6 +2882,14 @@
         var lpSection = el('section', 'section');
         add(lpSection, assetCard(lpAssets, 'lp'));
         add(wrap, lpSection);
+
+        /* ここがLPの入口。総合分析（流れ＋要因）とターゲット層から、
+           層ごとに1本ずつ作る。押した先は S12（LP案） */
+        var lpBtn = button('btn btn--primary btn--block', t('ov.makeLp'), function () {
+          startLpDraft(lpBtn, report);
+        });
+        add(actions, lpBtn);
+        add(actions, el('p', 't-note', t('ov.makeLpHint')));
 
         add(actions, button('btn btn--secondary btn--block', t('overall.toSources'), function () {
           go('S11', { id: projectId, reportId: report.id });
