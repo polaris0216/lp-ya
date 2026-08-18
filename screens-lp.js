@@ -34,6 +34,8 @@
     'lp.noFactors': ['競合分析がまだ無いので、骨格だけで組みます。競合分析を先に済ませると、日本で伸びる型を当て込めます。',
       'No competitor analysis yet; drafting from the skeleton only. Run the analysis first to apply what works in Japan.',
       '경쟁 분석이 아직 없어 뼈대만으로 만듭니다. 먼저 분석을 마치면 일본에서 통하는 형식을 반영할 수 있습니다.'],
+    'lp.loading': ['読み込んでいます…', 'Loading…', '불러오는 중…'],
+    'lp.loadFailed': ['LP案を読み込めませんでした', 'Could not load the LP drafts', 'LP 초안을 불러오지 못했습니다'],
     'lp.empty': ['まだLP案がありません。', 'No LP draft yet.', '아직 LP 초안이 없습니다.'],
     'lp.emptyHint': [
       '総合分析のページで「この分析からLP案を作る」を押すと、ターゲット層ごとに1本ずつ作られます。',
@@ -156,21 +158,24 @@
       add(screen, body);
       add(root, screen);
 
-      /* --- 読み込み --- */
+      /* --- 読み込み ---
+         途中の状態を必ず画面に出す。黙って空欄になると、まだ無いのか
+         読めなかったのかが分からない（実測: 5本できているのに空欄に見えた） */
+      add(body, el('p', 'empty', t('lp.loading')));
       Promise.all([
         Api.projects.get(projectId),
-        Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 10 }),
-        (Api.users && Api.users.me) ? Api.users.me().catch(function () { return null; }) : Promise.resolve(null)
+        Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 20 })
       ]).then(function (got) {
         view.project = got[0];
         view.gens = got[1] || [];
-        view.user = got[2];
         var wanted = params.gen && view.gens.filter(function (g) { return g.id === params.gen; })[0];
         view.gen = wanted || view.gens[0] || null;
         paint();
       }).catch(function (err) {
         console.error('[screens-lp] 読み込みに失敗:', err);
-        add(body, el('p', 'empty', String(err && err.message || err)));
+        clear(body);
+        add(body, el('p', 'empty', t('lp.loadFailed')));
+        add(body, el('p', 'field__hint', String(err && err.message || err)));
       });
 
 
