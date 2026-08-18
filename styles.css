@@ -4198,3 +4198,31 @@ input[type='radio'] {
   font-size: 12px;
   margin-top: 1px;
 }
+
+
+/* ---------- S12 LP案 ---------- */
+.lp-notice:empty { display: none; }
+.lp-notice__warn { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--r-control); background: #FEF3C7; color: #92400E; font-size: var(--fs-note); }
+.lp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; }
+.lp-history { max-width: 360px; }
+.lp-summary { margin: 6px 0 12px; line-height: 1.7; }
+.lp-applied { margin: 4px 0 0; padding-left: 18px; }
+.lp-applied li { margin: 0 0 6px; }
+.lp-applied__how { color: var(--c-text-sub); font-size: var(--fs-note); }
+.lp-sections { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.lp-section { padding: 14px 16px; border: 1px solid var(--c-line); border-radius: var(--r-card); background: var(--c-surface); }
+.lp-section--cta { border-color: var(--c-accent); }
+.lp-section__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
+.lp-section__no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c-text); color: #fff; font-size: 12px; font-weight: 700; }
+.lp-section__title { font-weight: 700; }
+.lp-section .field { margin: 0 0 8px; }
+.lp-assets { margin: 8px 0 0; }
+.lp-assets__row { display: flex; flex-wrap: wrap; gap: 6px; }
+.lp-assets__thumb { width: 96px; height: 72px; object-fit: cover; border-radius: 6px; border: 1px solid var(--c-line); background: var(--c-bg); }
+.lp-visual { margin: 8px 0 0; }
+.lp-visual__text { margin: 2px 0 0; padding: 8px 10px; border-left: 3px solid var(--c-line); color: var(--c-text-sub); font-size: var(--fs-note); }
+
+/* ---------- S13 生成結果 ---------- */
+.lpr-stats { margin: 0 0 10px; }
+.lpr-frame { border: 1px solid var(--c-line); border-radius: var(--r-card); overflow: hidden; background: #fff; }
+.lpr-frame__iframe { display: block; width: 100%; min-height: 600px; border: 0; }

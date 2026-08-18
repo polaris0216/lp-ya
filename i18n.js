@@ -322,7 +322,7 @@
     'wf.competitor': ['競合LP分析', 'Competitors', '경쟁 LP 분석'],
     'wf.report': ['分析レポート', 'Report', '분석 리포트'],
     'wf.overall': ['総合分析', 'Overview', '종합 분석'],
-    'wf.prompt': ['生成プロンプト', 'Generation prompts', '생성 프롬프트'],
+    'wf.prompt': ['LP案', 'LP draft', 'LP 초안'],
     'wf.result': ['生成結果', 'Generated results', '생성 결과'],
     'wf.pending': ['この工程は作り直し中です', 'This step is being rebuilt', '이 단계는 다시 만드는 중입니다'],
 

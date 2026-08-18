@@ -487,22 +487,136 @@
     return out.join('\n');
   }
 
+  /* ---------- LP案（S12 が作るもの）から組む ----------
+     旧生成物と違い、区画ごとに使う素材が番号で決まっている（assets: ["p1","v2"]）。
+     素材プールから順に取るのではなく、指されたものをその区画に置く。
+     組み方の決まりは上と同じ（測って決めた Makuake の形）:
+       ・本文カラム712px、絵は端まで、余白なし
+       ・訴求は写真に焼き込んだ1枚絵（burnedPanel）。見出しと本文を絵に載せる
+       ・地の文にするのは、日本向けに足した区画（実行者・スケジュール・リスク）と
+         申し込み区画。参照ページで文章だった区画も地の文
+     区画の見せ方（mode）は draft 側が決めていなければここで判定する:
+       素材があり、日本向け追加でなく、CTAでもない → 焼き込みパネル
+       それ以外 → 地の文 */
+  function buildDraftHtml(options) {
+    var o = options || {};
+    var draft = o.draft || {};
+    var sections = asArray(draft.sections);
+    var project = o.project || {};
+    var design = o.design || DEFAULT_DESIGN;
+    var images = asArray(project.image_urls);
+    var videos = asArray(project.video_urls);
+    var urlOf = function (ref) {
+      var text = String(ref || '').trim();
+      if (text.indexOf('http') === 0) { return text; }
+      var m = text.match(/^([pv])(\d+)$/);
+      if (!m) { return ''; }
+      var list = m[1] === 'p' ? images : videos;
+      return String(list[Number(m[2]) - 1] || '');
+    };
+    var out = [];
+    out.push('<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">');
+    out.push('<meta name="viewport" content="width=device-width, initial-scale=1">');
+    out.push('<title>' + escapeHtml(o.title || draft.summary || '') + '</title>');
+    out.push('<style>*{box-sizing:border-box;}');
+    out.push('body{margin:0;background:' + escapeHtml(design.bgColor) + ';font-family:' + fontStack(design.bodyFont) + ';-webkit-text-size-adjust:100%;overflow-wrap:break-word;line-break:strict;}');
+    out.push('.wrap{max-width:712px;margin:0 auto;padding:0;}');
+    out.push('section{padding:0;}');
+    out.push('section[data-text="1"]{padding:40px 0;}section[data-text="1"] .wrap{padding:0 24px;}');
+    out.push('.lead{font-size:' + design.bodySize + 'px;line-height:1.9;color:' + escapeHtml(design.bodyColor) + ';margin:0;white-space:pre-wrap;}');
+    out.push('h2{font-family:' + fontStack(design.titleFont) + ';font-size:' + design.titleSize + 'px;line-height:1.35;font-weight:600;color:' + escapeHtml(design.titleColor) + ';margin:0 0 16px;}');
+    out.push('.sub{font-size:' + Math.round(design.bodySize * 1.05) + 'px;color:' + escapeHtml(design.bodyColor) + ';margin:-8px 0 16px;opacity:.85;}');
+    out.push('ul.bul{margin:12px 0 0;padding-left:1.3em;line-height:1.9;font-size:' + design.bodySize + 'px;color:' + escapeHtml(design.bodyColor) + ';}');
+    out.push('.cta{margin-top:24px;}.cta a{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 36px;border-radius:12px;background:' + escapeHtml(design.accentColor) + ';color:#fff;font-size:17px;font-weight:700;text-decoration:none;}');
+    out.push('.visual{margin:20px 0 0;padding:14px 16px;border:1px dashed #D9CFE0;border-radius:10px;color:#6B6270;font-size:13px;background:#FBF9FC;}');
+    out.push('@media (max-width:600px){section[data-text="1"]{padding:32px 0;}section[data-text="1"] .wrap{padding:0 18px;}}');
+    out.push('</style></head><body>');
+
+    sections.forEach(function (sec, index) {
+      var assets = asArray(sec.assets).map(urlOf).filter(Boolean);
+      var stills = assets.filter(function (u) { return !/\.(mp4|webm|mov)(\?|$)/i.test(u); });
+      var movies = assets.filter(function (u) { return /\.(mp4|webm|mov)(\?|$)/i.test(u); });
+      var mode = String(sec.mode || '');
+      if (!mode) {
+        mode = (stills.length && !sec.added && !sec.cta) ? 'panel' : 'text';
+      }
+      var bullets = asArray(sec.bullets).map(String).filter(Boolean);
+      var bodyText = String(sec.body || '');
+      out.push('<section id="sec-' + (index + 1) + '" data-key="' + escapeHtml(sec.key || '') + '"'
+        + (mode === 'text' ? ' data-text="1"' : '') + '><div class="wrap">');
+      if (mode === 'panel') {
+        /* 1枚目に見出しと本文を焼き込み、残りは絵として続ける。
+           箇条書きしか無い区画は、箇条書きを本文として焼く */
+        var burnBody = bodyText || bullets.join('\n');
+        var titleForPanel = String(sec.headline || sec.title || '');
+        out.push(burnedPanel(stills[0], titleForPanel, burnBody, design, 712));
+        movies.forEach(function (u) { out.push(flushMedia(u)); });
+        stills.slice(1).forEach(function (u) { out.push(flushMedia(u)); });
+      } else {
+        if (sec.headline || sec.title) { out.push('<h2>' + escapeHtml(sec.headline || sec.title) + '</h2>'); }
+        if (sec.subhead) { out.push('<p class="sub">' + escapeHtml(sec.subhead) + '</p>'); }
+        if (bodyText) { out.push('<p class="lead">' + escapeHtml(bodyText) + '</p>'); }
+        if (bullets.length) {
+          out.push('<ul class="bul">' + bullets.map(function (b) { return '<li>' + escapeHtml(b) + '</li>'; }).join('') + '</ul>');
+        }
+        movies.forEach(function (u) { out.push(mediaMarkup(u, '')); });
+        stills.forEach(function (u) { out.push(mediaMarkup(u, sec.headline || '')); });
+        /* 素材が無く、絵の指示だけある区画は、その指示を仮置きで見せる
+           （画像生成の段ができたら、ここに作った絵が入る） */
+        if (!assets.length && sec.visual) {
+          out.push('<div class="visual">' + escapeHtml(t('gen.imagePlaceholder')) + ' ' + escapeHtml(sec.visual) + '</div>');
+        }
+        if (sec.cta) {
+          out.push('<div class="cta"><a href="#">' + escapeHtml(sec.cta_label || t('gen.ctaButton')) + '</a></div>');
+        }
+      }
+      out.push('</div></section>');
+    });
+    out.push('</body></html>');
+    return out.join('\n');
+  }
+
+  /* 文字幅で折る。maxChars は「半角なら何文字入るか」。全角は半角2つぶん、
+     半角は1つぶんとして数える。以前は文字数だけで折っていたので、
+     日本語の見出しが右端で切れていた（実測: 712px幅で32pxの見出し
+     「GOOD DESIGN AWARD受賞の、香るオブジェ」の末尾2文字が消えた） */
+  function charUnits(ch) {
+    var code = ch.charCodeAt(0);
+    /* 半角英数・記号・半角カナ。それ以外（漢字かな・全角記号・絵文字）は全角扱い */
+    if (code < 0x2E80 || (code >= 0xFF61 && code <= 0xFF9F)) { return 1; }
+    return 2;
+  }
   function wrapLines(text, maxChars) {
     var limit = Math.max(8, Math.floor(maxChars) || 8);
     var out = [];
     String(text === undefined || text === null ? '' : text).split('\n').forEach(function (paragraph) {
-      var rest = paragraph;
-      if (!rest) { out.push(''); return; }
-      while (rest.length > limit) {
-        out.push(rest.slice(0, limit));
-        rest = rest.slice(limit);
+      if (!paragraph) { out.push(''); return; }
+      var line = '';
+      var units = 0;
+      for (var i = 0; i < paragraph.length; i += 1) {
+        var ch = paragraph[i];
+        var w = charUnits(ch);
+        /* 行頭に来てはいけない字（句読点・閉じ括弧・長音）は前の行に付ける。
+           1文字はみ出すぶんは、右の余白（pad=36px）で吸収できる */
+        var noHead = /[、。，．・）」』】〕〉》］｝!?！？ー〜…]/.test(ch);
+        /* 数字の直後の単位（130日・25dB・40坪）は前の行に付ける。
+           数字で終わっているのに次が全角1〜2字なら、そこは切らない */
+        var afterNumber = /[0-9０-９]$/.test(line) && /[日坪本枚個台人円%％]/.test(ch);
+        if (units + w > limit && line && !noHead && !afterNumber) {
+          out.push(line);
+          line = '';
+          units = 0;
+        }
+        line += ch;
+        units += w;
       }
-      out.push(rest);
+      out.push(line);
     });
     return out;
   }
   window.LpRender = {
     TYPE: TYPE,
+    buildDraftHtml: buildDraftHtml,
     buildHtml: buildHtml,
     assetPoolOf: assetPoolOf,
     designOf: designOf,

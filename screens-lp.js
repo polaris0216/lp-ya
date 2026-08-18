@@ -1,0 +1,375 @@
+/* =============================================================================
+ * screens-lp.js — S12 LP案（区画ごとの文章・素材・絵の指示を見て直す）
+ *
+ * 流れ:
+ *   1. 「LP案を作る」を押す → generation_jobs に lp_draft を積む
+ *   2. ワーカーが 骨格（参照ページの組み立て方）＋当て込み（競合分析の要因）から
+ *      日本語の区画案を書き、generations に1行入れる
+ *   3. この画面で区画ごとに読み、見出し・本文を直して保存する
+ *   4. 「HTMLで見る」→ S13（lp-render.js で組む）
+ *
+ * 画面登録   App.registerScreen('S12', { render })
+ * URL        #/S12?id=<プロジェクトID>[&gen=<生成物ID>]
+ * 通信       Api.projects / Api.generations / Api.generationJobs / App.watchJob
+ * 文言       i18n.js。ここだけの文言は LOCAL に置く
+ * ========================================================================== */
+(function () {
+  'use strict';
+
+  var App = window.App = window.App || {};
+  var LOCALES = ['ja', 'en', 'ko'];
+  var FEATURE = 'lp_draft';
+
+  var LOCAL = {
+    'lp.title': ['LP案', 'LP draft', 'LP 초안'],
+    'lp.lead': ['参照ページの組み立て方を骨格に、競合分析の要因を当て込んで、日本語のLPを区画ごとに起こします。ここで文章を直してから、HTMLに組みます。',
+      'Builds the Japanese LP section by section: the reference page structure as the skeleton, competitor factors applied on top. Edit the copy here, then render to HTML.',
+      '참조 페이지의 구성을 뼈대로, 경쟁 분석 요인을 반영해 일본어 LP를 구획별로 만듭니다. 여기서 문장을 다듬은 뒤 HTML로 조립합니다.'],
+    'lp.run': ['LP案を作る', 'Draft the LP', 'LP 초안 만들기'],
+    'lp.rerun': ['作り直す', 'Redraft', '다시 만들기'],
+    'lp.running': ['作っています…', 'Drafting…', '만드는 중…'],
+    'lp.needStructure': ['参照ページの組み立て方がまだありません。商品入力で「参照ページから自動入力」を先に実行してください。',
+      'No reference structure yet. Run "Auto-fill from reference page" in Product input first.',
+      '참조 페이지 구성이 아직 없습니다. 상품 입력에서 "참조 페이지로 자동 입력"을 먼저 실행하세요.'],
+    'lp.noFactors': ['競合分析がまだ無いので、骨格だけで組みます。競合分析を先に済ませると、日本で伸びる型を当て込めます。',
+      'No competitor analysis yet; drafting from the skeleton only. Run the analysis first to apply what works in Japan.',
+      '경쟁 분석이 아직 없어 뼈대만으로 만듭니다. 먼저 분석을 마치면 일본에서 통하는 형식을 반영할 수 있습니다.'],
+    'lp.empty': ['まだLP案がありません。', 'No LP draft yet.', '아직 LP 초안이 없습니다.'],
+    'lp.summary': ['この案の流れ', 'Flow of this draft', '이 초안의 흐름'],
+    'lp.applied': ['当て込んだ要因', 'Factors applied', '반영한 요인'],
+    'lp.sections': ['区画', 'sections', '구획'],
+    'lp.headline': ['見出し', 'Headline', '헤드라인'],
+    'lp.subhead': ['補足', 'Subhead', '보조 문구'],
+    'lp.body': ['本文', 'Body', '본문'],
+    'lp.bullets': ['箇条書き（1行1項目）', 'Bullets (one per line)', '항목(줄당 하나)'],
+    'lp.assets': ['使う素材', 'Assets', '소재'],
+    'lp.visual': ['絵の指示', 'Visual brief', '이미지 지시'],
+    'lp.ctaLabel': ['ボタン文言', 'CTA label', '버튼 문구'],
+    'lp.cta': ['申し込み', 'CTA', '신청'],
+    'lp.added': ['日本向けに追加', 'Added for Japan', '일본용 추가'],
+    'lp.from': ['骨格 {n} から', 'From skeleton #{n}', '뼈대 {n}에서'],
+    'lp.save': ['変更を保存', 'Save changes', '변경 저장'],
+    'lp.saved': ['保存しました', 'Saved', '저장했습니다'],
+    'lp.toHtml': ['HTMLで見る', 'View as HTML', 'HTML로 보기'],
+    'lp.jobTitle': ['LP案を作成中', 'Drafting the LP', 'LP 초안 작성 중'],
+    'lp.history': ['前の案', 'Earlier drafts', '이전 초안'],
+    'lp.noProject': ['プロジェクトが選ばれていません', 'No project selected', '프로젝트가 선택되지 않았습니다'],
+    'lp.noAssetsPicked': ['（素材なし）', '(none)', '(없음)']
+  };
+
+  /* ---------- 依存の確認 ---------- */
+  if (typeof App.registerScreen !== 'function') {
+    console.error('[screens-lp] App.registerScreen が見つかりません。index.html の読み込み順（app.js -> screens-lp.js）を確認してください。');
+    App.screens = App.screens || {};
+    App.registerScreen = function (id, spec) { App.screens[id] = spec; };
+  }
+  if (!window.Api) { console.error('[screens-lp] window.Api が見つかりません。api.js を確認してください。'); }
+
+  /* ---------- 小道具 ---------- */
+  function currentLocale() {
+    if (window.I18N && typeof window.I18N.locale === 'function') { return window.I18N.locale(); }
+    return 'ja';
+  }
+  function fill(text, params) {
+    if (!params) { return text; }
+    return String(text).replace(/\{(\w+)\}/g, function (m, k) { return params[k] === undefined ? m : String(params[k]); });
+  }
+  function t(key, params) {
+    var row = LOCAL[key];
+    if (row) {
+      var index = LOCALES.indexOf(currentLocale());
+      return fill(row[index < 0 ? 0 : index] || row[0], params);
+    }
+    if (window.I18N && typeof window.I18N.t === 'function') { return window.I18N.t(key, params); }
+    return key;
+  }
+  function el(tag, className, textContent) {
+    var node = document.createElement(tag);
+    if (className) { node.className = className; }
+    if (textContent !== undefined && textContent !== null) { node.textContent = String(textContent); }
+    return node;
+  }
+  function button(className, label, onClick) {
+    var node = el('button', className, label);
+    node.type = 'button';
+    if (onClick) { node.addEventListener('click', onClick); }
+    return node;
+  }
+  function clear(node) { while (node && node.firstChild) { node.removeChild(node.firstChild); } }
+  function add(parent, child) { if (parent && child) { parent.appendChild(child); } return child; }
+  function toast(message, kind) {
+    if (typeof App.toast === 'function') { App.toast(message, kind); }
+    else { console.log('[screens-lp]', kind || 'info', message); }
+  }
+  function setHeader(title) {
+    var titleNode = document.getElementById('header-title');
+    var backNode = document.getElementById('header-back');
+    var actionNode = document.getElementById('header-action');
+    if (titleNode) { titleNode.textContent = title; }
+    if (backNode) { backNode.hidden = false; }
+    if (actionNode) { clear(actionNode); }
+  }
+  function isArray(v) { return Array.isArray(v); }
+
+  /* 素材の番号（p1 / v1）を、プロジェクトの写真・動画のURLに戻す */
+  function assetUrl(project, ref) {
+    var s = String(ref || '').trim();
+    if (s.indexOf('http') === 0) { return s; }
+    var m = s.match(/^([pv])(\d+)$/);
+    if (!m) { return ''; }
+    var list = m[1] === 'p' ? (project.image_urls || []) : (project.video_urls || []);
+    return String(list[Number(m[2]) - 1] || '');
+  }
+
+  /* ---------- 画面 ---------- */
+  App.registerScreen('S12', {
+    render: function (root, params) {
+      params = params || {};
+      var projectId = params.id || (window.Api && Api.storage && Api.storage.get('projectId')) || '';
+      setHeader(t('lp.title'));
+      clear(root);
+
+      if (!projectId) {
+        add(root, el('p', 'empty', t('lp.noProject')));
+        return;
+      }
+
+      var view = { project: null, gen: null, gens: [], user: null, running: false, dirty: false };
+      var screen = el('div', 'screen');
+      var head = el('header', 'screen__head');
+      add(head, el('h2', 'screen__title', t('lp.title')));
+      add(head, el('p', 'screen__lead', t('lp.lead')));
+      add(screen, head);
+      var notice = el('div', 'lp-notice');
+      add(screen, notice);
+      var toolbar = el('div', 'lp-toolbar');
+      add(screen, toolbar);
+      var body = el('div', 'lp-body');
+      add(screen, body);
+      add(root, screen);
+
+      /* --- 読み込み --- */
+      Promise.all([
+        Api.projects.get(projectId),
+        Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 10 }),
+        (Api.users && Api.users.me) ? Api.users.me().catch(function () { return null; }) : Promise.resolve(null)
+      ]).then(function (got) {
+        view.project = got[0];
+        view.gens = got[1] || [];
+        view.user = got[2];
+        var wanted = params.gen && view.gens.filter(function (g) { return g.id === params.gen; })[0];
+        view.gen = wanted || view.gens[0] || null;
+        paint();
+      }).catch(function (err) {
+        console.error('[screens-lp] 読み込みに失敗:', err);
+        add(body, el('p', 'empty', String(err && err.message || err)));
+      });
+
+      function hasStructure() {
+        var st = view.project && view.project.reference_structure;
+        return !!(st && isArray(st.sections) && st.sections.length);
+      }
+
+      function costLabel(word) {
+        var unlimited = window.Api && Api.credits && typeof Api.credits.hasUnlimited === 'function'
+          && Api.credits.hasUnlimited(view.user);
+        var cost = (window.Api && Api.credits && typeof Api.credits.costOf === 'function')
+          ? Api.credits.costOf(FEATURE) : 0;
+        if (unlimited || !cost) { return t('common.costFree', { label: word }); }
+        return t('common.costOnButton', { label: word, n: cost });
+      }
+
+      function paint() {
+        clear(notice); clear(toolbar); clear(body);
+
+        if (!hasStructure()) {
+          add(notice, el('p', 'lp-notice__warn', t('lp.needStructure')));
+        }
+
+        /* 実行ボタン。押している間はサイズが変わらないよう幅を固定する */
+        var word = view.running ? t('lp.running') : (view.gen ? t('lp.rerun') : t('lp.run'));
+        var run = button('btn btn--primary', costLabel(word), startDraft);
+        run.disabled = view.running || !hasStructure();
+        add(toolbar, run);
+        if (run.offsetWidth) { run.style.minWidth = run.offsetWidth + 'px'; }
+
+        if (view.gen) {
+          add(toolbar, button('btn btn--secondary', t('lp.toHtml'), function () {
+            location.hash = '#/S13?id=' + encodeURIComponent(projectId) + '&gen=' + encodeURIComponent(view.gen.id);
+          }));
+          var save = button('btn btn--secondary', t('lp.save'), saveEdits);
+          save.disabled = !view.dirty;
+          save.id = 'lp-save';
+          add(toolbar, save);
+        }
+        if (view.gens.length > 1) {
+          var pick = el('select', 'select lp-history');
+          view.gens.forEach(function (g) {
+            var o = el('option', null, (g.created_at || '').slice(0, 16).replace('T', ' ') + '  ' + String(g.title || '').slice(0, 40));
+            o.value = g.id;
+            if (view.gen && g.id === view.gen.id) { o.selected = true; }
+            add(pick, o);
+          });
+          pick.setAttribute('aria-label', t('lp.history'));
+          pick.addEventListener('change', function () {
+            view.gen = view.gens.filter(function (g) { return g.id === pick.value; })[0] || view.gen;
+            view.dirty = false;
+            paint();
+          });
+          add(toolbar, pick);
+        }
+
+        if (!view.gen) {
+          add(body, el('p', 'empty', t('lp.empty')));
+          return;
+        }
+        paintDraft();
+      }
+
+      function paintDraft() {
+        var gen = view.gen;
+        var content = gen.content && typeof gen.content === 'object' ? gen.content : {};
+        var sections = isArray(gen.sections) ? gen.sections : [];
+
+        var top = el('section', 'panel');
+        add(top, el('span', 'panel__title', t('lp.summary')));
+        add(top, el('p', 'lp-summary', String(content.summary || gen.title || '')));
+        var applied = isArray(content.applied) ? content.applied : [];
+        if (applied.length) {
+          add(top, el('span', 'field__label', t('lp.applied')));
+          var ul = el('ul', 'lp-applied');
+          applied.forEach(function (a) {
+            var li = el('li', null);
+            add(li, el('strong', null, String(a.factor || '')));
+            if (isArray(a.where) && a.where.length) { add(li, el('span', 't-note', ' → ' + a.where.join(', '))); }
+            if (a.how) { add(li, el('div', 'lp-applied__how', String(a.how))); }
+            add(ul, li);
+          });
+          add(top, ul);
+        } else {
+          add(top, el('p', 'field__hint', t('lp.noFactors')));
+        }
+        add(body, top);
+
+        var list = el('ol', 'lp-sections');
+        sections.forEach(function (sec, index) {
+          add(list, sectionCard(sec, index));
+        });
+        add(body, list);
+      }
+
+      /* 区画1つ。見出し・補足・本文・箇条書き・ボタン文言はその場で直せる。
+         素材と絵の指示は見るだけ（素材の差し替えは HTML 側で） */
+      function sectionCard(sec, index) {
+        var li = el('li', 'lp-section' + (sec.cta ? ' lp-section--cta' : ''));
+        var head = el('div', 'lp-section__head');
+        add(head, el('span', 'lp-section__no', String(index + 1)));
+        add(head, el('span', 'lp-section__title', String(sec.title || sec.key || '')));
+        if (sec.cta) { add(head, el('span', 'chip chip--sm', t('lp.cta'))); }
+        if (sec.added) { add(head, el('span', 'chip chip--sm', t('lp.added'))); }
+        else if (sec.from) { add(head, el('span', 't-note', t('lp.from', { n: sec.from }))); }
+        add(li, head);
+
+        add(li, field(t('lp.headline'), 'input', sec.headline, function (v) { sec.headline = v; }));
+        if (sec.subhead || sec.cta) { add(li, field(t('lp.subhead'), 'input', sec.subhead, function (v) { sec.subhead = v; })); }
+        add(li, field(t('lp.body'), 'textarea', sec.body, function (v) { sec.body = v; }));
+        if (isArray(sec.bullets) && sec.bullets.length) {
+          add(li, field(t('lp.bullets'), 'textarea', sec.bullets.join('\n'), function (v) {
+            sec.bullets = v.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+          }));
+        }
+        if (sec.cta) { add(li, field(t('lp.ctaLabel'), 'input', sec.cta_label, function (v) { sec.cta_label = v; })); }
+
+        /* 素材（サムネイル）と絵の指示 */
+        var assets = isArray(sec.assets) ? sec.assets : [];
+        var strip = el('div', 'lp-assets');
+        add(strip, el('span', 'field__label', t('lp.assets')));
+        var row = el('div', 'lp-assets__row');
+        var shown = 0;
+        assets.forEach(function (ref) {
+          var url = assetUrl(view.project, ref);
+          if (!url) { return; }
+          shown += 1;
+          if (/^v\d+$/.test(String(ref)) || /\.(mp4|webm|mov)(\?|$)/i.test(url)) {
+            var v = el('video', 'lp-assets__thumb');
+            v.src = url; v.muted = true; v.playsInline = true; v.preload = 'metadata';
+            add(row, v);
+          } else {
+            var img = el('img', 'lp-assets__thumb');
+            img.src = url; img.alt = String(ref); img.loading = 'lazy';
+            add(row, img);
+          }
+        });
+        if (!shown) { add(row, el('span', 't-note', t('lp.noAssetsPicked'))); }
+        add(strip, row);
+        add(li, strip);
+        if (sec.visual) {
+          var vis = el('div', 'lp-visual');
+          add(vis, el('span', 'field__label', t('lp.visual')));
+          add(vis, el('p', 'lp-visual__text', String(sec.visual)));
+          add(li, vis);
+        }
+        return li;
+      }
+
+      function field(label, kind, value, onChange) {
+        var wrap = el('label', 'field');
+        add(wrap, el('span', 'field__label', label));
+        var input = el(kind === 'textarea' ? 'textarea' : 'input', kind === 'textarea' ? 'textarea' : 'input');
+        if (kind !== 'textarea') { input.type = 'text'; }
+        input.value = String(value || '');
+        if (kind === 'textarea') { input.rows = Math.min(10, Math.max(3, String(value || '').split('\n').length + 1)); }
+        input.addEventListener('input', function () {
+          onChange(input.value);
+          if (!view.dirty) { view.dirty = true; var s = document.getElementById('lp-save'); if (s) { s.disabled = false; } }
+        });
+        add(wrap, input);
+        return wrap;
+      }
+
+      /* --- 実行 --- */
+      function startDraft() {
+        if (view.running || !hasStructure()) { return; }
+        view.running = true;
+        paint();
+        Api.generationJobs.insert({
+          feature_key: FEATURE,
+          status: 'pending',
+          projects_id: projectId,
+          users_id: view.user && view.user.id ? view.user.id : undefined,
+          payload: {},
+          lang: currentLocale()
+        }).then(function (job) {
+          if (!App.watchJob) { toast(t('lp.jobTitle'), 'success'); return; }
+          App.watchJob({
+            jobId: job.id,
+            titleKey: 'lp.jobTitle',
+            urls: [],
+            onDone: function () {
+              view.running = false;
+              Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 10 })
+                .then(function (rows) { view.gens = rows || []; view.gen = view.gens[0] || null; view.dirty = false; paint(); });
+            }
+          });
+        }).catch(function (err) {
+          view.running = false;
+          paint();
+          console.error('[screens-lp] ジョブを積めませんでした:', err);
+          toast(String(err && err.message || err), 'danger');
+        });
+      }
+
+      function saveEdits() {
+        if (!view.gen) { return; }
+        Api.generations.update(view.gen.id, { sections: view.gen.sections }).then(function () {
+          view.dirty = false;
+          paint();
+          toast(t('lp.saved'), 'success');
+        }).catch(function (err) {
+          console.error('[screens-lp] 保存に失敗:', err);
+          toast(String(err && err.message || err), 'danger');
+        });
+      }
+    }
+  });
+})();

@@ -104,8 +104,8 @@
     { id: 'S10', labelKey: 'wf.competitor' },
     { id: 'S11', labelKey: 'wf.report' },
     { id: 'S20', labelKey: 'wf.overall' },
-    { id: 'S12', labelKey: 'wf.prompt', pending: true },
-    { id: 'S13', labelKey: 'wf.result', pending: true }
+    { id: 'S12', labelKey: 'wf.prompt' },
+    { id: 'S13', labelKey: 'wf.result' }
   ];
 
   /* 下層の画面にいるときも、どの工程の中にいるのかを示す。
@@ -165,7 +165,7 @@
       'screen.S8': 'プロジェクト詳細',
       'screen.S10': '競合LP分析',
       'screen.S11': '分析レポート',
-      'screen.S12': '生成内容の確認',
+      'screen.S12': 'LP案',
       'screen.S13': '生成結果',
       'screen.S14': 'デザイン編集',
       'screen.S15': '実寸プレビュー',
@@ -248,7 +248,7 @@
       'screen.S8': 'Project',
       'screen.S10': 'Competitor analysis',
       'screen.S11': 'Analysis report',
-      'screen.S12': 'Review before generating',
+      'screen.S12': 'LP draft',
       'screen.S13': 'Generated result',
       'screen.S14': 'Design editor',
       'screen.S15': 'Actual size preview',
@@ -331,7 +331,7 @@
       'screen.S8': '프로젝트 상세',
       'screen.S10': '경쟁 LP 분석',
       'screen.S11': '분석 리포트',
-      'screen.S12': '생성 내용 확인',
+      'screen.S12': 'LP 초안',
       'screen.S13': '생성 결과',
       'screen.S14': '디자인 편집',
       'screen.S15': '실측 미리보기',
