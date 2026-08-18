@@ -454,6 +454,32 @@
     /* 反省点のカードで「では自分はどうするか」を出すときの見出し。
        ここに「反省点」と書くと、上の札と同じ言葉が2度出て中身が伝わらない */
     's11.factorInstead': ['代わりにやること', 'Do this instead', '대신 할 일'],
+    'ov.structureTitle': ['共通する流れ', 'The shared flow', '공통되는 흐름'],
+    'ov.structureLead': [
+      '競合ページを突き合わせて、共通していた区画の並びです。押すと、その区画で何をしていたかと、自分のLPでやることが出ます。',
+      'The block order shared across the competitor pages. Tap a row for what they did and what to do on your own LP.',
+      '경쟁 페이지를 대조해 공통된 구획의 순서입니다. 누르면 그 구획에서 무엇을 했는지와 내 LP에서 할 일이 나옵니다.'
+    ],
+    'ov.structureEmpty': [
+      'まだ流れは出ていません。競合分析を実行すると出ます。',
+      'No shared flow yet. Run the competitor analysis.',
+      '아직 흐름이 없습니다. 경쟁 분석을 실행하면 나옵니다.'
+    ],
+    'ov.factorTitle': ['勝ち筋と反省点', 'What works and what to avoid', '성공 요인과 반성할 점'],
+    'ov.factorLead': [
+      '競合ページに共通していた打ち手と、避けるべき点です。重要度の高い順に並んでいます。',
+      'Tactics shared across the pages, and what to avoid. Sorted by importance.',
+      '경쟁 페이지에 공통된 수단과 피해야 할 점입니다. 중요도 순입니다.'
+    ],
+    'ov.factorEmpty': [
+      'まだ要因は出ていません。競合分析を実行すると出ます。',
+      'No factors yet. Run the competitor analysis.',
+      '아직 요인이 없습니다. 경쟁 분석을 실행하면 나옵니다.'
+    ],
+    'ov.detailLabel': ['ページごとの中身', 'Page by page', '페이지별 내용'],
+    'ov.stepsLabel': ['自分のLPでやること', 'Do this on your LP', '내 LP에서 할 일'],
+    'ov.sources': ['{n}ページ共通', 'shared by {n}', '{n}페이지 공통'],
+    'ov.count': ['{n}件', '{n} items', '{n}건'],
     's11.factorLegend': [
       '赤は「反省点」（この参照LPの弱いところ）です',
       'Red marks this page’s weak points',
@@ -2604,6 +2630,102 @@
       });
       add(section, list);
       add(section, el('p', 'section__desc', t('s11.errorContinue')));
+      return section;
+    }
+
+    /* ---- 総合分析: 全リンクを突き合わせた「流れ」 ----
+       1件ごとの分析（competitorSection）と同じ foldRow で出す。
+       違うのは、ここが「何ページに共通していたか」を持っていること。
+       共通が多いものほど、真似する価値が確かめられている */
+    function structureSection(sections, summary) {
+      var section = el('section', 'section');
+      var head = el('div', 'section__head');
+      add(head, el('h2', 'section__title', t('ov.structureTitle')));
+      if (sections.length) { add(head, el('span', 't-note', t('ov.count', { n: sections.length }))); }
+      add(section, head);
+      add(section, el('p', 'section__desc', sections.length ? t('ov.structureLead') : t('ov.structureEmpty')));
+      if (summary) { add(section, el('p', 'note-box', summary)); }
+      if (!sections.length) { return section; }
+      add(section, el('p', 't-note', t('s11.openHint')));
+
+      var flow = el('div', 'stack stack--tight');
+      sections.forEach(function (one, at) {
+        var sources = asArray(one.sources);
+        add(flow, foldRow({
+          title: (at + 1) + '. ' + (one.title || one.key || ''),
+          lead: one.role || '',
+          meta: sources.length ? t('ov.sources', { n: sources.length }) : '',
+          /* 素材 → 事実 → 詳しく → 読み手の状態 → 役割 → つなぎ → やること。
+             1件ごとの画面と同じ並びにして、見比べられるようにする */
+          rows: [
+            [t('s11.bodyLabel'), one.body],
+            [t('ov.detailLabel'), one.detail],
+            [t('s11.emotionLabel'), one.emotion],
+            [t('s11.roleLabel'), one.role],
+            [t('s11.hookLabel'), one.hook],
+            [t('ov.stepsLabel'), asArray(one.steps).join('\n'), 'info-row--lead']
+          ],
+          assetsFirst: true,
+          assets: asArray(one.assets).slice(0, 6),
+          assetsLabel: t('s11.assetsLabel'),
+          marks: [
+            { on: !!one.cta, yes: t('s11.hasCta'), no: t('s11.noCta') },
+            { on: !!one.priceShown, yes: t('s11.hasPrice'), no: t('s11.noPrice') }
+          ],
+          marksLabel: t('s11.marksLabel')
+        }));
+      });
+      add(section, flow);
+      return section;
+    }
+
+    /* ---- 総合分析: 全リンクを突き合わせた「要因」 ----
+       真似すべき点（success）と反省点（failure）。重みの大きい順に並べる。
+       反省点を混ぜて出すのは、良い点だけ並べても自分のLPで
+       気をつけることが何も残らないため */
+    function factorSection(factors, summary) {
+      var section = el('section', 'section');
+      var head = el('div', 'section__head');
+      add(head, el('h2', 'section__title', t('ov.factorTitle')));
+      if (factors.length) { add(head, el('span', 't-note', t('ov.count', { n: factors.length }))); }
+      add(section, head);
+      add(section, el('p', 'section__desc', factors.length ? t('ov.factorLead') : t('ov.factorEmpty')));
+      if (summary) { add(section, el('p', 'note-box', summary)); }
+      if (!factors.length) { return section; }
+      add(section, el('p', 't-note', t('s11.factorLegend')));
+
+      var list = el('div', 'stack stack--tight');
+      factors.slice().sort(function (a, b) {
+        /* 真似したい点が先。そのなかは重みの大きい順 */
+        var badA = a.kind === 'failure' ? 1 : 0;
+        var badB = b.kind === 'failure' ? 1 : 0;
+        if (badA !== badB) { return badA - badB; }
+        return (Number(b.weight) || 0) - (Number(a.weight) || 0);
+      }).forEach(function (one) {
+        var bad = one.kind === 'failure';
+        var sources = asArray(one.sources);
+        var rows = [
+          [t('s11.bodyLabel'), one.body],
+          [t('ov.detailLabel'), one.detail]
+        ];
+        if (one.takeaway) {
+          rows.push([bad ? t('s11.factorInstead') : t('s11.factorSuccess'), one.takeaway,
+            'info-row--lead' + (bad ? ' info-row--lead-danger' : '')]);
+        }
+        rows.push([t('ov.stepsLabel'), asArray(one.steps).join('\n')]);
+        add(list, foldRow({
+          title: one.title || one.key || '',
+          danger: bad,
+          badge: bad ? t('s11.factorFailure') : t('s11.factorSuccess'),
+          meta: [one.weight ? t('s11.weight', { n: one.weight }) : '',
+            sources.length ? t('ov.sources', { n: sources.length }) : ''].filter(Boolean).join(' / '),
+          rows: rows,
+          assetsFirst: true,
+          assets: asArray(one.assets).slice(0, 6),
+          assetsLabel: t('s11.assetsLabel')
+        }));
+      });
+      add(section, list);
       return section;
     }
 
