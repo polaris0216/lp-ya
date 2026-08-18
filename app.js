@@ -86,6 +86,9 @@
     S10: { tab: null, back: 'S8', auth: true, admin: false },
     S11: { tab: null, back: 'S8', auth: true, admin: false },
     S20: { tab: null, back: 'S11', auth: true, admin: false },
+    /* LP案とその生成結果。S20（総合分析）から作って S12 で直し、S13 で組む */
+    S12: { tab: null, back: 'S20', auth: true, admin: false },
+    S13: { tab: null, back: 'S12', auth: true, admin: false },
     S17: { tab: 'S17', back: 'S3', auth: true, admin: false },
     S18: { tab: 'S18', back: 'S3', auth: true, admin: true },
     S19: { tab: null, back: 'S18', auth: true, admin: true },
@@ -93,7 +96,7 @@
   };
 
   /* プロジェクトに紐づく画面は、戻り先を作るときに選択中のプロジェクトIDを付ける */
-  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S20'];
+  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S20', 'S12', 'S13'];
 
   /* プロジェクトを作ってから仕上げるまでの工程。この並びで上にタブを出し、
      どの工程からでも他の工程へ直接行けるようにする。
