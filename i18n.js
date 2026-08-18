@@ -353,6 +353,7 @@
     'product.brandColors': ['ブランドカラー（最大5色）', 'Brand colors (up to 5)', '브랜드 컬러(최대 5색)'],
     'product.brandColorsHint': ['先頭がメインカラーです。ドラッグではなく削除して入れ直すと順番を変えられます。', 'The first one is the main color. Remove and re-add to change the order.', '첫 번째가 메인 컬러입니다.'],
     'product.brandColorAdd': ['色を追加', 'Add a color', '색 추가'],
+    'product.brandPalettesLead': ['AIのおすすめ配色。押すと下のブランドカラーに入ります。入れたあと1色ずつ直せます。', 'AI-suggested palettes. Pick one to fill the brand colors below, then adjust any color.', 'AI 추천 배색. 누르면 아래 브랜드 컬러에 들어갑니다. 넣은 뒤 색을 하나씩 고칠 수 있습니다.'],
     'product.brandFonts': ['ブランドフォント', 'Brand fonts', '브랜드 폰트'],
     'product.fontTitle': ['タイトル', 'Title', '타이틀'],
     'product.fontSubtitle': ['サブタイトル', 'Subtitle', '서브타이틀'],

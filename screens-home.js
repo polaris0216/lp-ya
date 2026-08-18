@@ -730,6 +730,10 @@
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
       category: '', fundingGoal: '', valueProp: '', brandTone: '',
       refUrls: [''], brandColors: [], brandFonts: {}, targets: [], videos: [],
+      /* 自動入力が出す配色案（5案）。フォントと同じく、ここから選ぶ。
+         選んだものが brandColors に入る。案そのものは保存しない
+         （選び終えたら要らない。読み直したときは brandColors だけが残る） */
+      brandPalettes: [],
       /* 参照ページの組み立て方。自動入力がワーカー側でプロジェクトへ直接書く。
          ここは読んで表示するためだけに持つ（画面からは編集しない） */
       referenceStructure: null };
@@ -758,6 +762,7 @@
     var refStructureHost = null;
     var refRunButton = null;
     var colorsHost = null;
+    var palettesHost = null;
     var brandColorAdd = null;
     var targetsHost = null;
     var targetsEmpty = null;
@@ -1060,6 +1065,8 @@
       /* ブランド指定（色・フォント） */
       var brandPanel = panel('product.brandPanel', 'product.brandPanelDesc');
       brandPanel.appendChild(el('span', 'field__label', t('product.brandColors')));
+      palettesHost = el('div', 'palettes');
+      brandPanel.appendChild(palettesHost);
       colorsHost = el('div', 'swatches');
       brandPanel.appendChild(colorsHost);
       brandPanel.appendChild(el('p', 'field__hint', t('product.brandColorsHint')));
@@ -1125,6 +1132,7 @@
       paintRewards();
       paintRefUrls();
       paintRefStructure();
+      paintBrandPalettes();
       paintBrandColors();
       paintTargets();
       validate();
@@ -1223,6 +1231,39 @@
         if (info) { out.push({ url: info.url, lang: info.lang }); }
       });
       return out;
+    }
+
+    /* --- 配色案（自動入力が出す5案から選ぶ） --- */
+    function paintBrandPalettes() {
+      if (!palettesHost) { return; }
+      clear(palettesHost);
+      if (!form.brandPalettes.length) { return; }
+      var current = form.brandColors.map(normalizeHex).join(',');
+      palettesHost.appendChild(el('p', 'field__hint palettes__lead', t('product.brandPalettesLead')));
+      form.brandPalettes.forEach(function (palette, index) {
+        var colors = palette.colors.map(normalizeHex);
+        var picked = colors.join(',') === current;
+        var card = button('palette' + (picked ? ' palette--picked' : ''), '', function () {
+          form.brandColors = colors.slice(0, MAX_BRAND_COLORS);
+          paintBrandColors();
+          paintBrandPalettes();
+        });
+        card.setAttribute('aria-pressed', picked ? 'true' : 'false');
+        var strip = el('span', 'palette__strip');
+        colors.forEach(function (hex) {
+          var chip = el('span', 'palette__chip');
+          chip.style.background = hex;
+          chip.title = hex;
+          strip.appendChild(chip);
+        });
+        card.appendChild(strip);
+        var text = el('span', 'palette__text');
+        text.appendChild(el('span', 'palette__name',
+          String.fromCharCode(65 + index) + '. ' + (palette.name || '')));
+        if (palette.note) { text.appendChild(el('span', 'palette__note', palette.note)); }
+        card.appendChild(text);
+        palettesHost.appendChild(card);
+      });
     }
 
     /* --- ブランドカラー --- */
@@ -1654,8 +1695,22 @@
       if (result.brand_tone) { form.brandTone = String(result.brand_tone); touchedAny = true; }
       if (result.target_audience) { form.target = String(result.target_audience); touchedAny = true; }
       if (result.product_features) { form.features = String(result.product_features); touchedAny = true; }
+      if (isArray(result.brand_palettes)) {
+        form.brandPalettes = result.brand_palettes
+          .filter(function (one) { return one && isArray(one.colors) && one.colors.length; })
+          .slice(0, 5)
+          .map(function (one) {
+            return { name: String(one.name || ''), note: String(one.note || ''),
+              colors: one.colors.slice(0, MAX_BRAND_COLORS).map(normalizeHex) };
+          });
+        touchedAny = true;
+      }
       if (isArray(result.brand_colors)) {
         form.brandColors = result.brand_colors.slice(0, MAX_BRAND_COLORS).map(normalizeHex);
+        touchedAny = true;
+      } else if (form.brandPalettes.length && !form.brandColors.length) {
+        /* brand_colors を返さなかったときは、A案（参照ページの実際の色）を入れておく */
+        form.brandColors = form.brandPalettes[0].colors.slice();
         touchedAny = true;
       }
       if (result.brand_fonts && typeof result.brand_fonts === 'object') {

@@ -2256,6 +2256,32 @@ a.list-row:active { opacity: .88; }
 /* -----------------------------------------------------------------------------
    14c. ブランドカラーの見本とターゲット案のラベル
    -------------------------------------------------------------------------- */
+/* 配色案。フォントの選択肢と同じく「候補から選ぶ」ための札。
+   押すと下のスウォッチ（1色ずつ直せる方）に入る */
+.palettes { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
+.palettes__lead { margin: 0 0 2px; }
+.palette {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-control);
+  background: var(--c-surface);
+  color: var(--c-text);
+  text-align: left;
+  cursor: pointer;
+}
+.palette:hover { border-color: var(--c-text-sub); }
+.palette--picked { border-color: var(--c-accent); box-shadow: 0 0 0 1px var(--c-accent) inset; }
+.palette__strip { display: flex; flex: 0 0 auto; gap: 2px; }
+.palette__chip { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.08); }
+.palette__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.palette__name { font-size: var(--fs-note); font-weight: 600; }
+.palette__note { font-size: var(--fs-note); color: var(--c-text-sub); }
+
 .swatches {
   display: flex;
   flex-wrap: wrap;
