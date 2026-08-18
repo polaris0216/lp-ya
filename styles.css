@@ -4185,6 +4185,7 @@ input[type='radio'] {
   margin-top: 3px;
 }
 
+.ref-structure__shots { color: var(--c-text-sub); font-style: normal; }
 .ref-structure__name {
   display: block;
   font-weight: 600;

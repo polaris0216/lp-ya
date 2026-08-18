@@ -304,6 +304,7 @@
     'product.refMediaImage': ['画像{n}', '{n} images', '이미지 {n}'],
     'product.refMediaGif': ['GIF{n}', '{n} GIFs', 'GIF {n}'],
     'product.refMediaVideo': ['動画{n}', '{n} videos', '동영상 {n}'],
+    'product.refShots': ['絵:', 'Visual:', '그림:'],
     'product.refStructureCta': ['申込導線', 'CTA', '신청 도선'],
     'product.refStructureCount': ['{n}区画', '{n} sections', '{n}개 구간'],
     'product.refRun': ['AIで自動入力', 'Auto-fill with AI', 'AI로 자동 입력'],

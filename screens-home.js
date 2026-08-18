@@ -1194,6 +1194,12 @@
         /* body は「何が置かれていたか」の事実。骨格を組むときここが一番効く
            （例: 説明文のない画像6枚が連続して並ぶ） */
         if (one && one.body) { li.appendChild(el('span', 'ref-structure__body', String(one.body))); }
+        /* shots は絵に何が写っていたか（人物・場面・見せ方）。body が言葉の中身、
+           shots が絵の中身。骨格を組むとき、どんな絵を用意すべきかの手がかりになる */
+        if (one && one.shots) {
+          li.appendChild(el('span', 'ref-structure__body ref-structure__shots',
+            t('product.refShots') + ' ' + String(one.shots)));
+        }
         list.appendChild(li);
       });
       body.appendChild(list);
