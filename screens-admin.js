@@ -52,7 +52,6 @@
  * ---- 機能キー（screens-credit.js と同じ綴り）----
  *   competitor_analysis 競合LP分析 / generation クラファンLP・自社LP生成 /
  *   kv_generation KV生成 / meta_ads メタ広告文生成 / line_content LINEコンテンツ生成 /
- *   project_create プロジェクト作成
  *
  * 無い関数は黙って飛ばさない。何が無いのかを console.error に必ず残す。
  * ============================================================ */
@@ -106,8 +105,7 @@
     { key: 'generation', cost: 60, name: ['クラファンLP・自社LP生成', 'Crowdfunding and brand LP generation', '크라우드펀딩·자사 LP 생성'] },
     { key: 'kv_generation', cost: 20, name: ['KV生成', 'Key visual generation', 'KV 생성'] },
     { key: 'meta_ads', cost: 15, name: ['メタ広告文生成', 'Meta ad copy generation', '메타 광고 문구 생성'] },
-    { key: 'line_content', cost: 15, name: ['LINEコンテンツ生成', 'LINE content generation', 'LINE 콘텐츠 생성'] },
-    { key: 'project_create', cost: 10, name: ['プロジェクト作成', 'Project creation', '프로젝트 생성'] }
+    { key: 'line_content', cost: 15, name: ['LINEコンテンツ生成', 'LINE content generation', 'LINE 콘텐츠 생성'] }
   ];
 
   /* 問い合わせの対応状況。値は a2f58db45_inquiries.inquiry_status にそのまま入れる */

@@ -45,7 +45,7 @@
  *   competitor_analysis 競合LP分析 / crowdfunding_lp クラファンLP生成 /
  *   own_lp 自社LP生成 / kv_creative KV生成 / meta_ads メタ広告文生成 /
  *   line_contents LINEコンテンツ生成 /
- *   project_create プロジェクト作成（S4 が消費する）
+ *   project_create プロジェクト作成（無料。旧データの行が残るだけ）
  *   credit_unit_price は機能ではなく「1クレジットあたりの円」を入れる特別な行。
  *
  * 無い関数は黙って飛ばさない。何が無いのかを console.error に必ず残す。
@@ -77,7 +77,7 @@
 
   /* ---------- 定数 ---------- */
   var UNIT_PRICE_KEY = 'credit_unit_price';   // a2f58db45_feature_credits に置く単価専用の行（機能一覧からは除く）
-  var CREATE_FEATURE_KEY = 'project_create';  // S4 が消費する。この画面の一覧には出さない
+  var CREATE_FEATURE_KEY = 'project_create';  // 作成は無料になったが、旧データの行が残るので一覧からは外す
   var HISTORY_LIMIT = 50;
   var MAX_COUPON_LENGTH = 32;
 

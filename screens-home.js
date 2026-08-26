@@ -62,8 +62,6 @@
   }
 
   /* ---------- 定数 ---------- */
-  var CREATE_FEATURE_KEY = 'project_create';
-  var CREATE_COST_FALLBACK = 10;   // 意図書のメモ「作成に10クレジット消費」。feature_credits に登録があればそちらを使う
   var MAX_IMAGES = 15;
   var MAX_BRAND_COLORS = 5;
   var DEFAULT_SWATCH = '#A855F7';
@@ -738,7 +736,6 @@
          ここは読んで表示するためだけに持つ（画面からは編集しない） */
       referenceStructure: null };
     var user = null;
-    var cost = CREATE_COST_FALLBACK;
     var targetCandidates = [];
     var touched = false;
     var busy = false;
@@ -776,7 +773,6 @@
     var analyzing = false;
     var dropzone = null;
     var videosHost = null;
-    var warnHost = null;
 
     function load() {
       clearBanner();
@@ -786,7 +782,6 @@
       loadUser().then(function (loaded) {
         user = loaded;
         return Promise.all([
-          window.Api.credits.costOf(CREATE_FEATURE_KEY),
           window.Api.projects.list({
             eq: { users_id: String(loaded.id) },
             select: 'target_audience',
@@ -795,13 +790,11 @@
           wanted ? window.Api.projects.get(wanted) : Promise.resolve(null)
         ]);
       }).then(function (results) {
-        var configured = results[0];
-        cost = (configured === null || configured === undefined) ? CREATE_COST_FALLBACK : Number(configured);
-        targetCandidates = uniqueTargets(results[1] || []);
-        if (results[2]) {
-          projectId = String(results[2].id);
-          fillFormFrom(results[2]);
-          selectProject(results[2]);
+        targetCandidates = uniqueTargets(results[0] || []);
+        if (results[1]) {
+          projectId = String(results[1].id);
+          fillFormFrom(results[1]);
+          selectProject(results[1]);
         }
         paint();
         /* まだ作られていないなら、まず名前だけ決めてもらう */
@@ -1103,10 +1096,6 @@
       brandPanel.appendChild(fontGrid);
       screen.appendChild(brandPanel);
 
-
-      /* 残高不足などの警告置き場 */
-      warnHost = el('div');
-      screen.appendChild(warnHost);
 
       /* 保存は「途中保存（更新・無料）」と「完了して詳細へ」の2つ。
          行はすでに作成済みなので、ここでポイントは減らない */
@@ -2358,20 +2347,6 @@
       submitButton.textContent = on ? t('common.loading') : t('project.finish');
     }
 
-    function showShortage(shortage) {
-      if (!warnHost) { return; }
-      clear(warnHost);
-      var box = el('div', 'warn-box');
-      box.setAttribute('role', 'alert');
-      box.appendChild(el('p', null, t('creditConfirm.insufficientWarning')));
-      box.appendChild(el('p', null,
-        t('creditConfirm.balance') + ' ' + formatNumber(user.credit_balance) + t('common.creditShort') +
-        ' / ' + t('creditConfirm.thisTime') + ' ' + formatNumber(cost) + t('common.creditShort') +
-        (shortage ? ' / -' + formatNumber(shortage) + t('common.creditShort') : '')));
-      box.appendChild(button('btn btn--text', t('creditConfirm.charge'), function () { go('S17'); }));
-      warnHost.appendChild(box);
-    }
-
     /* --- 先に名前だけ作る → 以後は途中保存で更新 ------------------- */
 
     /* フォームの中身を projects の列の形にする。作成にも更新にも同じ形を使う */
@@ -2425,12 +2400,8 @@
         go('S3');
       });
       actions.appendChild(cancel);
-      /* ポイントを使うボタンには、消費量をボタン自身に出す。
-         押してから残高が減って気づく、を無くす。
-         無制限のときは金額を出さない（0P は「無料」と読めてしまう） */
-      var createLabel = hasUnlimited(user)
-        ? t('common.costFree', { label: t('project.nameFirstCreate') })
-        : t('common.costOnButton', { label: t('project.nameFirstCreate'), n: formatNumber(cost) });
+      /* 作成は無料なので、ボタンには消費量を出さない */
+      var createLabel = t('project.nameFirstCreate');
       var create = button('btn btn--primary', createLabel, function () {
         var name = input.value.trim();
         if (!name) { error.textContent = t('project.nameRequired'); input.focus(); return; }
@@ -2442,9 +2413,7 @@
            ポイントも出したまま（押す前と同じ情報なので消す理由がない） */
         create.style.minWidth = create.offsetWidth + 'px';
         create.disabled = true;
-        create.textContent = hasUnlimited(user)
-          ? t('common.costFree', { label: t('common.loading') })
-          : t('common.costOnButton', { label: t('common.loading'), n: formatNumber(cost) });
+        create.textContent = t('common.loading');
         createShell(name).then(function () {
           dismissModal();
         }, function (err) {
@@ -2464,15 +2433,9 @@
       input.focus();
     }
 
-    /* 名前だけの行を作って消費も確定させる。ここから先の保存は無料 */
+    /* 名前だけの行を作る。作成は無料で、この先の保存も無料 */
     function createShell(name) {
       if (!apiReady()) { return Promise.reject(new Error('api')); }
-      var unlimited = hasUnlimited(user);
-      var balance = Number(user.credit_balance) || 0;
-      if (!unlimited && balance < cost) {
-        showShortage(cost - balance);
-        return Promise.reject({ code: 'insufficient' });
-      }
       return window.Api.projects.insert({
         users_id: String(user.id),
         project_name: name,
@@ -2480,25 +2443,14 @@
         status: 'active',
         product_name: name
       }).then(function (created) {
-        if (unlimited) { return { project: created, user: user }; }
-        return window.Api.credits.consume(CREATE_FEATURE_KEY, name).then(function (result) {
-          return { project: created, user: result.user };
-        }, function (creditErr) {
-          console.error('[screens-home] ポイントを引き落とせなかったため、作成したプロジェクトを取り消します', creditErr);
-          return window.Api.projects.remove(created.id).then(function () {
-            return Promise.reject(creditErr);
-          }, function () { return Promise.reject(creditErr); });
-        });
-      }).then(function (result) {
-        syncUser(result.user);
-        selectProject(result.project);
-        projectId = String(result.project.id);
+        selectProject(created);
+        projectId = String(created.id);
         dirty = false;
         toast(t('common.created'), 'success');
         /* 再読み込みしても同じプロジェクトの続きになるよう、URLにIDを載せる */
         window.location.hash = '#/S4?id=' + encodeURIComponent(projectId);
         paint();
-        return result.project;
+        return created;
       });
     }
 

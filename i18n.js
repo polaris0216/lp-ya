@@ -139,7 +139,7 @@
     'landing.pricingTitle': ['必要な分だけ、ポイントで。', 'Pay only for what you generate.', '필요한 만큼만, 포인트으로.'],
     'landing.pricingDesc': ['月額の縛りはありません。使った機能の分だけポイントが減ります。', 'No monthly lock-in. Points are spent per feature you use.', '월 구독 묶임 없음. 사용한 기능만큼 포인트이 차감됩니다.'],
     'landing.pricingUnit': ['ポイント制', 'Point based', '포인트 제'],
-    'landing.pricingNote': ['LP生成60P / KV・Meta広告・LINE 30P / 競合分析・A/Bテスト 40P / プロジェクト作成10P。', 'Landing page 60P / KV, Meta ads, LINE 30P / analysis and A/B 40P / project 10P.', '상세페이지 60P / KV·메타광고·LINE 30P / 분석·A/B 40P / 프로젝트 10P.'],
+    'landing.pricingNote': ['プロジェクト作成は無料。LP生成60P / KV・Meta広告・LINE 30P / 競合分析・A/Bテスト 40P。', 'Creating a project is free. Landing page 60P / KV, Meta ads, LINE 30P / analysis and A/B 40P.', '프로젝트 생성은 무료. 상세페이지 60P / KV·메타광고·LINE 30P / 분석·A/B 40P.'],
 
     'landing.finalTitle': ['今すぐ、最初のLPを作ってみましょう。', 'Make your first landing page now.', '지금, 첫 상세페이지를 만들어 보세요.'],
     'landing.finalDesc': ['商品を入れるところから、数分で。', 'From entering your product, in a few minutes.', '상품을 넣는 것부터, 몇 분이면.'],
