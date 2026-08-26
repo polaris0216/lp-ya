@@ -33,24 +33,7 @@
     'lpr.noGen': ['LP案がありません。先に LP案 を作ってください。', 'No LP draft yet. Create one first.', 'LP 초안이 없습니다. 먼저 만들어 주세요.'],
     'lpr.noProject': ['プロジェクトが選ばれていません', 'No project selected', '프로젝트가 선택되지 않았습니다'],
     'lpr.stats': ['{sections} 区画 / 絵 {images} 枚 / 高さ約 {height}px', '{sections} sections / {images} visuals / about {height}px tall', '{sections}구획 / 이미지 {images}장 / 높이 약 {height}px'],
-    'lpr.mode': ['区画の見せ方', 'How each section shows', '구획 표현 방식'],
-    'lpr.modeHint': ['区画ごとに、絵で見せるか文字で読ませるかを選べます。生成のときに両方できています。',
-      'Pick per section: show the visual, or read it as text. Both were generated.',
-      '구획마다 이미지로 볼지 텍스트로 읽을지 고를 수 있습니다. 생성 시 둘 다 만들어져 있습니다.'],
-    'lpr.modeImage': ['絵', 'Visual', '이미지'],
-    'lpr.modeText': ['文字', 'Text', '텍스트'],
-    'lpr.modeBoth': ['絵＋文字', 'Visual + text', '이미지＋텍스트'],
-    'lpr.modeAll': ['すべての区画を', 'All sections', '모든 구획을'],
-    'lpr.modeNoText': ['文字版なし', 'No text version', '텍스트 버전 없음'],
-    'lpr.modeNoImage': ['絵は未生成', 'Visual not generated', '이미지 미생성'],
-    'lpr.publicUrl': ['公開URL', 'Public URL', '공개 URL'],
-    'lpr.history': ['過去の版', 'Past versions', '이전 버전'],
-    'lpr.latest': ['最新', 'Latest', '최신'],
-    'lpr.viewing': ['過去の版を見ています（{at}）。最新に戻すには「最新」を選んでください。',
-      'Viewing a past version ({at}). Pick "Latest" to return.',
-      '이전 버전을 보고 있습니다({at}). 최신으로 돌아가려면 "최신"을 고르세요.'],
-    'lpr.restore': ['この版を最新にする', 'Make this the latest', '이 버전을 최신으로'],
-    'lpr.restored': ['この版を最新にしました', 'Made this the latest', '이 버전을 최신으로 했습니다']
+    'lpr.publicUrl': ['公開URL', 'Public URL', '공개 URL']
   };
 
   if (typeof App.registerScreen !== 'function') {
@@ -84,10 +67,6 @@
     node.type = 'button';
     if (onClick) { node.addEventListener('click', onClick); }
     return node;
-  }
-  function escapeHtml(text) {
-    return String(text === undefined || text === null ? '' : text)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function clear(node) { while (node && node.firstChild) { node.removeChild(node.firstChild); } }
   function add(parent, child) { if (parent && child) { parent.appendChild(child); } return child; }
@@ -148,7 +127,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {} };
+      var view = { project: null, gen: null, html: '', busy: false };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -158,8 +137,6 @@
       add(screen, toolbar);
       var stats = el('p', 't-note lpr-stats');
       add(screen, stats);
-      var modes = el('div', 'lpr-modes');
-      add(screen, modes);
       var frameWrap = el('div', 'lpr-frame');
       var frame = el('iframe', 'lpr-frame__iframe');
       frame.setAttribute('title', t('lpr.title'));
@@ -168,168 +145,38 @@
       add(screen, frameWrap);
       add(root, screen);
 
-      /* 指定が無ければ、生成プロンプト（lp_brief）の最新を出す。無ければ従来の LP案 */
       var genQuery = params.gen
         ? Api.generations.get(params.gen)
-        : Api.generations.first({ eq: { projects_id: projectId, feature_key: 'lp_brief' }, order: 'created_at.desc' })
-          .then(function (row) {
-            return row || Api.generations.first({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc' });
-          });
+        : Api.generations.first({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc' });
       Promise.all([Api.projects.get(projectId), genQuery]).then(function (got) {
         view.project = got[0];
         view.gen = got[1];
         if (!view.gen) { add(root, el('p', 'empty', t('lpr.noGen'))); return; }
         view.html = String(view.gen.generated_html || '');
-        view.mode = (view.gen.asset_prompts && typeof view.gen.asset_prompts.mode === 'object'
-          && view.gen.asset_prompts.mode) || {};
-        view.history = Array.isArray(view.gen.html_history) ? view.gen.html_history : [];
-        view.at = -1;   /* -1 = 最新、0〜 = 履歴の番号 */
-        /* S12 の「このLP案でLPを作る」から来たときは必ず組み直す。
-           前は generated_html があれば古いものを出していて、LP案を直しても
-           生成結果が変わらなかった（実測）。前の版は履歴に積んでおく */
-        if (params.build === '1' || !view.html) { build(!!view.gen.generated_html || params.build === '1'); }
+        if (!view.html) { build(false); }
         paint();
       }).catch(function (err) {
         console.error('[screens-lp-result] 読み込みに失敗:', err);
         add(root, el('p', 'empty', String(err && err.message || err)));
       });
 
-      /* 区画の見せ方。asset_prompts.mode に { '3': 'text' } の形で持つ。
-         列を増やさずに済み、made / redoSlots と同じ入れ物に収まる。
-         既定は「絵」。ただし絵がまだ無くて文字版があるなら文字で出す
-         （空の「未生成」が並ぶより、読める形になっているほうがよい） */
-      function modeOf(sec, url) {
-        var picked = view.mode[String(sec.index)];
-        if (picked === 'text' || picked === 'both' || picked === 'image') { return picked; }
-        return (!url && sec.text) ? 'text' : 'image';
-      }
-
-      /* 文字版は「1行目が見出し、残りが本文」。改行ごとに段落にする */
-      function textBlock(sec) {
-        var lines = String(sec.text || '').split('\n').map(function (s) { return s.trim(); })
-          .filter(function (s) { return s; });
-        if (!lines.length) { return ''; }
-        return '<h2>' + escapeHtml(lines[0]) + '</h2>'
-          + lines.slice(1).map(function (s) { return '<p>' + escapeHtml(s) + '</p>'; }).join('');
-      }
-
-      function setMode(index, value) {
-        if (index === '*') {
-          (view.gen.sections || []).forEach(function (sec) { view.mode[String(sec.index)] = value; });
-        } else {
-          view.mode[String(index)] = value;
-        }
-        var bag = (view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object')
-          ? view.gen.asset_prompts : {};
-        bag.mode = view.mode;
-        view.gen.asset_prompts = bag;
-        build(false);
-        paint();
-        /* 保存は待たない。見た目はもう変わっているし、失敗しても選び直せる */
-        Api.generations.update(view.gen.id, { asset_prompts: bag }).catch(function (err) {
-          console.error('[screens-lp-result] 見せ方の保存に失敗:', err);
-        });
-      }
-
       function build(save) {
         if (!window.LpRender || typeof LpRender.buildDraftHtml !== 'function') {
           console.error('[screens-lp-result] LpRender.buildDraftHtml がありません。lp-render.js を確認してください。');
           return;
         }
-        /* 生成プロンプト（lp_brief）は、区画を縦に並べるだけ（キャンバス）。
-           区画ごとに「絵」「文字」「絵＋文字」を選べる。同じ区画の絵版と文字版は
-           生成のときに両方できているので、ここでは選んで並べるだけ */
-        if (view.gen.feature_key === 'lp_brief') {
-          var madeMap = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
-          var parts = (view.gen.sections || []).map(function (sec) {
-            var url = madeMap[String(sec.index) + '-1'];
-            var mode = modeOf(sec, url);
-            var cap = sec.body ? '<p class="cap">' + escapeHtml(String(sec.body)) + '</p>' : '';
-            var img = url ? '<img src="' + escapeHtml(url) + '" alt="" loading="lazy">' : '';
-            var txt = sec.text ? textBlock(sec) : '';
-            if (mode === 'text' && txt) { return '<section class="txt">' + txt + cap + '</section>'; }
-            if (mode === 'both' && (img || txt)) { return '<section>' + img + txt + cap + '</section>'; }
-            if (img) { return '<section>' + img + cap + '</section>'; }
-            if (txt) { return '<section class="txt">' + txt + cap + '</section>'; }
-            return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（未生成）</p></section>';
-          });
-          view.html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-            + '<title>' + escapeHtml(view.project.product_name || view.project.name || '') + '</title>'
-            + '<style>*{box-sizing:border-box}body{margin:0;background:#fff}main{max-width:712px;margin:0 auto}section{margin:0}img{display:block;width:100%;height:auto}'
-            + '.todo{padding:28px 24px;border:1px dashed #D9CFE0;color:#6B6270;font:14px/1.6 system-ui;text-align:center}'
-            + '.txt{padding:34px 24px 30px}.txt h2{margin:0 0 12px;font:700 24px/1.5 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#171018}'
-            + '.txt p{margin:0 0 10px;font:16px/1.9 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#3A323E}'
-            + '.cap{margin:0;padding:14px 24px 22px;font:15px/1.85 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#3A323E;white-space:pre-wrap}</style></head><body><main>'
-            + parts.join('') + '</main></body></html>';
-          if (save) { saveHtml(); }
-          return;
-        }
         var draft = { summary: view.gen.content && view.gen.content.summary, sections: view.gen.sections };
-        /* 生成し終えた絵・動画を区画に差す。asset_prompts.made は
-           { '3-2': 'https://…' } の形で、lp-render の assets と同じ並び。
-           渡し忘れると、せっかく作った素材が本文に出ない */
-        var prompts = view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object' ? view.gen.asset_prompts : {};
         view.html = LpRender.buildDraftHtml({
           draft: draft,
           project: view.project,
           design: designFromProject(view.project),
-          assets: prompts.made && typeof prompts.made === 'object' ? prompts.made : {},
-          /* 外国語が焼かれていて作り直す区画は、元の写真を使わず空けておく */
-          redoSlots: (Array.isArray(prompts.redoSlots) ? prompts.redoSlots : [])
-            .filter(function (slot) { return !(prompts.made && prompts.made[slot]); }),
-          /* 訴求が絵そのものに焼かれている区画。文字を重ねると二重になる */
-          burnedSlots: (Array.isArray(prompts.burnedSlots) ? prompts.burnedSlots : [])
-            .filter(function (slot) { return prompts.made && prompts.made[slot]; }),
           title: view.project.product_name || view.project.name || ''
         });
-        if (save) { saveHtml(); }
-      }
-
-      function saveHtml() {
-        {
-          /* 前の版を履歴に積んでから上書きする。同じ中身なら積まない */
-          var prev = String(view.gen.generated_html || '');
-          var history = view.history.slice();
-          if (prev && prev !== view.html) {
-            history.push({ at: new Date().toISOString(), html: prev });
-            /* 履歴は直近20件まで。1件が数十KBあるので際限なく溜めない */
-            while (history.length > 20) { history.shift(); }
-          }
-          Api.generations.update(view.gen.id, { generated_html: view.html, html_history: history }).then(function () {
-            view.gen.generated_html = view.html;
-            view.gen.html_history = history;
-            view.history = history;
-            view.at = -1;
+        if (save) {
+          Api.generations.update(view.gen.id, { generated_html: view.html }).then(function () {
             toast(t('lpr.saved'), 'success');
-            paint();
           }).catch(function (err) { console.error('[screens-lp-result] 保存に失敗:', err); });
         }
-      }
-
-      /* 履歴の1件を見る。見るだけで保存はしない */
-      function showVersion(index) {
-        view.at = index;
-        view.html = index < 0 ? String(view.gen.generated_html || '') : String(view.history[index].html || '');
-        paint();
-      }
-
-      /* 見ている過去の版を最新にする。今の最新は履歴に回す */
-      function restoreVersion() {
-        if (view.at < 0) { return; }
-        var picked = String(view.history[view.at].html || '');
-        var history = view.history.slice();
-        var cur = String(view.gen.generated_html || '');
-        history.splice(view.at, 1);
-        if (cur && cur !== picked) { history.push({ at: new Date().toISOString(), html: cur }); }
-        Api.generations.update(view.gen.id, { generated_html: picked, html_history: history }).then(function () {
-          view.gen.generated_html = picked;
-          view.gen.html_history = history;
-          view.history = history;
-          view.html = picked;
-          view.at = -1;
-          toast(t('lpr.restored'), 'success');
-          paint();
-        }).catch(function (err) { console.error('[screens-lp-result] 版の差し戻しに失敗:', err); });
       }
 
       function paint() {
@@ -353,73 +200,9 @@
           a.href = view.gen.public_url; a.target = '_blank'; a.rel = 'noopener';
           add(toolbar, a);
         }
-        /* 過去の版。新しい順に並べ、選ぶとその版を見る（保存はしない） */
-        if (view.history.length) {
-          var pick = el('select', 'select lp-history');
-          var latest = el('option', null, t('lpr.latest'));
-          latest.value = '-1';
-          add(pick, latest);
-          for (var i = view.history.length - 1; i >= 0; i -= 1) {
-            var o = el('option', null, String(view.history[i].at || '').slice(0, 16).replace('T', ' '));
-            o.value = String(i);
-            add(pick, o);
-          }
-          pick.value = String(view.at);
-          pick.setAttribute('aria-label', t('lpr.history'));
-          pick.addEventListener('change', function () { showVersion(Number(pick.value)); });
-          add(toolbar, pick);
-          if (view.at >= 0) {
-            add(toolbar, button('btn btn--secondary', t('lpr.restore'), restoreVersion));
-            add(toolbar, el('span', 't-note', t('lpr.viewing', { at: String(view.history[view.at].at || '').slice(0, 16).replace('T', ' ') })));
-          }
-        }
 
-        paintModes();
         frame.srcdoc = view.html;
         frame.addEventListener('load', measure, { once: true });
-      }
-
-      /* 区画ごとの見せ方。生成プロンプト（lp_brief）のときだけ出す。
-         LP案（lp_draft）は文章と絵が1つのHTMLに組まれるので、選ぶ余地がない */
-      function paintModes() {
-        clear(modes);
-        if (view.gen.feature_key !== 'lp_brief') { return; }
-        var sections = view.gen.sections || [];
-        if (!sections.length) { return; }
-        var madeMap = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
-        add(modes, el('h3', 'lpr-modes__title', t('lpr.mode')));
-        add(modes, el('p', 't-note', t('lpr.modeHint')));
-
-        var all = el('div', 'lpr-modes__all');
-        add(all, el('span', 't-note', t('lpr.modeAll')));
-        [['image', 'lpr.modeImage'], ['text', 'lpr.modeText'], ['both', 'lpr.modeBoth']].forEach(function (pair) {
-          add(all, button('btn btn--secondary btn--sm', t(pair[1]), function () { setMode('*', pair[0]); }));
-        });
-        add(modes, all);
-
-        var list = el('div', 'lpr-modes__list');
-        sections.forEach(function (sec) {
-          var url = madeMap[String(sec.index) + '-1'];
-          var row = el('div', 'lpr-modes__row');
-          add(row, el('span', 'lpr-modes__no', String(sec.index)));
-          add(row, el('span', 'lpr-modes__name', String(sec.title || t('lpr.mode'))));
-          var pick = el('select', 'select select--sm');
-          [['image', 'lpr.modeImage'], ['text', 'lpr.modeText'], ['both', 'lpr.modeBoth']].forEach(function (pair) {
-            var o = el('option', null, t(pair[1]));
-            o.value = pair[0];
-            /* 中身が無い選択肢は選ばせない。選べても空の区画が出るだけ */
-            if (pair[0] === 'text' && !sec.text) { o.disabled = true; }
-            if (pair[0] === 'image' && !url) { o.disabled = true; }
-            add(pick, o);
-          });
-          pick.value = modeOf(sec, url);
-          pick.addEventListener('change', function () { setMode(sec.index, pick.value); });
-          add(row, pick);
-          if (!sec.text) { add(row, el('span', 't-note', t('lpr.modeNoText'))); }
-          else if (!url) { add(row, el('span', 't-note', t('lpr.modeNoImage'))); }
-          add(list, row);
-        });
-        add(modes, list);
       }
 
       function measure() {

@@ -4005,15 +4005,8 @@ input[type='radio'] {
 .carousel__nav {
   align-self: start;
   position: sticky;
-  top: calc(50vh - 36px);
+  top: calc(50vh - 18px);
   z-index: 2;
-  /* 競合LPは1枚ずつしか出ないので、送りの矢印が唯一の移動手段になる。
-     リワードの丸ボタン（.reward-nav）のままだと小さくて見落とすため、
-     ここだけ縦に長い形にして、矢印も大きくする */
-  width: 40px;
-  height: 72px;
-  border-radius: 14px;
-  box-shadow: var(--shadow-card);
 }
 
 .reward-nav:hover:not(:disabled),
@@ -4216,13 +4209,13 @@ input[type='radio'] {
 .lp-applied { margin: 4px 0 0; padding-left: 18px; }
 .lp-applied li { margin: 0 0 6px; }
 .lp-applied__how { color: var(--c-text-sub); font-size: var(--fs-note); }
-.lpd-sections { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.lpd-section { padding: 14px 16px; border: 1px solid var(--c-line); border-radius: var(--r-card); background: var(--c-surface); }
-.lpd-section--cta { border-color: var(--c-accent); }
-.lpd-section__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
-.lpd-section__no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c-text); color: #fff; font-size: 12px; font-weight: 700; }
-.lpd-section__title { font-weight: 700; }
-.lpd-section .field { margin: 0 0 8px; }
+.lp-sections { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.lp-section { padding: 14px 16px; border: 1px solid var(--c-line); border-radius: var(--r-card); background: var(--c-surface); }
+.lp-section--cta { border-color: var(--c-accent); }
+.lp-section__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
+.lp-section__no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c-text); color: #fff; font-size: 12px; font-weight: 700; }
+.lp-section__title { font-weight: 700; }
+.lp-section .field { margin: 0 0 8px; }
 .lp-assets { margin: 8px 0 0; }
 .lp-assets__row { display: flex; flex-wrap: wrap; gap: 6px; }
 .lp-assets__thumb { width: 96px; height: 72px; object-fit: cover; border-radius: 6px; border: 1px solid var(--c-line); background: var(--c-bg); }
@@ -4234,28 +4227,6 @@ input[type='radio'] {
 .lpr-frame { border: 1px solid var(--c-line); border-radius: var(--r-card); overflow: hidden; background: #fff; }
 .lpr-frame__iframe { display: block; width: 100%; min-height: 600px; border: 0; }
 
-/* ---------- S13 キャンバス: 区画ごとに絵か文字かを選ぶ ---------- */
-.lpr-modes:empty { display: none; }
-.lpr-modes {
-  margin: 0 0 16px; padding: 14px 16px;
-  border: 1px solid var(--c-line); border-radius: var(--r-card);
-}
-.lpr-modes__title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: 700; }
-.lpr-modes__all { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 12px; }
-.lpr-modes__list { display: grid; gap: 6px; }
-.lpr-modes__row { display: flex; align-items: center; gap: 10px; }
-.lpr-modes__no {
-  flex: 0 0 auto; min-width: 26px; padding: 2px 6px;
-  border-radius: var(--r-control); background: var(--c-surface-2, #F4F1F6);
-  font-size: var(--fs-note); text-align: center;
-}
-.lpr-modes__name {
-  flex: 1 1 auto; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: var(--fs-note);
-}
-.select--sm { min-height: 0; padding: 6px 10px; font-size: var(--fs-note); width: auto; }
-
 /* ---------- S12 LP案: ターゲット層の切り替えと絵の指示 ---------- */
 .lp-variants { display: flex; flex-wrap: wrap; gap: 6px; }
 .lp-variant {
@@ -4266,39 +4237,9 @@ input[type='radio'] {
 }
 .lp-variant:hover { border-color: var(--c-text-sub); }
 .lp-variant--on { border-color: var(--c-accent); box-shadow: 0 0 0 1px var(--c-accent) inset; }
-/* この回に無い層（押すと別の回のその層へ飛ぶ）。薄くして区別する */
-.lp-variant--faded { opacity: .55; }
 .lp-variant__label { font-weight: 700; }
 .lp-variant__name { font-size: var(--fs-note); color: var(--c-text-sub); }
 .lp-target { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 6px 0 10px; }
 .lp-visual__row { display: flex; gap: 8px; margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--c-line); background: #FBF9FC; border-radius: 0 8px 8px 0; }
 .lp-visual__body { min-width: 0; }
 .lp-visual__use { display: block; font-size: var(--fs-note); font-weight: 600; }
-/* S12 生成プロンプト: マスターブリーフと区画カード */
-.lp-brief__text { margin: 10px 0 0; padding: 14px 16px; border: 1px solid var(--c-line); border-radius: var(--r-control); background: var(--c-bg); font-size: 13px; line-height: 1.75; white-space: pre-wrap; max-height: 60vh; overflow: auto; }
-.lp-prompt { min-height: 120px; font-size: 13px; line-height: 1.7; }
-.lp-section__img { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 0 12px; border-radius: 8px; border: 1px solid var(--c-line); }
-.btn--sm { min-height: 0; padding: 6px 12px; font-size: var(--fs-note); }
-.lp-history { margin: 0 0 12px; }
-.lp-history__cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
-.lp-history__thumb { width: 120px; height: 180px; object-fit: cover; }
-/* 素材の種別（image / gif / video）。chip を使うと --r-pill で薬みたいに丸くなり、
-   さらに flex の伸びで行の高さぶん縦に伸びて、種別ごとに大きさが変わっていた。
-   大きさを決め打ちし、伸びを止め、角は少しだけ落とす。色はインスタグラムの並び */
-.lp-kind {
-  flex: none;
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 58px;
-  height: 26px;
-  border-radius: 4px;
-  background: linear-gradient(45deg, #F58529 0%, #DD2A7B 45%, #8134AF 75%, #515BD4 100%);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .04em;
-  line-height: 1;
-  white-space: nowrap;
-}

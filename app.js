@@ -1671,15 +1671,7 @@
       watch.timer = global.setTimeout(stopWatch, 2500);
       return;
     }
-    if (watch.status === 'failed') {
-      paintWatch();
-      /* 失敗も画面に返す。返さないと、押した側のボタンが「生成しています…」の
-         まま固まり、同じ失敗の帯だけが残り続ける（実測） */
-      if (opts && typeof opts.onFail === 'function') {
-        try { opts.onFail(watch.error || ''); } catch (e2) { console.error('[App] onFail でエラー', e2); }
-      }
-      return;
-    }
+    if (watch.status === 'failed') { paintWatch(); return; }
     paintWatch();
     watch.timer = global.setTimeout(pollWatch, 3000);
     }, function (err) {
@@ -1821,11 +1813,7 @@
       urls.forEach(function (url) { list.appendChild(wEl('li', 'break-url', url)); });
       panel.appendChild(list);
     }
-    /* 「閉じても処理は続きます」は、まだ動いているときだけ。
-       終わったあとや失敗したあとに出すと、続いていないものを続くと言うことになる */
-    if (!done && !failed) {
-      panel.appendChild(wEl('p', 'jobwatch__note', t(opts.noteKey || 'job.note')));
-    }
+    panel.appendChild(wEl('p', 'jobwatch__note', t(opts.noteKey || 'job.note')));
     panel.appendChild(wButton('btn btn--secondary btn--block',
       (done || failed) ? t('common.close') : t('job.minimize'),
       function () {

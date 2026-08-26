@@ -234,7 +234,7 @@
     'pr.selected': ['{n}層 × 4種類 ＝ {m}本', '{n} audiences x 4 kinds = {m} pieces', '{n}개 층 × 4종류 = {m}개'],
     'pr.brief': ['作る指示', 'The brief', '만들 지시'],
     'pr.images': ['画像プロンプト（ChatGPT image2）', 'Image prompts (ChatGPT image2)', '이미지 프롬프트(ChatGPT image2)'],
-    'pr.videos': ['動画プロンプト（Replicate）', 'Video prompts (Replicate)', '동영상 프롬프트(Replicate)'],
+    'pr.videos': ['動画プロンプト（segmind）', 'Video prompts (segmind)', '동영상 프롬프트(segmind)'],
     'pr.noAsset': ['この成果物に画像・動画の指定はありません。', 'No image or video is specified for this piece.', '이 결과물에는 이미지·동영상 지정이 없습니다.'],
     'pr.base': ['全体に効く前提', 'Shared ground rules', '전체에 적용되는 전제'],
     'pr.baseHint': [
@@ -419,12 +419,6 @@
       '페이지 구조를 살펴 본문 섹션이 가장 많이 이어지는 블록을 LP 본문 영역으로 판별했습니다.'
     ],
     's11.errorTitle': ['収集エラー {n}件', 'Collection errors: {n}', '수집 오류 {n}건'],
-    's11.errorRetry': ['この{n}件だけ再収集', 'Re-collect these {n}', '이 {n}건만 다시 수집'],
-    's11.errorRetryHint': ['失敗したリンクだけを開き直します。すでに分析できている競合LPはそのまま残ります。',
-      'Reopens only the failed links. Competitors already analysed are kept as they are.',
-      '실패한 링크만 다시 엽니다. 이미 분석된 경쟁 LP는 그대로 남습니다.'],
-    's11.errorRetryRunning': ['再収集しています…', 'Re-collecting…', '다시 수집 중…'],
-    's11.errorRetryQueued': ['再収集を積みました', 'Re-collection queued', '다시 수집을 예약했습니다'],
     's11.errorContinue': ['エラーのあった範囲以外の分析は続けています。', 'Everything else was analysed as usual.', '오류가 난 범위 외의 분석은 계속했습니다.'],
     's11.errSelectorMissing': ['セレクタが空のため収集できませんでした', 'The selector was empty, so nothing could be collected', '셀렉터가 비어 있어 수집하지 못했습니다'],
     's11.errMediaNone': ['収集する種別が選ばれておらず、結果が空でした', 'No content type was selected, so the result was empty', '수집할 종류가 선택되지 않아 결과가 비었습니다'],
@@ -460,15 +454,15 @@
     /* 反省点のカードで「では自分はどうするか」を出すときの見出し。
        ここに「反省点」と書くと、上の札と同じ言葉が2度出て中身が伝わらない */
     's11.factorInstead': ['代わりにやること', 'Do this instead', '대신 할 일'],
-    'ov.makeLp': ['LP・KVプロンプトを生成', 'Generate LP/KV prompts', 'LP·KV 프롬프트 생성'],
+    'ov.makeLp': ['この分析からLP案を作る', 'Draft LPs from this analysis', '이 분석으로 LP 초안 만들기'],
     'ov.makeLpHint': [
-      'マスターブリーフ（LP全体の決まり：色・書体・禁止事項・商品の一貫性）と、区画ごとの生成プロンプトを書きます。元ページの区画を骨格に、日本のLPの決まりを当てます。ターゲット層ごとに1本。',
-      'Writes the master brief (page-wide rules: colors, type, prohibitions, product consistency) and one prompt per section. The origin page is the skeleton; Japanese LP rules are applied. One per target segment.',
-      '마스터 브리프(LP 전체 규칙: 색·서체·금지·상품 일관성)와 구획별 생성 프롬프트를 씁니다. 원본 페이지 구획을 뼈대로 일본 LP 규칙을 적용합니다. 타깃층별 한 편.'
+      'ターゲット層ごとに1本ずつ作ります。共通する流れを骨格に、勝ち筋と反省点を当て込み、層に合わせて言葉と絵を変えます。',
+      'One draft per target segment. The shared flow is the skeleton; the factors are applied, and the copy and visuals are tuned per segment.',
+      '타깃층별로 한 편씩 만듭니다. 공통 흐름을 뼈대로, 성공 요인과 반성할 점을 반영해 층에 맞춰 문장과 이미지를 바꿉니다.'
     ],
-    'ov.makeLpRunning': ['書いています…', 'Writing…', '작성 중…'],
-    'ov.makeLpTitle': ['LP・KVプロンプトを作成中', 'Writing the LP/KV prompts', 'LP·KV 프롬프트 작성 중'],
-    'ov.makeLpQueued': ['プロンプトの作成を受け付けました', 'Prompt writing queued', '프롬프트 작성을 접수했습니다'],
+    'ov.makeLpRunning': ['作っています…', 'Drafting…', '만드는 중…'],
+    'ov.makeLpTitle': ['LP案を作成中', 'Drafting the LPs', 'LP 초안 작성 중'],
+    'ov.makeLpQueued': ['LP案の作成を受け付けました', 'LP drafting queued', 'LP 초안 작성을 접수했습니다'],
     'ov.structureTitle': ['共通する流れ', 'The shared flow', '공통되는 흐름'],
     'ov.structureLead': [
       '競合ページを突き合わせて、共通していた区画の並びです。押すと、その区画で何をしていたかと、自分のLPでやることが出ます。',
@@ -749,29 +743,6 @@
     var node = el('button', className, label);
     node.type = 'button';
     if (onClick) { node.addEventListener('click', onClick); }
-    return node;
-  }
-
-  /* 送りの矢印。‹ › の文字は線が細く、ボタンを大きくしても矢印だけ小さいままだった。
-     リワードの送り（screens-home.js）と同じ描き方に揃える */
-  function chevronButton(className, path, labelKey, onClick) {
-    var node = button(className, '', onClick);
-    var ns = 'http://www.w3.org/2000/svg';
-    var svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('width', '24');
-    svg.setAttribute('height', '24');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('stroke-width', '2.2');
-    svg.setAttribute('stroke-linecap', 'round');
-    svg.setAttribute('stroke-linejoin', 'round');
-    svg.setAttribute('aria-hidden', 'true');
-    var d = document.createElementNS(ns, 'path');
-    d.setAttribute('d', path);
-    svg.appendChild(d);
-    node.appendChild(svg);
-    node.setAttribute('aria-label', t(labelKey));
     return node;
   }
 
@@ -2422,8 +2393,9 @@
         srcAnim = 0;
 
         var carousel = el('div', 'carousel carousel--eared');
-        var prev = chevronButton('carousel__nav', 'M15 19L8 12l7-7', 's11.prevSource', function () { stepSource(-1); });
+        var prev = button('carousel__nav', '‹', function () { stepSource(-1); });
         prev.disabled = sources.length < 2;
+        prev.setAttribute('aria-label', t('s11.prevSource'));
         add(carousel, prev);
 
         var card = el('article', 'carousel__card card'
@@ -2622,8 +2594,9 @@
         if (leaving && dir) { slideOut(cardView, leaving, dir); }
         add(carousel, cardView);
 
-        var next = chevronButton('carousel__nav', 'M9 5l7 7-7 7', 's11.nextSource', function () { stepSource(1); });
+        var next = button('carousel__nav', '›', function () { stepSource(1); });
         next.disabled = sources.length < 2;
+        next.setAttribute('aria-label', t('s11.nextSource'));
         add(carousel, next);
         add(host, carousel);
 
@@ -2644,49 +2617,7 @@
       }
     }
 
-    /* 収集エラーのURLだけをもう一度開く。取り出しは時々こけるので
-       （実測: makuake は開き直すと通った）、失敗したぶんだけ積み直せるようにする。
-       成功している分析は前のレポートから持ち越すので、
-       開き直すのは失敗した1件だけで済む（1ページの分析に 60〜120秒かかる） */
-    function retryCollection(node, report, urls) {
-      if (!window.Api || !Api.generationJobs) {
-        console.error('[screens-analysis] Api.generationJobs がありません。api.js を確認してください。');
-        toast(t('common.error'), 'danger');
-        return;
-      }
-      var label = node.textContent;
-      node.disabled = true;
-      node.style.minWidth = node.offsetWidth + 'px';
-      node.textContent = t('s11.errorRetryRunning');
-      Api.generationJobs.insert({
-        feature_key: FEATURE_ANALYSIS,
-        status: 'pending',
-        projects_id: projectId,
-        report_id: report.id,
-        users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function')
-          ? Api.auth.userId() : undefined,
-        payload: { retry_urls: urls },
-        lang: currentLocale()
-      }).then(function (job) {
-        if (!App.watchJob) { toast(t('s11.errorRetryQueued'), 'success'); return; }
-        App.watchJob({
-          jobId: job.id,
-          titleKey: 'job.titleAnalysis',
-          urls: urls,
-          onDone: function () {
-            if (typeof App.rerender === 'function') { App.rerender(); }
-            else { window.location.reload(); }
-          }
-        });
-      }).catch(function (err) {
-        node.disabled = false;
-        node.textContent = label;
-        console.error('[screens-analysis] 再収集のジョブを積めませんでした:', err);
-        toast(String(err && err.message || err), 'danger');
-      });
-    }
-
-    function errorSection(errors, report) {
+    function errorSection(errors) {
       if (!errors.length) { return null; }
       var section = el('section', 'section');
       var head = el('div', 'section__head');
@@ -2707,21 +2638,6 @@
         add(list, row);
       });
       add(section, list);
-
-      /* 同じURLが KV と本文の両方でこけることがある。開き直すのは1回でよい */
-      var urls = [];
-      errors.forEach(function (one) {
-        var url = String(one.url || '');
-        if (url && urls.indexOf(url) < 0) { urls.push(url); }
-      });
-      if (report && report.id && urls.length) {
-        var actions = el('div', 'lp-toolbar');
-        add(actions, button('btn btn--primary btn--sm', t('s11.errorRetry', { n: urls.length }),
-          function (ev) { retryCollection(ev.currentTarget, report, urls); }));
-        add(actions, el('span', 't-note', t('s11.errorRetryHint')));
-        add(section, actions);
-      }
-
       add(section, el('p', 'section__desc', t('s11.errorContinue')));
       return section;
     }
@@ -2739,7 +2655,7 @@
       node.style.minWidth = node.offsetWidth + 'px';
       node.textContent = t('ov.makeLpRunning');
       Api.generationJobs.insert({
-        feature_key: 'lp_brief',
+        feature_key: 'lp_draft',
         status: 'pending',
         projects_id: projectId,
         report_id: report.id,
@@ -2942,7 +2858,7 @@
 
       if (!isOverall) {
         /* ---- 分析レポート: リンク1件ずつ ---- */
-        var errorNode = errorSection(errors, report);
+        var errorNode = errorSection(errors);
         if (errorNode) { add(wrap, errorNode); }
 
         add(wrap, competitorSection(report, kvAssets, lpAssets, errors));

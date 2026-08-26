@@ -753,8 +753,6 @@
     var submitButton = null;
     var imagesHost = null;
     var productShotNote = null;
-    var registerRow = null;
-    var registerBtn = null;
     var rewardsHost = null;
     var rewardsEmpty = null;
     var discountNodes = [];
@@ -837,7 +835,6 @@
       form.brandTone = text(row.brand_tone);
       form.images = list(row.image_urls).map(String);
       form.productShots = list(row.product_shot_urls).map(String);
-      lastShots = JSON.stringify(form.productShots.slice().sort());
       form.videos = list(row.video_urls).map(String);
       form.brandColors = list(row.brand_colors).map(String);
       form.brandFonts = row.brand_fonts && typeof row.brand_fonts === 'object' ? row.brand_fonts : {};
@@ -960,14 +957,6 @@
       productShotNote = el('p', 'field__hint');
       productShotNote.hidden = true;
       photoPanel.appendChild(productShotNote);
-      /* ★を付けたら、その場で見本に登録できる。保存→切り抜き→結果まで一息でやる。
-         保存ボタンを待つ作りだと、画面が古いまま保存されて見本が増えないことがあった */
-      registerRow = el('div', 'lp-toolbar');
-      registerBtn = button('btn btn--secondary', t('s4.registerShots'), registerShots);
-      registerBtn.title = t('s4.registerShotsHint');
-      registerRow.appendChild(registerBtn);
-      registerRow.hidden = true;
-      photoPanel.appendChild(registerRow);
       photoPanel.appendChild(buildDropzone('home-create-images'));
       videosHost = el('div', 'stack');
       photoPanel.appendChild(videosHost);
@@ -2159,8 +2148,6 @@
         /* 集めた写真には仕様の図版やレビュー画面も混ざる。
            商品そのものが写っているものだけを選んでおくと、
            KV・LP・広告の素材を作るときの参照として AI に渡せる */
-        /* GIF にも ☆ を付けられる。見本にするときは最初のコマを静止画にして切り抜く
-           （商品が大きく写った GIF は形の参照として十分役に立つ） */
         var picked = form.productShots.indexOf(source) !== -1;
         var mark = button('thumb__pick' + (picked ? ' thumb__pick--on' : ''),
           picked ? '★' : '☆', function () {
@@ -2182,7 +2169,6 @@
         });
         productShotNote.hidden = form.images.length === 0;
       }
-      if (registerRow) { registerRow.hidden = form.productShots.length === 0 || !projectId; }
 
       imagesHost.hidden = form.images.length === 0;
       if (dropzone) { dropzone.hidden = form.images.length >= MAX_IMAGES; }
@@ -2399,7 +2385,7 @@
         product_features: form.features.trim() || null,
         target_audience: primaryTargetName(),
         image_urls: form.images.slice(),
-        /* 素材生成で AI に渡す見本。GIF も可（最初のコマを切り抜いて使う） */
+        /* 素材生成で AI に渡すのは、商品が写っているものだけ */
         product_shot_urls: form.productShots.filter(function (url) {
           return form.images.indexOf(url) !== -1;
         }),
@@ -2516,64 +2502,6 @@
       });
     }
 
-    /* ☆が変わったら、商品だけを抜いた白背景の見本を作り直す（裏で）。
-       見本は素材の生成に全部添付されるので、☆を増やせば見本も増える */
-    var lastShots = '';
-    function refreshCutouts() {
-      var now = JSON.stringify(form.productShots.slice().sort());
-      if (now === lastShots || !form.productShots.length) { return; }
-      lastShots = now;
-      if (!window.Api || !window.Api.generationJobs) { return; }
-      window.Api.generationJobs.insert({
-        feature_key: 'product_cutouts',
-        status: 'pending',
-        projects_id: projectId,
-        users_id: (window.Api.auth && typeof window.Api.auth.userId === 'function') ? window.Api.auth.userId() : undefined,
-        payload: {},
-        lang: (window.I18N && typeof window.I18N.locale === 'function') ? window.I18N.locale() : 'ja'
-      }).catch(function (err) { console.warn('[screens-home] 切り抜きの仕事を積めませんでした', err); });
-    }
-
-    /* ★の写真を見本に登録する。保存 → 切り抜きの仕事 → 終わったら枚数を知らせる */
-    function registerShots() {
-      if (!projectId || !apiReady()) { toast(t('common.error'), 'danger'); return; }
-      if (!form.productShots.length) { toast(t('s4.registerShotsNone'), 'danger'); return; }
-      var label = registerBtn.textContent;
-      registerBtn.disabled = true;
-      registerBtn.textContent = t('s4.registerShotsRunning');
-      var done = function () { registerBtn.disabled = false; registerBtn.textContent = label; };
-      window.Api.projects.update(projectId, formPayload()).then(function () {
-        dirty = false;
-        paintSaveState();
-        lastShots = JSON.stringify(form.productShots.slice().sort());
-        return window.Api.generationJobs.insert({
-          feature_key: 'product_cutouts',
-          status: 'pending',
-          projects_id: projectId,
-          users_id: (window.Api.auth && typeof window.Api.auth.userId === 'function') ? window.Api.auth.userId() : undefined,
-          payload: {},
-          lang: (window.I18N && typeof window.I18N.locale === 'function') ? window.I18N.locale() : 'ja'
-        });
-      }).then(function (job) {
-        if (!window.App || !window.App.watchJob) { done(); toast(t('project.saved'), 'success'); return; }
-        window.App.watchJob({
-          jobId: job.id,
-          titleKey: 'job.titleAssets',
-          urls: [],
-          onDone: function (result) {
-            done();
-            /* watchJob は onDone(row.result, row) で呼ぶ。made は作れた枚数 */
-            var n = result && result.made;
-            toast(t('s4.registerShotsDone', { n: n === undefined ? '' : n }), 'success');
-          }
-        });
-      }).catch(function (err) {
-        done();
-        console.error('[screens-home] 見本の登録に失敗しました', err);
-        toast(errorMessage(err, 'project.saveFailed'), 'danger');
-      });
-    }
-
     /* 途中保存。作成済みの行を更新するだけなので消費は無い */
     function saveDraft() {
       if (!projectId || busy) { return; }
@@ -2584,7 +2512,6 @@
         setSaving(false);
         paintSaveState();
         toast(t('project.saved'), 'success');
-        refreshCutouts();
       }, function (err) {
         setSaving(false);
         console.error('[screens-home] 途中保存に失敗しました', err);
@@ -2625,7 +2552,6 @@
         dirty = false;
         selectProject(row);
         toast(t('common.saved'), 'success');
-        refreshCutouts();
         go('S8', { id: projectId });
       }, function (err) {
         setBusy(false);
