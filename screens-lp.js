@@ -43,6 +43,12 @@
     'lp.regen': ['作り直す', 'Regenerate', '다시 생성'],
     'lp.generating': ['生成しています…', 'Generating…', '생성 중…'],
     'lp.genAll': ['全区画をまとめて生成', 'Generate all sections', '모든 구획 한꺼번에 생성'],
+    'lp.makeAssets': ['動く絵を生成する', 'Generate motion visuals', '움직이는 소재 생성'],
+    'lp.makeAssetsRunning': ['生成しています…', 'Generating…', '생성 중…'],
+    'lp.makeAssetsQueued': ['動く絵の生成を積みました', 'Queued the motion generation', '움직이는 소재 생성을 예약했습니다'],
+    'lp.makeAssetsDone': ['動く絵ができました。組み直すと本文に入ります。',
+      'Motion visuals are ready. Rebuild to place them in the page.',
+      '움직이는 소재가 준비되었습니다. 다시 조립하면 본문에 들어갑니다.'],
     'lp.genAllRedo': ['全区画を作り直す', 'Regenerate all sections', '모든 구획 다시 생성'],
     'lp.genAllRedoConfirm': ['{n} 区画をすべて作り直します。今の絵は上書きされます。よろしいですか？', 'Regenerate all {n} sections? Current images will be replaced.', '{n}개 구획을 모두 다시 생성합니다. 지금의 이미지는 덮어씌워집니다. 진행할까요?'],
     'lp.genAllHint': ['未生成の区画を同時並行で作ります（4枚ずつ）。1枚 30〜55秒。', 'Generates remaining sections in parallel (4 at a time), 30–55 s each.', '미생성 구획을 동시에 만듭니다(4장씩). 장당 30~55초.'],
@@ -298,6 +304,12 @@
           if (window.confirm(t('lp.genAllRedoConfirm', { n: n }))) { generate('all'); }
         });
         all.disabled = anyBusy;
+        /* 静止画は lp_section（OpenAI の画面）、動く絵は lp_assets（Replicate の
+           seedance-2.5）と作る先が別なので、ボタンも分ける。
+           押したときの案を指すので、層を切り替えてから押せばその層ぶんが作られる */
+        add(toolbar, button('btn btn--secondary', t('lp.makeAssets'), function (e) {
+          startAssets(e.currentTarget);
+        }));
         all.title = t('lp.genAllHint');
         add(toolbar, all);
         var done = doneCount();
@@ -578,6 +590,62 @@
           toast(t('lp.saved'), 'success');
           paint();
         }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
+      }
+
+      /* 絵の指示から動く絵（GIF・動画）を作る。ワーカーの lp_assets が受け、
+         make-video.mjs が Replicate の bytedance/seedance-2.5 で作る。
+         静止画はここでは作らない（lp_section が OpenAI の画面で作る） */
+      function startAssets(node) {
+        if (!window.Api || !Api.generationJobs) {
+          console.error('[screens-lp] Api.generationJobs がありません。api.js を確認してください。');
+          toast(t('common.error'), 'danger');
+          return;
+        }
+        var label = node.textContent;
+        /* 押した瞬間に幅が変わらないようにしてから文字を差し替える */
+        node.style.minWidth = node.offsetWidth + 'px';
+        node.disabled = true;
+        node.textContent = t('lp.makeAssetsRunning');
+        var restore = function () { node.disabled = false; node.textContent = label; };
+        Api.generationJobs.insert({
+          feature_key: 'lp_assets',
+          status: 'pending',
+          projects_id: projectId,
+          users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function')
+            ? Api.auth.userId() : undefined,
+          payload: { generation_id: view.gen.id },
+          lang: currentLocale()
+        }).then(function (job) {
+          if (!App.watchJob) { toast(t('lp.makeAssetsQueued'), 'success'); restore(); return; }
+          App.watchJob({
+            jobId: job.id,
+            titleKey: 'job.titleAssets',
+            urls: [],
+            onDone: function () {
+              /* できた素材は asset_prompts.made に入る。読み直さないと
+                 区画のカードが古いままになる */
+              Api.generations.get(view.gen.id).then(function (row) {
+                if (row) {
+                  view.gen = row;
+                  view.gens = view.gens.map(function (g) { return g.id === row.id ? row : g; });
+                }
+                restore();
+                toast(t('lp.makeAssetsDone'), 'success');
+                paint();
+              });
+            },
+            /* 失敗でもボタンを戻す。戻さないと「生成しています…」のまま固まる */
+            onFail: function (why) {
+              restore();
+              toast(String(why || t('common.error')), 'danger');
+              paint();
+            }
+          });
+        }).catch(function (err) {
+          restore();
+          console.error('[screens-lp] 動く絵のジョブを積めませんでした:', err);
+          toast(String(err && err.message || err), 'danger');
+        });
       }
 
       /* 1区画（index）か、未生成の全部（null）を作る。ワーカーの lp_section が受ける */
