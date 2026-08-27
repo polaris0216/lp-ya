@@ -1704,12 +1704,11 @@
       /* 段が終わるたびに増える。書き戻しぶんを残して 96% を上限にする */
       return Math.min(96, Math.round((watch.done / watch.total) * 96));
     }
+    /* まだ誰も拾っていない状態。進み具合は本当に分からないので数字を出さない。
+       ここで小さな数字でも出すと、動いていないのに動いて見える（実測: ワーカーが
+       止まっているのに 12% と表示され、待てば進むと読めてしまった） */
+    if (isIndeterminate()) { return null; }
     var sec = (new Date().getTime() - watch.startedAt) / 1000;
-    if (isIndeterminate()) {
-      /* まだ誰も拾っていない状態。ここで大きな数字を出すと「もうすぐ終わる」と
-         誤解させるので、低いところで頭打ちにする（上限 12%） */
-      return Math.min(12, Math.round(3 + 9 * (1 - Math.exp(-sec / 40))));
-    }
     /* 読み取りが始まってからは速く、92%まで */
     var ratio = 1 - Math.exp(-sec / 20);
     return Math.min(92, Math.round(40 + 52 * ratio));
@@ -1718,6 +1717,17 @@
   /* 一定時間拾われないなら、待っても始まらないことを伝える */
   function isStalled() {
     return isIndeterminate() && (new Date().getTime() - watch.startedAt) > 60000;
+  }
+
+  function waitedMinutes() {
+    if (!watch) { return 0; }
+    return Math.floor((new Date().getTime() - watch.startedAt) / 60000);
+  }
+
+  /* 割合が分からないときの見せ方。バーは満たしておいて、薄い色と流れる縞で
+     「不定」を出す（is-waiting）。止まったと分かったら縞を止めて警告色にする */
+  function fillWidth(pct) {
+    return (pct === null ? 100 : pct) + '%';
   }
 
   function stepKey() {
@@ -1731,8 +1741,8 @@
     if (!watch || !watch.timeNode) { return; }
     watch.timeNode.textContent = t('job.elapsed', { t: elapsedText() });
     var pct = progressValue();
-    if (watch.pctNode) { watch.pctNode.textContent = pct + '%'; }
-    if (watch.fillNode) { watch.fillNode.style.width = pct + '%'; }
+    if (watch.pctNode) { watch.pctNode.textContent = pct === null ? '' : pct + '%'; }
+    if (watch.fillNode) { watch.fillNode.style.width = fillWidth(pct); }
     if (watch.barNode) {
     if (pct === null) { watch.barNode.removeAttribute('aria-valuenow'); }
     else { watch.barNode.setAttribute('aria-valuenow', String(pct)); }
@@ -1743,7 +1753,7 @@
       paintWatch();
       return;
     }
-    if (watch.msgNode && isStalled()) { watch.msgNode.textContent = t('job.stalled'); }
+    if (watch.msgNode && isStalled()) { watch.msgNode.textContent = t('job.stalled', { m: waitedMinutes() }); }
   }
 
   function paintWatch() {
@@ -1778,7 +1788,7 @@
     watch.stepNode = wEl('span', 'jobwatch__step', t(stepKey()));
     meterHead.appendChild(watch.stepNode);
     var pct = progressValue();
-    watch.pctNode = wEl('span', 'jobwatch__pct', pct + '%');
+    watch.pctNode = wEl('span', 'jobwatch__pct', pct === null ? '' : pct + '%');
     meterHead.appendChild(watch.pctNode);
     meter.appendChild(meterHead);
 
@@ -1786,12 +1796,14 @@
     bar.setAttribute('role', 'progressbar');
     bar.setAttribute('aria-valuemin', '0');
     bar.setAttribute('aria-valuemax', '100');
-    bar.setAttribute('aria-valuenow', String(pct));
+    if (pct === null) { bar.removeAttribute('aria-valuenow'); }
+    else { bar.setAttribute('aria-valuenow', String(pct)); }
     watch.barNode = bar;
     watch.fillNode = wEl('div', 'jobwatch__fill'
       + ((done || failed || isStalled()) ? '' : ' is-running')
+      + (pct === null && !isStalled() ? ' is-waiting' : '')
       + (isStalled() ? ' is-stalled' : ''));
-    watch.fillNode.style.width = pct + '%';
+    watch.fillNode.style.width = fillWidth(pct);
     bar.appendChild(watch.fillNode);
     meter.appendChild(bar);
     panel.appendChild(meter);
@@ -1802,8 +1814,13 @@
     : (done ? t(opts.doneKey || 'job.done')
       : (watch.note ? watch.note
         : (watch.status === 'processing' ? t('job.running') : t('job.queued'))));
-    watch.msgNode = wEl('p', 'jobwatch__msg' + (failed ? ' t-danger' : ''), isStalled() ? t('job.stalled') : message);
+    watch.msgNode = wEl('p', 'jobwatch__msg' + (failed ? ' t-danger' : ''),
+      isStalled() ? t('job.stalled', { m: waitedMinutes() }) : message);
     panel.appendChild(watch.msgNode);
+    /* 止まっていると伝えるだけだと、待つ以外にできることが無い。直し方まで出す */
+    if (isStalled() && !watch.mini) {
+      panel.appendChild(wEl('p', 'jobwatch__msg t-sub', t('job.stalledHow')));
+    }
 
     if (!watch.mini) {
     var urls = (opts.urls || []);

@@ -346,7 +346,8 @@
     'job.stepQueued': ['受付', 'Queued', '접수'],
     'job.stepRead': ['読み取り', 'Reading', '읽기'],
     'job.stepApply': ['反映', 'Applying', '반영'],
-    'job.stalled': ['まだ処理が始まっていません。生成の担当（ローカルのエージェント）が動いていない可能性があります。', 'Not picked up yet. The worker that processes jobs may not be running.', '아직 처리가 시작되지 않았습니다. 작업을 처리하는 워커가 실행 중이 아닐 수 있습니다.'],
+    'job.stalled': ['{m}分待っても誰も拾っていません。生成の担当（ローカルのエージェント）が動いていません。', 'No worker has picked this up in {m} min. The local worker agent is not running.', '{m}분 동안 아무도 가져가지 않았습니다. 로컬 워커 에이전트가 실행되고 있지 않습니다.'],
+    'job.stalledHow': ['ターミナルで tools/install-worker-agent.sh を実行すると、ログイン時に自動で立ち上がるようになります。', 'Run tools/install-worker-agent.sh in a terminal to start it automatically at login.', '터미널에서 tools/install-worker-agent.sh 를 실행하면 로그인 시 자동으로 시작됩니다.'],
 
     // ブランド指定
     'product.brandPanel': ['ブランド指定', 'Brand settings', '브랜드 설정'],
