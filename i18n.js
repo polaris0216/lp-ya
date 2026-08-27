@@ -234,6 +234,13 @@
     // 商品入力（ttalkkak-ai.com の「① 상품 입력」タブに合わせた項目）
     'product.photoPanel': ['商品写真', 'Product photos', '상품 사진'],
     's4.productShot': ['商品カットとして使う', 'Use as a product shot', '상품 컷으로 사용'],
+    's4.registerShots': ['★の写真を見本に登録する', 'Register starred photos as references', '★ 사진을 견본으로 등록'],
+    's4.registerShotsRunning': ['切り抜いています…', 'Cutting out…', '잘라내는 중…'],
+    's4.registerShotsDone': ['見本を {n} 枚登録しました', 'Registered {n} references', '견본 {n}장을 등록했습니다'],
+    's4.registerShotsHint': ['押すと保存し、★の写真から商品だけを切り抜いて見本にします（1分ほど）。見本は素材の生成にすべて添付されます。',
+      'Saves, then cuts the product out of each starred photo to use as references (about a minute). All references are attached when generating.',
+      '누르면 저장하고, ★ 사진에서 상품만 잘라내어 견본으로 만듭니다(1분 정도). 견본은 소재 생성 시 모두 첨부됩니다.'],
+    's4.registerShotsNone': ['★を付けた写真がありません', 'No starred photos', '★ 표시한 사진이 없습니다'],
     's4.productShotCutouts': [
       '★の写真は、素材を作る前に背景を抜いて商品だけを切り出します。背景が多いままだと、AIが背景ごと商品だと解釈して別の物を描いてしまうためです。',
       'Starred photos have their background removed before the assets are produced. Handed over with the background intact, the AI reads the whole scene as the product and draws something else.',
