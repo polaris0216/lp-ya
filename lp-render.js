@@ -293,49 +293,93 @@
     return CF_TEXT_KEYS.indexOf(String(section && section.key)) !== -1;
   }
 
-  function burnedPanel(src, title, body, design, width) {
+  /* 絵に訴求を焼き込む1枚。
+     参照した日本のLP（silverantoutdoors.jp / makuake）は、見出しを本文として
+     置かず、写真の上に明朝の白文字で重ねている。文字を絵の下に置くと
+     「写真＋見出し＋段落」の繰り返しになり、ブログの見た目になる（実測: 前の版）。
+
+     写真の明るさは選べない（生成した絵は明るいものも暗いものもある）ので、
+     下から黒い幕を重ねて、どの写真でも白文字が読めるようにする。
+     長い本文は絵の上に載せきれないので、載せるのは最初の数行だけにして、
+     残りは呼ぶ側が小さな添え書きとして下に出す（makuake の作り）。 */
+  var PANEL_BODY_LINES = 3;
+
+  function burnedPanel(src, title, body, design, width, options) {
+    var o = options || {};
     var W = width;
-    var pad = 36;
-    var titleSize = 32;
-    var bodySize = 18;
-    var titleLines = title ? wrapLines(title, (W - pad * 2) / (titleSize * 0.62)) : [];
-    var bodyLines = body ? wrapLines(body, (W - pad * 2) / (bodySize * 0.62)) : [];
-    var titleStep = Math.round(titleSize * 1.45);
-    var bodyStep = Math.round(bodySize * 1.85);
-    var textH = titleLines.length || bodyLines.length
-      ? pad + titleLines.length * titleStep + (titleLines.length && bodyLines.length ? 14 : 0)
-        + bodyLines.length * bodyStep + pad
-      : 0;
-    var imgH = Math.round(W * 0.72);
-    var H = imgH + textH;
+    var pad = Math.round(W * 0.075);
+    var titleSize = Math.round(W * 0.062);      /* 712px で 44px */
+    var bodySize = Math.round(W * 0.023);       /* 712px で 16px */
+    var titleLines = title ? wrapLines(title, (W - pad * 2) / (titleSize * 0.56)) : [];
+    var bodyLines = body ? wrapLines(body, (W - pad * 2) / (bodySize * 0.62)).slice(0, PANEL_BODY_LINES) : [];
+    var titleStep = Math.round(titleSize * 1.5);
+    var bodyStep = Math.round(bodySize * 1.9);
+
+    /* 縦は絵の比率に合わせる。4:5 の絵は縦長のまま出す（切ると商品が欠ける） */
+    var H = Math.round(W * (o.ratio || 1.25));
+    var textH = titleLines.length * titleStep + (titleLines.length && bodyLines.length ? Math.round(bodySize * 1.2) : 0)
+      + bodyLines.length * bodyStep;
+    var uid = 'g' + Math.abs(hashOf(String(src) + title)).toString(36);
     var out = [];
     out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
       + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
-    out.push('<rect width="' + W + '" height="' + H + '" fill="' + escapeHtml(design.bgColor) + '"/>');
+    out.push('<defs><linearGradient id="' + uid + '" x1="0" y1="1" x2="0" y2="0">'
+      + '<stop offset="0" stop-color="#000" stop-opacity="0.72"/>'
+      + '<stop offset="0.45" stop-color="#000" stop-opacity="0.34"/>'
+      + '<stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient></defs>');
+    out.push('<rect width="' + W + '" height="' + H + '" fill="#111"/>');
     if (src) {
-      out.push('<image href="' + escapeHtml(src) + '" x="0" y="0" width="' + W + '" height="' + imgH
+      out.push('<image href="' + escapeHtml(src) + '" x="0" y="0" width="' + W + '" height="' + H
         + '" preserveAspectRatio="xMidYMid slice"/>');
     }
-    var y = imgH + pad;
+    if (textH) {
+      /* 幕は文字の高さぶん＋ゆとり。絵の下半分までは覆わない */
+      var veil = Math.min(H, textH + pad * 2.2);
+      out.push('<rect x="0" y="' + (H - veil) + '" width="' + W + '" height="' + veil
+        + '" fill="url(#' + uid + ')"/>');
+    }
+
+    var y = H - pad - (bodyLines.length ? bodyLines.length * bodyStep : 0);
+    if (titleLines.length && bodyLines.length) { y -= Math.round(bodySize * 1.2); }
+    y -= titleLines.length * titleStep;
+
     titleLines.forEach(function (line) {
-      y += Math.round(titleSize * 0.82);
+      y += Math.round(titleSize * 0.86);
       out.push('<text x="' + pad + '" y="' + y + '" font-size="' + titleSize
-        + '" font-weight="700" fill="' + escapeHtml(design.titleColor)
-        + '" font-family="\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif">'
+        + '" font-weight="500" fill="#FFFFFF" letter-spacing="0.04em"'
+        + ' font-family="\'Hiragino Mincho ProN\',\'Yu Mincho\',\'Noto Serif JP\',serif">'
         + escapeHtml(line) + '</text>');
-      y += titleStep - Math.round(titleSize * 0.82);
+      y += titleStep - Math.round(titleSize * 0.86);
     });
-    if (titleLines.length && bodyLines.length) { y += 14; }
+    if (titleLines.length && bodyLines.length) { y += Math.round(bodySize * 1.2); }
     bodyLines.forEach(function (line) {
-      y += Math.round(bodySize * 0.82);
+      y += Math.round(bodySize * 0.86);
       out.push('<text x="' + pad + '" y="' + y + '" font-size="' + bodySize
-        + '" fill="' + escapeHtml(design.bodyColor)
-        + '" font-family="\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif">'
+        + '" fill="#FFFFFF" fill-opacity="0.88" letter-spacing="0.02em"'
+        + ' font-family="\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif">'
         + escapeHtml(line) + '</text>');
-      y += bodyStep - Math.round(bodySize * 0.82);
+      y += bodyStep - Math.round(bodySize * 0.86);
     });
     out.push('</svg>');
     return out.join('');
+  }
+
+  /* 同じ絵と見出しなら同じ番号。SVG の中で幕に付ける名前に使う。
+     ページに何枚も並ぶので、名前が重なると幕が効かなくなる */
+  function hashOf(text) {
+    var h = 0;
+    for (var i = 0; i < text.length; i += 1) { h = (h * 31 + text.charCodeAt(i)) | 0; }
+    return h;
+  }
+
+  /* 絵に載せきれなかった本文を、下に小さく添える（makuake の一行キャプション）。
+     載せた行数ぶんは飛ばす */
+  function panelRest(body, width) {
+    var bodySize = Math.round(width * 0.023);
+    var lines = wrapLines(String(body || ''), (width - Math.round(width * 0.075) * 2) / (bodySize * 0.62));
+    var rest = lines.slice(PANEL_BODY_LINES).join('').trim();
+    if (!rest) { return ''; }
+    return '<p class="cap">' + escapeHtml(rest) + '</p>';
   }
 
   function flushMedia(url) {
@@ -524,6 +568,11 @@
       '.cta a{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 36px;'
         + 'border-radius:12px;background:' + escapeHtml(d.accentColor)
         + ';color:#fff;font-size:17px;font-weight:700;text-decoration:none;}',
+      /* 絵に載せきれなかった本文の添え書き。makuake の一行キャプションと同じ役目。
+         絵と絵の間に置くので、上下の余白は詰める（間が空くと並びが切れて見える） */
+      '.cap{margin:0;padding:14px 24px 22px;font-size:' + Math.round(d.bodySize * 0.94)
+        + 'px;line-height:1.85;color:' + escapeHtml(d.bodyColor) + ';}',
+      '.cap:empty{display:none;}',
       '.visual{margin:20px 0 0;padding:14px 16px;border:1px dashed #D9CFE0;border-radius:10px;'
         + 'color:#6B6270;font-size:13px;background:#FBF9FC;}',
       /* 絵が主体のページなので、画像は読み込みを待たせない */
@@ -563,6 +612,13 @@
     var project = o.project || {};
     var design = o.design || DEFAULT_DESIGN;
     var made = o.assets || {};
+    /* 焼き込まれた文字が外国語だった写真の区画。作り直しが済むまで、
+       元の写真は使わない（韓国語のまま日本のLPに出さないため） */
+    var redo = {};
+    asArray(o.redoSlots).forEach(function (slot) { redo[String(slot)] = 1; });
+    /* 訴求が絵そのものに焼かれている区画。ここに文字を重ねると二重になる */
+    var burnedSlots = {};
+    asArray(o.burnedSlots).forEach(function (slot) { burnedSlots[String(slot)] = 1; });
     var asAsset = typeof o.asAsset === 'function' ? o.asAsset : function (url) { return url; };
     var images = asArray(project.image_urls);
     var videos = asArray(project.video_urls);
@@ -584,9 +640,12 @@
       var shots = [];
       visuals.forEach(function (v, vi) {
         var slot = (index + 1) + '-' + (vi + 1);
-        var url = made[slot] || urlOf(v.asset);
-        if (url) { shots.push({ kind: String(v.kind || 'image'), url: asAsset(url, slot), use: String(v.use || '') }); }
-        else { shots.push({ kind: String(v.kind || 'image'), url: '', use: String(v.use || ''), brief: String(v.prompt || '') }); }
+        var url = made[slot] || (redo[slot] ? '' : urlOf(v.asset));
+        /* 区画番号は必ず持ち回す。あとで並び順から作り直すと、
+           動画が混ざった区画でずれる（実測: 1枚目が動画の区画で、
+           2枚目の絵に 1-1 の札が付き、焼き込み済みなのに文字を重ねた） */
+        if (url) { shots.push({ slot: slot, kind: String(v.kind || 'image'), url: asAsset(url, slot), use: String(v.use || '') }); }
+        else { shots.push({ slot: slot, kind: String(v.kind || 'image'), url: '', use: String(v.use || ''), brief: String(v.prompt || '') }); }
       });
       /* 手持ちの素材を直に指しているぶん（assets 欄）も足す */
       asArray(sec.assets).forEach(function (ref, ai) {
@@ -598,18 +657,45 @@
       var movies = shots.filter(function (x) { return x.url && x.kind === 'video'; });
       var briefs = shots.filter(function (x) { return !x.url && x.brief; });
       var mode = String(sec.mode || '');
-      if (!mode) { mode = (stills.length && !sec.added && !sec.cta) ? 'panel' : 'text'; }
+      /* 絵があるなら焼き込む。文字だけの区画にするのは、絵が1枚も無いときか
+         申し込みの区画だけ。参照した日本のLPは、見出しを本文として置かず
+         ぜんぶ絵に焼いている（silverantoutdoors.jp は HTML の文字が905字しかない） */
+      if (!mode) { mode = stills.length ? 'panel' : 'text'; }
       var bullets = asArray(sec.bullets).map(String).filter(Boolean);
       var bodyText = String(sec.body || '');
 
       out.push('<section id="sec-' + (index + 1) + '" data-key="' + escapeHtml(sec.key || '') + '"'
         + (mode === 'text' ? ' data-text="1"' : '') + '><div class="wrap">');
       if (mode === 'panel') {
-        /* 1枚目に見出しと本文を焼き込み、残りは絵として続ける */
+        /* 訴求は絵そのものに焼かれている（asset-orders が画像生成に焼かせる）。
+           ここで SVG の文字を重ねると、絵の中の文字と二重になる。
+           だから絵はそのまま並べるだけ。文章は絵に載りきらないぶんだけ
+           小さく添える（makuake の一行キャプションと同じ役目）。
+
+           焼かれていない絵（burnedSlots に無い区画）は、まだ作り直していない
+           古い絵なので、そのときだけ SVG で重ねて読めるようにしておく */
         var burnBody = bodyText || bullets.join('\n');
-        out.push(burnedPanel(stills[0].url, String(sec.headline || sec.title || ''), burnBody, design, 712));
+        if (burnedSlots[stills[0].slot]) {
+          out.push(flushMedia(stills[0].url));
+        } else {
+          out.push(burnedPanel(stills[0].url, String(sec.headline || sec.title || ''), burnBody, design, 712));
+        }
+        out.push(panelRest(burnBody, 712));
         movies.forEach(function (m) { out.push(flushMedia(m.url)); });
+        /* 2枚目以降は実機の写真をそのまま並べる（makuake の実物と同じ）。
+           箇条書きは写真に焼かず、写真の下に短い地の文として置く。
+           前は2枚目からも箇条書きを焼いていたが、実機写真に字を重ねると
+           「写真＋字幕」に見え、写真の中身（寸法・操作部）も隠れた */
         stills.slice(1).forEach(function (m) { out.push(flushMedia(m.url)); });
+        /* 本文があって箇条書きもある区画は、箇条書きを写真の下に地の文で置く。
+           本文が無い区画は、箇条書きが1枚目に焼かれているので重ねて出さない */
+        if (bullets.length && bodyText) {
+          out.push('<ul class="bul cap">' + bullets.map(function (b) { return '<li>' + escapeHtml(b) + '</li>'; }).join('') + '</ul>');
+        }
+        if (sec.cta) {
+          out.push('<div class="cta"><a href="' + escapeHtml(o.ctaHref || '#') + '">'
+            + escapeHtml(sec.cta_label || t('gen.ctaButton')) + '</a></div>');
+        }
       } else {
         if (sec.headline || sec.title) { out.push('<h2>' + escapeHtml(sec.headline || sec.title) + '</h2>'); }
         if (sec.subhead) { out.push('<p class="sub">' + escapeHtml(sec.subhead) + '</p>'); }

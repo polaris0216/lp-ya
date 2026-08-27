@@ -1,81 +1,100 @@
 /* =============================================================================
- * screens-lp.js — S12 LP案（区画ごとの文章・素材・絵の指示を見て直す）
+ * screens-lp.js — S12 生成プロンプト（マスターブリーフと区画ごとの生成）
  *
- * 流れ:
- *   1. 「LP案を作る」を押す → generation_jobs に lp_draft を積む
- *   2. ワーカーが 骨格（参照ページの組み立て方）＋当て込み（競合分析の要因）から
- *      日本語の区画案を書き、generations に1行入れる
- *   3. この画面で区画ごとに読み、見出し・本文を直して保存する
- *   4. 「HTMLで見る」→ S13（lp-render.js で組む）
+ * ttalkkak-ai と同じ形。
+ *   上: マスターブリーフ（LP全体の決まり。折りたたみ）
+ *   下: 区画ごとのカード。プロンプトはその場で直せる。
+ *       「この区画を生成」で1枚ずつ作り、できた絵がカードに入る。
+ *   全部できたら「キャンバスに並べる」で S13 へ。
+ *
+ * 作る入口は総合分析（S20）の「LP・KVプロンプトを生成」。
+ * 区画の生成は lp_section（ワーカー）。OpenAI の gpt-image-2 で、
+ * 切り抜いた商品写真を全部添付し、日本語を絵の中に焼く。
  *
  * 画面登録   App.registerScreen('S12', { render })
- * URL        #/S12?id=<プロジェクトID>[&gen=<生成物ID>]
- * 通信       Api.projects / Api.generations / Api.generationJobs / App.watchJob
- * 文言       i18n.js。ここだけの文言は LOCAL に置く
+ * URL        #/S12?id=<プロジェクトID>&gen=<生成物ID>
  * ========================================================================== */
 (function () {
   'use strict';
 
   var App = window.App = window.App || {};
   var LOCALES = ['ja', 'en', 'ko'];
-  var FEATURE = 'lp_draft';
+  var FEATURE = 'lp_brief';
 
   var LOCAL = {
-    'lp.title': ['LP案', 'LP draft', 'LP 초안'],
-    'lp.lead': ['総合分析の「共通する流れ」を骨格に、勝ち筋と反省点を当て込み、ターゲット層ごとに1本ずつ作ります。層を切り替えて中身を見比べ、文章を直してからHTMLに組みます。',
-      'One draft per target segment: the shared flow from the overall analysis as the skeleton, with the factors applied. Switch segments, edit the copy, then render to HTML.',
-      '종합 분석의 "공통 흐름"을 뼈대로, 성공 요인과 반성할 점을 반영해 타깃층별로 한 편씩 만듭니다. 층을 바꿔가며 비교하고, 문장을 다듬은 뒤 HTML로 조립합니다.'],
-    'lp.run': ['LP案を作る', 'Draft the LP', 'LP 초안 만들기'],
-    'lp.rerun': ['作り直す', 'Redraft', '다시 만들기'],
-    'lp.running': ['作っています…', 'Drafting…', '만드는 중…'],
-    'lp.needStructure': ['参照ページの組み立て方がまだありません。商品入力で「参照ページから自動入力」を先に実行してください。',
-      'No reference structure yet. Run "Auto-fill from reference page" in Product input first.',
-      '참조 페이지 구성이 아직 없습니다. 상품 입력에서 "참조 페이지로 자동 입력"을 먼저 실행하세요.'],
-    'lp.noFactors': ['競合分析がまだ無いので、骨格だけで組みます。競合分析を先に済ませると、日本で伸びる型を当て込めます。',
-      'No competitor analysis yet; drafting from the skeleton only. Run the analysis first to apply what works in Japan.',
-      '경쟁 분석이 아직 없어 뼈대만으로 만듭니다. 먼저 분석을 마치면 일본에서 통하는 형식을 반영할 수 있습니다.'],
-    'lp.loading': ['読み込んでいます…', 'Loading…', '불러오는 중…'],
-    'lp.loadFailed': ['LP案を読み込めませんでした', 'Could not load the LP drafts', 'LP 초안을 불러오지 못했습니다'],
-    'lp.empty': ['まだLP案がありません。', 'No LP draft yet.', '아직 LP 초안이 없습니다.'],
-    'lp.emptyHint': [
-      '総合分析のページで「この分析からLP案を作る」を押すと、ターゲット層ごとに1本ずつ作られます。',
-      'On the overall analysis page, press "Draft LPs from this analysis" to create one per target segment.',
-      '종합 분석 페이지에서 "이 분석으로 LP 초안 만들기"를 누르면 타깃층별로 한 편씩 만들어집니다.'
-    ],
+    'lp.title': ['生成プロンプト', 'Generation prompts', '생성 프롬프트'],
+    'lp.lead': ['総合分析から書いたマスターブリーフ（LP全体の決まり）と、区画ごとの生成プロンプトです。プロンプトを直してから、区画ごとに生成します。',
+      'The master brief (page-wide rules) and one prompt per section, written from the overall analysis. Edit, then generate section by section.',
+      '종합 분석에서 쓴 마스터 브리프(LP 전체 규칙)와 구획별 생성 프롬프트입니다. 고친 뒤 구획마다 생성합니다.'],
+    'lp.empty': ['まだ生成プロンプトがありません。', 'No prompts yet.', '아직 생성 프롬프트가 없습니다.'],
+    'lp.emptyHint': ['総合分析のページで「LP・KVプロンプトを生成」を押してください。',
+      'Press "Generate LP/KV prompts" on the overall analysis page.',
+      '종합 분석 페이지에서 "LP·KV 프롬프트 생성"을 누르세요.'],
     'lp.toAnalysis': ['総合分析へ', 'To the overall analysis', '종합 분석으로'],
-    'lp.summary': ['この案の流れ', 'Flow of this draft', '이 초안의 흐름'],
-    'lp.applied': ['当て込んだ要因', 'Factors applied', '반영한 요인'],
-    'lp.sections': ['区画', 'sections', '구획'],
-    'lp.headline': ['見出し', 'Headline', '헤드라인'],
-    'lp.subhead': ['補足', 'Subhead', '보조 문구'],
-    'lp.body': ['本文', 'Body', '본문'],
-    'lp.bullets': ['箇条書き（1行1項目）', 'Bullets (one per line)', '항목(줄당 하나)'],
-    'lp.assets': ['使う素材', 'Assets', '소재'],
-    'lp.visual': ['絵の指示', 'Visual brief', '이미지 지시'],
-    'lp.ctaLabel': ['ボタン文言', 'CTA label', '버튼 문구'],
-    'lp.cta': ['申し込み', 'CTA', '신청'],
-    'lp.added': ['日本向けに追加', 'Added for Japan', '일본용 추가'],
-    'lp.from': ['骨格 {n} から', 'From skeleton #{n}', '뼈대 {n}에서'],
-    'lp.save': ['変更を保存', 'Save changes', '변경 저장'],
+    'lp.brief': ['マスターブリーフ（LP全体の決まり）', 'Master brief (page-wide rules)', '마스터 브리프(LP 전체 규칙)'],
+    'lp.briefOpen': ['開く', 'Open', '열기'],
+    'lp.briefClose': ['閉じる', 'Close', '닫기'],
+    'lp.copy': ['コピー', 'Copy', '복사'],
+    'lp.copied': ['コピーしました', 'Copied', '복사했습니다'],
+    'lp.sections': ['区画', 'Sections', '구획'],
+    'lp.section': ['区画 {n}', 'Section {n}', '구획 {n}'],
+    'lp.prompt': ['生成プロンプト', 'Prompt', '생성 프롬프트'],
+    'lp.gen': ['この区画を生成', 'Generate this section', '이 구획 생성'],
+    'lp.regen': ['作り直す', 'Regenerate', '다시 생성'],
+    'lp.generating': ['生成しています…', 'Generating…', '생성 중…'],
+    'lp.genAll': ['全区画をまとめて生成', 'Generate all sections', '모든 구획 한꺼번에 생성'],
+    'lp.genAllRedo': ['全区画を作り直す', 'Regenerate all sections', '모든 구획 다시 생성'],
+    'lp.genAllRedoConfirm': ['{n} 区画をすべて作り直します。今の絵は上書きされます。よろしいですか？', 'Regenerate all {n} sections? Current images will be replaced.', '{n}개 구획을 모두 다시 생성합니다. 지금의 이미지는 덮어씌워집니다. 진행할까요?'],
+    'lp.genAllHint': ['未生成の区画を同時並行で作ります（4枚ずつ）。1枚 30〜55秒。', 'Generates remaining sections in parallel (4 at a time), 30–55 s each.', '미생성 구획을 동시에 만듭니다(4장씩). 장당 30~55초.'],
+    'lp.genAllRunning': ['まとめて生成しています…', 'Generating all…', '한꺼번에 생성 중…'],
+    'lp.save': ['プロンプトを保存', 'Save prompts', '프롬프트 저장'],
     'lp.saved': ['保存しました', 'Saved', '저장했습니다'],
-    'lp.toHtml': ['HTMLで見る', 'View as HTML', 'HTML로 보기'],
-    'lp.jobTitle': ['LP案を作成中', 'Drafting the LP', 'LP 초안 작성 중'],
-    'lp.history': ['前の案', 'Earlier drafts', '이전 초안'],
-    'lp.noProject': ['プロジェクトが選ばれていません', 'No project selected', '프로젝트가 선택되지 않았습니다'],
-    'lp.visualHasAsset': ['手持ちの素材 {ref} を使う', 'Use existing asset {ref}', '보유 소재 {ref} 사용'],
-    'lp.variants': ['ターゲット層', 'Target segments', '타깃층'],
-    'lp.noAssetsPicked': ['（素材なし）', '(none)', '(없음)']
+    'lp.canvas': ['キャンバスに並べる', 'Lay out on canvas', '캔버스에 배치'],
+    'lp.progress': ['{done}/{total} 区画が完成', '{done}/{total} sections done', '{done}/{total} 구획 완료'],
+    'lp.queued': ['生成を積みました', 'Queued', '생성을 예약했습니다'],
+    'lp.genDone': ['区画ができました', 'Section generated', '구획이 생성되었습니다'],
+    'lp.refs': ['商品の見本（全区画に添付・最大16枚）', 'Product references (attached to every section, up to 16)', '상품 견본(모든 구획에 첨부·최대 16장)'],
+    'lp.addRefs': ['見本を増やす（商品入力で☆）', 'Add references (star photos in Product input)', '견본 추가(상품 입력에서 ☆)'],
+    'lp.refsStale': ['☆の写真が {n} 枚ありますが、見本は {m} 枚です。作り直すと追いつきます。', '{n} starred photos but {m} references. Rebuild to catch up.', '☆ 사진 {n}장 중 견본은 {m}장입니다. 다시 만들면 맞춰집니다.'],
+    'lp.rebuildRefs': ['見本を作り直す', 'Rebuild references', '견본 다시 만들기'],
+    'lp.rebuildRefsQueued': ['見本を作り直しています。1分ほどで揃います。', 'Rebuilding references; about a minute.', '견본을 다시 만드는 중입니다. 1분 정도 걸립니다.'],
+    'lp.noRefs': ['切り抜きがありません。商品入力で商品が写っている写真に☆を付けると、自動で切り抜きます。',
+      'No cutouts yet. Star product photos in Product input; they are cut out automatically.',
+      '잘라낸 사진이 없습니다. 상품 입력에서 상품 사진에 ☆를 붙이면 자동으로 잘라냅니다.'],
+    'lp.target': ['ターゲット層', 'Target', '타깃층'],
+    'lp.history': ['前の版 {n}', 'Previous {n}', '이전 버전 {n}'],
+    'lp.restore': ['この版に戻す', 'Use this version', '이 버전으로 되돌리기'],
+    'lp.restored': ['前の版に戻しました', 'Restored', '이전 버전으로 되돌렸습니다'],
+    'lp.historyOpen': ['履歴を見る', 'Show history', '이력 보기'],
+    'lp.historyClose': ['履歴を閉じる', 'Hide history', '이력 닫기'],
+    'lp.stale': ['商品入力・ターゲット層・競合分析のどれかが変わっています。生成プロンプトを今の設定で書き直しますか？（数分。区画の絵はそのまま残り、作り直すときに新しいプロンプトが使われます）',
+      'Product input, targets, or competitor analysis changed since these prompts were written. Rewrite with the current settings? (A few minutes. Existing images stay; regenerate to apply.)',
+      '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
+    'lp.rewrite': ['生成プロンプトを更新する', 'Update the prompts', '프롬프트 업데이트'],
+    'lp.rewriteQueued': ['書き直しています。数分で新しい回が増えます。', 'Rewriting; a new round will appear in a few minutes.', '다시 쓰는 중입니다. 몇 분 뒤 새 회차가 추가됩니다.'],
+    'lp.missing': ['この回に無い層', 'Missing from this round', '이 회차에 없는 층'],
+    'lp.genLayer': ['{L} だけ生成', 'Generate {L} only', '{L}만 생성'],
+    'lp.genLayerQueued': ['{L} のプロンプトを書いています（1分ほど）', 'Writing prompts for {L} (about a minute)', '{L}의 프롬프트를 쓰는 중(1분 정도)'],
+    'lp.teach': ['お手本を学ばせる', 'Teach from an example', '본보기 학습'],
+    'lp.teachLead': ['海外の元ページと、デザイナーが作った日本のLPを1組渡すと、文章の作り替えと絵の見た目をルールにして、以後の生成プロンプトに反映します（全プロジェクト共通・5分ほど）。',
+      'Give one pair — the overseas source page and the designer-made Japanese LP — and the copy rewrites and visual style become rules applied to all future prompts (all projects, ~5 min).',
+      '해외 원본 페이지와 디자이너가 만든 일본 LP를 한 쌍 주면, 문장 재구성과 이미지 스타일을 규칙으로 만들어 이후 생성 프롬프트에 반영합니다(전 프로젝트 공통·5분 정도).'],
+    'lp.teachSource': ['海外の元ページURL', 'Overseas source URL', '해외 원본 URL'],
+    'lp.teachJp': ['日本のLPのURL', 'Japanese LP URL', '일본 LP URL'],
+    'lp.teachKindCf': ['クラファンLP', 'Crowdfunding LP', '크라우드펀딩 LP'],
+    'lp.teachKindOwn': ['自社LP', 'Own LP', '자사 LP'],
+    'lp.teachRun': ['学ばせる', 'Learn', '학습'],
+    'lp.teachRunning': ['学んでいます…', 'Learning…', '학습 중…'],
+    'lp.teachDone': ['{n} 件のルールを学びました。次のプロンプト生成から効きます。', 'Learned {n} rules; they apply from the next prompt run.', '{n}건의 규칙을 배웠습니다. 다음 프롬프트 생성부터 적용됩니다.'],
+    'lp.teachNeedUrls': ['2つのURLを入れてください', 'Enter both URLs', 'URL 두 개를 입력하세요']
   };
 
-  /* ---------- 依存の確認 ---------- */
   if (typeof App.registerScreen !== 'function') {
-    console.error('[screens-lp] App.registerScreen が見つかりません。index.html の読み込み順（app.js -> screens-lp.js）を確認してください。');
+    console.error('[screens-lp] App.registerScreen が見つかりません。index.html の読み込み順を確認してください。');
     App.screens = App.screens || {};
     App.registerScreen = function (id, spec) { App.screens[id] = spec; };
   }
-  if (!window.Api) { console.error('[screens-lp] window.Api が見つかりません。api.js を確認してください。'); }
 
-  /* ---------- 小道具 ---------- */
   function currentLocale() {
     if (window.I18N && typeof window.I18N.locale === 'function') { return window.I18N.locale(); }
     return 'ja';
@@ -86,10 +105,7 @@
   }
   function t(key, params) {
     var row = LOCAL[key];
-    if (row) {
-      var index = LOCALES.indexOf(currentLocale());
-      return fill(row[index < 0 ? 0 : index] || row[0], params);
-    }
+    if (row) { var i = LOCALES.indexOf(currentLocale()); return fill(row[i < 0 ? 0 : i] || row[0], params); }
     if (window.I18N && typeof window.I18N.t === 'function') { return window.I18N.t(key, params); }
     return key;
   }
@@ -108,8 +124,7 @@
   function clear(node) { while (node && node.firstChild) { node.removeChild(node.firstChild); } }
   function add(parent, child) { if (parent && child) { parent.appendChild(child); } return child; }
   function toast(message, kind) {
-    if (typeof App.toast === 'function') { App.toast(message, kind); }
-    else { console.log('[screens-lp]', kind || 'info', message); }
+    if (typeof App.toast === 'function') { App.toast(message, kind); } else { console.log('[screens-lp]', kind, message); }
   }
   function setHeader(title) {
     var titleNode = document.getElementById('header-title');
@@ -121,272 +136,504 @@
   }
   function isArray(v) { return Array.isArray(v); }
 
-  /* 素材の番号（p1 / v1）を、プロジェクトの写真・動画のURLに戻す */
-  function assetUrl(project, ref) {
-    var s = String(ref || '').trim();
-    if (s.indexOf('http') === 0) { return s; }
-    var m = s.match(/^([pv])(\d+)$/);
-    if (!m) { return ''; }
-    var list = m[1] === 'p' ? (project.image_urls || []) : (project.video_urls || []);
-    return String(list[Number(m[2]) - 1] || '');
-  }
-
-  /* ---------- 画面 ---------- */
   App.registerScreen('S12', {
     render: function (root, params) {
       params = params || {};
       var projectId = params.id || (window.Api && Api.storage && Api.storage.get('projectId')) || '';
       setHeader(t('lp.title'));
       clear(root);
+      if (!projectId) { add(root, el('p', 'empty', t('lp.noProject'))); return; }
 
-      if (!projectId) {
-        add(root, el('p', 'empty', t('lp.noProject')));
-        return;
-      }
-
-      var view = { project: null, gen: null, gens: [], user: null, running: false, dirty: false };
+      var view = { project: null, gens: [], gen: null, dirty: false, busy: {} };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lp.title')));
       add(head, el('p', 'screen__lead', t('lp.lead')));
       add(screen, head);
-      var notice = el('div', 'lp-notice');
-      add(screen, notice);
       var toolbar = el('div', 'lp-toolbar');
       add(screen, toolbar);
       var body = el('div', 'lp-body');
       add(screen, body);
       add(root, screen);
 
-      /* --- 読み込み ---
-         途中の状態を必ず画面に出す。黙って空欄になると、まだ無いのか
-         読めなかったのかが分からない（実測: 5本できているのに空欄に見えた） */
-      add(body, el('p', 'empty', t('lp.loading')));
       Promise.all([
         Api.projects.get(projectId),
-        Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 20 })
+        Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 20 }),
+        (window.Api && Api.analysisReports && typeof Api.analysisReports.first === 'function')
+          ? Api.analysisReports.first({ eq: { projects_id: projectId, analysis_status: 'done' }, order: 'created_at.desc' }).catch(function () { return null; })
+          : Promise.resolve(null)
       ]).then(function (got) {
         view.project = got[0];
-        view.gens = got[1] || [];
-        var wanted = params.gen && view.gens.filter(function (g) { return g.id === params.gen; })[0];
-        view.gen = wanted || view.gens[0] || null;
+        view.gens = isArray(got[1]) ? got[1] : [];
+        view.report = got[2] || null;
+        view.gen = params.gen
+          ? (view.gens.filter(function (g) { return g.id === params.gen; })[0] || view.gens[0] || null)
+          : (view.gens[0] || null);
         paint();
       }).catch(function (err) {
         console.error('[screens-lp] 読み込みに失敗:', err);
-        clear(body);
-        add(body, el('p', 'empty', t('lp.loadFailed')));
-        add(body, el('p', 'field__hint', String(err && err.message || err)));
+        add(body, el('p', 'empty', String(err && err.message || err)));
       });
 
-
-
       function paint() {
-        clear(notice); clear(toolbar); clear(body);
-
-        /* 作る入口は総合分析（S20）にある。ここは出来たものを直す画面 */
+        clear(toolbar);
+        clear(body);
         add(toolbar, button('btn btn--secondary', t('lp.toAnalysis'), function () {
           location.hash = '#/S20?id=' + encodeURIComponent(projectId);
         }));
-
-        if (view.gen) {
-          add(toolbar, button('btn btn--secondary', t('lp.toHtml'), function () {
-            location.hash = '#/S13?id=' + encodeURIComponent(projectId) + '&gen=' + encodeURIComponent(view.gen.id);
-          }));
-          var save = button('btn btn--secondary', t('lp.save'), saveEdits);
-          save.disabled = !view.dirty;
-          save.id = 'lp-save';
-          add(toolbar, save);
-        }
-        /* 層ごとに1本できる。同じ回のものを横に並べて、押して切り替える。
-           選ぶのは「どの層に向けたLPを使うか」なので、日付より層が先に要る */
-        var batch = view.gen ? view.gens.filter(function (g) {
-          return (g.created_at || '').slice(0, 16) === (view.gen.created_at || '').slice(0, 16);
-        }) : [];
-        if (batch.length > 1) {
-          var tabs = el('div', 'lp-variants');
-          batch.slice().sort(function (a, b) {
-            return String(a.variant_label || '').localeCompare(String(b.variant_label || ''));
-          }).forEach(function (g) {
-            var on = view.gen && g.id === view.gen.id;
-            var b = button('lp-variant' + (on ? ' lp-variant--on' : ''), '', function () {
-              view.gen = g; view.dirty = false; paint();
-            });
-            b.setAttribute('aria-pressed', on ? 'true' : 'false');
-            add(b, el('span', 'lp-variant__label', String(g.variant_label || '-')));
-            add(b, el('span', 'lp-variant__name', String(g.title || '').slice(0, 28)));
-            add(tabs, b);
-          });
-          add(toolbar, tabs);
-        }
-        /* 過去の回。層の切り替えとは別物なので、日付だけの一覧にする */
-        var rounds = [];
-        var seen = {};
-        view.gens.forEach(function (g) {
-          var when = (g.created_at || '').slice(0, 16);
-          if (seen[when]) { return; }
-          seen[when] = 1;
-          rounds.push(g);
-        });
-        if (rounds.length > 1) {
-          var pick = el('select', 'select lp-history');
-          rounds.forEach(function (g) {
-            var o = el('option', null, (g.created_at || '').slice(0, 16).replace('T', ' '));
-            o.value = g.id;
-            if (view.gen && (g.created_at || '').slice(0, 16) === (view.gen.created_at || '').slice(0, 16)) { o.selected = true; }
-            add(pick, o);
-          });
-          pick.setAttribute('aria-label', t('lp.history'));
-          pick.addEventListener('change', function () {
-            view.gen = view.gens.filter(function (g) { return g.id === pick.value; })[0] || view.gen;
-            view.dirty = false;
-            paint();
-          });
-          add(toolbar, pick);
-        }
-
         if (!view.gen) {
           add(body, el('p', 'empty', t('lp.empty')));
           add(body, el('p', 'field__hint', t('lp.emptyHint')));
           return;
         }
-        paintDraft();
+        /* 層の切り替え。タブは必ず出す。
+           同じ回（content.batch が同じ）にその層があればそれを、無ければ
+           その層のいちばん新しい1本に飛ぶ。1層だけの回（昔の A のみの回）を
+           選んでもタブが消えないようにする（実測: 過去の回を選ぶと
+           タブごと消えて、他の層に戻れなくなっていた） */
+        var myBatch = view.gen.content && view.gen.content.batch;
+        var batch = view.gens.filter(function (g) {
+          if (myBatch) { return g.content && g.content.batch === myBatch; }
+          return (g.created_at || '').slice(0, 16) === (view.gen.created_at || '').slice(0, 16);
+        });
+        var byLabel = {};
+        batch.forEach(function (g) { byLabel[String(g.variant_label || '-')] = g; });
+        var labels = [];
+        view.gens.forEach(function (g) {
+          var L = String(g.variant_label || '-');
+          if (labels.indexOf(L) === -1) { labels.push(L); }
+        });
+        labels.sort();
+        if (labels.length) {
+          var tabs = el('div', 'lp-variants');
+          labels.forEach(function (L) {
+            /* この回に無い層は、その層の最新へ */
+            var g = byLabel[L] || view.gens.filter(function (x) { return String(x.variant_label || '-') === L; })[0];
+            if (!g) { return; }
+            var on = g.id === view.gen.id;
+            var inRound = !!byLabel[L];
+            var b = button('lp-variant' + (on ? ' lp-variant--on' : '') + (inRound ? '' : ' lp-variant--faded'), '',
+              function () { view.gen = g; view.dirty = false; paint(); });
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            if (!inRound) { b.title = String(g.created_at || '').slice(0, 16).replace('T', ' '); }
+            add(b, el('span', 'lp-variant__label', L));
+            add(b, el('span', 'lp-variant__name', String(g.title || '').slice(0, 28)));
+            add(tabs, b);
+          });
+          add(toolbar, tabs);
+        }
+        /* この回に無い層（書けなかった・失敗した層）。その層だけ書き直せる。
+           できた1本は join_batch でこの回に合流するので、タブに揃って出る */
+        var targetLabels = (isArray(view.project && view.project.targets) ? view.project.targets : [])
+          .map(function (tg) { return String(tg.label || '-'); });
+        var missing = targetLabels.filter(function (L) { return !byLabel[L]; });
+        if (missing.length && myBatch) {
+          var missRow = el('div', 'lp-toolbar');
+          add(missRow, el('span', 't-note', t('lp.missing') + ':'));
+          missing.forEach(function (L) {
+            add(missRow, button('btn btn--secondary btn--sm', t('lp.genLayer', { L: L }), function (e) {
+              var node = e.currentTarget;
+              node.disabled = true;
+              Api.generationJobs.insert({
+                feature_key: 'lp_brief', status: 'pending', projects_id: projectId,
+                report_id: (view.report && view.report.id) || null,
+                users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+                payload: { only: L, join_batch: myBatch },
+                lang: currentLocale()
+              }).then(function (job) {
+                toast(t('lp.genLayerQueued', { L: L }), 'success');
+                if (App.watchJob) {
+                  App.watchJob({ jobId: job.id, titleKey: 'ov.makeLpTitle', urls: [], onDone: function () {
+                    Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 20 })
+                      .then(function (rows) {
+                        view.gens = isArray(rows) ? rows : [];
+                        var mine = view.gens.filter(function (g) { return g.content && g.content.batch === myBatch && String(g.variant_label || '-') === L; })[0];
+                        if (mine) { view.gen = mine; }
+                        paint();
+                      });
+                  } });
+                }
+              }).catch(function (err) { node.disabled = false; toast(String(err && err.message || err), 'danger'); });
+            }));
+          });
+          add(toolbar, missRow);
+        }
+        /* 過去の回。回ごとに先頭の1本を出し、選ぶとその回の層に切り替わる */
+        var rounds = [];
+        var seen = {};
+        view.gens.forEach(function (g) {
+          var key = (g.content && g.content.batch) || (g.created_at || '').slice(0, 16);
+          if (seen[key]) { return; }
+          seen[key] = 1;
+          rounds.push({ key: key, gen: g });
+        });
+        if (rounds.length > 1) {
+          var pick = el('select', 'select lp-history-select');
+          rounds.forEach(function (r) {
+            var o = el('option', null, String(r.gen.created_at || '').slice(0, 16).replace('T', ' '));
+            o.value = r.key;
+            var mine = (view.gen.content && view.gen.content.batch) || (view.gen.created_at || '').slice(0, 16);
+            if (r.key === mine) { o.selected = true; }
+            add(pick, o);
+          });
+          pick.addEventListener('change', function () {
+            var r = rounds.filter(function (x) { return x.key === pick.value; })[0];
+            if (r) { view.gen = r.gen; view.dirty = false; paint(); }
+          });
+          add(toolbar, pick);
+        }
+        var save = button('btn btn--secondary', t('lp.save'), saveEdits);
+        save.disabled = !view.dirty;
+        save.id = 'lp-save';
+        add(toolbar, save);
+        /* 未生成があれば「残りをまとめて生成」、全部できていれば「全区画を作り直す」。
+           前は全部できると押せなくなり、直したプロンプトで作り直せなかった */
+        var remaining = (view.gen.sections || []).filter(function (s) { return !made()[String(s.index) + '-1']; }).length;
+        var anyBusy = Object.keys(view.busy).length > 0;
+        var label = anyBusy ? t('lp.genAllRunning')
+          : (remaining ? t('lp.genAll') + '（' + remaining + '）' : t('lp.genAllRedo'));
+        var all = button('btn btn--primary', label, function () {
+          if (remaining) { generate(null); return; }
+          var n = (view.gen.sections || []).length;
+          if (window.confirm(t('lp.genAllRedoConfirm', { n: n }))) { generate('all'); }
+        });
+        all.disabled = anyBusy;
+        all.title = t('lp.genAllHint');
+        add(toolbar, all);
+        var done = doneCount();
+        var total = (view.gen.sections || []).length;
+        var toCanvas = button('btn btn--secondary', t('lp.canvas'), function () {
+          location.hash = '#/S13?id=' + encodeURIComponent(projectId) + '&gen=' + encodeURIComponent(view.gen.id) + '&build=1';
+        });
+        toCanvas.disabled = done === 0;
+        add(toolbar, toCanvas);
+        add(toolbar, el('span', 't-note', t('lp.progress', { done: done, total: total })));
+
+        paintStale();
+        paintBrief();
+        paintRefs();
+        paintSections();
+        paintTeach();
       }
 
-      function paintDraft() {
-        var gen = view.gen;
-        var content = gen.content && typeof gen.content === 'object' ? gen.content : {};
-        var sections = isArray(gen.sections) ? gen.sections : [];
-
-        var top = el('section', 'panel');
-        add(top, el('span', 'panel__title', t('lp.summary')));
-        /* どの層に向けたLPかを最初に出す。5本あるので、見ているものが
-           どれか分からないと直しようがない */
-        var tg = content.target;
-        if (tg && tg.name) {
-          var who = el('p', 'lp-target');
-          add(who, el('span', 'chip chip--sm', String(tg.label || '-')));
-          add(who, el('strong', null, ' ' + String(tg.name)));
-          if (tg.description) { add(who, el('span', 't-note', ' — ' + String(tg.description))); }
-          add(top, who);
-        }
-        add(top, el('p', 'lp-summary', String(content.summary || gen.title || '')));
-        var applied = isArray(content.applied) ? content.applied : [];
-        if (applied.length) {
-          add(top, el('span', 'field__label', t('lp.applied')));
-          var ul = el('ul', 'lp-applied');
-          applied.forEach(function (a) {
-            var li = el('li', null);
-            add(li, el('strong', null, String(a.factor || '')));
-            if (isArray(a.where) && a.where.length) { add(li, el('span', 't-note', ' → ' + a.where.join(', '))); }
-            if (a.how) { add(li, el('div', 'lp-applied__how', String(a.how))); }
-            add(ul, li);
-          });
-          add(top, ul);
-        } else {
-          add(top, el('p', 'field__hint', t('lp.noFactors')));
-        }
-        add(body, top);
-
-        var list = el('ol', 'lp-sections');
-        sections.forEach(function (sec, index) {
-          add(list, sectionCard(sec, index));
+      /* お手本の組（海外の元ページ＋日本のLP）を渡して学ばせる。
+         学んだ決まりは docs/lp-patterns.md に入り、全プロジェクトの
+         マスターブリーフ（文章と写真の演出の両方）に反映される */
+      function paintTeach() {
+        var box = el('section', 'panel');
+        add(box, el('span', 'panel__title', t('lp.teach')));
+        add(box, el('p', 'field__hint', t('lp.teachLead')));
+        var f1 = el('label', 'field');
+        add(f1, el('span', 'field__label', t('lp.teachSource')));
+        var src = el('input', 'input'); src.type = 'url'; src.placeholder = 'https://www.wadiz.kr/…';
+        add(f1, src); add(box, f1);
+        var f2 = el('label', 'field');
+        add(f2, el('span', 'field__label', t('lp.teachJp')));
+        var jp = el('input', 'input'); jp.type = 'url'; jp.placeholder = 'https://www.makuake.com/…';
+        add(f2, jp); add(box, f2);
+        var kind = el('select', 'select');
+        [['cf', t('lp.teachKindCf')], ['own', t('lp.teachKindOwn')]].forEach(function (k) {
+          var o = el('option', null, k[1]); o.value = k[0]; add(kind, o);
         });
+        add(box, kind);
+        var run = button('btn btn--primary', t('lp.teachRun'), function () {
+          if (!/^https?:/.test(src.value.trim()) || !/^https?:/.test(jp.value.trim())) {
+            toast(t('lp.teachNeedUrls'), 'danger'); return;
+          }
+          run.disabled = true;
+          run.textContent = t('lp.teachRunning');
+          Api.generationJobs.insert({
+            feature_key: 'learn_pair', status: 'pending', projects_id: projectId,
+            users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+            payload: { source_url: src.value.trim(), jp_url: jp.value.trim(), kind: kind.value,
+              category: (view.project && view.project.category) || 'other',
+              name: (view.project && (view.project.product_name || view.project.name)) || '' },
+            lang: currentLocale()
+          }).then(function (job) {
+            if (!App.watchJob) { return; }
+            App.watchJob({
+              jobId: job.id, titleKey: 'lp.teach', urls: [],
+              onDone: function (result) {
+                run.disabled = false; run.textContent = t('lp.teachRun');
+                toast(t('lp.teachDone', { n: (result && result.rules) || 0 }), 'success');
+              },
+              onFail: function (why) {
+                run.disabled = false; run.textContent = t('lp.teachRun');
+                toast(String(why || t('common.error')), 'danger');
+              }
+            });
+          }).catch(function (err) {
+            run.disabled = false; run.textContent = t('lp.teachRun');
+            toast(String(err && err.message || err), 'danger');
+          });
+        });
+        var row = el('div', 'lp-toolbar');
+        add(row, run);
+        add(box, row);
+        add(body, box);
+      }
+
+      /* 設定が変わったら知らせる。自動では書き直さない（数分かかり、絵の作り直しにも費用がかかる）。
+         ブリーフを書いたときの材料の印（content.stamp）と、今の材料の印を比べる */
+      function paintStale() {
+        var c = content();
+        if (!c.stamp || !window.BriefStamp) { return; }
+        var now = window.BriefStamp.stampOf(view.project, view.report);
+        if (now === c.stamp) { return; }
+        var box = el('section', 'panel lp-stale');
+        add(box, el('p', 'lp-notice__warn', t('lp.stale')));
+        add(box, button('btn btn--primary', t('lp.rewrite'), function (e) {
+          var node = e.currentTarget;
+          node.disabled = true;
+          Api.generationJobs.insert({
+            feature_key: 'lp_brief', status: 'pending', projects_id: projectId,
+            report_id: view.report ? view.report.id : null,
+            users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+            payload: {}, lang: currentLocale()
+          }).then(function (job) {
+            toast(t('lp.rewriteQueued'), 'success');
+            if (App.watchJob) {
+              App.watchJob({ jobId: job.id, titleKey: 'ov.makeLpTitle', urls: [], onDone: function () {
+                location.hash = '#/S12?id=' + encodeURIComponent(projectId);
+                location.reload();
+              } });
+            }
+          }).catch(function (err) { node.disabled = false; toast(String(err && err.message || err), 'danger'); });
+        }));
+        add(body, box);
+      }
+
+      function content() { return view.gen.content && typeof view.gen.content === 'object' ? view.gen.content : {}; }
+      function made() { var a = view.gen.asset_prompts && view.gen.asset_prompts.made; return a && typeof a === 'object' ? a : {}; }
+      function doneCount() {
+        var m = made();
+        return (view.gen.sections || []).filter(function (s) { return !!m[String(s.index) + '-1']; }).length;
+      }
+
+      /* マスターブリーフ。長いので折りたたみ。コピーできる */
+      function paintBrief() {
+        var c = content();
+        var box = el('section', 'panel lp-brief');
+        var headRow = el('div', 'lpd-section__head');
+        add(headRow, el('span', 'panel__title', t('lp.brief')));
+        if (c.target && c.target.name) {
+          add(headRow, el('span', 'chip chip--sm', String(view.gen.variant_label || '-') + ' ' + String(c.target.name)));
+        }
+        var open = false;
+        var pre = el('pre', 'lp-brief__text', String(c.brief || ''));
+        pre.hidden = true;
+        var toggle = button('btn btn--secondary btn--sm', t('lp.briefOpen'), function () {
+          open = !open; pre.hidden = !open; toggle.textContent = t(open ? 'lp.briefClose' : 'lp.briefOpen');
+        });
+        add(headRow, toggle);
+        add(headRow, button('btn btn--secondary btn--sm', t('lp.copy'), function () { copyText(String(c.brief || '')); }));
+        add(box, headRow);
+        add(box, pre);
+        add(body, box);
+      }
+
+      /* 商品の見本（切り抜き）。全区画の生成に添付される */
+      function paintRefs() {
+        var refs = isArray(view.project && view.project.product_cutout_urls) ? view.project.product_cutout_urls : [];
+        var stars = isArray(view.project && view.project.product_shot_urls) ? view.project.product_shot_urls : [];
+        var src = isArray(view.project && view.project.product_cutout_source) ? view.project.product_cutout_source : [];
+        /* ☆と切り抜きの元が違えば古い。見せて、その場で作り直せるようにする */
+        var stale = JSON.stringify(stars.slice().sort()) !== JSON.stringify(src.slice().sort());
+        var box = el('section', 'panel');
+        var headRow = el('div', 'lpd-section__head');
+        add(headRow, el('span', 'panel__title', t('lp.refs')));
+        add(headRow, button('btn btn--secondary btn--sm', t('lp.addRefs'), function () {
+          location.hash = '#/S4?id=' + encodeURIComponent(projectId);
+        }));
+        if (stale && stars.length) {
+          add(headRow, button('btn btn--primary btn--sm', t('lp.rebuildRefs'), function () {
+            Api.generationJobs.insert({
+              feature_key: 'product_cutouts', status: 'pending', projects_id: projectId,
+              users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+              payload: {}, lang: currentLocale()
+            }).then(function (job) {
+              toast(t('lp.rebuildRefsQueued'), 'success');
+              if (App.watchJob) {
+                App.watchJob({ jobId: job.id, titleKey: 'job.titleAssets', urls: [], onDone: function () {
+                  Api.projects.get(projectId).then(function (p) { view.project = p; paint(); });
+                } });
+              }
+            }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
+          }));
+        }
+        add(box, headRow);
+        if (stale && stars.length) {
+          add(box, el('p', 'field__hint', t('lp.refsStale', { n: stars.length, m: refs.length })));
+        }
+        if (!refs.length) { add(box, el('p', 'field__hint', t('lp.noRefs'))); add(body, box); return; }
+        var row = el('div', 'lp-assets__row');
+        refs.forEach(function (u) {
+          var img = el('img', 'lp-assets__thumb');
+          img.src = u; img.alt = ''; img.loading = 'lazy';
+          add(row, img);
+        });
+        add(box, row);
+        add(body, box);
+      }
+
+      /* 区画ごとのカード: プロンプト（編集可）＋生成ボタン＋できた絵 */
+      function paintSections() {
+        var list = el('ol', 'lpd-sections');
+        (view.gen.sections || []).forEach(function (sec, i) { add(list, sectionCard(sec, i)); });
         add(body, list);
       }
 
-      /* 区画1つ。見出し・補足・本文・箇条書き・ボタン文言はその場で直せる。
-         素材と絵の指示は見るだけ（素材の差し替えは HTML 側で） */
-      function sectionCard(sec, index) {
-        var li = el('li', 'lp-section' + (sec.cta ? ' lp-section--cta' : ''));
-        var head = el('div', 'lp-section__head');
-        add(head, el('span', 'lp-section__no', String(index + 1)));
-        add(head, el('span', 'lp-section__title', String(sec.title || sec.key || '')));
-        if (sec.cta) { add(head, el('span', 'chip chip--sm', t('lp.cta'))); }
-        if (sec.added) { add(head, el('span', 'chip chip--sm', t('lp.added'))); }
-        else if (sec.from) { add(head, el('span', 't-note', t('lp.from', { n: sec.from }))); }
-        add(li, head);
+      function sectionCard(sec, i) {
+        var slot = String(sec.index) + '-1';
+        var url = made()[slot] || '';
+        var li = el('li', 'lpd-section');
+        var headRow = el('div', 'lpd-section__head');
+        add(headRow, el('span', 'lpd-section__no', String(sec.index)));
+        add(headRow, el('span', 'lpd-section__title', String(sec.title || t('lp.section', { n: sec.index }))));
+        if (url) { add(headRow, el('span', 'chip chip--sm chip--success', '✓')); }
+        add(li, headRow);
 
-        add(li, field(t('lp.headline'), 'input', sec.headline, function (v) { sec.headline = v; }));
-        if (sec.subhead || sec.cta) { add(li, field(t('lp.subhead'), 'input', sec.subhead, function (v) { sec.subhead = v; })); }
-        add(li, field(t('lp.body'), 'textarea', sec.body, function (v) { sec.body = v; }));
-        if (isArray(sec.bullets) && sec.bullets.length) {
-          add(li, field(t('lp.bullets'), 'textarea', sec.bullets.join('\n'), function (v) {
-            sec.bullets = v.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
-          }));
+        if (url) {
+          var img = el('img', 'lp-section__img');
+          img.src = url; img.alt = ''; img.loading = 'lazy';
+          add(li, img);
         }
-        if (sec.cta) { add(li, field(t('lp.ctaLabel'), 'input', sec.cta_label, function (v) { sec.cta_label = v; })); }
-
-        /* 素材（サムネイル）と絵の指示 */
-        var assets = isArray(sec.assets) ? sec.assets : [];
-        var strip = el('div', 'lp-assets');
-        add(strip, el('span', 'field__label', t('lp.assets')));
-        var row = el('div', 'lp-assets__row');
-        var shown = 0;
-        assets.forEach(function (ref) {
-          var url = assetUrl(view.project, ref);
-          if (!url) { return; }
-          shown += 1;
-          if (/^v\d+$/.test(String(ref)) || /\.(mp4|webm|mov)(\?|$)/i.test(url)) {
-            var v = el('video', 'lp-assets__thumb');
-            v.src = url; v.muted = true; v.playsInline = true; v.preload = 'metadata';
-            add(row, v);
-          } else {
-            var img = el('img', 'lp-assets__thumb');
-            img.src = url; img.alt = String(ref); img.loading = 'lazy';
-            add(row, img);
-          }
-        });
-        if (!shown) { add(row, el('span', 't-note', t('lp.noAssetsPicked'))); }
-        add(strip, row);
-        add(li, strip);
-        /* 絵の指示。ここが素材を作る段への申し送りになる。
-           kind（image / gif / video）で作らせる先が変わる */
-        var visuals = isArray(sec.visuals) ? sec.visuals : (sec.visual ? [{ kind: 'image', prompt: sec.visual }] : []);
-        if (visuals.length) {
-          var vis = el('div', 'lp-visual');
-          add(vis, el('span', 'field__label', t('lp.visual')));
-          visuals.forEach(function (v) {
-            var row = el('div', 'lp-visual__row');
-            add(row, el('span', 'chip chip--sm', String(v.kind || 'image')));
-            var txt = el('div', 'lp-visual__body');
-            if (v.use) { add(txt, el('span', 'lp-visual__use', String(v.use))); }
-            add(txt, el('p', 'lp-visual__text', String(v.prompt || '')));
-            if (v.asset) { add(txt, el('span', 't-note', t('lp.visualHasAsset', { ref: String(v.asset) }))); }
-            add(row, txt);
-            add(vis, row);
+        /* 前の版。作り直すたびに前の絵が積まれる。開いて見比べ、戻せる */
+        var hist = (view.gen.asset_prompts && view.gen.asset_prompts.history && view.gen.asset_prompts.history[slot]) || [];
+        if (hist.length) {
+          var histBox = el('div', 'lp-history');
+          var histRow = el('div', 'lp-assets__row');
+          histRow.hidden = true;
+          hist.forEach(function (h, hi) {
+            var cell = el('div', 'lp-history__cell');
+            var th = el('img', 'lp-assets__thumb lp-history__thumb');
+            th.src = h.url; th.alt = ''; th.loading = 'lazy';
+            th.title = String(h.at || '').slice(0, 16).replace('T', ' ');
+            add(cell, th);
+            add(cell, button('btn btn--secondary btn--sm', t('lp.restore'), function () { restoreVersion(slot, hi); }));
+            add(histRow, cell);
           });
-          add(li, vis);
+          var toggleHist = button('btn btn--secondary btn--sm', t('lp.historyOpen') + '（' + hist.length + '）', function () {
+            histRow.hidden = !histRow.hidden;
+            toggleHist.textContent = (histRow.hidden ? t('lp.historyOpen') : t('lp.historyClose')) + '（' + hist.length + '）';
+          });
+          add(histBox, toggleHist);
+          add(histBox, histRow);
+          add(li, histBox);
         }
+
+        var field = el('label', 'field');
+        add(field, el('span', 'field__label', t('lp.prompt')));
+        var ta = el('textarea', 'textarea lp-prompt');
+        ta.value = String(sec.prompt || '');
+        ta.rows = 6;
+        ta.addEventListener('input', function () {
+          sec.prompt = ta.value; view.dirty = true;
+          var s = document.getElementById('lp-save'); if (s) { s.disabled = false; }
+        });
+        add(field, ta);
+        add(li, field);
+
+        var row = el('div', 'lp-toolbar');
+        var busy = !!view.busy[slot];
+        var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
+          generate(sec.index);
+        });
+        b.disabled = busy;
+        add(row, b);
+        add(row, button('btn btn--secondary btn--sm', t('lp.copy'), function () { copyText(String(sec.prompt || '')); }));
+        add(li, row);
         return li;
       }
 
-      function field(label, kind, value, onChange) {
-        var wrap = el('label', 'field');
-        add(wrap, el('span', 'field__label', label));
-        var input = el(kind === 'textarea' ? 'textarea' : 'input', kind === 'textarea' ? 'textarea' : 'input');
-        if (kind !== 'textarea') { input.type = 'text'; }
-        input.value = String(value || '');
-        if (kind === 'textarea') { input.rows = Math.min(10, Math.max(3, String(value || '').split('\n').length + 1)); }
-        input.addEventListener('input', function () {
-          onChange(input.value);
-          if (!view.dirty) { view.dirty = true; var s = document.getElementById('lp-save'); if (s) { s.disabled = false; } }
-        });
-        add(wrap, input);
-        return wrap;
+      /* 前の版を最新に戻す。今の最新は履歴の先頭に回る */
+      function restoreVersion(slot, index) {
+        var ap = view.gen.asset_prompts || {};
+        var made = Object.assign({}, ap.made || {});
+        var history = Object.assign({}, ap.history || {});
+        var list = (history[slot] || []).slice();
+        var picked = list[index];
+        if (!picked) { return; }
+        list.splice(index, 1);
+        if (made[slot] && made[slot] !== picked.url) { list.unshift({ url: made[slot], at: new Date().toISOString() }); }
+        made[slot] = picked.url;
+        history[slot] = list.slice(0, 10);
+        var next = Object.assign({}, ap, { made: made, history: history });
+        Api.generations.update(view.gen.id, { asset_prompts: next }).then(function () {
+          view.gen.asset_prompts = next;
+          toast(t('lp.restored'), 'success');
+          paint();
+        }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
       }
 
-      /* --- 実行 --- */
+      function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { toast(t('lp.copied'), 'success'); });
+        }
+      }
 
       function saveEdits() {
-        if (!view.gen) { return; }
         Api.generations.update(view.gen.id, { sections: view.gen.sections }).then(function () {
           view.dirty = false;
-          paint();
           toast(t('lp.saved'), 'success');
-        }).catch(function (err) {
-          console.error('[screens-lp] 保存に失敗:', err);
-          toast(String(err && err.message || err), 'danger');
-        });
+          paint();
+        }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
+      }
+
+      /* 1区画（index）か、未生成の全部（null）を作る。ワーカーの lp_section が受ける */
+      function generate(index) {
+        if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
+        var targets = index === null
+          ? (view.gen.sections || []).filter(function (s) { return !made()[String(s.index) + '-1']; }).map(function (s) { return s.index; })
+          : (index === 'all'
+            ? (view.gen.sections || []).map(function (s) { return s.index; })
+            : [index]);
+        if (!targets.length) { return; }
+        var go = function () {
+          targets.forEach(function (ix) { view.busy[String(ix) + '-1'] = true; });
+          paint();
+          Api.generationJobs.insert({
+            feature_key: 'lp_section',
+            status: 'pending',
+            projects_id: projectId,
+            users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+            payload: { generation_id: view.gen.id, sections: targets },
+            lang: currentLocale()
+          }).then(function (job) {
+            if (!App.watchJob) { toast(t('lp.queued'), 'success'); return; }
+            App.watchJob({
+              jobId: job.id,
+              titleKey: 'job.titleAssets',
+              urls: [],
+              onDone: function () {
+                Api.generations.get(view.gen.id).then(function (row) {
+                  if (row) {
+                    view.gen = row;
+                    view.gens = view.gens.map(function (g) { return g.id === row.id ? row : g; });
+                  }
+                  targets.forEach(function (ix) { delete view.busy[String(ix) + '-1']; });
+                  toast(t('lp.genDone'), 'success');
+                  paint();
+                });
+              },
+              /* 失敗でもボタンを戻す。戻さないと「生成しています…」のまま固まり、
+                 失敗の帯だけが残り続ける（実測） */
+              onFail: function (why) {
+                targets.forEach(function (ix) { delete view.busy[String(ix) + '-1']; });
+                toast(String(why || t('common.error')), 'danger');
+                paint();
+              }
+            });
+          }).catch(function (err) {
+            targets.forEach(function (ix) { delete view.busy[String(ix) + '-1']; });
+            paint();
+            toast(String(err && err.message || err), 'danger');
+          });
+        };
+        /* 直したプロンプトは先に保存してから作る */
+        if (view.dirty) {
+          Api.generations.update(view.gen.id, { sections: view.gen.sections }).then(function () { view.dirty = false; go(); });
+        } else { go(); }
       }
     }
   });
