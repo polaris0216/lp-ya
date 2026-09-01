@@ -530,6 +530,12 @@
           var stage = el('div', 'lp-shot');
           var img = el('img', 'lp-section__img');
           img.alt = ''; img.loading = 'lazy';
+          /* 両端に前後の版をぼかして覗かせる。次に何が来るかが見えるので、
+             押す前に見当がつく。飾りではなく、押しても送れるようにする */
+          var peekPrev = el('img', 'lp-shot__peek');
+          var peekNext = el('img', 'lp-shot__peek');
+          peekPrev.alt = ''; peekNext.alt = '';
+          peekPrev.loading = 'lazy'; peekNext.loading = 'lazy';
           var foot = el('div', 'lp-shot__foot');
           var counter = el('span', 't-note', '');
           var action = el('span', 'lp-shot__action');
@@ -539,9 +545,16 @@
           /* 矢印では paint() を呼ばない。全部を描き直すと画面が作り直され、
              見ていた場所を失ってページの先頭へ飛ぶ（実測）。
              ここで変わるのは絵と下の1行だけなので、その2つだけ書き換える */
+          var older = function (at) { return (at + 1) % shots.length; };          /* 左＝古い方 */
+          var newer = function (at) { return (at - 1 + shots.length) % shots.length; };
+
           var show = function () {
             var at = view.shotAt[slot];
             img.src = shots[at].url;
+            /* 版が2つしか無いと、左右の覗きが同じ絵になる。それでも
+               「隣がある」ことは伝わるので、そのまま出す */
+            peekPrev.src = shots[older(at)].url;
+            peekNext.src = shots[newer(at)].url;
             counter.textContent = (at + 1) + ' / ' + shots.length
               + (shots[at].at ? '　' + String(shots[at].at).slice(0, 16).replace('T', ' ') : '');
             clear(action);
@@ -552,19 +565,19 @@
           };
 
           if (shots.length > 1) {
-            var prev = button('btn btn--secondary btn--sm lp-shot__nav', '‹', function () {
-              view.shotAt[slot] = (view.shotAt[slot] + 1) % shots.length;   /* 左は「前の版」＝古い方へ */
-              show();
-            });
+            var goOlder = function () { view.shotAt[slot] = older(view.shotAt[slot]); show(); };
+            var goNewer = function () { view.shotAt[slot] = newer(view.shotAt[slot]); show(); };
+            var prev = button('btn btn--secondary btn--sm lp-shot__nav', '‹', goOlder);
             prev.setAttribute('aria-label', t('lp.prevShot'));
-            var next = button('btn btn--secondary btn--sm lp-shot__nav', '›', function () {
-              view.shotAt[slot] = (view.shotAt[slot] - 1 + shots.length) % shots.length;
-              show();
-            });
+            var next = button('btn btn--secondary btn--sm lp-shot__nav', '›', goNewer);
             next.setAttribute('aria-label', t('lp.nextShot'));
+            peekPrev.addEventListener('click', goOlder);
+            peekNext.addEventListener('click', goNewer);
+            add(stage, peekPrev);
             add(stage, prev);
             add(stage, img);
             add(stage, next);
+            add(stage, peekNext);
           } else {
             add(stage, img);
           }

@@ -4281,6 +4281,21 @@ input[type='radio'] {
    矢印は絵の外に出す。上に重ねると、絵の端の情報が読めなくなる */
 .lp-shot { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 6px; }
 .lp-shot__nav { flex: 0 0 auto; min-width: 36px; font-size: 18px; line-height: 1; }
+/* 両端に前後の版を覗かせる。ぼかして薄くするのは、真ん中と見間違えないため。
+   押せば送れるので、指の当たる大きさを確保する */
+.lp-shot__peek {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+  filter: blur(2.5px);
+  opacity: .4;
+  cursor: pointer;
+  transition: opacity .2s ease, filter .2s ease;
+}
+.lp-shot__peek:hover { opacity: .7; filter: blur(1px); }
+@media (prefers-reduced-motion: reduce) { .lp-shot__peek { transition: none; } }
 .lp-shot__foot { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 12px; }
 .lp-section__img { display: block; width: 100%; max-width: 360px; height: auto; margin: 0; border-radius: 8px; border: 1px solid var(--c-line); }
 .btn--sm { min-height: 0; padding: 6px 12px; font-size: var(--fs-note); }
