@@ -4277,7 +4277,12 @@ input[type='radio'] {
 /* S12 生成プロンプト: マスターブリーフと区画カード */
 .lp-brief__text { margin: 10px 0 0; padding: 14px 16px; border: 1px solid var(--c-line); border-radius: var(--r-control); background: var(--c-bg); font-size: 13px; line-height: 1.75; white-space: pre-wrap; max-height: 60vh; overflow: auto; }
 .lp-prompt { min-height: 120px; font-size: 13px; line-height: 1.7; }
-.lp-section__img { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 0 12px; border-radius: 8px; border: 1px solid var(--c-line); }
+/* 絵は区画の真ん中に置く。左右の矢印で版を送る（lp-shot）。
+   矢印は絵の外に出す。上に重ねると、絵の端の情報が読めなくなる */
+.lp-shot { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 6px; }
+.lp-shot__nav { flex: 0 0 auto; min-width: 36px; font-size: 18px; line-height: 1; }
+.lp-shot__foot { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 12px; }
+.lp-section__img { display: block; width: 100%; max-width: 360px; height: auto; margin: 0; border-radius: 8px; border: 1px solid var(--c-line); }
 .btn--sm { min-height: 0; padding: 6px 12px; font-size: var(--fs-note); }
 .lp-history { margin: 0 0 12px; }
 .lp-history__cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }

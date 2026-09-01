@@ -73,6 +73,9 @@
     'lp.restored': ['前の版に戻しました', 'Restored', '이전 버전으로 되돌렸습니다'],
     'lp.historyOpen': ['履歴を見る', 'Show history', '이력 보기'],
     'lp.historyClose': ['履歴を閉じる', 'Hide history', '이력 닫기'],
+    'lp.prevShot': ['前の版', 'Previous', '이전'],
+    'lp.nextShot': ['次の版', 'Next', '다음'],
+    'lp.shotNow': ['いま使う版', 'In use', '사용 중'],
     'lp.stale': ['商品入力・ターゲット層・競合分析のどれかが変わっています。生成プロンプトを今の設定で書き直しますか？（数分。区画の絵はそのまま残り、作り直すときに新しいプロンプトが使われます）',
       'Product input, targets, or competitor analysis changed since these prompts were written. Rewrite with the current settings? (A few minutes. Existing images stay; regenerate to apply.)',
       '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
@@ -150,7 +153,9 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lp.noProject'))); return; }
 
-      var view = { project: null, gens: [], gen: null, dirty: false, busy: {} };
+      /* shotAt は区画ごとに「いま何番目の版を見ているか」。paint() で作り直しても
+         見ていた版に戻れるよう、描画の外に持つ */
+      var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {} };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lp.title')));
@@ -505,33 +510,44 @@
         if (url) { add(headRow, el('span', 'chip chip--sm chip--success', '✓')); }
         add(li, headRow);
 
-        if (url) {
-          var img = el('img', 'lp-section__img');
-          img.src = url; img.alt = ''; img.loading = 'lazy';
-          add(li, img);
-        }
-        /* 前の版。作り直すたびに前の絵が積まれる。開いて見比べ、戻せる */
+        /* 絵は左右の矢印で版を送る。0番目がいま使っている版、以降が前の版。
+           前は「履歴を開く」で下に並べていたが、作り直すたびに横に伸びて
+           見比べにくかった。同じ場所で入れ替えれば、変わったところが分かる */
         var hist = (view.gen.asset_prompts && view.gen.asset_prompts.history && view.gen.asset_prompts.history[slot]) || [];
-        if (hist.length) {
-          var histBox = el('div', 'lp-history');
-          var histRow = el('div', 'lp-assets__row');
-          histRow.hidden = true;
-          hist.forEach(function (h, hi) {
-            var cell = el('div', 'lp-history__cell');
-            var th = el('img', 'lp-assets__thumb lp-history__thumb');
-            th.src = h.url; th.alt = ''; th.loading = 'lazy';
-            th.title = String(h.at || '').slice(0, 16).replace('T', ' ');
-            add(cell, th);
-            add(cell, button('btn btn--secondary btn--sm', t('lp.restore'), function () { restoreVersion(slot, hi); }));
-            add(histRow, cell);
+        if (url) {
+          var shots = [{ url: url, at: '' }].concat(hist);
+          /* 何番目を見ているかは描き直しをまたいで覚える。作り直しのあとに
+             paint() が走ると、見ていた版に戻れなくなる */
+          if (view.shotAt[slot] === undefined || view.shotAt[slot] >= shots.length) { view.shotAt[slot] = 0; }
+          var stage = el('div', 'lp-shot');
+          var prev = button('btn btn--secondary btn--sm lp-shot__nav', '‹', function () {
+            view.shotAt[slot] = (view.shotAt[slot] + 1) % shots.length;   /* 左は「前の版」＝古い方へ */
+            paint();
           });
-          var toggleHist = button('btn btn--secondary btn--sm', t('lp.historyOpen') + '（' + hist.length + '）', function () {
-            histRow.hidden = !histRow.hidden;
-            toggleHist.textContent = (histRow.hidden ? t('lp.historyOpen') : t('lp.historyClose')) + '（' + hist.length + '）';
+          prev.setAttribute('aria-label', t('lp.prevShot'));
+          var next = button('btn btn--secondary btn--sm lp-shot__nav', '›', function () {
+            view.shotAt[slot] = (view.shotAt[slot] - 1 + shots.length) % shots.length;
+            paint();
           });
-          add(histBox, toggleHist);
-          add(histBox, histRow);
-          add(li, histBox);
+          next.setAttribute('aria-label', t('lp.nextShot'));
+          var at = view.shotAt[slot];
+          var img = el('img', 'lp-section__img');
+          img.src = shots[at].url; img.alt = ''; img.loading = 'lazy';
+          if (shots.length > 1) { add(stage, prev); }
+          add(stage, img);
+          if (shots.length > 1) { add(stage, next); }
+          add(li, stage);
+
+          if (shots.length > 1) {
+            var foot = el('div', 'lp-shot__foot');
+            add(foot, el('span', 't-note', (at + 1) + ' / ' + shots.length
+              + (shots[at].at ? '　' + String(shots[at].at).slice(0, 16).replace('T', ' ') : '')));
+            /* いま使っている版以外を見ているときだけ、置き換えの手を出す */
+            add(foot, at === 0
+              ? el('span', 'chip chip--sm chip--success', t('lp.shotNow'))
+              : button('btn btn--secondary btn--sm', t('lp.restore'), function () { restoreVersion(slot, at - 1); }));
+            add(li, foot);
+          }
         }
 
         var field = el('label', 'field');
@@ -573,6 +589,8 @@
         var next = Object.assign({}, ap, { made: made, history: history });
         Api.generations.update(view.gen.id, { asset_prompts: next }).then(function () {
           view.gen.asset_prompts = next;
+          /* 戻したものが「いま使う版」になるので、見る位置も先頭へ */
+          view.shotAt[slot] = 0;
           toast(t('lp.restored'), 'success');
           paint();
         }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
@@ -679,7 +697,12 @@
                     view.gen = row;
                     view.gens = view.gens.map(function (g) { return g.id === row.id ? row : g; });
                   }
-                  targets.forEach(function (ix) { delete view.busy[String(ix) + '-1']; });
+                  /* できたてを見せる。前の版を見ていた位置のままだと、
+                     作り直したのに絵が変わらないように見える */
+                  targets.forEach(function (ix) {
+                    delete view.busy[String(ix) + '-1'];
+                    view.shotAt[String(ix) + '-1'] = 0;
+                  });
                   toast(t('lp.genDone'), 'success');
                   paint();
                 });
