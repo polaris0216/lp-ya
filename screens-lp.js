@@ -186,9 +186,17 @@
         add(body, el('p', 'empty', String(err && err.message || err)));
       });
 
+      /* 画面を作り直す。中身を全部捨てて建て直すので、そのままだと
+         見ていた場所を失って先頭へ飛ぶ。位置を覚えて戻す
+         （実測: 版を切り替えるたびにページの一番上へ戻っていた）。
+         高さが変わることもあるので、書き終わってから戻す */
       function paint() {
+        var keepY = window.scrollY || window.pageYOffset || 0;
         clear(toolbar);
         clear(body);
+        if (keepY) {
+          window.requestAnimationFrame(function () { window.scrollTo(0, keepY); });
+        }
         add(toolbar, button('btn btn--secondary', t('lp.toAnalysis'), function () {
           location.hash = '#/S20?id=' + encodeURIComponent(projectId);
         }));
@@ -520,34 +528,49 @@
              paint() が走ると、見ていた版に戻れなくなる */
           if (view.shotAt[slot] === undefined || view.shotAt[slot] >= shots.length) { view.shotAt[slot] = 0; }
           var stage = el('div', 'lp-shot');
-          var prev = button('btn btn--secondary btn--sm lp-shot__nav', '‹', function () {
-            view.shotAt[slot] = (view.shotAt[slot] + 1) % shots.length;   /* 左は「前の版」＝古い方へ */
-            paint();
-          });
-          prev.setAttribute('aria-label', t('lp.prevShot'));
-          var next = button('btn btn--secondary btn--sm lp-shot__nav', '›', function () {
-            view.shotAt[slot] = (view.shotAt[slot] - 1 + shots.length) % shots.length;
-            paint();
-          });
-          next.setAttribute('aria-label', t('lp.nextShot'));
-          var at = view.shotAt[slot];
           var img = el('img', 'lp-section__img');
-          img.src = shots[at].url; img.alt = ''; img.loading = 'lazy';
-          if (shots.length > 1) { add(stage, prev); }
-          add(stage, img);
-          if (shots.length > 1) { add(stage, next); }
-          add(li, stage);
+          img.alt = ''; img.loading = 'lazy';
+          var foot = el('div', 'lp-shot__foot');
+          var counter = el('span', 't-note', '');
+          var action = el('span', 'lp-shot__action');
+          add(foot, counter);
+          add(foot, action);
 
-          if (shots.length > 1) {
-            var foot = el('div', 'lp-shot__foot');
-            add(foot, el('span', 't-note', (at + 1) + ' / ' + shots.length
-              + (shots[at].at ? '　' + String(shots[at].at).slice(0, 16).replace('T', ' ') : '')));
+          /* 矢印では paint() を呼ばない。全部を描き直すと画面が作り直され、
+             見ていた場所を失ってページの先頭へ飛ぶ（実測）。
+             ここで変わるのは絵と下の1行だけなので、その2つだけ書き換える */
+          var show = function () {
+            var at = view.shotAt[slot];
+            img.src = shots[at].url;
+            counter.textContent = (at + 1) + ' / ' + shots.length
+              + (shots[at].at ? '　' + String(shots[at].at).slice(0, 16).replace('T', ' ') : '');
+            clear(action);
             /* いま使っている版以外を見ているときだけ、置き換えの手を出す */
-            add(foot, at === 0
+            add(action, at === 0
               ? el('span', 'chip chip--sm chip--success', t('lp.shotNow'))
               : button('btn btn--secondary btn--sm', t('lp.restore'), function () { restoreVersion(slot, at - 1); }));
-            add(li, foot);
+          };
+
+          if (shots.length > 1) {
+            var prev = button('btn btn--secondary btn--sm lp-shot__nav', '‹', function () {
+              view.shotAt[slot] = (view.shotAt[slot] + 1) % shots.length;   /* 左は「前の版」＝古い方へ */
+              show();
+            });
+            prev.setAttribute('aria-label', t('lp.prevShot'));
+            var next = button('btn btn--secondary btn--sm lp-shot__nav', '›', function () {
+              view.shotAt[slot] = (view.shotAt[slot] - 1 + shots.length) % shots.length;
+              show();
+            });
+            next.setAttribute('aria-label', t('lp.nextShot'));
+            add(stage, prev);
+            add(stage, img);
+            add(stage, next);
+          } else {
+            add(stage, img);
           }
+          show();
+          add(li, stage);
+          if (shots.length > 1) { add(li, foot); }
         }
 
         var field = el('label', 'field');
