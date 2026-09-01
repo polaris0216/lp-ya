@@ -86,6 +86,15 @@
   };
   /* 表示順は「新商品として出やすい順」。値は辞書キーの末尾（tech / food ...）を保存する。
      翻訳文そのものを保存すると、言語を切り替えたときに保存済みの値と一致しなくなる。 */
+  /* LPを出す言語。画面の表示言語（i18n）とは別物なので、ここに持つ。
+     並びは値そのものを見せる（日本語の画面で韓国語のLPを作ることがあり、
+     訳した名前だと「どの言語で出るのか」が分からなくなる） */
+  var OUTPUT_LANGS = [
+    { value: 'ja', label: '日本語' },
+    { value: 'en', label: 'English' },
+    { value: 'ko', label: '한국어' }
+  ];
+
   var CATEGORIES = [
     'category.tech', 'category.appliance', 'category.food', 'category.fashion',
     'category.bag', 'category.beauty', 'category.interior', 'category.outdoor',
@@ -726,7 +735,7 @@
     setHeader(t('project.createTitle'), true);
 
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
-      category: '', fundingGoal: '', valueProp: '', brandTone: '',
+      category: '', outputLang: 'ja', fundingGoal: '', valueProp: '', brandTone: '',
       refUrls: [''], brandColors: [], brandFonts: {}, targets: [], videos: [],
       /* 自動入力が出す配色案（5案）。フォントと同じく、ここから選ぶ。
          選んだものが brandColors に入る。案そのものは保存しない
@@ -822,6 +831,7 @@
         && isArray(row.reference_structure.sections)
         && row.reference_structure.sections.length) ? row.reference_structure : null;
       form.category = text(row.category);
+      form.outputLang = text(row.output_lang) || 'ja';
       form.price = row.price === null || row.price === undefined ? '' : formatNumber(row.price);
       form.fundingGoal = text(row.funding_goal);
       form.valueProp = text(row.value_prop);
@@ -983,6 +993,20 @@
       });
       categorySelect.addEventListener('change', function () { form.category = categorySelect.value; });
       basicTop.appendChild(makeField(t('product.category'), categorySelect, { required: true }).wrap);
+
+      /* LPを出す言語。画面の表示言語とは別（画面は日本語のまま、出すLPは韓国語、
+         ということがある）。骨格と日本のクラファンの決まりは言語では変えない */
+      var langSelect = el('select', 'input');
+      langSelect.id = 'home-create-output-lang';
+      OUTPUT_LANGS.forEach(function (one) {
+        var option = el('option', null, one.label);
+        option.value = one.value;
+        if (form.outputLang === one.value) { option.selected = true; }
+        langSelect.appendChild(option);
+      });
+      langSelect.addEventListener('change', function () { form.outputLang = langSelect.value; });
+      basicTop.appendChild(makeField(t('product.outputLang'), langSelect,
+        { hint: t('product.outputLangHint') }).wrap);
 
       var nameInput = textInput('home-create-name', form.name, t('product.namePlaceholder'), function (value) {
         form.name = value;
@@ -2381,6 +2405,7 @@
         video_urls: form.videos.slice(),
         rewards: rewardsValue(),
         category: form.category || null,
+        output_lang: form.outputLang || 'ja',
         funding_goal: form.fundingGoal.trim() || null,
         value_prop: form.valueProp.trim() || null,
         brand_tone: form.brandTone.trim() || null,

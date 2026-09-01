@@ -467,7 +467,7 @@
     var out = [];
 
     out.push('<!DOCTYPE html>');
-    out.push('<html lang="ja">');
+    out.push('<html lang="' + langCode(o) + '">');
     out.push('<head>');
     out.push('<meta charset="UTF-8">');
     out.push('<meta name="viewport" content="width=device-width, initial-scale=1">');
@@ -721,12 +721,19 @@
   }
 
   /* 1枚のHTML。CSSもJSも中に入れる（そのまま公開できる形） */
+  /* 出す言語。projects.output_lang（ja / en / ko）。
+     読み上げや検索エンジンが言語を取り違えないよう、必ず lang 属性に出す */
+  function langCode(o) {
+    var v = String((o && o.project && o.project.output_lang) || (o && o.lang) || 'ja').toLowerCase();
+    return (v === 'en' || v === 'ko') ? v : 'ja';
+  }
+
   function buildDraftHtml(options) {
     var o = options || {};
     var design = o.design || DEFAULT_DESIGN;
     var title = o.title || (o.draft && o.draft.summary) || '';
     return [
-      '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">',
+      '<!DOCTYPE html><html lang="' + langCode(o) + '"><head><meta charset="UTF-8">',
       '<meta name="viewport" content="width=device-width, initial-scale=1">',
       '<title>' + escapeHtml(title) + '</title>',
       '<style>' + draftCss(design) + '</style>',
@@ -745,7 +752,7 @@
     var title = o.title || (o.draft && o.draft.summary) || '';
     var html = [
       '<!DOCTYPE html>',
-      '<html lang="ja">',
+      '<html lang="' + langCode(o) + '">',
       '<head>',
       '<meta charset="UTF-8">',
       '<meta name="viewport" content="width=device-width, initial-scale=1">',
