@@ -4297,6 +4297,14 @@ input[type='radio'] {
 .lp-shot__peek:hover { opacity: .7; filter: blur(1px); }
 @media (prefers-reduced-motion: reduce) { .lp-shot__peek { transition: none; } }
 .lp-shot__foot { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 12px; }
+/* 押すと大きく見られることが分かるように、指を乗せたら少し持ち上げる */
+.lp-section__img { cursor: zoom-in; transition: box-shadow .15s ease; }
+.lp-section__img:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
+.lp-section__img:focus-visible { outline: 2px solid var(--c-main); outline-offset: 2px; }
+/* 拡大したときは、画面に収まる範囲でできるだけ大きく */
+.lp-zoom { display: flex; align-items: center; justify-content: center; }
+.lp-zoom__img { display: block; max-width: 100%; max-height: 78vh; width: auto; height: auto; border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { .lp-section__img { transition: none; } }
 .lp-section__img { display: block; width: 100%; max-width: 360px; height: auto; margin: 0; border-radius: 8px; border: 1px solid var(--c-line); }
 .btn--sm { min-height: 0; padding: 6px 12px; font-size: var(--fs-note); }
 .lp-history { margin: 0 0 12px; }

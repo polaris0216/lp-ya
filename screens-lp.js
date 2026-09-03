@@ -76,6 +76,7 @@
     'lp.prevShot': ['前の版', 'Previous', '이전'],
     'lp.nextShot': ['次の版', 'Next', '다음'],
     'lp.shotNow': ['いま使う版', 'In use', '사용 중'],
+    'lp.shotZoom': ['大きく見る', 'Open larger', '크게 보기'],
     'lp.stale': ['商品入力・ターゲット層・競合分析のどれかが変わっています。生成プロンプトを今の設定で書き直しますか？（数分。区画の絵はそのまま残り、作り直すときに新しいプロンプトが使われます）',
       'Product input, targets, or competitor analysis changed since these prompts were written. Rewrite with the current settings? (A few minutes. Existing images stay; regenerate to apply.)',
       '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
@@ -530,6 +531,16 @@
           var stage = el('div', 'lp-shot');
           var img = el('img', 'lp-section__img');
           img.alt = ''; img.loading = 'lazy';
+          /* 押したら大きく見る。区画のカードでは幅360pxまでなので、
+             文字が読めるか・商品の形が合っているかを確かめられない */
+          img.title = t('lp.shotZoom');
+          img.setAttribute('role', 'button');
+          img.setAttribute('tabindex', '0');
+          var zoom = function () { openShot(shots[view.shotAt[slot]].url); };
+          img.addEventListener('click', zoom);
+          img.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); zoom(); }
+          });
           /* 両端に前後の版をぼかして覗かせる。次に何が来るかが見えるので、
              押す前に見当がつく。飾りではなく、押しても送れるようにする */
           var peekPrev = el('img', 'lp-shot__peek');
@@ -644,6 +655,23 @@
           toast(t('lp.saved'), 'success');
           paint();
         }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
+      }
+
+      /* 1枚を画面いっぱいで見る。背景・×・Esc で閉じるのは App.openModal 任せ。
+         拡大の作りを自前で持たない（他の画面と閉じ方が変わると混乱する） */
+      function openShot(url) {
+        if (!url) { return; }
+        if (typeof App.openModal !== 'function') {
+          console.error('[screens-lp] App.openModal がありません。拡大表示できません。');
+          window.open(url, '_blank');
+          return;
+        }
+        var box = el('div', 'lp-zoom');
+        var big = el('img', 'lp-zoom__img');
+        big.src = url;
+        big.alt = '';
+        add(box, big);
+        App.openModal(box);
       }
 
       /* 絵の指示から動く絵（GIF・動画）を作る。ワーカーの lp_assets が受け、
