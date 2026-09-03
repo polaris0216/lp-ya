@@ -85,18 +85,6 @@
     'lp.missing': ['この回に無い層', 'Missing from this round', '이 회차에 없는 층'],
     'lp.genLayer': ['{L} だけ生成', 'Generate {L} only', '{L}만 생성'],
     'lp.genLayerQueued': ['{L} のプロンプトを書いています（1分ほど）', 'Writing prompts for {L} (about a minute)', '{L}의 프롬프트를 쓰는 중(1분 정도)'],
-    'lp.teach': ['お手本を学ばせる', 'Teach from an example', '본보기 학습'],
-    'lp.teachLead': ['海外の元ページと、デザイナーが作った日本のLPを1組渡すと、文章の作り替えと絵の見た目をルールにして、以後の生成プロンプトに反映します（全プロジェクト共通・5分ほど）。',
-      'Give one pair — the overseas source page and the designer-made Japanese LP — and the copy rewrites and visual style become rules applied to all future prompts (all projects, ~5 min).',
-      '해외 원본 페이지와 디자이너가 만든 일본 LP를 한 쌍 주면, 문장 재구성과 이미지 스타일을 규칙으로 만들어 이후 생성 프롬프트에 반영합니다(전 프로젝트 공통·5분 정도).'],
-    'lp.teachSource': ['海外の元ページURL', 'Overseas source URL', '해외 원본 URL'],
-    'lp.teachJp': ['日本のLPのURL', 'Japanese LP URL', '일본 LP URL'],
-    'lp.teachKindCf': ['クラファンLP', 'Crowdfunding LP', '크라우드펀딩 LP'],
-    'lp.teachKindOwn': ['自社LP', 'Own LP', '자사 LP'],
-    'lp.teachRun': ['学ばせる', 'Learn', '학습'],
-    'lp.teachRunning': ['学んでいます…', 'Learning…', '학습 중…'],
-    'lp.teachDone': ['{n} 件のルールを学びました。次のプロンプト生成から効きます。', 'Learned {n} rules; they apply from the next prompt run.', '{n}건의 규칙을 배웠습니다. 다음 프롬프트 생성부터 적용됩니다.'],
-    'lp.teachNeedUrls': ['2つのURLを入れてください', 'Enter both URLs', 'URL 두 개를 입력하세요']
   };
 
   if (typeof App.registerScreen !== 'function') {
@@ -339,64 +327,6 @@
         paintBrief();
         paintRefs();
         paintSections();
-        paintTeach();
-      }
-
-      /* お手本の組（海外の元ページ＋日本のLP）を渡して学ばせる。
-         学んだ決まりは docs/lp-patterns.md に入り、全プロジェクトの
-         マスターブリーフ（文章と写真の演出の両方）に反映される */
-      function paintTeach() {
-        var box = el('section', 'panel');
-        add(box, el('span', 'panel__title', t('lp.teach')));
-        add(box, el('p', 'field__hint', t('lp.teachLead')));
-        var f1 = el('label', 'field');
-        add(f1, el('span', 'field__label', t('lp.teachSource')));
-        var src = el('input', 'input'); src.type = 'url'; src.placeholder = 'https://www.wadiz.kr/…';
-        add(f1, src); add(box, f1);
-        var f2 = el('label', 'field');
-        add(f2, el('span', 'field__label', t('lp.teachJp')));
-        var jp = el('input', 'input'); jp.type = 'url'; jp.placeholder = 'https://www.makuake.com/…';
-        add(f2, jp); add(box, f2);
-        var kind = el('select', 'select');
-        [['cf', t('lp.teachKindCf')], ['own', t('lp.teachKindOwn')]].forEach(function (k) {
-          var o = el('option', null, k[1]); o.value = k[0]; add(kind, o);
-        });
-        add(box, kind);
-        var run = button('btn btn--primary', t('lp.teachRun'), function () {
-          if (!/^https?:/.test(src.value.trim()) || !/^https?:/.test(jp.value.trim())) {
-            toast(t('lp.teachNeedUrls'), 'danger'); return;
-          }
-          run.disabled = true;
-          run.textContent = t('lp.teachRunning');
-          Api.generationJobs.insert({
-            feature_key: 'learn_pair', status: 'pending', projects_id: projectId,
-            users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
-            payload: { source_url: src.value.trim(), jp_url: jp.value.trim(), kind: kind.value,
-              category: (view.project && view.project.category) || 'other',
-              name: (view.project && (view.project.product_name || view.project.name)) || '' },
-            lang: currentLocale()
-          }).then(function (job) {
-            if (!App.watchJob) { return; }
-            App.watchJob({
-              jobId: job.id, titleKey: 'lp.teach', urls: [],
-              onDone: function (result) {
-                run.disabled = false; run.textContent = t('lp.teachRun');
-                toast(t('lp.teachDone', { n: (result && result.rules) || 0 }), 'success');
-              },
-              onFail: function (why) {
-                run.disabled = false; run.textContent = t('lp.teachRun');
-                toast(String(why || t('common.error')), 'danger');
-              }
-            });
-          }).catch(function (err) {
-            run.disabled = false; run.textContent = t('lp.teachRun');
-            toast(String(err && err.message || err), 'danger');
-          });
-        });
-        var row = el('div', 'lp-toolbar');
-        add(row, run);
-        add(box, row);
-        add(body, box);
       }
 
       /* 設定が変わったら知らせる。自動では書き直さない（数分かかり、絵の作り直しにも費用がかかる）。
