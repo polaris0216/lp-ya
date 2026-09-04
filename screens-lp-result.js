@@ -273,7 +273,17 @@
           draft: draft,
           project: view.project,
           design: designFromProject(view.project),
-          assets: prompts.made && typeof prompts.made === 'object' ? prompts.made : {},
+          /* 動く絵があればそれを本番に使う（無い区画は静止画のまま）。
+             置き場を分けたので、ここで重ねて渡す。分けていなかった頃は
+             動画を作ると静止画が消えていた */
+          assets: (function () {
+            var still = prompts.made && typeof prompts.made === 'object' ? prompts.made : {};
+            var moving = prompts.motion && typeof prompts.motion === 'object' ? prompts.motion : {};
+            var out = {};
+            Object.keys(still).forEach(function (k) { out[k] = still[k]; });
+            Object.keys(moving).forEach(function (k) { out[k] = moving[k]; });
+            return out;
+          }()),
           /* 外国語が焼かれていて作り直す区画は、元の写真を使わず空けておく */
           redoSlots: (Array.isArray(prompts.redoSlots) ? prompts.redoSlots : [])
             .filter(function (slot) { return !(prompts.made && prompts.made[slot]); }),

@@ -4302,6 +4302,10 @@ input[type='radio'] {
 .lp-section__img:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, .18); }
 .lp-section__img:focus-visible { outline: 2px solid var(--c-main); outline-offset: 2px; }
 /* 拡大したときは、画面に収まる範囲でできるだけ大きく */
+/* 動く絵は静止画の下に別枠で出す。並べて置くと、どちらが本番の絵か
+   分からなくなるので、札を付けて分ける */
+.lp-motion { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0 0 12px; }
+.lp-motion__media { display: block; width: 100%; max-width: 360px; height: auto; border-radius: 8px; border: 1px solid var(--c-line); background: var(--c-bg); }
 .lp-zoom { display: flex; align-items: center; justify-content: center; }
 .lp-zoom__img { display: block; max-width: 100%; max-height: 78vh; width: auto; height: auto; border-radius: 8px; }
 @media (prefers-reduced-motion: reduce) { .lp-section__img { transition: none; } }

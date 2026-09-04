@@ -77,6 +77,7 @@
     'lp.nextShot': ['次の版', 'Next', '다음'],
     'lp.shotNow': ['いま使う版', 'In use', '사용 중'],
     'lp.shotZoom': ['大きく見る', 'Open larger', '크게 보기'],
+    'lp.motion': ['動く絵', 'Motion', '움직이는 소재'],
     'lp.stale': ['商品入力・ターゲット層・競合分析のどれかが変わっています。生成プロンプトを今の設定で書き直しますか？（数分。区画の絵はそのまま残り、作り直すときに新しいプロンプトが使われます）',
       'Product input, targets, or competitor analysis changed since these prompts were written. Rewrite with the current settings? (A few minutes. Existing images stay; regenerate to apply.)',
       '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
@@ -361,6 +362,9 @@
 
       function content() { return view.gen.content && typeof view.gen.content === 'object' ? view.gen.content : {}; }
       function made() { var a = view.gen.asset_prompts && view.gen.asset_prompts.made; return a && typeof a === 'object' ? a : {}; }
+      /* 動く絵は静止画と別の置き場。同じ場所に入れていたら、動画を作ると
+         静止画が消えていた（実測） */
+      function motion() { var a = view.gen.asset_prompts && view.gen.asset_prompts.motion; return a && typeof a === 'object' ? a : {}; }
       function doneCount() {
         var m = made();
         return (view.gen.sections || []).filter(function (s) { return !!m[String(s.index) + '-1']; }).length;
@@ -525,6 +529,28 @@
           show();
           add(li, stage);
           if (shots.length > 1) { add(li, foot); }
+        }
+
+        /* 動く絵があれば、静止画の下に別枠で出す。混ぜると
+           どちらを見ているのか分からなくなる */
+        var moving = motion()[slot];
+        if (moving) {
+          var mbox = el('div', 'lp-motion');
+          add(mbox, el('span', 'field__label', t('lp.motion')));
+          if (/\.(mp4|webm|mov)(\?|$)/i.test(String(moving))) {
+            var vid = el('video', 'lp-motion__media');
+            vid.src = moving; vid.controls = true; vid.loop = true;
+            vid.muted = true; vid.playsInline = true; vid.preload = 'metadata';
+            add(mbox, vid);
+          } else {
+            var gif = el('img', 'lp-motion__media');
+            gif.src = moving; gif.alt = ''; gif.loading = 'lazy';
+            gif.title = t('lp.shotZoom');
+            gif.style.cursor = 'zoom-in';
+            gif.addEventListener('click', function () { openShot(moving); });
+            add(mbox, gif);
+          }
+          add(li, mbox);
         }
 
         var field = el('label', 'field');
