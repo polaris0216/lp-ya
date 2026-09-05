@@ -273,17 +273,11 @@
           draft: draft,
           project: view.project,
           design: designFromProject(view.project),
-          /* 動く絵があればそれを本番に使う（無い区画は静止画のまま）。
-             置き場を分けたので、ここで重ねて渡す。分けていなかった頃は
-             動画を作ると静止画が消えていた */
-          assets: (function () {
-            var still = prompts.made && typeof prompts.made === 'object' ? prompts.made : {};
-            var moving = prompts.motion && typeof prompts.motion === 'object' ? prompts.motion : {};
-            var out = {};
-            Object.keys(still).forEach(function (k) { out[k] = still[k]; });
-            Object.keys(moving).forEach(function (k) { out[k] = moving[k]; });
-            return out;
-          }()),
+          /* LP は全区画とも静止画で組む。動く絵（motion）はここでは混ぜない。
+             一度は「動く絵があればそちらを使う」にしていたが、そうすると
+             区画の絵が入れ替わってしまう。GIF は別の成果物として扱い、
+             使うかどうかは人が決める */
+          assets: prompts.made && typeof prompts.made === 'object' ? prompts.made : {},
           /* 外国語が焼かれていて作り直す区画は、元の写真を使わず空けておく */
           redoSlots: (Array.isArray(prompts.redoSlots) ? prompts.redoSlots : [])
             .filter(function (slot) { return !(prompts.made && prompts.made[slot]); }),
