@@ -4261,6 +4261,15 @@ input[type='radio'] {
 .select--sm { min-height: 0; padding: 6px 10px; font-size: var(--fs-note); width: auto; }
 
 /* ---------- S12 LP案: ターゲット層の切り替えと絵の指示 ---------- */
+/* 成果物の種類（LP / KV / 広告）。層タブより上に置く。
+   中身が無い種類は薄くするが、押せるようにしておく（無いのか壊れたのか
+   分からなくなるより、押して「まだ無い」と言われる方がよい） */
+.lp-delivs { display: flex; gap: 6px; margin: 0 0 8px; flex-wrap: wrap; }
+.lp-deliv { padding: 6px 14px; border: 1px solid var(--c-line); border-radius: var(--r-pill);
+  background: var(--c-surface); font-size: var(--fs-note); font-weight: 700; color: var(--c-text-sub); }
+.lp-deliv--on { border-color: var(--c-main); color: var(--c-main); background: var(--c-main-weak, #F6F0FB); }
+.lp-deliv--empty { opacity: .55; }
+
 .lp-variants { display: flex; flex-wrap: wrap; gap: 6px; }
 .lp-variant {
   display: flex; align-items: center; gap: 6px;

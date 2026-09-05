@@ -20,6 +20,13 @@
   var App = window.App = window.App || {};
   var LOCALES = ['ja', 'en', 'ko'];
   var FEATURE = 'lp_brief';
+  /* 成果物の種類。どれも同じ形（sections ＋ content.brief）で保存してあるので、
+     画面の作りは種類で変えず、どの束を見るかだけを切り替える */
+  var KINDS = [
+    { key: 'lp_brief', label: 'lp.kindLp' },
+    { key: 'kv_brief', label: 'lp.kindKv' },
+    { key: 'ads_brief', label: 'lp.kindAds' }
+  ];
 
   var LOCAL = {
     'lp.title': ['生成プロンプト', 'Generation prompts', '생성 프롬프트'],
@@ -78,6 +85,12 @@
     'lp.shotNow': ['いま使う版', 'In use', '사용 중'],
     'lp.shotZoom': ['大きく見る', 'Open larger', '크게 보기'],
     'lp.motion': ['動く絵', 'Motion', '움직이는 소재'],
+    'lp.kindLp': ['LP', 'LP', 'LP'],
+    'lp.kindKv': ['KV', 'KV', 'KV'],
+    'lp.kindAds': ['メタ広告', 'Meta ads', '메타 광고'],
+    'lp.kindEmpty': ['この種類はまだ作られていません。総合分析から作り直すと一緒に作られます。',
+      'Nothing here yet. Regenerate from the overall analysis to produce it.',
+      '아직 없습니다. 종합 분석에서 다시 만들면 함께 생성됩니다.'],
     'lp.stale': ['商品入力・ターゲット層・競合分析のどれかが変わっています。生成プロンプトを今の設定で書き直しますか？（数分。区画の絵はそのまま残り、作り直すときに新しいプロンプトが使われます）',
       'Product input, targets, or competitor analysis changed since these prompts were written. Rewrite with the current settings? (A few minutes. Existing images stay; regenerate to apply.)',
       '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
@@ -145,7 +158,8 @@
 
       /* shotAt は区画ごとに「いま何番目の版を見ているか」。paint() で作り直しても
          見ていた版に戻れるよう、描画の外に持つ */
-      var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {} };
+      var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {},
+        kind: 'lp_brief', byKind: {} };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lp.title')));
@@ -159,22 +173,62 @@
 
       Promise.all([
         Api.projects.get(projectId),
-        Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 20 }),
+        /* 3種類をまとめて取る。in の絞り込みが api に無いので、種類ごとに引く */
+        Promise.all(KINDS.map(function (k) {
+          return Api.generations.list({ eq: { projects_id: projectId, feature_key: k.key },
+            order: 'created_at.desc', limit: 20 }).catch(function () { return []; });
+        })),
         (window.Api && Api.analysisReports && typeof Api.analysisReports.first === 'function')
           ? Api.analysisReports.first({ eq: { projects_id: projectId, analysis_status: 'done' }, order: 'created_at.desc' }).catch(function () { return null; })
           : Promise.resolve(null)
       ]).then(function (got) {
         view.project = got[0];
-        view.gens = isArray(got[1]) ? got[1] : [];
+        var lists = isArray(got[1]) ? got[1] : [];
+        KINDS.forEach(function (k, i) { view.byKind[k.key] = isArray(lists[i]) ? lists[i] : []; });
+        view.gens = view.byKind[view.kind] || [];
         view.report = got[2] || null;
+        /* 何も指定が無ければ、いちばん新しい回の A 層から見せる。
+           created_at の降順で並んでいるので、素直に先頭を取ると
+           最後に書かれた層（E）が開く（実測） */
         view.gen = params.gen
-          ? (view.gens.filter(function (g) { return g.id === params.gen; })[0] || view.gens[0] || null)
-          : (view.gens[0] || null);
+          ? (view.gens.filter(function (g) { return g.id === params.gen; })[0] || firstVariant(view.gens))
+          : firstVariant(view.gens);
         paint();
       }).catch(function (err) {
         console.error('[screens-lp] 読み込みに失敗:', err);
         add(body, el('p', 'empty', String(err && err.message || err)));
       });
+
+      /* 種類を切り替える。同じ層が向こうにもあればそれを開く
+         （A を見ていたのに、切り替えたら E が出る、を避ける） */
+      function switchKind(key) {
+        if (view.kind === key) { return; }
+        var want = view.gen ? String(view.gen.variant_label || '') : '';
+        view.kind = key;
+        view.gens = view.byKind[key] || [];
+        view.shotAt = {};
+        var same = want
+          ? view.gens.filter(function (g) { return String(g.variant_label || '') === want; })[0]
+          : null;
+        view.gen = same || firstVariant(view.gens);
+        view.dirty = false;
+        paint();
+      }
+
+      /* いちばん新しい回の、いちばん若い層を返す。
+         回は content.batch でまとまっている。層の記号（A〜E）が小さい順 */
+      function firstVariant(list) {
+        if (!isArray(list) || !list.length) { return null; }
+        var newest = list[0];
+        var batch = newest.content && newest.content.batch;
+        var same = batch
+          ? list.filter(function (g) { return g.content && g.content.batch === batch; })
+          : list.slice();
+        var sorted = same.slice().sort(function (x, y) {
+          return String(x.variant_label || '').localeCompare(String(y.variant_label || ''));
+        });
+        return sorted[0] || newest;
+      }
 
       /* 画面を作り直す。中身を全部捨てて建て直すので、そのままだと
          見ていた場所を失って先頭へ飛ぶ。位置を覚えて戻す
@@ -190,9 +244,23 @@
         add(toolbar, button('btn btn--secondary', t('lp.toAnalysis'), function () {
           location.hash = '#/S20?id=' + encodeURIComponent(projectId);
         }));
+        /* 種類の切り替え（LP / KV / 広告）。中身が無い種類も押せるようにして、
+           「まだ作られていない」と言う。押せないと、無いのか壊れたのか分からない */
+        var kinds = el('div', 'lp-delivs');
+        KINDS.forEach(function (k) {
+          var on = view.kind === k.key;
+          var has = (view.byKind[k.key] || []).length;
+          var b = button('lp-deliv' + (on ? ' lp-deliv--on' : '') + (has ? '' : ' lp-deliv--empty'),
+            t(k.label), function () { switchKind(k.key); });
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          add(kinds, b);
+        });
+        add(toolbar, kinds);
+
         if (!view.gen) {
-          add(body, el('p', 'empty', t('lp.empty')));
-          add(body, el('p', 'field__hint', t('lp.emptyHint')));
+          add(body, el('p', 'empty',
+            view.kind === 'lp_brief' ? t('lp.empty') : t('lp.kindEmpty')));
+          if (view.kind === 'lp_brief') { add(body, el('p', 'field__hint', t('lp.emptyHint'))); }
           return;
         }
         /* 層の切り替え。タブは必ず出す。
