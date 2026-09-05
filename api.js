@@ -707,7 +707,12 @@
     projects: makeTable(TABLES.projects),
     analysisReports: makeTable(TABLES.analysisReports),
     generations: makeTable(TABLES.generations),
-    generationJobs: makeTable(TABLES.generationJobs),
+    generationJobs: Object.assign(makeTable(TABLES.generationJobs), {
+      /* 走っている生成を止める申し出。status は画面から書けないので
+         （005 で update ポリシーを作っていない）、関数を通す。
+         実際に止めるのはワーカーで、区切りごとに見て抜ける */
+      cancel: function (jobId) { return rpc('elpiya_cancel_job', { p_job: String(jobId) }); }
+    }),
     creditTransactions: makeTable(TABLES.creditTransactions),
     featureCredits: makeTable(TABLES.featureCredits),
     coupons: makeTable(TABLES.coupons),

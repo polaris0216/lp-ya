@@ -1653,6 +1653,9 @@
     global.Api.generationJobs.get(id).then(function (row) {
     if (!watch || watch.jobId !== id) { return; }
     watch.status = String(row.status || 'pending');
+    /* 中止はワーカーが status に書く。押した直後は cancel_requested だけが
+       立っている（止まるまで「いま走っている1段」ぶんかかる） */
+    watch.cancelling = !!row.cancel_requested && watch.status !== 'cancelled';
     /* 進めている側が段数を書いていれば、本当の割合を出す */
     watch.done = Number(row.progress_done);
     watch.total = Number(row.progress_total);
@@ -1669,6 +1672,16 @@
     }
       /* 100%と完了表示を見せてから畳む。失敗のときは理由が読めるよう残す */
       watch.timer = global.setTimeout(stopWatch, 2500);
+      return;
+    }
+    if (watch.status === 'cancelled') {
+      paintWatch();
+      /* 中止も押した側に返す。返さないとボタンが「生成しています…」のまま固まる。
+         失敗ではないので、理由の文字は渡さない */
+      if (opts && typeof opts.onFail === 'function') {
+        try { opts.onFail(t('job.cancelled')); } catch (e3) { console.error('[App] onFail でエラー', e3); }
+      }
+      watch.timer = global.setTimeout(stopWatch, 2000);
       return;
     }
     if (watch.status === 'failed') {
@@ -1818,7 +1831,8 @@
 
     /* 進めている側が一言を書いていれば、それをそのまま出す。
        「2ページ中1ページを読み終えました」のほうが、割合より状況が分かる */
-    var message = failed ? (t('job.failed') + (watch.error ? '：' + watch.error : ''))
+    var message = watch.status === 'cancelled' ? t('job.cancelled')
+    : failed ? (t('job.failed') + (watch.error ? '：' + watch.error : ''))
     : (done ? t(opts.doneKey || 'job.done')
       : (watch.note ? watch.note
         : (watch.status === 'processing' ? t('job.running') : t('job.queued'))));
@@ -1842,6 +1856,24 @@
        終わったあとや失敗したあとに出すと、続いていないものを続くと言うことになる */
     if (!done && !failed) {
       panel.appendChild(wEl('p', 'jobwatch__note', t(opts.noteKey || 'job.note')));
+    }
+    /* 走っている間だけ中止を出す。押したあとは「止めています…」にして
+       二度押しを防ぐ（申し出は1回でよい） */
+    if (!done && !failed && watch.status !== 'cancelled') {
+      var stop = wButton('btn btn--text jobwatch__stop',
+        watch.cancelling ? t('job.cancelling') : t('job.cancel'), function () {
+        if (watch.cancelling || !global.Api || !global.Api.generationJobs
+            || typeof global.Api.generationJobs.cancel !== 'function') { return; }
+        watch.cancelling = true;
+        paintWatch();
+        global.Api.generationJobs.cancel(watch.jobId).catch(function (err) {
+          console.error('[App] 中止を申し出られませんでした', err);
+          watch.cancelling = false;
+          paintWatch();
+        });
+      });
+      stop.disabled = !!watch.cancelling;
+      panel.appendChild(stop);
     }
     panel.appendChild(wButton('btn btn--secondary btn--block',
       (done || failed) ? t('common.close') : t('job.minimize'),

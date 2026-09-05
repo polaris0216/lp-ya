@@ -3368,6 +3368,10 @@ input[type='radio'] {
   .jobwatch__fill.is-running { animation: none; }
 }
 
+/* 中止は目立たせない。押し間違えると走らせ直しになる */
+.jobwatch__stop { display: block; width: 100%; margin: 0 0 6px; color: var(--c-text-sub); }
+.jobwatch__stop:disabled { opacity: .6; }
+
 .jobwatch__msg {
   margin: 0;
   font-size: var(--fs-body);
