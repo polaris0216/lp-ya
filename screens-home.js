@@ -89,6 +89,16 @@
   /* LPを出す言語。画面の表示言語（i18n）とは別物なので、ここに持つ。
      並びは値そのものを見せる（日本語の画面で韓国語のLPを作ることがあり、
      訳した名前だと「どの言語で出るのか」が分からなくなる） */
+  /* 出稿するクラウドファンディング。KV の縦横比がこれで決まる。
+     名前は媒体そのものなので訳さない */
+  var CF_PLATFORMS = [
+    { value: 'makuake', label: 'Makuake', note: '16:9' },
+    { value: 'campfire', label: 'CAMPFIRE', note: '3:2' },
+    { value: 'machiya', label: 'machi-ya', note: '3:2' },
+    { value: 'greenfunding', label: 'GREENFUNDING', note: '16:9' },
+    { value: 'other', label: 'その他', note: '16:9' }
+  ];
+
   var OUTPUT_LANGS = [
     { value: 'ja', label: '日本語' },
     { value: 'en', label: 'English' },
@@ -735,7 +745,7 @@
     setHeader(t('project.createTitle'), true);
 
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
-      category: '', outputLang: 'ja', fundingGoal: '', valueProp: '', brandTone: '',
+      category: '', outputLang: 'ja', cfPlatform: 'makuake', fundingGoal: '', valueProp: '', brandTone: '',
       refUrls: [''], brandColors: [], brandFonts: {}, targets: [], videos: [],
       /* 自動入力が出す配色案（5案）。フォントと同じく、ここから選ぶ。
          選んだものが brandColors に入る。案そのものは保存しない
@@ -832,6 +842,7 @@
         && row.reference_structure.sections.length) ? row.reference_structure : null;
       form.category = text(row.category);
       form.outputLang = text(row.output_lang) || 'ja';
+      form.cfPlatform = text(row.cf_platform) || 'makuake';
       form.price = row.price === null || row.price === undefined ? '' : formatNumber(row.price);
       form.fundingGoal = text(row.funding_goal);
       form.valueProp = text(row.value_prop);
@@ -1007,6 +1018,20 @@
       langSelect.addEventListener('change', function () { form.outputLang = langSelect.value; });
       basicTop.appendChild(makeField(t('product.outputLang'), langSelect,
         { hint: t('product.outputLangHint') }).wrap);
+
+      /* 出稿する媒体。KV の縦横比がこれで決まる（媒体ごとに違い、
+         1枚を使い回すと上下か左右が16%切られる） */
+      var cfSelect = el('select', 'input');
+      cfSelect.id = 'home-create-cf-platform';
+      CF_PLATFORMS.forEach(function (one) {
+        var option = el('option', null, one.label + '（KV ' + one.note + '）');
+        option.value = one.value;
+        if (form.cfPlatform === one.value) { option.selected = true; }
+        cfSelect.appendChild(option);
+      });
+      cfSelect.addEventListener('change', function () { form.cfPlatform = cfSelect.value; });
+      basicTop.appendChild(makeField(t('product.cfPlatform'), cfSelect,
+        { hint: t('product.cfPlatformHint') }).wrap);
 
       var nameInput = textInput('home-create-name', form.name, t('product.namePlaceholder'), function (value) {
         form.name = value;
@@ -2406,6 +2431,7 @@
         rewards: rewardsValue(),
         category: form.category || null,
         output_lang: form.outputLang || 'ja',
+        cf_platform: form.cfPlatform || 'makuake',
         funding_goal: form.fundingGoal.trim() || null,
         value_prop: form.valueProp.trim() || null,
         brand_tone: form.brandTone.trim() || null,

@@ -218,6 +218,10 @@
 
     'product.features': ['商品の特徴', 'Product features', '상품 특징'],
     'product.featuresMax': ['300文字まで入力できます', 'Up to 300 characters', '300자까지 입력할 수 있습니다'],
+    'product.cfPlatform': ['出稿するクラファン', 'Crowdfunding platform', '출고할 크라우드펀딩'],
+    'product.cfPlatformHint': ['KV（メインビジュアル）の縦横比がこれで決まります。媒体ごとに違うので、1枚を使い回すと上下か左右が切られます。',
+      'This sets the key visual aspect ratio. It differs by platform, so reusing one image gets it cropped.',
+      'KV(메인 비주얼)의 비율이 여기서 정해집니다. 매체마다 달라서 한 장을 돌려쓰면 잘립니다.'],
     'product.outputLang': ['出力言語', 'Output language', '출력 언어'],
     'product.outputLangHint': ['作るLPの言語です。画面の表示言語とは別で、文章も画像の中の文字もこの言語になります。',
       'The language of the LP you are producing. Separate from the app language; both the copy and the text inside images follow it.',
