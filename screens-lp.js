@@ -88,6 +88,11 @@
     'lp.kindLp': ['LP', 'LP', 'LP'],
     'lp.kindKv': ['KV', 'KV', 'KV'],
     'lp.kindAds': ['メタ広告', 'Meta ads', '메타 광고'],
+    'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
+    'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
+    'lp.motionRedo': ['GIFを作り直す', 'Remake the GIF', 'GIF 다시 만들기'],
+    'lp.motionRunning': ['作っています…', 'Making…', '만드는 중…'],
+    'lp.motionDone': ['動く絵ができました', 'The motion asset is ready', '움직이는 소재가 완성되었습니다'],
     'lp.kindEmpty': ['この種類はまだ作られていません。総合分析から作り直すと一緒に作られます。',
       'Nothing here yet. Regenerate from the overall analysis to produce it.',
       '아직 없습니다. 종합 분석에서 다시 만들면 함께 생성됩니다.'],
@@ -430,6 +435,13 @@
 
       function content() { return view.gen.content && typeof view.gen.content === 'object' ? view.gen.content : {}; }
       function made() { var a = view.gen.asset_prompts && view.gen.asset_prompts.made; return a && typeof a === 'object' ? a : {}; }
+      /* AI が「ここは動かした方がよい」と書いた区画。ブリーフが区画の指示に
+         「動き: GIF」「動き: 動画」と入れる。読み方は tools/asset-orders.mjs と同じ */
+      function motionPick(sec) {
+        var m = String((sec && sec.prompt) || '').match(/動き\s*[:：]\s*(GIF|ＧＩＦ|gif|動画|ビデオ)/);
+        if (!m) { return ''; }
+        return /動画|ビデオ/.test(m[1]) ? 'video' : 'gif';
+      }
       /* 動く絵は静止画と別の置き場。同じ場所に入れていたら、動画を作ると
          静止画が消えていた（実測） */
       function motion() { var a = view.gen.asset_prompts && view.gen.asset_prompts.motion; return a && typeof a === 'object' ? a : {}; }
@@ -599,9 +611,21 @@
           if (shots.length > 1) { add(li, foot); }
         }
 
-        /* 動く絵があれば、静止画の下に別枠で出す。混ぜると
-           どちらを見ているのか分からなくなる */
+        /* AI が動きを勧めた区画には印と、その区画だけのボタンを出す。
+           絵の生成とは別の作業（作る先も費用も違う）ので、ボタンも分ける */
+        var pick = motionPick(sec);
         var moving = motion()[slot];
+        if (pick) {
+          var mrow = el('div', 'lp-toolbar');
+          add(mrow, el('span', 'chip chip--sm', t('lp.motionPick') + '（' + pick.toUpperCase() + '）'));
+          var mbusy = !!view.busy[slot + ':m'];
+          var mb = button('btn btn--secondary btn--sm',
+            mbusy ? t('lp.motionRunning') : t(moving ? 'lp.motionRedo' : 'lp.motionMake'),
+            function () { generateMotion(sec.index, !!moving); });
+          mb.disabled = mbusy;
+          add(mrow, mb);
+          add(li, mrow);
+        }
         if (moving) {
           var mbox = el('div', 'lp-motion');
           add(mbox, el('span', 'field__label', t('lp.motion')));
@@ -696,6 +720,53 @@
         big.alt = '';
         add(box, big);
         App.openModal(box);
+      }
+
+      /* 区画を1つだけ動かす。全部まとめる方（startAssets）と同じ仕事だが、
+         payload に slot を入れて1点に絞る。作り直しのときは force を付ける
+         （付けないと、もうあるものとして飛ばされる） */
+      function generateMotion(index, redo) {
+        if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
+        var slot = String(index) + '-1';
+        view.busy[slot + ':m'] = true;
+        paint();
+        var freeUp = function () { delete view.busy[slot + ':m']; };
+        Api.generationJobs.insert({
+          feature_key: 'lp_assets',
+          status: 'pending',
+          projects_id: projectId,
+          users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+          payload: { generation_id: view.gen.id, slot: slot, force: !!redo },
+          lang: currentLocale()
+        }).then(function (job) {
+          if (!App.watchJob) { freeUp(); paint(); return; }
+          App.watchJob({
+            jobId: job.id,
+            titleKey: 'job.titleAssets',
+            urls: [],
+            onDone: function () {
+              Api.generations.get(view.gen.id).then(function (row) {
+                if (row) {
+                  view.gen = row;
+                  view.gens = view.gens.map(function (g) { return g.id === row.id ? row : g; });
+                }
+                freeUp();
+                toast(t('lp.motionDone'), 'success');
+                paint();
+              });
+            },
+            onFail: function (why) {
+              freeUp();
+              toast(String(why || t('common.error')), 'danger');
+              paint();
+            }
+          });
+        }).catch(function (err) {
+          freeUp();
+          console.error('[screens-lp] 動く絵のジョブを積めませんでした:', err);
+          toast(String(err && err.message || err), 'danger');
+          paint();
+        });
       }
 
       /* 絵の指示から動く絵（GIF・動画）を作る。ワーカーの lp_assets が受け、
