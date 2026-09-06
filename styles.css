@@ -1409,6 +1409,13 @@ a.card:active,
   font-size: 12px;
 }
 
+/* 照合を通らなかったが残した絵に付ける。消さずに見て決めてもらう */
+.chip--warn {
+  background: var(--c-warn-weak, #FFF4E5);
+  color: var(--c-warn, #B26A00);
+  border-color: var(--c-warn, #B26A00);
+}
+
 .chip--success {
   background: var(--c-success);
   border-color: transparent;

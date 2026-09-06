@@ -88,6 +88,7 @@
     'lp.kindLp': ['LP', 'LP', 'LP'],
     'lp.kindKv': ['KV', 'KV', 'KV'],
     'lp.kindAds': ['メタ広告', 'Meta ads', '메타 광고'],
+    'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
     'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
     'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
     'lp.motionRedo': ['GIFを作り直す', 'Remake the GIF', 'GIF 다시 만들기'],
@@ -437,6 +438,9 @@
       function made() { var a = view.gen.asset_prompts && view.gen.asset_prompts.made; return a && typeof a === 'object' ? a : {}; }
       /* AI が「ここは動かした方がよい」と書いた区画。ブリーフが区画の指示に
          「動き: GIF」「動き: 動画」と入れる。読み方は tools/asset-orders.mjs と同じ */
+      /* 照合を通らなかったが残した区画。捨てずに見て決めてもらう */
+      function unsure() { var a = view.gen.asset_prompts && view.gen.asset_prompts.unsure; return a && typeof a === 'object' ? a : {}; }
+
       function motionPick(sec) {
         var m = String((sec && sec.prompt) || '').match(/動き\s*[:：]\s*(GIF|ＧＩＦ|gif|動画|ビデオ)/);
         if (!m) { return ''; }
@@ -530,7 +534,13 @@
         var headRow = el('div', 'lpd-section__head');
         add(headRow, el('span', 'lpd-section__no', String(sec.index)));
         add(headRow, el('span', 'lpd-section__title', String(sec.title || t('lp.section', { n: sec.index }))));
-        if (url) { add(headRow, el('span', 'chip chip--sm chip--success', '✓')); }
+        var doubt = unsure()[slot];
+        if (url && !doubt) { add(headRow, el('span', 'chip chip--sm chip--success', '✓')); }
+        if (url && doubt) {
+          var warn = el('span', 'chip chip--sm chip--warn', t('lp.unsure'));
+          warn.title = String(doubt);
+          add(headRow, warn);
+        }
         add(li, headRow);
 
         /* 絵は左右の矢印で版を送る。0番目がいま使っている版、以降が前の版。
