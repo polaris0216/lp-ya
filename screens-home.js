@@ -92,11 +92,11 @@
   /* 出稿するクラウドファンディング。KV の縦横比がこれで決まる。
      名前は媒体そのものなので訳さない */
   var CF_PLATFORMS = [
-    { value: 'makuake', label: 'Makuake', note: '16:9' },
-    { value: 'campfire', label: 'CAMPFIRE', note: '3:2' },
-    { value: 'machiya', label: 'machi-ya', note: '3:2' },
-    { value: 'greenfunding', label: 'GREENFUNDING', note: '16:9' },
-    { value: 'other', label: 'その他', note: '16:9' }
+    { value: 'makuake', label: 'Makuake', note: '16:9 ・ 8枚' },
+    { value: 'campfire', label: 'CAMPFIRE', note: '3:2 ・ 1枚' },
+    { value: 'machiya', label: 'machi-ya', note: '3:2 ・ 1枚' },
+    { value: 'greenfunding', label: 'GREENFUNDING', note: '16:9 ・ 8枚' },
+    { value: 'other', label: 'その他', note: '16:9 ・ 8枚' }
   ];
 
   var OUTPUT_LANGS = [
