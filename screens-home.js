@@ -1007,7 +1007,7 @@
 
       /* LPを出す言語。画面の表示言語とは別（画面は日本語のまま、出すLPは韓国語、
          ということがある）。骨格と日本のクラファンの決まりは言語では変えない */
-      var langSelect = el('select', 'input');
+      var langSelect = el('select', 'select');
       langSelect.id = 'home-create-output-lang';
       OUTPUT_LANGS.forEach(function (one) {
         var option = el('option', null, one.label);
@@ -1021,7 +1021,7 @@
 
       /* 出稿する媒体。KV の縦横比がこれで決まる（媒体ごとに違い、
          1枚を使い回すと上下か左右が16%切られる） */
-      var cfSelect = el('select', 'input');
+      var cfSelect = el('select', 'select');
       cfSelect.id = 'home-create-cf-platform';
       CF_PLATFORMS.forEach(function (one) {
         var option = el('option', null, one.label + '（KV ' + one.note + '）');

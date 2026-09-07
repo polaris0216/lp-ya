@@ -953,12 +953,28 @@ a.card:active,
   resize: vertical;
 }
 
+/* 選ぶ欄は、打ち込む欄と見た目で区別できるようにする。
+   矢印だけだと入力欄に見えて、押せることに気づかれない（実測の指摘）。
+   ・地色をわずかに落とす      … 打ち込む欄（白）と並べたときに分かる
+   ・矢印の側だけ縦線で仕切る  … 押す場所がここだと分かる
+   ・指を乗せたら枠を主色に    … 押せるものだと分かる
+   矢印は濃くして、薄いグレーに埋もれないようにする */
 .select {
-  padding-right: 40px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236B6385' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 20px 20px;
+  padding-right: 44px;
+  background-color: var(--c-bg);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234A4458' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"),
+    linear-gradient(var(--c-line), var(--c-line));
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 12px center, right 40px center;
+  background-size: 20px 20px, 1px 60%;
+  cursor: pointer;
+}
+
+.select:hover { border-color: var(--c-main); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .select { transition: border-color .15s ease; }
 }
 
 .input::placeholder,
