@@ -96,6 +96,8 @@
     { value: 'campfire', label: 'CAMPFIRE', note: '3:2 ・ 1枚' },
     { value: 'machiya', label: 'machi-ya', note: '3:2 ・ 1枚' },
     { value: 'greenfunding', label: 'GREENFUNDING', note: '16:9 ・ 8枚' },
+    { value: 'kickstarter', label: 'Kickstarter', note: '16:9 ・ 1枚' },
+    { value: 'indiegogo', label: 'Indiegogo', note: '1:1 ・ 1枚' },
     { value: 'other', label: 'その他', note: '16:9 ・ 8枚' }
   ];
 
