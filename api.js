@@ -788,6 +788,19 @@
     return rpc('elpiya_admin_set_user_admin', { p_user: String(userId), p_is_admin: !!isAdmin });
   }
 
+  /* 管理者がもう居るか（真偽だけ）。画面が「管理者になる」を出すかの判断に使う。
+     数えるのはサーバー側（032 の SECURITY DEFINER）。RLS 下の画面から数えると
+     自分の行しか見えず、常に0になって全員が通ってしまう。 */
+  function adminExists() {
+    return rpc('elpiya_admin_exists').then(function (v) { return !!v; });
+  }
+
+  /* 最初の管理者になる。管理者が1人も居らず、かつ最初に登録した人のときだけ通る。
+     2人目以降は admin_exists / not_first_user で弾かれる。 */
+  function claimFirstAdmin() {
+    return rpc('elpiya_claim_first_admin');
+  }
+
   /* 購入。金額とクレジット数は stripe-checkout Edge Function が持つ。 */
   function plans() {
     return callFunction('stripe-checkout', null, 'GET').then(function (data) {
@@ -915,6 +928,8 @@
     grantUnlimited: grantUnlimited,
     setUserStatus: setUserStatus,
     setUserAdmin: setUserAdmin,
+    adminExists: adminExists,
+    claimFirstAdmin: claimFirstAdmin,
     plans: plans,
     checkout: checkout,
     history: history,

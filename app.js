@@ -2301,6 +2301,60 @@
     ]);
   }
 
+  /* 管理者が1人も居ないときだけ出る。押した人が最初の管理者になる。
+     判定はサーバー（032 の elpiya_admin_exists / elpiya_claim_first_admin）。
+     画面で数えないのは、RLS 下では自分の行しか見えず、件数が常に0になって
+     全員が通ってしまうため（001 で「最初の登録者を管理者にする」を消した理由）。 */
+  function firstAdminSection() {
+    var box = el('section', { class: 'section' });
+    if (!state.user || isAdmin()) { return box; }
+    if (!global.Api || typeof global.Api.credits.adminExists !== 'function') {
+      console.error('[App] Api.credits.adminExists がありません。api.js の読み込みを確認してください');
+      return box;
+    }
+
+    global.Api.credits.adminExists().then(function (exists) {
+      if (exists) { return; }
+      var note = el('p', { class: 'field__hint', text: t('settings.claimAdminBody') });
+      var go = button({
+        label: t('settings.claimAdmin'),
+        variant: 'secondary',
+        onClick: function () {
+          confirmDialog({
+            title: t('settings.claimAdmin'),
+            message: t('settings.claimAdminConfirm')
+          }).then(function (yes) {
+            if (!yes) { return; }
+            go.disabled = true;
+            global.Api.credits.claimFirstAdmin().then(function (row) {
+              /* setUser は 'user' を流すので、サイドバーと管理タブが出る */
+              if (row) { setUser(row); }
+              toast(t('settings.claimAdminDone'), 'success');
+              navigate('settings');
+            }, function (err) {
+              go.disabled = false;
+              console.error('[App] 管理者になれませんでした', err);
+              /* もう誰かが取ったか、最初に登録した人ではない。
+                 どちらも「もう押せない」ので、同じ案内でよい */
+              toast(t('settings.claimAdminTaken'), 'danger');
+              navigate('settings');
+            });
+          });
+        }
+      });
+      box.appendChild(el('div', { class: 'section__head' }, [
+        el('h2', { class: 'section__title', text: t('settings.claimAdminTitle') })
+      ]));
+      box.appendChild(note);
+      box.appendChild(el('div', { class: 'stack' }, [go]));
+    }, function (err) {
+      /* 出せなくても設定画面の他の項目は使えるので、ここでは止めない */
+      console.error('[App] 管理者の有無を確かめられませんでした', err);
+    });
+
+    return box;
+  }
+
   function appInfoSection() {
     var url = (global.Api && global.Api.URL) ? global.Api.URL : '—';
     return el('section', { class: 'section' }, [
@@ -2377,6 +2431,7 @@
         el('p', { class: 'screen__lead', text: t('common.sharedDataNotice') })
       ]),
       accountSection(),
+      firstAdminSection(),
       historySection(),
       languageSection(),
       inquirySection(),

@@ -694,7 +694,27 @@
     'settings.displayName': ['表示名', 'Display name', '표시 이름'],
     'settings.email': ['メールアドレス', 'Email address', '이메일 주소'],
     'settings.changePassword': ['パスワードを変更', 'Change password', '비밀번호 변경'],
-    'settings.logout': ['ログアウト', 'Log out', '로그아웃']
+    'settings.logout': ['ログアウト', 'Log out', '로그아웃'],
+
+    /* 管理者が1人も居ないときだけ出る。2人目からは管理画面（S18）から付ける */
+    'settings.claimAdminTitle': ['管理者がまだいません', 'No administrator yet', '관리자가 아직 없습니다'],
+    'settings.claimAdminBody': [
+      'このアプリにはまだ管理者がいません。最初に登録したあなたが管理者になれます。管理者になると、ポイント単価・機能別ポイント・利用者・クーポン・問い合わせを扱えます。',
+      'This app has no administrator yet. As the first registered user, you can become one. Administrators manage pricing, feature points, users, coupons and inquiries.',
+      '이 앱에는 아직 관리자가 없습니다. 가장 먼저 가입한 당신이 관리자가 될 수 있습니다.'
+    ],
+    'settings.claimAdmin': ['管理者になる', 'Become administrator', '관리자가 되기'],
+    'settings.claimAdminConfirm': [
+      '管理者になります。以後この操作は出ません（2人目からは管理画面から付けます）。',
+      'You will become the administrator. This option will not appear again; further administrators are granted from the admin screen.',
+      '관리자가 됩니다. 이후 이 조작은 나타나지 않습니다.'
+    ],
+    'settings.claimAdminDone': ['管理者になりました', 'You are now an administrator', '관리자가 되었습니다'],
+    'settings.claimAdminTaken': [
+      '管理者になれませんでした。すでに他の人が管理者になっているか、最初に登録した人ではありません。',
+      'Could not become administrator. Someone else already is, or you are not the first registered user.',
+      '관리자가 될 수 없었습니다. 이미 다른 사람이 관리자이거나, 가장 먼저 가입한 사람이 아닙니다.'
+    ]
   };
 
   // STRINGSから locale別辞書 DICT.ja / DICT.en / DICT.ko を組み立てる
