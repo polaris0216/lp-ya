@@ -202,11 +202,16 @@ table { border-collapse: collapse; width: 100%; }
 
 /* 登場アニメーションは使わない方針。残りの微細な動きも無効化する */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  /* 仕事の進行バーの縞だけは除く。これは飾りではなく「止まっていない」ことの
+     唯一の合図で、消すと進行中と停止中が見分けられない（実測: macOS の
+     「視差効果を減らす」を入れている端末で、受付待ちのバーが完全な静止画に
+     見え、動いていないと受け取られた）。下の方で ゆっくり・薄く し直す */
+  *:not(.jobwatch__fill) {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
   }
+  .jobwatch__fill { transition: none !important; }
 }
 
 /* -----------------------------------------------------------------------------
@@ -3387,8 +3392,18 @@ input[type='radio'] {
 .jobwatch__bar.is-failed + .jobwatch__step { color: var(--c-text-sub); }
 
 @media (prefers-reduced-motion: reduce) {
-  .jobwatch__fill { transition: none; }
-  .jobwatch__fill.is-running { animation: none; }
+  /* 縞は止めない。これは飾りではなく「止まっていない」ことの唯一の合図で、
+     消すと進行中と停止中が見分けられなくなる（実測: macOS の「視差効果を
+     減らす」を入れている端末で、受付待ちのバーが完全な静止画に見えていた）。
+     代わりに、目に障らないよう ゆっくり・薄く する */
+  .jobwatch__fill.is-running {
+    animation-duration: 2.4s;
+    background-image:
+      linear-gradient(120deg, rgba(255, 255, 255, .16) 25%, transparent 25%,
+        transparent 50%, rgba(255, 255, 255, .16) 50%, rgba(255, 255, 255, .16) 75%,
+        transparent 75%, transparent),
+      var(--grad-main);
+  }
 }
 
 /* 中止は目立たせない。押し間違えると走らせ直しになる */
