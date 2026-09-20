@@ -367,6 +367,11 @@
     'job.stepRead': ['読み取り', 'Reading', '읽기'],
     'job.stepApply': ['反映', 'Applying', '반영'],
     'job.stalled': ['{m}分待っても誰も拾っていません。生成の担当（ローカルのエージェント）が動いていません。', 'No worker has picked this up in {m} min. The local worker agent is not running.', '{m}분 동안 아무도 가져가지 않았습니다. 로컬 워커 에이전트가 실행되고 있지 않습니다.'],
+    /* 担当が別の仕事で手一杯なだけのとき。以前はここでも「動いていません」と出していて、
+       実際は動いている担当を「入れ直せ」と案内していた（実測: 9分かかるLP・KVプロンプトの裏で
+       次のジョブを出すと、必ずこの誤報が出た） */
+    'job.queuedBusy': ['他の生成が動いているので順番待ちです（{m}分）。終わり次第このまま始まります。', 'Waiting in line ({m} min) — another generation is running. It starts as soon as that one finishes.', '다른 생성이 실행 중이라 대기 중입니다({m}분). 끝나는 대로 이어서 시작합니다.'],
+    'ov.makeLpTitle': ['LP・KVプロンプトを作成中', 'Writing the LP/KV prompts', 'LP·KV 프롬프트 작성 중'],
     'job.stalledHow': ['ターミナルで tools/install-worker-agent.sh を実行すると、ログイン時に自動で立ち上がるようになります。', 'Run tools/install-worker-agent.sh in a terminal to start it automatically at login.', '터미널에서 tools/install-worker-agent.sh 를 실행하면 로그인 시 자동으로 시작됩니다.'],
 
     // ブランド指定

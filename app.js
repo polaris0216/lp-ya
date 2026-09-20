@@ -1638,6 +1638,8 @@
     error: '',
     mini: false,
     root: null,
+    busy: false,
+    busyAt: 0,
     timer: null,
     tick: null
     };
@@ -1694,6 +1696,7 @@
       return;
     }
     paintWatch();
+    checkBusy();
     watch.timer = global.setTimeout(pollWatch, 3000);
     }, function (err) {
     if (!watch || watch.jobId !== id) { return; }
@@ -1735,9 +1738,36 @@
     return Math.min(92, Math.round(40 + 52 * ratio));
   }
 
-  /* 一定時間拾われないなら、待っても始まらないことを伝える */
-  function isStalled() {
+  /* 一定時間拾われないなら、待っても始まらないことを伝える。
+     ただし「担当が別の仕事で手一杯」と「担当がいない」は別物。
+     ワーカーは一度に1件しか取らないので、9分かかる仕事の裏で次を出すと必ず1分で
+     この帯が出て、動いている担当を「入れ直せ」と案内していた（実測）。
+     走っている仕事が他にあるなら、それは順番待ちであって停止ではない。 */
+  function isWaitedLong() {
     return isIndeterminate() && (new Date().getTime() - watch.startedAt) > 60000;
+  }
+
+  function isQueuedBusy() { return isWaitedLong() && !!watch.busy; }
+
+  function isStalled() { return isWaitedLong() && !watch.busy; }
+
+  /* 他に走っている仕事があるかを見に行く。3秒ごとのポーリングに乗せると
+     ただの無駄打ちなので、待たされ始めてから15秒に1回だけ。 */
+  function checkBusy() {
+    if (!watch || !isWaitedLong()) { return; }
+    var now = new Date().getTime();
+    if (watch.busyAt && now - watch.busyAt < 15000) { return; }
+    watch.busyAt = now;
+    var id = watch.jobId;
+    global.Api.generationJobs.list({ eq: { status: 'processing' }, limit: 1, order: false })
+      .then(function (rows) {
+        if (!watch || watch.jobId !== id) { return; }
+        var busy = rows.length > 0;
+        if (busy !== watch.busy) { watch.busy = busy; paintWatch(); }
+      }, function (err) {
+        /* 取れないなら判断材料が無いだけ。今の見せ方を変えない */
+        console.error('[App] 他のジョブの状態を取れませんでした', err);
+      });
   }
 
   function waitedMinutes() {
@@ -1774,7 +1804,9 @@
       paintWatch();
       return;
     }
-    if (watch.msgNode && isStalled()) { watch.msgNode.textContent = t('job.stalled', { m: waitedMinutes() }); }
+    if (watch.msgNode && isWaitedLong()) {
+      watch.msgNode.textContent = t(isQueuedBusy() ? 'job.queuedBusy' : 'job.stalled', { m: waitedMinutes() });
+    }
   }
 
   function paintWatch() {
@@ -1837,7 +1869,7 @@
       : (watch.note ? watch.note
         : (watch.status === 'processing' ? t('job.running') : t('job.queued'))));
     watch.msgNode = wEl('p', 'jobwatch__msg' + (failed ? ' t-danger' : ''),
-      isStalled() ? t('job.stalled', { m: waitedMinutes() }) : message);
+      isWaitedLong() ? t(isQueuedBusy() ? 'job.queuedBusy' : 'job.stalled', { m: waitedMinutes() }) : message);
     panel.appendChild(watch.msgNode);
     /* 止まっていると伝えるだけだと、待つ以外にできることが無い。直し方まで出す */
     if (isStalled() && !watch.mini) {
