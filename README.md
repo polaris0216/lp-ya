@@ -137,7 +137,7 @@ Android Studioが開いたら、
 
 本アプリの業務データはすべて Supabase REST API 経由で読み書きします（localStorageには言語設定と選択中IDのみを保持し、業務データは保存しません）。
 
-- 接続先URL: `https://hhmresepzahfhwhywxhu.supabase.co`
+- 接続先URL: `https://yyxbtoekzarbsrtdqwzn.supabase.co`
 - 認証: `apikey` / `Authorization: Bearer <anon key>` ヘッダー（anon keyは `api.js` に定義）
 
 | テーブル | 内容 |

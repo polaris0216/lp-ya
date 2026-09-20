@@ -1,6 +1,6 @@
 /* ============================================================
  * エルピーヤ — api.js
- * Supabase REST（https://hhmresepzahfhwhywxhu.supabase.co）専用の fetch ラッパー。
+ * Supabase REST（https://yyxbtoekzarbsrtdqwzn.supabase.co）専用の fetch ラッパー。
  * 画面は描画しない。localStorage には言語設定と選択中IDだけを置き、業務データは必ず Supabase に置く。
  * SDK・CDN は使わない。fetch のみ。
  *
@@ -84,8 +84,8 @@
   'use strict';
 
   /* ---------- 接続情報 ---------- */
-  var SUPABASE_URL = 'https://hhmresepzahfhwhywxhu.supabase.co';
-  var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhobXJlc2VwemFoZmh3aHl3eGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNzU0MDQsImV4cCI6MjEwMTY1MTQwNH0.SXJqKH75xKEE3Bdmort2A_vUzkG15rktpokOZn1QqfU';
+  var SUPABASE_URL = 'https://yyxbtoekzarbsrtdqwzn.supabase.co';
+  var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5eGJ0b2VremFyYnNydGRxd3puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjgzMDgsImV4cCI6MjEwMjA0NDMwOH0.XVA9w7vpdo0vv1q9mvbofNs6AWMLUf95OSzq2bSbYUk';
   var REST_BASE = SUPABASE_URL + '/rest/v1/';
   var AUTH_BASE = SUPABASE_URL + '/auth/v1/';
   var FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1/';
