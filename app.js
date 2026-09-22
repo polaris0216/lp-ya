@@ -1608,6 +1608,47 @@
    * ---------------------------------------------------------------- */
   var watch = null;   // { jobId, titleKey, startedAt, status, error, timer, tick, root, mini }
 
+  /* 画面に出せる窓は1つだが、仕事は同時に何件でも走る（ワーカーは3件まで取る）。
+     2件目を見張り始めたとき、1件目を捨てると「生成しています…」のまま戻らず、
+     できた絵も出てこない（実測: 区画ごとの生成ボタンを続けて押すと、
+     最初に押した区画のカードが固まったままになった）。
+     窓に出すのは新しいほうにして、前のは裏で見張り続ける。 */
+  var background = [];
+
+  function watchInBackground(one, oneOpts, oneDone) {
+    if (!one || one.status === 'done' || one.status === 'failed' || one.status === 'cancelled') { return; }
+    var entry = { jobId: one.jobId, timer: null, opts: oneOpts || {}, onDone: oneDone || function () {} };
+    background.push(entry);
+    var drop = function () {
+      if (entry.timer) { global.clearTimeout(entry.timer); }
+      background = background.filter(function (x) { return x !== entry; });
+      if (watch) { paintWatch(); }
+    };
+    var tick = function () {
+      global.Api.generationJobs.get(entry.jobId).then(function (row) {
+        var status = String(row.status || 'pending');
+        if (status === 'done') {
+          try { entry.onDone(row.result || {}, row); } catch (e) { console.error('[App] 裏の仕事の反映でエラー', e); }
+          drop();
+          return;
+        }
+        if (status === 'failed' || status === 'cancelled') {
+          if (typeof entry.opts.onFail === 'function') {
+            try { entry.opts.onFail(status === 'cancelled' ? t('job.cancelled') : String(row.error || '')); }
+            catch (e2) { console.error('[App] 裏の仕事の onFail でエラー', e2); }
+          }
+          drop();
+          return;
+        }
+        entry.timer = global.setTimeout(tick, 5000);
+      }, function (err) {
+        console.error('[App] 裏の仕事の状態を取れませんでした', err);
+        entry.timer = global.setTimeout(tick, 8000);
+      });
+    };
+    entry.timer = global.setTimeout(tick, 3000);
+  }
+
   function stopWatch() {
     if (!watch) { return; }
     if (watch.timer) { global.clearTimeout(watch.timer); }
@@ -1625,10 +1666,14 @@
 
   function watchJob(options) {
     var o = options || {};
+    var prevOpts = opts;
+    var prevDone = onDone;
     opts = o;
     onDone = typeof o.onDone === 'function' ? o.onDone : function () {};
     var jobId = o.jobId;
     var titleKey = o.titleKey || 'job.title';
+    /* 前の仕事を捨てずに裏へ送る。捨てると押した側のボタンが戻らない */
+    if (watch && watch.jobId !== jobId) { watchInBackground(watch, prevOpts, prevDone); }
     stopWatch();
     watch = {
     jobId: jobId,
@@ -1666,12 +1711,11 @@
     if (watch.status === 'done') {
       var applied = onDone(row.result || {}, row);
       paintWatch();
-      if (applied) {
-      markDirty();
-      toast(t('job.done'), 'success');
-      /* 反映しただけだと画面を離れた時点で消える。そのまま保存まで済ませる */
-      if (projectId) { saveDraft(); }
-    }
+      /* markDirty / saveDraft / projectId をここで呼んでいたが、どれも app.js に
+         無く、完了時に真を返す画面があれば必ず ReferenceError で落ちる状態だった
+         （実測 2026-09-23: 裏の見張りに同じ形を写したら、その場で落ちた）。
+         保存は各画面が自分で済ませるので、ここは知らせるだけにする */
+      if (applied) { toast(t('job.done'), 'success'); }
       /* 100%と完了表示を見せてから畳む。失敗のときは理由が読めるよう残す */
       watch.timer = global.setTimeout(stopWatch, 2500);
       return;
@@ -1874,6 +1918,12 @@
     /* 止まっていると伝えるだけだと、待つ以外にできることが無い。直し方まで出す */
     if (isStalled() && !watch.mini) {
       panel.appendChild(wEl('p', 'jobwatch__msg t-sub', t('job.stalledHow')));
+    }
+    /* 窓に出ていない仕事も走っている。件数だけ添える。
+       出さないと「1件しか動いていない」と受け取られ、続けて押してよいのか
+       分からない */
+    if (background.length) {
+      panel.appendChild(wEl('p', 'jobwatch__msg t-sub', t('job.alsoRunning', { n: background.length })));
     }
 
     if (!watch.mini) {

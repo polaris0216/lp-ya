@@ -373,14 +373,21 @@
            前は全部できると押せなくなり、直したプロンプトで作り直せなかった */
         var remaining = (view.gen.sections || []).filter(function (s) { return !made()[String(s.index) + '-1']; }).length;
         var anyBusy = Object.keys(view.busy).length > 0;
-        var label = anyBusy ? t('lp.genAllRunning')
-          : (remaining ? t('lp.genAll') + '（' + remaining + '）' : t('lp.genAllRedo'));
+        /* 走っていても、残りがあれば枚数を出して押せるようにする */
+        var label = remaining ? t('lp.genAll') + '（' + remaining + '）'
+          : (anyBusy ? t('lp.genAllRunning') : t('lp.genAllRedo'));
         var all = button('btn btn--primary', label, function () {
           if (remaining) { generate(null); return; }
           var n = (view.gen.sections || []).length;
           if (window.confirm(t('lp.genAllRedoConfirm', { n: n }))) { generate('all'); }
         });
-        all.disabled = anyBusy;
+        /* 走っている最中でも押せる。区画ごとのボタンと同じく、押したぶんは
+           別の仕事として積まれ、ワーカーが空いた順に取る。
+           押せなくしていたため、見張りを1件でも取りこぼすと「まとめて生成」が
+           二度と押せなくなっていた（実測: 区画ごとのボタンを続けて押したあと、
+           画面を開き直すまで押せないままだった）。
+           残りが0なら作り直しなので、そこだけは走行中に押させない */
+        all.disabled = anyBusy && !remaining;
         /* 静止画は lp_section（OpenAI の画面）、動く絵は lp_assets（Replicate の
            seedance-2.5）と作る先が別なので、ボタンも分ける。
            押したときの案を指すので、層を切り替えてから押せばその層ぶんが作られる */

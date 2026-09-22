@@ -372,6 +372,8 @@
        次のジョブを出すと、必ずこの誤報が出た） */
     'job.queuedBusy': ['他の生成が動いているので順番待ちです（{m}分）。終わり次第このまま始まります。', 'Waiting in line ({m} min) — another generation is running. It starts as soon as that one finishes.', '다른 생성이 실행 중이라 대기 중입니다({m}분). 끝나는 대로 이어서 시작합니다.'],
     'ov.makeLpTitle': ['LP・KVプロンプトを作成中', 'Writing the LP/KV prompts', 'LP·KV 프롬프트 작성 중'],
+    /* 窓は1つしか出せないが、仕事は同時に走る。裏で見張っている数 */
+    'job.alsoRunning': ['ほかに {n} 件を生成中です（終わり次第、画面に反映します）', '{n} more running — they will appear as they finish.', '다른 {n}건도 생성 중입니다(끝나는 대로 화면에 반영됩니다)'],
     'job.stalledHow': ['ターミナルで tools/install-worker-agent.sh を実行すると、ログイン時に自動で立ち上がるようになります。', 'Run tools/install-worker-agent.sh in a terminal to start it automatically at login.', '터미널에서 tools/install-worker-agent.sh 를 실행하면 로그인 시 자동으로 시작됩니다.'],
 
     // ブランド指定
