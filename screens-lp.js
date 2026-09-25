@@ -91,6 +91,8 @@
     'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
     'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
     'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
+    /* 履歴の選択肢。日付だけでは何回目か分からない */
+    'lp.roundNth': ['{n}回目案', 'Run {n}', '{n}회차 안'],
     'lp.motionGroup': ['{kind}（動きが向く区画）', '{kind} (good for motion)', '{kind}（움직임이 어울리는 구획）'],
     'lp.motionHas': ['作成済み', 'Made', '생성됨'],
     'lp.motionNone': ['未作成', 'Not made', '미생성'],
@@ -368,8 +370,13 @@
         });
         if (rounds.length > 1) {
           var pick = el('select', 'select lp-history-select');
-          rounds.forEach(function (r) {
-            var o = el('option', null, String(r.gen.created_at || '').slice(0, 16).replace('T', ' '));
+          /* 並びは新しい順なので、番号は古い方から数える。
+             日付だけだと「どれが何回目か」が分からない（実測: 4回ぶん並ぶと
+             どれを見ているのか数え直していた） */
+          rounds.forEach(function (r, i) {
+            var nth = rounds.length - i;
+            var o = el('option', null,
+              t('lp.roundNth', { n: nth }) + '　' + String(r.gen.created_at || '').slice(0, 16).replace('T', ' '));
             o.value = r.key;
             var mine = (view.gen.content && view.gen.content.batch) || (view.gen.created_at || '').slice(0, 16);
             if (r.key === mine) { o.selected = true; }
