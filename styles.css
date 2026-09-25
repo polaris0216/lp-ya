@@ -4355,7 +4355,19 @@ input[type='radio'] {
 /* 拡大したときは、画面に収まる範囲でできるだけ大きく */
 /* 動く絵は静止画の下に別枠で出す。並べて置くと、どちらが本番の絵か
    分からなくなるので、札を付けて分ける */
-/* 動く絵に送る文。読むだけ。長いので枠を決めて中で送る */
+/* GIF まわりを1つにまとめた折りたたみ。静止画のじゃまをしない見た目にする */
+.lp-gif { margin: 6px 0 12px; border: 1px solid var(--c-line); border-radius: 10px; background: var(--c-bg-sub); }
+.lp-gif > .lp-gif__head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; list-style: none; }
+.lp-gif > .lp-gif__head::-webkit-details-marker { display: none; }
+/* 開いているかが一目で分かるよう、自前の三角を出す */
+.lp-gif > .lp-gif__head::before { content: '▸'; color: var(--c-text-sub); font-size: 11px; transition: transform .15s ease; }
+.lp-gif[open] > .lp-gif__head::before { transform: rotate(90deg); }
+.lp-gif__title { font-weight: 600; font-size: 13px; }
+.lp-gif > *:not(.lp-gif__head) { margin-left: 12px; margin-right: 12px; }
+.lp-gif > *:last-child { margin-bottom: 12px; }
+@media (prefers-reduced-motion: reduce) { .lp-gif > .lp-gif__head::before { transition: none; } }
+
+/* 動く絵に送る文。長いので枠を決めて中で送る */
 .lp-motion-prompt { margin: 6px 0 10px; }
 .lp-motion-prompt .textarea { font-size: 12px; line-height: 1.6; background: var(--c-bg-sub); }
 

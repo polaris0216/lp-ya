@@ -91,8 +91,9 @@
     'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
     'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
     'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
-    'lp.motionPromptShow': ['GIF生成文を見る', 'Show the GIF prompt', 'GIF 생성문 보기'],
-    'lp.motionPromptHide': ['GIF生成文を閉じる', 'Hide the GIF prompt', 'GIF 생성문 닫기'],
+    'lp.motionGroup': ['{kind}（動きが向く区画）', '{kind} (good for motion)', '{kind}（움직임이 어울리는 구획）'],
+    'lp.motionHas': ['作成済み', 'Made', '생성됨'],
+    'lp.motionNone': ['未作成', 'Not made', '미생성'],
     'lp.motionPromptHead': ['Replicate（bytedance/seedance-2.5）へ送る文 — {kind} / 比率 {aspect} / 見本 {refs}枚',
       'Sent to Replicate (bytedance/seedance-2.5) — {kind} / {aspect} / {refs} references',
       'Replicate로 보내는 문장 — {kind} / 비율 {aspect} / 견본 {refs}장'],
@@ -179,7 +180,7 @@
 
       /* shotAt は区画ごとに「いま何番目の版を見ているか」。paint() で作り直しても
          見ていた版に戻れるよう、描画の外に持つ */
-      var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {}, orderOpen: {},
+      var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {}, motionOpen: {},
         kind: 'lp_brief', byKind: {} };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
@@ -677,75 +678,79 @@
 
         /* 並びは「写真 → 写真の生成プロンプト → GIFのボタン → GIF → GIF生成文」。
            作る順に読めるようにする。前は GIF 一式が写真のプロンプトより先に出ていた */
+        /* GIF まわりは1つの折りたたみにまとめる。ボタン・できた GIF・生成文が
+           ばらばらに並ぶと、区画1つぶんが縦に長くなって静止画が見づらい。
+           開閉は <details> に任せ、paint() を呼ばない（呼ぶと画面を作り直して
+           見ていた場所を失い、ページの先頭へ飛ぶ） */
         var pick = motionPick(sec);
         var moving = motion()[slot];
         if (pick) {
+          var det = el('details', 'lp-gif');
+          /* 一度でも開いたらその状態を覚える。既定は、できた GIF があれば開く */
+          det.open = view.motionOpen[slot] === undefined ? !!moving : !!view.motionOpen[slot];
+          det.addEventListener('toggle', function () { view.motionOpen[slot] = det.open; });
+          var sum = el('summary', 'lp-gif__head');
+          add(sum, el('span', 'lp-gif__title', t('lp.motionGroup', { kind: pick.toUpperCase() })));
+          add(sum, el('span', 'chip chip--sm' + (moving ? ' chip--success' : ''),
+            t(moving ? 'lp.motionHas' : 'lp.motionNone')));
+          add(det, sum);
+
+          /* 作るボタン */
           var mrow = el('div', 'lp-toolbar');
-          add(mrow, el('span', 'chip chip--sm', t('lp.motionPick') + '（' + pick.toUpperCase() + '）'));
           var mbusy = !!view.busy[slot + ':m'];
           var mb = button('btn btn--secondary btn--sm',
             mbusy ? t('lp.motionRunning') : t(moving ? 'lp.motionRedo' : 'lp.motionMake'),
             function () { generateMotion(sec.index, !!moving); });
           mb.disabled = mbusy;
           add(mrow, mb);
-          /* 何を送るのかを見せる。見えないと、出来が悪いときに直しようがない */
-          var ord = orderOf(slot);
-          var shown = !!view.orderOpen[slot];
-          add(mrow, button('btn btn--text btn--sm',
-            t(shown ? 'lp.motionPromptHide' : 'lp.motionPromptShow'),
-            function () {
-              if (shown) { delete view.orderOpen[slot]; } else { view.orderOpen[slot] = true; }
-              paint();
-            }));
-          add(li, mrow);
-        }
-        if (moving) {
-          var mbox = el('div', 'lp-motion');
-          add(mbox, el('span', 'field__label', t('lp.motion')));
-          if (/\.(mp4|webm|mov)(\?|$)/i.test(String(moving))) {
-            var vid = el('video', 'lp-motion__media');
-            vid.src = moving; vid.controls = true; vid.loop = true;
-            vid.muted = true; vid.playsInline = true; vid.preload = 'metadata';
-            add(mbox, vid);
-          } else {
-            var gif = el('img', 'lp-motion__media');
-            gif.src = moving; gif.alt = ''; gif.loading = 'lazy';
-            gif.title = t('lp.shotZoom');
-            gif.style.cursor = 'zoom-in';
-            gif.addEventListener('click', function () { openShot(moving); });
-            add(mbox, gif);
-          }
-          add(li, mbox);
-        }
+          add(det, mrow);
 
-        if (pick) {
-          if (shown) {
-            var box = el('div', 'lp-motion-prompt');
-            if (ord) {
-              add(box, el('span', 'field__label',
-                t('lp.motionPromptHead', { kind: String(ord.kind || '').toUpperCase(), aspect: ord.aspect || '-',
-                  refs: (ord.references || []).length })));
-              var ta = el('textarea', 'textarea');
-              ta.value = String(ord.prompt || '');
-              ta.rows = 12;
-              add(box, ta);
-              /* 直して保存できる。次に作るときはこの文が使われる。
-                 ただし、注文書を組み直すと上書きされるので、そう書いておく */
-              var brow = el('div', 'lp-toolbar');
-              var sv = button('btn btn--secondary btn--sm', t('lp.motionPromptSave'), function () {
-                saveOrderPrompt(slot, ta.value);
-              });
-              add(brow, sv);
-              add(brow, button('btn btn--text btn--sm', t('lp.motionPromptReset'), function () {
-                ta.value = String(ord.prompt || '');
-              }));
-              add(box, brow);
-              add(box, el('p', 'field__hint', t('lp.motionPromptNote')));
+          /* できた GIF */
+          if (moving) {
+            var mbox = el('div', 'lp-motion');
+            if (/\.(mp4|webm|mov)(\?|$)/i.test(String(moving))) {
+              var vid = el('video', 'lp-motion__media');
+              vid.src = moving; vid.controls = true; vid.loop = true;
+              vid.muted = true; vid.playsInline = true; vid.preload = 'metadata';
+              add(mbox, vid);
             } else {
-              add(box, el('p', 'field__hint', t('lp.motionPromptNone')));
+              var gif = el('img', 'lp-motion__media');
+              gif.src = moving; gif.alt = ''; gif.loading = 'lazy';
+              gif.title = t('lp.shotZoom');
+              gif.style.cursor = 'zoom-in';
+              gif.addEventListener('click', function () { openShot(moving); });
+              add(mbox, gif);
             }
-            add(li, box);
+            add(det, mbox);
           }
+
+          /* 送る文。出来を見てから直せるよう、GIF の下に置く */
+          var ord = orderOf(slot);
+          var box = el('div', 'lp-motion-prompt');
+          if (ord) {
+            add(box, el('span', 'field__label',
+              t('lp.motionPromptHead', { kind: String(ord.kind || '').toUpperCase(), aspect: ord.aspect || '-',
+                refs: (ord.references || []).length })));
+            var ta = el('textarea', 'textarea');
+            ta.value = String(ord.prompt || '');
+            ta.rows = 12;
+            add(box, ta);
+            /* 直して保存できる。次に作るときはこの文が使われる。
+               ただし、区画のプロンプトを直して作り直すと組み直されるので、そう書いておく */
+            var brow = el('div', 'lp-toolbar');
+            add(brow, button('btn btn--secondary btn--sm', t('lp.motionPromptSave'), function () {
+              saveOrderPrompt(slot, ta.value);
+            }));
+            add(brow, button('btn btn--text btn--sm', t('lp.motionPromptReset'), function () {
+              ta.value = String(ord.prompt || '');
+            }));
+            add(box, brow);
+            add(box, el('p', 'field__hint', t('lp.motionPromptNote')));
+          } else {
+            add(box, el('p', 'field__hint', t('lp.motionPromptNone')));
+          }
+          add(det, box);
+          add(li, det);
         }
         return li;
       }
