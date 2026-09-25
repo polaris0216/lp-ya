@@ -91,6 +91,14 @@
     'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
     'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
     'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
+    'lp.motionPromptShow': ['送る文を見る', 'Show the prompt', '보내는 문장 보기'],
+    'lp.motionPromptHide': ['送る文を閉じる', 'Hide the prompt', '보내는 문장 닫기'],
+    'lp.motionPromptHead': ['Replicate（bytedance/seedance-2.5）へ送る文 — {kind} / 比率 {aspect} / 見本 {refs}枚',
+      'Sent to Replicate (bytedance/seedance-2.5) — {kind} / {aspect} / {refs} references',
+      'Replicate로 보내는 문장 — {kind} / 비율 {aspect} / 견본 {refs}장'],
+    'lp.motionPromptNone': ['まだありません。一度「この区画のGIFを作る」を押すと、送る文が保存されて見られます。',
+      'Not written yet. Press “Make the GIF” once and the prompt is saved so you can read it.',
+      '아직 없습니다. 「이 구획 GIF 만들기」를 한 번 누르면 저장되어 볼 수 있습니다.'],
     'lp.motionRedo': ['GIFを作り直す', 'Remake the GIF', 'GIF 다시 만들기'],
     'lp.motionRunning': ['作っています…', 'Making…', '만드는 중…'],
     'lp.motionDone': ['動く絵ができました', 'The motion asset is ready', '움직이는 소재가 완성되었습니다'],
@@ -164,7 +172,7 @@
 
       /* shotAt は区画ごとに「いま何番目の版を見ているか」。paint() で作り直しても
          見ていた版に戻れるよう、描画の外に持つ */
-      var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {},
+      var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {}, orderOpen: {},
         kind: 'lp_brief', byKind: {} };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
@@ -448,6 +456,16 @@
       /* 照合を通らなかったが残した区画。捨てずに見て決めてもらう */
       function unsure() { var a = view.gen.asset_prompts && view.gen.asset_prompts.unsure; return a && typeof a === 'object' ? a : {}; }
 
+      /* 動く絵を頼むときに Replicate へ送る文。asset-orders.mjs が作って
+         generations.asset_prompts.orders に置く。作る前に保存されるので、
+         一度ボタンを押せば（失敗しても）中身が見られる */
+      function orders() { var a = view.gen.asset_prompts && view.gen.asset_prompts.orders; return Array.isArray(a) ? a : []; }
+      function orderOf(slot) {
+        var hit = null;
+        orders().forEach(function (o) { if (o && o.slot === slot && (o.kind === 'gif' || o.kind === 'video')) { hit = o; } });
+        return hit;
+      }
+
       function motionPick(sec) {
         var m = String((sec && sec.prompt) || '').match(/動き\s*[:：]\s*(GIF|ＧＩＦ|gif|動画|ビデオ)/);
         if (!m) { return ''; }
@@ -641,7 +659,32 @@
             function () { generateMotion(sec.index, !!moving); });
           mb.disabled = mbusy;
           add(mrow, mb);
+          /* 何を送るのかを見せる。見えないと、出来が悪いときに直しようがない */
+          var ord = orderOf(slot);
+          var shown = !!view.orderOpen[slot];
+          add(mrow, button('btn btn--text btn--sm',
+            t(shown ? 'lp.motionPromptHide' : 'lp.motionPromptShow'),
+            function () {
+              if (shown) { delete view.orderOpen[slot]; } else { view.orderOpen[slot] = true; }
+              paint();
+            }));
           add(li, mrow);
+          if (shown) {
+            var box = el('div', 'lp-motion-prompt');
+            if (ord) {
+              add(box, el('span', 'field__label',
+                t('lp.motionPromptHead', { kind: String(ord.kind || '').toUpperCase(), aspect: ord.aspect || '-',
+                  refs: (ord.references || []).length })));
+              var ta = el('textarea', 'textarea');
+              ta.value = String(ord.prompt || '');
+              ta.rows = 10;
+              ta.readOnly = true;
+              add(box, ta);
+            } else {
+              add(box, el('p', 'field__hint', t('lp.motionPromptNone')));
+            }
+            add(li, box);
+          }
         }
         if (moving) {
           var mbox = el('div', 'lp-motion');
