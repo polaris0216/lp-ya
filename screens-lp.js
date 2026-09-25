@@ -653,8 +653,30 @@
           if (shots.length > 1) { add(li, foot); }
         }
 
-        /* AI が動きを勧めた区画には印と、その区画だけのボタンを出す。
-           絵の生成とは別の作業（作る先も費用も違う）ので、ボタンも分ける */
+        var field = el('label', 'field');
+        add(field, el('span', 'field__label', t('lp.prompt')));
+        var ta = el('textarea', 'textarea lp-prompt');
+        ta.value = String(sec.prompt || '');
+        ta.rows = 6;
+        ta.addEventListener('input', function () {
+          sec.prompt = ta.value; view.dirty = true;
+          var s = document.getElementById('lp-save'); if (s) { s.disabled = false; }
+        });
+        add(field, ta);
+        add(li, field);
+
+        var row = el('div', 'lp-toolbar');
+        var busy = !!view.busy[slot];
+        var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
+          generate(sec.index);
+        });
+        b.disabled = busy;
+        add(row, b);
+        add(row, button('btn btn--secondary btn--sm', t('lp.copy'), function () { copyText(String(sec.prompt || '')); }));
+        add(li, row);
+
+        /* 並びは「写真 → 写真の生成プロンプト → GIFのボタン → GIF → GIF生成文」。
+           作る順に読めるようにする。前は GIF 一式が写真のプロンプトより先に出ていた */
         var pick = motionPick(sec);
         var moving = motion()[slot];
         if (pick) {
@@ -676,6 +698,27 @@
               paint();
             }));
           add(li, mrow);
+        }
+        if (moving) {
+          var mbox = el('div', 'lp-motion');
+          add(mbox, el('span', 'field__label', t('lp.motion')));
+          if (/\.(mp4|webm|mov)(\?|$)/i.test(String(moving))) {
+            var vid = el('video', 'lp-motion__media');
+            vid.src = moving; vid.controls = true; vid.loop = true;
+            vid.muted = true; vid.playsInline = true; vid.preload = 'metadata';
+            add(mbox, vid);
+          } else {
+            var gif = el('img', 'lp-motion__media');
+            gif.src = moving; gif.alt = ''; gif.loading = 'lazy';
+            gif.title = t('lp.shotZoom');
+            gif.style.cursor = 'zoom-in';
+            gif.addEventListener('click', function () { openShot(moving); });
+            add(mbox, gif);
+          }
+          add(li, mbox);
+        }
+
+        if (pick) {
           if (shown) {
             var box = el('div', 'lp-motion-prompt');
             if (ord) {
@@ -704,46 +747,6 @@
             add(li, box);
           }
         }
-        if (moving) {
-          var mbox = el('div', 'lp-motion');
-          add(mbox, el('span', 'field__label', t('lp.motion')));
-          if (/\.(mp4|webm|mov)(\?|$)/i.test(String(moving))) {
-            var vid = el('video', 'lp-motion__media');
-            vid.src = moving; vid.controls = true; vid.loop = true;
-            vid.muted = true; vid.playsInline = true; vid.preload = 'metadata';
-            add(mbox, vid);
-          } else {
-            var gif = el('img', 'lp-motion__media');
-            gif.src = moving; gif.alt = ''; gif.loading = 'lazy';
-            gif.title = t('lp.shotZoom');
-            gif.style.cursor = 'zoom-in';
-            gif.addEventListener('click', function () { openShot(moving); });
-            add(mbox, gif);
-          }
-          add(li, mbox);
-        }
-
-        var field = el('label', 'field');
-        add(field, el('span', 'field__label', t('lp.prompt')));
-        var ta = el('textarea', 'textarea lp-prompt');
-        ta.value = String(sec.prompt || '');
-        ta.rows = 6;
-        ta.addEventListener('input', function () {
-          sec.prompt = ta.value; view.dirty = true;
-          var s = document.getElementById('lp-save'); if (s) { s.disabled = false; }
-        });
-        add(field, ta);
-        add(li, field);
-
-        var row = el('div', 'lp-toolbar');
-        var busy = !!view.busy[slot];
-        var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
-          generate(sec.index);
-        });
-        b.disabled = busy;
-        add(row, b);
-        add(row, button('btn btn--secondary btn--sm', t('lp.copy'), function () { copyText(String(sec.prompt || '')); }));
-        add(li, row);
         return li;
       }
 
