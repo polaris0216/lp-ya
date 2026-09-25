@@ -96,6 +96,13 @@
     'lp.motionPromptHead': ['Replicate（bytedance/seedance-2.5）へ送る文 — {kind} / 比率 {aspect} / 見本 {refs}枚',
       'Sent to Replicate (bytedance/seedance-2.5) — {kind} / {aspect} / {refs} references',
       'Replicate로 보내는 문장 — {kind} / 비율 {aspect} / 견본 {refs}장'],
+    'lp.motionPromptSave': ['この文で保存', 'Save this prompt', '이 문장으로 저장'],
+    'lp.motionPromptReset': ['元に戻す', 'Revert', '되돌리기'],
+    'lp.motionPromptSaved': ['保存しました。次に作るときはこの文を使います', 'Saved. The next run uses this prompt.', '저장했습니다.'],
+    'lp.motionPromptNote': [
+      '直した文は、次にこの区画のGIFを作るときに使われます。ただし区画のプロンプト自体を直して作り直すと、この文は組み直されて上書きされます。',
+      'Your edit is used the next time this section’s GIF is made. Editing the section prompt itself rebuilds and overwrites this text.',
+      '수정한 문장은 다음에 이 구획의 GIF를 만들 때 사용됩니다.'],
     'lp.motionPromptNone': ['まだありません。一度「この区画のGIFを作る」を押すと、送る文が保存されて見られます。',
       'Not written yet. Press “Make the GIF” once and the prompt is saved so you can read it.',
       '아직 없습니다. 「이 구획 GIF 만들기」를 한 번 누르면 저장되어 볼 수 있습니다.'],
@@ -677,9 +684,20 @@
                   refs: (ord.references || []).length })));
               var ta = el('textarea', 'textarea');
               ta.value = String(ord.prompt || '');
-              ta.rows = 10;
-              ta.readOnly = true;
+              ta.rows = 12;
               add(box, ta);
+              /* 直して保存できる。次に作るときはこの文が使われる。
+                 ただし、注文書を組み直すと上書きされるので、そう書いておく */
+              var brow = el('div', 'lp-toolbar');
+              var sv = button('btn btn--secondary btn--sm', t('lp.motionPromptSave'), function () {
+                saveOrderPrompt(slot, ta.value);
+              });
+              add(brow, sv);
+              add(brow, button('btn btn--text btn--sm', t('lp.motionPromptReset'), function () {
+                ta.value = String(ord.prompt || '');
+              }));
+              add(box, brow);
+              add(box, el('p', 'field__hint', t('lp.motionPromptNote')));
             } else {
               add(box, el('p', 'field__hint', t('lp.motionPromptNone')));
             }
@@ -747,6 +765,23 @@
           /* 戻したものが「いま使う版」になるので、見る位置も先頭へ */
           view.shotAt[slot] = 0;
           toast(t('lp.restored'), 'success');
+          paint();
+        }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
+      }
+
+      /* 動く絵の文を直して保存する。orders の中の、その区画のものだけ入れ替える */
+      function saveOrderPrompt(slot, text) {
+        var ap = view.gen.asset_prompts || {};
+        var list = (ap.orders || []).map(function (o) {
+          if (o && o.slot === slot && (o.kind === 'gif' || o.kind === 'video')) {
+            return Object.assign({}, o, { prompt: String(text || ''), edited: true });
+          }
+          return o;
+        });
+        var next = Object.assign({}, ap, { orders: list });
+        Api.generations.update(view.gen.id, { asset_prompts: next }).then(function () {
+          view.gen.asset_prompts = next;
+          toast(t('lp.motionPromptSaved'), 'success');
           paint();
         }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
       }
