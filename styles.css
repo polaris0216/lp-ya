@@ -235,7 +235,10 @@ table { border-collapse: collapse; width: 100%; }
   gap: 10px;
   padding: 10px 16px;
   padding-top: calc(10px + var(--safe-top));
-  min-height: var(--h-header);
+  /* 高さを決め打ちにする。中身で伸び縮みすると、下の工程タブが貼り付く位置
+     （sticky の top）も一緒に動き、スクロールのたびにタブが上下する。
+     入っているのはブランドと account の短い1行だけなので、伸びる余地は要らない */
+  height: calc(var(--h-header) + var(--safe-top));
   background:
     linear-gradient(90deg, rgba(20, 8, 40, .04), rgba(20, 8, 40, .18)),
     var(--grad-main);
@@ -501,10 +504,12 @@ table { border-collapse: collapse; width: 100%; }
    別の工程へ移るのにいちいち上まで戻ることになる。 */
 .app-subhead {
   position: sticky;
-  /* 貼り付く位置はヘッダーの実際の高さ。--h-header は最小値で、
-     中身や端末の切り欠きの分だけ実際は高くなる。ずれると耳の上が
-     ヘッダーの下に潜る。実測値は app.js が --h-header-real に入れる */
-  top: var(--h-header-real, calc(var(--h-header) + var(--safe-top)));
+  /* 貼り付く位置はヘッダーの高さそのもの。ヘッダーは高さを決め打ちにして
+     あるので、ここも同じ式で書けば必ず一致する。
+     前は app.js が実測して --h-header-real に入れていたが、測る時機が
+     ずれると耳が動く（実測: スクロールのたびに工程タブが上下していた）。
+     測るのをやめれば、そのずれ自体が起きない */
+  top: calc(var(--h-header) + var(--safe-top));
   z-index: 50;
   display: flex;
   align-items: center;
