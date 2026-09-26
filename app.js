@@ -1822,7 +1822,12 @@
   /* 割合が分からないときの見せ方。バーは満たしておいて、薄い色と流れる縞で
      「不定」を出す（is-waiting）。止まったと分かったら縞を止めて警告色にする */
   function fillWidth(pct) {
-    return (pct === null ? 100 : pct) + '%';
+    if (pct === null) { return '100%'; }
+    /* 0% のままだとバーの幅が0になり、流れる縞が1本も見えない。
+       「動いていない」と受け取られる（実測 2026-09-27: 1/5 まで進んでいたのに
+       画面は 0% で、止まったように見えていた）。
+       中が見える最小の幅は残す。数字は本当の値のまま出す */
+    return Math.max(6, pct) + '%';
   }
 
   function stepKey() {
@@ -1830,6 +1835,12 @@
     if (watch.status === 'done') { return 'job.stepApply'; }
     if (watch.status === 'processing') { return 'job.stepRead'; }
     return 'job.stepQueued';
+  }
+
+  /* 「読み取り　1/5」。段数は、進めている側が書いていれば添える */
+  function stepText() {
+    var base = t(stepKey());
+    return hasRealProgress() ? base + '　' + watch.done + '/' + watch.total : base;
   }
 
   function tickWatch() {
@@ -1842,7 +1853,17 @@
     if (pct === null) { watch.barNode.removeAttribute('aria-valuenow'); }
     else { watch.barNode.setAttribute('aria-valuenow', String(pct)); }
     }
-    if (watch.stepNode) { watch.stepNode.textContent = t(stepKey()); }
+    /* いま何をしているかを、進めている側が書いてくる（progress_note）。
+       これを出さないと、同じ文面のまま何分も止まって見える
+       （実測 2026-09-27: 1/5 まで進み「中身を読み込みました。分析しています」に
+       変わっていたのに、画面は「3ページを開いています」のままだった）。
+       文面は丸ごと描き直さずここで差し替える。描き直すと入力やクリックを取りこぼす */
+    if (watch.msgNode && !isWaitedLong()
+      && watch.status !== 'done' && watch.status !== 'failed' && watch.status !== 'cancelled') {
+      var now = watch.note || t(watch.status === 'processing' ? 'job.running' : 'job.queued');
+      if (watch.msgNode.textContent !== now) { watch.msgNode.textContent = now; }
+    }
+    if (watch.stepNode) { watch.stepNode.textContent = stepText(); }
     if (isStalled() && watch.fillNode && watch.fillNode.className.indexOf('is-stalled') === -1) {
       /* 止まったと分かった時点で、縞を止めて色を変える */
       paintWatch();
@@ -1882,7 +1903,9 @@
     /* バーの上に「今の段階」と「%」、下に進み具合で塗られるバー */
     var meter = wEl('div', 'jobwatch__meter');
     var meterHead = wEl('div', 'jobwatch__meter-head');
-    watch.stepNode = wEl('span', 'jobwatch__step', t(stepKey()));
+    /* 段数は tickWatch でも書き換える。両方で同じ式にしないと、
+       描き直した瞬間だけ「1/5」が消えて、また出る（ちらつく） */
+    watch.stepNode = wEl('span', 'jobwatch__step', stepText());
     meterHead.appendChild(watch.stepNode);
     var pct = progressValue();
     watch.pctNode = wEl('span', 'jobwatch__pct', pct === null ? '' : pct + '%');
