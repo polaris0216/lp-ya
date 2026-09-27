@@ -319,6 +319,15 @@
             if (!inRound) { b.title = String(g.created_at || '').slice(0, 16).replace('T', ' '); }
             add(b, el('span', 'lp-variant__label', L));
             add(b, el('span', 'lp-variant__name', String(g.title || '').slice(0, 28)));
+            /* その層に絵が何枚あるかを出す。無いと、どの層を作ったのか分からない
+               （実測 2026-09-27: 絵23枚が全部A層に入っているのに、B〜E層を見て
+               「まとめて生成しても1区画しか作られない」と受け取られた） */
+            var gm = (g.asset_prompts && g.asset_prompts.made) || {};
+            var gn = (isArray(g.sections) ? g.sections : []).filter(function (x) {
+              return !!gm[String(x.index) + '-1'];
+            }).length;
+            var gt = (isArray(g.sections) ? g.sections : []).length;
+            add(b, el('span', 'lp-variant__count' + (gn ? '' : ' is-none'), gn + '/' + gt));
             add(tabs, b);
           });
           add(toolbar, tabs);

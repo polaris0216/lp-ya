@@ -4325,6 +4325,10 @@ input[type='radio'] {
 /* この回に無い層（押すと別の回のその層へ飛ぶ）。薄くして区別する */
 .lp-variant--faded { opacity: .55; }
 .lp-variant__label { font-weight: 700; }
+/* その層に絵が何枚あるか。どの層を作ったのかが一目で分かる */
+.lp-variant__count { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--c-accent); font-weight: 700; }
+.lp-variant__count.is-none { color: var(--c-text-sub); font-weight: 400; }
+
 .lp-variant__name { font-size: var(--fs-note); color: var(--c-text-sub); }
 .lp-target { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 6px 0 10px; }
 .lp-visual__row { display: flex; gap: 8px; margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--c-line); background: #FBF9FC; border-radius: 0 8px 8px 0; }
