@@ -222,6 +222,22 @@
          見ていた版に戻れるよう、描画の外に持つ */
       var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {}, motionOpen: {},
         kind: 'lp_brief', byKind: {} };
+      /* 一覧では本文（content.brief）を取らない。1本25,000字あり、
+         3種類×20件で5.9MBになる。画面が開くたびにこれを読んでいたので、
+         取り直しが重なると白いまま返らなくなった（実測 2026-10-04）。
+         回の記号だけ content から抜き出し、本文は開いた1本だけ後から取る */
+      var LIGHT = 'id,feature_key,content_type,variant_label,title,created_at,'
+        + 'sections,asset_prompts,batch:content->>batch,stamp:content->>stamp';
+      /* 本文を取りに行っている最中の案。二重に取りに行かないための札 */
+      var fetching = {};
+      /* 回（batch）の読み方は1か所。軽い一覧では g.batch、本文まで取った行では
+         g.content.batch に入っている */
+      function batchOf(g) {
+        if (!g) { return ''; }
+        if (g.content && g.content.batch) { return String(g.content.batch); }
+        return g.batch ? String(g.batch) : '';
+      }
+
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lp.title')));
@@ -247,7 +263,7 @@
         /* 3種類をまとめて取る。in の絞り込みが api に無いので、種類ごとに引く */
         Promise.all(KINDS.map(function (k) {
           return Api.generations.list({ eq: { projects_id: projectId, feature_key: k.key },
-            order: 'created_at.desc', limit: 20 }).catch(function () { return []; });
+            select: LIGHT, order: 'created_at.desc', limit: 20 }).catch(function () { return []; });
         })),
         (window.Api && Api.analysisReports && typeof Api.analysisReports.first === 'function')
           ? Api.analysisReports.first({ eq: { projects_id: projectId, analysis_status: 'done' }, order: 'created_at.desc' }).catch(function () { return null; })
@@ -291,9 +307,9 @@
       function firstVariant(list) {
         if (!isArray(list) || !list.length) { return null; }
         var newest = list[0];
-        var batch = newest.content && newest.content.batch;
+        var batch = batchOf(newest);
         var same = batch
-          ? list.filter(function (g) { return g.content && g.content.batch === batch; })
+          ? list.filter(function (g) { return batchOf(g) === batch; })
           : list.slice();
         var sorted = same.slice().sort(function (x, y) {
           return String(x.variant_label || '').localeCompare(String(y.variant_label || ''));
@@ -339,6 +355,23 @@
           add(kinds, b);
         });
 
+        /* 一覧では本文（マスターブリーフ）を取っていない。
+           開いた1本だけ後から取って、届いたら描き直す */
+        if (view.gen && !view.gen.content && !fetching[view.gen.id]) {
+          var want = view.gen.id;
+          fetching[want] = true;
+          Api.generations.get(want).then(function (full) {
+            fetching[want] = false;
+            if (!full || !full.content) { return; }
+            KINDS.forEach(function (k) {
+              (view.byKind[k.key] || []).forEach(function (g) {
+                if (g.id === want) { g.content = full.content; }
+              });
+            });
+            if (view.gen && view.gen.id === want) { view.gen.content = full.content; paint(); }
+          }).catch(function () { fetching[want] = false; });
+        }
+
         if (!view.gen) {
           add(body, el('p', 'empty',
             view.kind === 'lp_brief' ? t('lp.empty') : t('lp.kindEmpty')));
@@ -350,9 +383,9 @@
            その層のいちばん新しい1本に飛ぶ。1層だけの回（昔の A のみの回）を
            選んでもタブが消えないようにする（実測: 過去の回を選ぶと
            タブごと消えて、他の層に戻れなくなっていた） */
-        var myBatch = view.gen.content && view.gen.content.batch;
+        var myBatch = batchOf(view.gen);
         var batch = view.gens.filter(function (g) {
-          if (myBatch) { return g.content && g.content.batch === myBatch; }
+          if (myBatch) { return batchOf(g) === myBatch; }
           return (g.created_at || '').slice(0, 16) === (view.gen.created_at || '').slice(0, 16);
         });
         var byLabel = {};
@@ -424,10 +457,10 @@
                 toast(t('lp.genLayerQueued', { L: L }), 'success');
                 if (App.watchJob) {
                   App.watchJob({ jobId: job.id, titleKey: 'ov.makeLpTitle', urls: [], onDone: function () {
-                    Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc', limit: 20 })
+                    Api.generations.list({ eq: { projects_id: projectId, feature_key: FEATURE }, select: LIGHT, order: 'created_at.desc', limit: 20 })
                       .then(function (rows) {
                         view.gens = isArray(rows) ? rows : [];
-                        var mine = view.gens.filter(function (g) { return g.content && g.content.batch === myBatch && String(g.variant_label || '-') === L; })[0];
+                        var mine = view.gens.filter(function (g) { return batchOf(g) === myBatch && String(g.variant_label || '-') === L; })[0];
                         if (mine) { view.gen = mine; }
                         paint();
                       });
@@ -442,7 +475,7 @@
         var rounds = [];
         var seen = {};
         view.gens.forEach(function (g) {
-          var key = (g.content && g.content.batch) || (g.created_at || '').slice(0, 16);
+          var key = batchOf(g) || (g.created_at || '').slice(0, 16);
           if (seen[key]) { return; }
           seen[key] = 1;
           rounds.push({ key: key, gen: g });
@@ -457,7 +490,7 @@
             var o = el('option', null,
               t('lp.roundNth', { n: nth }) + '　' + String(r.gen.created_at || '').slice(0, 16).replace('T', ' '));
             o.value = r.key;
-            var mine = (view.gen.content && view.gen.content.batch) || (view.gen.created_at || '').slice(0, 16);
+            var mine = batchOf(view.gen) || (view.gen.created_at || '').slice(0, 16);
             if (r.key === mine) { o.selected = true; }
             add(pick, o);
           });
@@ -1097,7 +1130,7 @@
       function reloadAll() {
         return Promise.all(KINDS.map(function (k) {
           return Api.generations.list({ eq: { projects_id: projectId, feature_key: k.key },
-            order: 'created_at.desc', limit: 20 }).catch(function () { return null; });
+            select: LIGHT, order: 'created_at.desc', limit: 20 }).catch(function () { return null; });
         })).then(function (lists) {
           KINDS.forEach(function (k, i) {
             if (isArray(lists[i])) { view.byKind[k.key] = lists[i]; }
@@ -1116,29 +1149,40 @@
          手元から積んだ生成では合図が来ないので、耳の数字が古いまま残る
          （実測 2026-10-03: DB は KV 8/8 なのに画面は KV 0/8 のままだった）。
          文を書きかけ（dirty）のときは描き直さない。書いた字が消えるため */
+      /* 取り直しは重い（この画面は1回で6MB読む）。間を置き、重ならせない。
+         実測 2026-10-04: focus でも取り直していたため、窓をクリックするたびに
+         6MBの読み込みが走って重なり、画面が白いまま返らなくなった。
+         focus は押すたびに出るので使わない。タブに戻ったときだけ見る */
+      var lastLook = Date.now();
+      var looking = false;
+      var LOOK_GAP = 60000;
       function refreshOnReturn() {
         if (!document.body.contains(screen)) {
           document.removeEventListener('visibilitychange', refreshOnReturn);
-          window.removeEventListener('focus', refreshOnReturn);
           return;
         }
-        if (document.hidden || view.dirty) { return; }
-        reloadAll().then(paint).catch(function () {});
+        if (document.hidden || view.dirty || looking) { return; }
+        if (Date.now() - lastLook < LOOK_GAP) { return; }
+        looking = true;
+        lastLook = Date.now();
+        reloadAll().then(paint).catch(function () {}).then(function () {
+          looking = false;
+          lastLook = Date.now();
+        });
       }
       document.addEventListener('visibilitychange', refreshOnReturn);
-      window.addEventListener('focus', refreshOnReturn);
 
       /* 同じ回（batch）の、全種類（LP / KV / メタ広告）× 全層ぶんの生成物を集める。
          「全区画をまとめて生成」はここを使う。
          これまでは開いている種類・層の1つしか作らなかったので、
          5層ぶんのLPとKVと広告を作るのに15回押す必要があった（2026-10-02 要望） */
       function sameBatch() {
-        var myBatch = view.gen && view.gen.content && view.gen.content.batch;
+        var myBatch = batchOf(view.gen);
         var myTime = (view.gen && view.gen.created_at || '').slice(0, 16);
         var out = [];
         KINDS.forEach(function (k) {
           (view.byKind[k.key] || []).forEach(function (g) {
-            var b = g.content && g.content.batch;
+            var b = batchOf(g);
             var same = myBatch ? (b === myBatch) : ((g.created_at || '').slice(0, 16) === myTime);
             if (same && isArray(g.sections) && g.sections.length) { out.push(g); }
           });
@@ -1177,11 +1221,11 @@
               if (!newest || (g.created_at || '') > (newest.created_at || '')) { newest = g; }
             });
           });
-          var mine = view.gen && view.gen.content && view.gen.content.batch;
-          var top = newest && newest.content && newest.content.batch;
+          var mine = batchOf(view.gen);
+          var top = batchOf(newest);
           if (newest && top && mine && top !== mine) {
             view.gen = (view.byKind[view.kind] || []).filter(function (g) {
-              var b = g.content && g.content.batch;
+              var b = batchOf(g);
               return b === top && isArray(g.sections) && g.sections.length;
             })[0] || newest;
             view.dirty = false;
