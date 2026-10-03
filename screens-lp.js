@@ -156,6 +156,7 @@
       'Product input, targets, or competitor analysis changed since these prompts were written. Rewrite with the current settings? (A few minutes. Existing images stay; regenerate to apply.)',
       '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
     'lp.rewrite': ['生成プロンプトを更新する', 'Update the prompts', '프롬프트 업데이트'],
+    'lp.loadingSections': ['区画を読み込んでいます…', 'Loading sections…', '구획을 불러오는 중…'],
     'lp.movedToNewest': ['新しい回ができていたので、そちらに切り替えて生成します。', 'A newer round exists; switched to it.', '새 회차가 있어 그쪽으로 전환했습니다.'],
     'lp.rewriteQueued': ['書き直しています。数分で新しい回が増えます。', 'Rewriting; a new round will appear in a few minutes.', '다시 쓰는 중입니다. 몇 분 뒤 새 회차가 추가됩니다.'],
     'lp.missing': ['この回に無い層', 'Missing from this round', '이 회차에 없는 층'],
@@ -226,10 +227,54 @@
          3種類×20件で5.9MBになる。画面が開くたびにこれを読んでいたので、
          取り直しが重なると白いまま返らなくなった（実測 2026-10-04）。
          回の記号だけ content から抜き出し、本文は開いた1本だけ後から取る */
+      /* 一覧で読むのは、案を並べるのに要るものだけ。
+         区画の中身（sections）と絵の記録（asset_prompts）は、LP1件で76KBあり、
+         3種類×20件で2MB近くになる。耳に出す「◯/◯」を数えるためだけに
+         全文を読んでいた。いま見ている回のぶん（最大15件）だけ後から読む */
       var LIGHT = 'id,feature_key,content_type,variant_label,title,created_at,'
-        + 'sections,asset_prompts,batch:content->>batch,stamp:content->>stamp';
+        + 'batch:content->>batch,stamp:content->>stamp';
+      var HEAVY = 'id,sections,asset_prompts';
       /* 本文を取りに行っている最中の案。二重に取りに行かないための札 */
       var fetching = {};
+      /* 回ごとに、重い列を読み終えたか */
+      var detailDone = {};
+
+      /* その回の区画と絵の記録を読む。読めたら同じ行に入れる（参照は変えない） */
+      function loadDetail(batch) {
+        if (!batch) { return Promise.resolve(); }
+        if (detailDone[batch]) { return Promise.resolve(); }
+        var ids = [];
+        KINDS.forEach(function (k) {
+          (view.byKind[k.key] || []).forEach(function (g) {
+            if (batchOf(g) === batch && !isArray(g.sections)) { ids.push(g.id); }
+          });
+        });
+        if (!ids.length) { detailDone[batch] = true; return Promise.resolve(); }
+        detailDone[batch] = true;
+        return Api.generations.list({ in: { id: ids }, select: HEAVY, order: false, limit: ids.length })
+          .then(function (rows) {
+            var by = {};
+            (isArray(rows) ? rows : []).forEach(function (r) { by[r.id] = r; });
+            KINDS.forEach(function (k) {
+              (view.byKind[k.key] || []).forEach(function (g) {
+                var r = by[g.id];
+                if (!r) { return; }
+                g.sections = r.sections;
+                g.asset_prompts = r.asset_prompts;
+              });
+            });
+          })
+          .catch(function (err) {
+            /* 読めなければ次に開いたときにもう一度試す。黙らない */
+            detailDone[batch] = false;
+            console.error('[screens-lp] 区画の読み込みに失敗:', err);
+          });
+      }
+
+      /* いま見ている回のぶんを読んでから描き直す */
+      function withDetail() {
+        return loadDetail(batchOf(view.gen)).then(function () { paint(); });
+      }
       /* 回（batch）の読み方は1か所。軽い一覧では g.batch、本文まで取った行では
          g.content.batch に入っている */
       function batchOf(g) {
@@ -281,6 +326,8 @@
           ? (view.gens.filter(function (g) { return g.id === params.gen; })[0] || firstVariant(view.gens))
           : firstVariant(view.gens);
         paint();
+        /* 耳の数字に要る区画は、いま見ている回のぶんだけ後から読む */
+        withDetail();
       }).catch(function (err) {
         console.error('[screens-lp] 読み込みに失敗:', err);
         add(body, el('p', 'empty', String(err && err.message || err)));
@@ -300,6 +347,7 @@
         view.gen = same || firstVariant(view.gens);
         view.dirty = false;
         paint();
+        withDetail();
       }
 
       /* いちばん新しい回の、いちばん若い層を返す。
@@ -336,19 +384,27 @@
            （2026-10-02 要望。前は種類が耳で、層がその下だった） */
         var kinds = el('div', 'lp-delivs');
         var curLabel = String((view.gen && view.gen.variant_label) || '-');
+        var curBatch = batchOf(view.gen);
         KINDS.forEach(function (k) {
           var on = view.kind === k.key;
-          /* その種類に、いま見ている層のものがあるか */
-          var mine = (view.byKind[k.key] || []).filter(function (g) {
+          /* その種類に、いま見ている層のものがあるか。
+             同じ回のものを先に見る。回を指定せずに拾うと、別の回の行を数えて
+             いま開いている回と食い違う（数も、読み込みの有無も） */
+          var all = view.byKind[k.key] || [];
+          var mine = all.filter(function (g) {
+            return String(g.variant_label || '-') === curLabel && batchOf(g) === curBatch;
+          })[0] || all.filter(function (g) {
             return String(g.variant_label || '-') === curLabel;
           })[0];
           var b = button('lp-deliv' + (on ? ' lp-deliv--on' : '') + (mine ? '' : ' lp-deliv--empty'),
             t(k.label), function () { switchKind(k.key); });
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           /* その層・その種類で何枚できているか。層をまたいで比べられる */
-          if (mine) {
+          /* 区画をまだ読んでいないあいだは数を出さない。
+             0/0 と出すと「無くなった」と読めてしまう */
+          if (mine && isArray(mine.sections)) {
             var km = (mine.asset_prompts && mine.asset_prompts.made) || {};
-            var ks = isArray(mine.sections) ? mine.sections : [];
+            var ks = mine.sections;
             var kn = ks.filter(function (x) { return !!km[String(x.index) + '-1']; }).length;
             add(b, el('span', 'lp-deliv__count' + (kn ? '' : ' is-none'), ' ' + kn + '/' + ks.length));
           }
@@ -405,7 +461,7 @@
             var on = g.id === view.gen.id;
             var inRound = !!byLabel[L];
             var b = button('lp-deliv' + (on ? ' lp-deliv--on' : '') + (inRound ? '' : ' lp-deliv--empty'), '',
-              function () { view.gen = g; view.dirty = false; paint(); });
+              function () { view.gen = g; view.dirty = false; paint(); withDetail(); });
             b.setAttribute('aria-pressed', on ? 'true' : 'false');
             if (!inRound) { b.title = String(g.created_at || '').slice(0, 16).replace('T', ' '); }
             add(b, el('span', 'lp-variant__label', L));
@@ -417,17 +473,24 @@
                （2026-10-02。種類ごとの数は、下の行の種類に出る） */
             var gn = 0;
             var gt = 0;
+            var known = false;
             KINDS.forEach(function (k) {
-              var one = (view.byKind[k.key] || []).filter(function (x) {
-                return String(x.variant_label || '-') === L;
+              var rows = view.byKind[k.key] || [];
+              /* 同じ回のものを数える。回をまたぐと、いま開いている案と合わない */
+              var one = rows.filter(function (x) {
+                return String(x.variant_label || '-') === L && batchOf(x) === myBatch;
               })[0];
-              if (!one) { return; }
+              if (!one || !isArray(one.sections)) { return; }
+              known = true;
               var om = (one.asset_prompts && one.asset_prompts.made) || {};
-              var os = isArray(one.sections) ? one.sections : [];
+              var os = one.sections;
               gn += os.filter(function (x) { return !!om[String(x.index) + '-1']; }).length;
               gt += os.length;
             });
-            add(b, el('span', 'lp-variant__count' + (gn ? '' : ' is-none'), gn + '/' + gt));
+            /* まだ読んでいないあいだは数を出さない */
+            if (known) {
+              add(b, el('span', 'lp-variant__count' + (gn ? '' : ' is-none'), gn + '/' + gt));
+            }
             add(tabs, b);
           });
           add(tabsBar, tabs);
@@ -715,8 +778,14 @@
 
       /* 区画ごとのカード: プロンプト（編集可）＋生成ボタン＋できた絵 */
       function paintSections() {
+        /* 区画は一覧では読まない（LP1件で60KBある）。読み終わるまでは
+           何も出さずに空白にすると「壊れた」と見えるので、そう言っておく */
+        if (!isArray(view.gen.sections)) {
+          add(body, el('p', 'empty', t('lp.loadingSections')));
+          return;
+        }
         var list = el('ol', 'lpd-sections');
-        (view.gen.sections || []).forEach(function (sec, i) { add(list, sectionCard(sec, i)); });
+        view.gen.sections.forEach(function (sec, i) { add(list, sectionCard(sec, i)); });
         add(body, list);
       }
 
@@ -1141,6 +1210,9 @@
             var fresh = view.gens.filter(function (g) { return g.id === view.gen.id; })[0];
             if (fresh) { view.gen = fresh; }
           }
+          /* 取り直すと軽い行に戻るので、重い列も読み直す */
+          detailDone = {};
+          return loadDetail(batchOf(view.gen));
         });
       }
 
@@ -1231,8 +1303,9 @@
             view.dirty = false;
             paint();
             toast(t('lp.movedToNewest'), 'success');
+            return loadDetail(top).then(function () { paint(); queueAll(redo, unlock); });
           }
-          queueAll(redo, unlock);
+          return queueAll(redo, unlock);
         }).catch(function () { queueAll(redo, unlock); });
       }
 
