@@ -193,6 +193,37 @@
       'Paste your LINE official account add-friend URL (https://lin.ee/…). '
       + 'Buttons then appear mid-page, at the end, and in a sticky bottom bar.',
       'LINE 공식 계정의 친구추가 URL을 넣으세요.'],
+    'lp.pubInfo': ['販売の条件', 'Sales terms', '판매 조건'],
+    'lp.pubInfoHint': ['販売ページに載せる条件です。入れた項目だけがページに出ます。'
+      + '書いていないことは AI も書きません。',
+      'Shown on the sales page. Only what you fill in appears; the AI will not invent the rest.',
+      '판매 페이지에 실리는 조건입니다. 입력한 항목만 표시됩니다.'],
+    'lp.pubShipping': ['送料', 'Shipping', '배송비'],
+    'lp.pubShippingPh': ['例: 全国一律500円（5,000円以上で無料）', 'e.g. Flat ¥500', '예: 전국 500엔'],
+    'lp.pubDelivery': ['お届け', 'Delivery', '배송 시기'],
+    'lp.pubDeliveryPh': ['例: ご注文から3営業日以内に発送', 'e.g. Ships within 3 business days', '예: 3영업일 이내 발송'],
+    'lp.pubWarranty': ['保証', 'Warranty', '보증'],
+    'lp.pubWarrantyPh': ['例: お買い上げから1年間の初期不良保証', 'e.g. 1-year warranty', '예: 1년 보증'],
+    'lp.pubReturns': ['返品・交換', 'Returns', '반품·교환'],
+    'lp.pubReturnsPh': ['例: 到着後8日以内、未使用のものに限り承ります', 'e.g. Within 8 days, unused', '예: 8일 이내'],
+    'lp.pubSeller': ['販売者', 'Seller', '판매자'],
+    'lp.pubSellerPh': ['例: 株式会社◯◯／東京都…／03-0000-0000', 'e.g. Company, address, phone', '예: 회사명·주소·전화'],
+    'lp.pubSellerHint': ['日本で商品を売るページには、特定商取引法にもとづく表記が要ります。'
+      + '会社名・住所・連絡先を入れてください。',
+      'Japanese law requires seller details on a sales page.',
+      '판매자 정보를 입력하세요.'],
+    'lp.pubNote': ['そのほか', 'Other', '기타'],
+    'lp.pubWrite': ['販売ページの文章をAIに書かせる', 'Write the sales copy with AI', 'AI로 판매 문구 작성'],
+    'lp.pubWriteHint': ['ターゲット層ごとに、冒頭・特長・仕様・よくある質問・最後の一押しを書きます。'
+      + '数分かかります。書いたあとに公開してください。',
+      'Writes hero, benefits, specs, FAQ and closing per audience. Takes a few minutes.',
+      '타깃별로 문구를 작성합니다. 몇 분 걸립니다.'],
+    'lp.pubWriting': ['書いています…', 'Writing…', '작성 중…'],
+    'lp.pubWritten': ['販売ページの文章ができました', 'Sales copy is ready', '판매 문구가 준비되었습니다'],
+    'lp.pubNoCopy': ['まだ販売ページの文章がありません。先に書かせると、価格・送料・保証・よくある質問の入ったページになります',
+      'No sales copy yet. Write it first to include price, shipping, warranty and FAQ.',
+      '아직 판매 문구가 없습니다.'],
+    'lp.pubHasCopy': ['販売ページの文章: {n}層ぶんあります', 'Sales copy: {n} audiences', '판매 문구: {n}개 타깃'],
     'lp.pubSave': ['保存する', 'Save', '저장'],
     'lp.pubSaved': ['保存しました', 'Saved', '저장했습니다'],
     'lp.pubGo': ['{n}層をまとめて公開する', 'Publish {n} audiences', '{n}개 타깃 공개'],
@@ -1419,9 +1450,53 @@
         add(f2, el('p', 'field__hint', t('lp.pubLineHint')));
         add(box, f2);
 
+        /* 販売の条件。入れた項目だけがページに出る */
+        var info = (project.sales_info && typeof project.sales_info === 'object') ? project.sales_info : {};
+        var box2 = el('details', 'lp-pub__terms');
+        var sum = el('summary', 'lp-pub__sum', t('lp.pubInfo'));
+        add(box2, sum);
+        add(box2, el('p', 'field__hint', t('lp.pubInfoHint')));
+        var ins = {};
+        [['shipping', 'lp.pubShipping', 'lp.pubShippingPh', ''],
+          ['delivery', 'lp.pubDelivery', 'lp.pubDeliveryPh', ''],
+          ['warranty', 'lp.pubWarranty', 'lp.pubWarrantyPh', ''],
+          ['returns', 'lp.pubReturns', 'lp.pubReturnsPh', ''],
+          ['seller', 'lp.pubSeller', 'lp.pubSellerPh', 'lp.pubSellerHint'],
+          ['note', 'lp.pubNote', '', '']].forEach(function (one) {
+          var f = el('div', 'field');
+          add(f, el('label', 'field__label', t(one[1])));
+          var i = el('input', 'input');
+          i.type = 'text';
+          i.value = String(info[one[0]] || '');
+          if (one[2]) { i.setAttribute('placeholder', t(one[2])); }
+          add(f, i);
+          if (one[3]) { add(f, el('p', 'field__hint', t(one[3]))); }
+          add(box2, f);
+          ins[one[0]] = i;
+        });
+        add(box, box2);
+        function termsValue() {
+          var v = {};
+          Object.keys(ins).forEach(function (k) {
+            var x = ins[k].value.trim();
+            if (x) { v[k] = x; }
+          });
+          return v;
+        }
+
+        /* 販売ページの文章があるか */
+        var withCopy = sameBatch().filter(function (g) {
+          return g.feature_key === 'lp_brief' && g.content && g.content.sales;
+        });
+        add(box, el('p', withCopy.length ? 'field__hint' : 'field__error',
+          withCopy.length ? t('lp.pubHasCopy', { n: withCopy.length }) : t('lp.pubNoCopy')));
+
         var row = el('div', 'lp-pub__row');
         add(row, button('btn btn--secondary', t('lp.pubSave'), function (e) {
-          savePublishSettings(e.currentTarget, slugify(slugIn.value), lineIn.value.trim());
+          savePublishSettings(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), termsValue());
+        }));
+        add(row, button('btn btn--secondary', t('lp.pubWrite'), function (e) {
+          writeSalesCopy(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), termsValue());
         }));
         /* 公開できるのは、絵のある LP だけ */
         var ready = sameBatch().filter(function (g) {
@@ -1467,12 +1542,64 @@
         return Object.keys(made).length;
       }
 
-      function savePublishSettings(node, slug, line) {
+      /* 販売ページの文章を AI に書かせる。
+         先に販売の条件を保存してから積む（書いている最中に条件を読むので、
+         保存前に積むと「未入力」のまま書かれる） */
+      function writeSalesCopy(node, slug, line, terms) {
+        if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
+        var batch = batchOf(view.gen);
+        if (!batch) { toast(t('lp.pubNone'), 'danger'); return; }
+        var was = node.textContent;
         node.disabled = true;
-        Api.projects.update(projectId, { shop_slug: slug || null, line_url: line || null })
+        node.textContent = t('lp.pubWriting');
+        var patch = { shop_slug: slug || null, line_url: line || null };
+        if (terms) { patch.sales_info = Object.keys(terms).length ? terms : null; }
+        Api.projects.update(projectId, patch).catch(function () { /* 保存できなくても進める */ })
+          .then(function () {
+            if (view.project) {
+              view.project.shop_slug = patch.shop_slug;
+              view.project.line_url = patch.line_url;
+              if (terms) { view.project.sales_info = patch.sales_info; }
+            }
+            return Api.generationJobs.insert({
+              feature_key: 'sales_copy', status: 'pending', projects_id: projectId,
+              users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+              payload: { batch: batch }, lang: currentLocale()
+            });
+          })
+          .then(function (job) {
+            toast(t('lp.pubWriting'), 'success');
+            if (!App.watchJob) { return; }
+            App.watchJob({
+              jobId: job.id, titleKey: 'lp.pubWrite', urls: [],
+              onDone: function () {
+                reloadAll().then(function () {
+                  toast(t('lp.pubWritten'), 'success');
+                  paint();
+                });
+              },
+              onFail: function (why) { toast(String(why || t('common.error')), 'danger'); }
+            });
+          })
+          .catch(function (err) {
+            console.error('[screens-lp] 販売ページの文章を積めませんでした:', err);
+            toast(String(err && err.message || err), 'danger');
+          })
+          .then(function () { node.disabled = false; node.textContent = was; });
+      }
+
+      function savePublishSettings(node, slug, line, terms) {
+        node.disabled = true;
+        var patch = { shop_slug: slug || null, line_url: line || null };
+        if (terms) { patch.sales_info = Object.keys(terms).length ? terms : null; }
+        Api.projects.update(projectId, patch)
           .then(function (row) {
             view.project = row || view.project;
-            if (view.project) { view.project.shop_slug = slug || null; view.project.line_url = line || null; }
+            if (view.project) {
+              view.project.shop_slug = patch.shop_slug;
+              view.project.line_url = patch.line_url;
+              if (terms) { view.project.sales_info = patch.sales_info; }
+            }
             toast(t('lp.pubSaved'), 'success');
           })
           .catch(function (err) {
@@ -1490,10 +1617,26 @@
           throw new Error('LpRender がありません');
         }
         var prompts = (g.asset_prompts && typeof g.asset_prompts === 'object') ? g.asset_prompts : {};
+        var design = LpRender.designFromProject ? LpRender.designFromProject(view.project) : undefined;
+        /* 販売ページの文章があれば、そちらで組む。
+           クラファンLPの並びのまま公開すると、価格も送料も保証も出ない
+           （2026-10-04 要望: 実際に売っているページにする）。
+           無ければ、これまでどおり区画をそのまま並べる */
+        var sales = g.content && g.content.sales;
+        if (sales && LpRender.buildSalesHtml) {
+          var made = LpRender.buildSalesHtml({
+            sales: sales,
+            assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
+            design: design,
+            title: (view.project && (view.project.product_name || view.project.name)) || '',
+            lineUrl: line || ''
+          });
+          if (made) { return made; }
+        }
         return LpRender.buildDraftHtml({
           draft: { summary: g.content && g.content.summary, sections: g.sections },
           project: view.project,
-          design: (window.LpRender.designFromProject ? LpRender.designFromProject(view.project) : undefined),
+          design: design,
           assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
           burnedSlots: (isArray(prompts.burnedSlots) ? prompts.burnedSlots : [])
             .filter(function (slot) { return prompts.made && prompts.made[slot]; }),

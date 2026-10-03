@@ -4518,3 +4518,5 @@ input[type='radio'] {
   background: var(--c-accent-weak, #f0eaf6); font-weight: 600; font-size: 13px;
 }
 .lp-pub__link { flex: 1 1 240px; font-size: 13px; word-break: break-all; }
+.lp-pub__terms { margin: 16px 0 0; border: 1px solid var(--c-line, #e4dfea); border-radius: 12px; padding: 12px 14px; }
+.lp-pub__sum { cursor: pointer; font-weight: 600; }

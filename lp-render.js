@@ -39,6 +39,8 @@
      画面側に文言表ができたら、そちらを見るように差し替える */
   var TEXT = {
     'gen.lineButtonLabel': '友だち追加',
+    'sales.spec': '商品の仕様',
+    'sales.faq': 'よくある質問',
     'gen.ctaButton': '詳しく見る',
     'gen.imagePlaceholder': '（画像をここに入れます）'
   };
@@ -495,6 +497,144 @@
     if (fonts.body === 'mincho') { d.bodyFont = 'mincho'; }
     return d;
   }
+  /* ---- 販売ページ ----
+     クラウドファンディングのLPとは並びが違う。
+     向こうは「応援してもらう」ための流れ、こちらは「買う・LINEに登録する」ための流れ。
+     文章は AI が書いて content.sales に入っている（job-worker の sales_copy）。
+     ここはそれを、写真と一緒に組むだけ。文章を作らない（作ると2か所でずれる）
+
+     参考にした形（実際の販売ページ）:
+       大きな写真と短い見出し → 特長を写真と交互に → 仕様の表 → よくある質問 → 最後の一押し
+     LINEボタンは、本文の途中・末尾・画面下の固定バーに出す */
+  function salesCss(design) {
+    var d = design || DEFAULT_DESIGN;
+    return [
+      '*{box-sizing:border-box}',
+      'body{margin:0;background:' + d.bgColor + ';color:' + d.bodyColor + ';font-family:' + fontStack(d.bodyFont)
+        + ';line-height:1.8;-webkit-text-size-adjust:100%;overflow-wrap:break-word}',
+      '.wrap{max-width:720px;margin:0 auto;padding:0 20px}',
+      '.hero{padding:0 0 8px}',
+      '.hero img{display:block;width:100%;height:auto}',
+      '.hero__copy{padding:28px 0 8px}',
+      'h1{margin:0 0 10px;font-family:' + fontStack(d.titleFont) + ';font-size:' + Math.round(d.titleSize * 1.1)
+        + 'px;line-height:1.35;color:' + d.titleColor + '}',
+      '.hero__sub{margin:0;color:' + d.bodyColor + ';opacity:.85}',
+      '.block{padding:36px 0;border-top:1px solid rgba(0,0,0,.08)}',
+      '.block:first-of-type{border-top:0}',
+      '.block img{display:block;width:100%;height:auto;border-radius:12px;margin:0 0 16px}',
+      '.block h2{margin:0 0 8px;font-family:' + fontStack(d.titleFont) + ';font-size:'
+        + Math.round(d.titleSize * 0.7) + 'px;line-height:1.4;color:' + d.titleColor + '}',
+      '.block p{margin:0;font-size:' + d.bodySize + 'px}',
+      'table.spec{width:100%;border-collapse:collapse;margin:8px 0 0;font-size:' + (d.bodySize - 1) + 'px}',
+      'table.spec th,table.spec td{text-align:left;padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.08);vertical-align:top}',
+      'table.spec th{width:38%;font-weight:600;color:' + d.titleColor + ';background:rgba(0,0,0,.02)}',
+      '.faq dt{margin:16px 0 4px;font-weight:600;color:' + d.titleColor + '}',
+      '.faq dd{margin:0;font-size:' + d.bodySize + 'px}',
+      '.cta{margin:8px 0 0;padding:28px 20px;border-radius:16px;background:rgba(0,0,0,.04);text-align:center}',
+      '.cta h2{margin:0 0 8px;font-family:' + fontStack(d.titleFont) + ';font-size:'
+        + Math.round(d.titleSize * 0.75) + 'px;color:' + d.titleColor + '}',
+      '.cta p{margin:0 0 16px}',
+      '.notes{margin:28px 0 0;padding:0 0 96px;font-size:13px;opacity:.75}',
+      '.notes li{margin:4px 0}',
+      '.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));'
+        + 'background:rgba(255,255,255,.96);box-shadow:0 -2px 12px rgba(0,0,0,.12);text-align:center;z-index:9}',
+      '@media (max-width:480px){h1{font-size:' + Math.round(d.titleSize * 0.9) + 'px}}'
+    ].join('');
+  }
+
+  /* 販売ページを組む。sales が無ければ null（呼ぶ側がこれまでの組み方に戻す） */
+  function buildSalesHtml(options) {
+    var o = options || {};
+    var sales = o.sales;
+    if (!sales || !sales.hero || !Array.isArray(sales.blocks) || !sales.blocks.length) { return null; }
+    var d = o.design || DEFAULT_DESIGN;
+    var assets = o.assets || {};
+    var href = lineHref(o.lineUrl);
+    var style = o.lineStyle || { variant: 'green', label: t('gen.lineButtonLabel'), height: 48, radius: 12 };
+    var pic = function (slot) { return slot && assets[slot] ? String(assets[slot]) : ''; };
+    var out = [];
+
+    out.push('<!DOCTYPE html><html lang="' + langCode(o) + '"><head><meta charset="UTF-8">');
+    out.push('<meta name="viewport" content="width=device-width, initial-scale=1">');
+    out.push('<title>' + escapeHtml(o.title || '') + '</title>');
+    if (sales.hero.sub) {
+      out.push('<meta name="description" content="' + escapeHtml(String(sales.hero.sub).slice(0, 110)) + '">');
+    }
+    out.push('<style>' + salesCss(d) + '</style></head><body>');
+
+    /* 冒頭 */
+    out.push('<div class="hero">');
+    if (pic(sales.hero.slot)) {
+      out.push('<img src="' + escapeHtml(pic(sales.hero.slot)) + '" alt="' + escapeHtml(o.title || '') + '">');
+    }
+    out.push('<div class="wrap hero__copy">');
+    out.push('<h1>' + escapeHtml(sales.hero.catch || o.title || '') + '</h1>');
+    if (sales.hero.sub) { out.push('<p class="hero__sub">' + escapeHtml(sales.hero.sub) + '</p>'); }
+    out.push('</div></div>');
+
+    /* 特長。半分ほど進んだところで一度 LINE に誘う */
+    var half = Math.max(1, Math.floor(sales.blocks.length / 2));
+    out.push('<div class="wrap">');
+    sales.blocks.forEach(function (b, i) {
+      out.push('<section class="block">');
+      if (pic(b.slot)) {
+        out.push('<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '') + '" loading="lazy">');
+      }
+      if (b.title) { out.push('<h2>' + escapeHtml(b.title) + '</h2>'); }
+      if (b.body) { out.push('<p>' + escapeHtml(b.body) + '</p>'); }
+      out.push('</section>');
+      if (href && i === half) {
+        out.push('<div style="text-align:center;padding:8px 0 24px">' + lineButtonMarkup(style, href) + '</div>');
+      }
+    });
+
+    /* 仕様 */
+    if (Array.isArray(sales.spec) && sales.spec.length) {
+      out.push('<section class="block"><h2>' + escapeHtml(t('sales.spec')) + '</h2><table class="spec"><tbody>');
+      sales.spec.forEach(function (row) {
+        out.push('<tr><th>' + escapeHtml(row.k || '') + '</th><td>' + escapeHtml(row.v || '') + '</td></tr>');
+      });
+      out.push('</tbody></table></section>');
+    }
+
+    /* よくある質問 */
+    if (Array.isArray(sales.faq) && sales.faq.length) {
+      out.push('<section class="block"><h2>' + escapeHtml(t('sales.faq')) + '</h2><dl class="faq">');
+      sales.faq.forEach(function (row) {
+        out.push('<dt>' + escapeHtml(row.q || '') + '</dt><dd>' + escapeHtml(row.a || '') + '</dd>');
+      });
+      out.push('</dl></section>');
+    }
+
+    /* 最後の一押し */
+    if (sales.cta || href) {
+      var cta = sales.cta || {};
+      out.push('<section class="cta">');
+      if (cta.title) { out.push('<h2>' + escapeHtml(cta.title) + '</h2>'); }
+      if (cta.body) { out.push('<p>' + escapeHtml(cta.body) + '</p>'); }
+      if (href) {
+        out.push(lineButtonMarkup(
+          { variant: style.variant, label: cta.button || style.label, height: 52, radius: style.radius }, href));
+      }
+      out.push('</section>');
+    }
+
+    /* 条件の但し書き */
+    if (Array.isArray(sales.notes) && sales.notes.length) {
+      out.push('<ul class="notes">');
+      sales.notes.forEach(function (n) { out.push('<li>' + escapeHtml(n) + '</li>'); });
+      out.push('</ul>');
+    }
+    out.push('</div>');
+
+    /* 画面下の固定バー。スクロールのどこにいても1タップで届く */
+    if (href) {
+      out.push('<div class="bar">' + lineButtonMarkup(style, href) + '</div>');
+    }
+    out.push('</body></html>');
+    return out.join('');
+  }
+
   function buildHtml(options) {
     var o = options || {};
     var sections = o.sections || [];
@@ -856,6 +996,8 @@
     draftCss: draftCss,
     draftBody: draftBody,
     buildHtml: buildHtml,
+    buildSalesHtml: buildSalesHtml,
+    salesCss: salesCss,
     assetPoolOf: assetPoolOf,
     designOf: designOf,
     designFromProject: designFromProject,
