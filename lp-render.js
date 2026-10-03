@@ -461,7 +461,12 @@
     var o = options || {};
     var sections = o.sections || [];
     var design = o.design || DEFAULT_DESIGN;
-    var href = (o.type === TYPE.OWN) ? lineHref(o.lineUrl) : '';
+    /* LINE友だち追加は、自社LPだけのものではない。
+       クラウドファンディングのページでも、見た人を友だちに繋ぐのが狙いなので、
+       LINEのURLが入っていれば種類を問わず出す
+       （2026-10-04 要望: 公開ページに友だち追加ボタンを置きたい）。
+       URLが無ければ、これまでどおり出さない */
+    var href = lineHref(o.lineUrl);
     var style = o.lineStyle || { variant: 'green', label: t('gen.lineButtonLabel'), height: 48, radius: 12 };
     var position = String(o.linePosition || '');
     var out = [];

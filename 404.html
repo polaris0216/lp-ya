@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>読み込んでいます…</title>
+</head>
+<body>
+<script>
+/* GitHub Pages の受け皿。
+   公開LPのURLは https://…/lp-ya/<ブランド>/<層> の形にしたい。
+   Pages は静的配信なので、その場所にファイルは無く 404 になる。
+   404 のときに呼ばれるこのページで、パスを見て本来のビューアへ渡す。
+   （置き換えではなく置き換え無しの転送にすると、戻るボタンで
+   ここへ戻ってしまい、行き来できなくなる） */
+(function () {
+  'use strict';
+  var path = window.location.pathname || '';
+  /* 配信の根（/lp-ya/ など）を外して、残りを slug として扱う */
+  var base = path.indexOf('/lp-ya/') === 0 ? '/lp-ya/' : '/';
+  var slug = path.slice(base.length).replace(/^\/+|\/+$/g, '');
+  if (slug && slug.indexOf('.') === -1) {
+    window.location.replace(base + 'view.html?lp=' + encodeURIComponent(slug) + window.location.search.replace(/^\?/, '&'));
+    return;
+  }
+  document.title = 'ページが見つかりません';
+  document.body.innerHTML = '<p style="font-family:-apple-system,system-ui,sans-serif;'
+    + 'color:#555;text-align:center;padding:80px 24px">ページが見つかりません。</p>';
+}());
+</script>
+</body>
+</html>

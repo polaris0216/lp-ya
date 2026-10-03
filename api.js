@@ -906,11 +906,14 @@
   /* LP A/Bテスト（公開と計測）。すべて 007 の SECURITY DEFINER RPC。
      テーブルを anon に開かないための窓口なので、直接 REST を叩かないこと。 */
   api.lp = {
-    publish: function (generationId, html) {
+    /* slug を渡すと、公開URLがその名前になる（simtiple/a）。
+       渡さなければ、これまでどおりランダムな32桁 */
+    publish: function (generationId, html, slug) {
       return rpc('elpiya_publish_lp', {
         p_generation: String(generationId),
         p_html: html === undefined || html === null ? null : String(html),
-        p_publish: true
+        p_publish: true,
+        p_slug: slug ? String(slug) : null
       });
     },
     unpublish: function (generationId) {
