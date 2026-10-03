@@ -4506,3 +4506,15 @@ input[type='radio'] {
 .lp-bulk__btn { flex: 1 1 auto; }
 .lp-bulk__zip { flex: 0 0 auto; }
 .lp-bulk__note { flex: 1 0 100%; margin: 4px 0 0; }
+
+/* 販売ページの公開 */
+.lp-pub__url { margin: 6px 0 0; font-size: 13px; color: var(--c-text-sub, #666); word-break: break-all; }
+.lp-pub__row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.lp-pub__list { list-style: none; margin: 16px 0 12px; padding: 0; display: grid; gap: 8px; }
+.lp-pub__item { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lp-pub__label {
+  flex: 0 0 auto; min-width: 28px; height: 28px; display: inline-flex;
+  align-items: center; justify-content: center; border-radius: 8px;
+  background: var(--c-accent-weak, #f0eaf6); font-weight: 600; font-size: 13px;
+}
+.lp-pub__link { flex: 1 1 240px; font-size: 13px; word-break: break-all; }

@@ -916,6 +916,13 @@
         p_slug: slug ? String(slug) : null
       });
     },
+    /* その名前が空いているか。打っている最中に1回だけ聞く */
+    slugFree: function (slug, projectId) {
+      return rpc('elpiya_shop_slug_free', {
+        p_slug: String(slug || ''),
+        p_project: projectId ? String(projectId) : null
+      });
+    },
     unpublish: function (generationId) {
       return rpc('elpiya_publish_lp', { p_generation: String(generationId), p_html: null, p_publish: false });
     },

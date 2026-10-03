@@ -457,6 +457,44 @@
     return out.join('');
   }
 
+  /* ---- ブランド指定を描画の設計値に写す ----
+     画面（S13 / S12）と書き出し（tools/lp-export.mjs）で同じ値を使う。
+     3か所に写していると、片方だけ色が変わる */
+  function brightness(hex) {
+    var m = String(hex || '').match(/^#?([0-9a-f]{6})$/i);
+    if (!m) { return 0.5; }
+    var n = parseInt(m[1], 16);
+    return (((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255;
+  }
+  function readableOn(color, bg, min) {
+    return Math.abs(brightness(color) - brightness(bg)) >= (min === undefined ? 0.35 : min);
+  }
+
+  /* 商品入力のブランド指定を、描画の設計値に写す。
+     ブランドカラーは「使う色」であって「文字の色」ではない。
+     実測: 1色目が #FFFFFF のプロジェクトで、それを見出しの色にしたため
+     白背景に白文字になり、焼き込んだ見出しが1つも読めなかった。
+     背景の上で読める色だけを文字に使う。差し色は薄くても成り立つので
+     基準を分ける（tools/lp-export.mjs と同じ決まり） */
+  function designFromProject(project) {
+    var d = {
+      titleFont: 'gothic', bodyFont: 'gothic', titleSize: 30, bodySize: 16,
+      titleColor: '#171018', bodyColor: '#3A323E', bgColor: '#FFFFFF', accentColor: '#C13584'
+    };
+    var colors = (Array.isArray(project && project.brand_colors) ? project.brand_colors : [])
+      .map(String).filter(function (c) { return /^#?[0-9a-f]{6}$/i.test(c); });
+    var forText = colors.filter(function (c) { return readableOn(c, d.bgColor); });
+    if (forText[0]) { d.titleColor = forText[0]; }
+    var forAccent = colors.filter(function (c) {
+      return readableOn(c, d.bgColor, 0.15) && c !== d.titleColor;
+    });
+    if (forAccent[0]) { d.accentColor = forAccent[0]; }
+    else if (forText[0]) { d.accentColor = forText[0]; }
+    var fonts = project && project.brand_fonts && typeof project.brand_fonts === 'object' ? project.brand_fonts : {};
+    if (fonts.title === 'mincho') { d.titleFont = 'mincho'; }
+    if (fonts.body === 'mincho') { d.bodyFont = 'mincho'; }
+    return d;
+  }
   function buildHtml(options) {
     var o = options || {};
     var sections = o.sections || [];
@@ -820,6 +858,7 @@
     buildHtml: buildHtml,
     assetPoolOf: assetPoolOf,
     designOf: designOf,
+    designFromProject: designFromProject,
     normalizeSections: normalizeSections,
     lineSpots: lineSpots,
     lineHref: lineHref,

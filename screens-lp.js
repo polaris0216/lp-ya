@@ -167,6 +167,44 @@
     'lp.kindEmptyHint': ['「生成プロンプトを更新する」を押すと、足りない層のぶんが書かれます。',
       'Press "Update the prompts" to write the missing ones.',
       '"프롬프트 업데이트"를 누르면 부족한 분량이 작성됩니다.'],
+    /* ---- 公開（販売ページ） ---- */
+    'lp.pub': ['販売ページを公開する', 'Publish sales pages', '판매 페이지 공개'],
+    'lp.pubLead': ['ターゲット層ごとに、生成した写真と文章で販売ページを作って公開します。'
+      + '見た人が LINE に登録することが狙いです。',
+      'Publishes one sales page per audience, built from the generated images and copy, '
+      + 'aiming to get visitors onto your LINE account.',
+      '타깃별 판매 페이지를 공개합니다.'],
+    'lp.pubSlug': ['公開URLの名前', 'URL name', '공개 URL 이름'],
+    'lp.pubSlugHint': ['公開ページのURLに出る名前です。英小文字・数字・ハイフンだけが使えます。'
+      + '商品名かブランド名を、ローマ字で入れてください（例: simtiple）。'
+      + 'あとから変えると、前のURLは開けなくなります。',
+      'Appears in the public URL. Lowercase letters, numbers and hyphens only. '
+      + 'Use your product or brand name (e.g. simtiple). Changing it later breaks the old URL.',
+      '공개 URL에 나오는 이름입니다. 영소문자·숫자·하이픈만 쓸 수 있습니다.'],
+    'lp.pubSlugTaken': ['この名前は、ほかの方が使っています。別の名前にしてください',
+      'That name is taken. Please choose another.', '이미 사용 중인 이름입니다'],
+    'lp.pubSlugFree': ['この名前は使えます', 'That name is available', '사용할 수 있습니다'],
+    'lp.pubSlugEmpty': ['名前を入れてください（例: simtiple）', 'Enter a name (e.g. simtiple)', '이름을 입력하세요'],
+    'lp.pubPreview': ['公開URL', 'Public URL', '공개 URL'],
+    'lp.pubLine': ['LINE友だち追加のURL', 'LINE add-friend URL', 'LINE 친구추가 URL'],
+    'lp.pubLineHint': ['LINE公式アカウントの「友だち追加」URLを貼ってください（https://lin.ee/… など）。'
+      + '入れると、ページの本文の途中と末尾、画面下の固定バーにボタンが出ます。'
+      + '空のままだとボタンは出ません。',
+      'Paste your LINE official account add-friend URL (https://lin.ee/…). '
+      + 'Buttons then appear mid-page, at the end, and in a sticky bottom bar.',
+      'LINE 공식 계정의 친구추가 URL을 넣으세요.'],
+    'lp.pubSave': ['保存する', 'Save', '저장'],
+    'lp.pubSaved': ['保存しました', 'Saved', '저장했습니다'],
+    'lp.pubGo': ['{n}層をまとめて公開する', 'Publish {n} audiences', '{n}개 타깃 공개'],
+    'lp.pubGoing': ['公開しています…', 'Publishing…', '공개 중…'],
+    'lp.pubDone': ['{n}層を公開しました', 'Published {n} audiences', '{n}개 타깃을 공개했습니다'],
+    'lp.pubStop': ['公開をやめる', 'Unpublish', '공개 중지'],
+    'lp.pubStopped': ['公開をやめました', 'Unpublished', '공개를 중지했습니다'],
+    'lp.pubNone': ['公開できる層がありません。先に絵を作ってください',
+      'Nothing to publish yet — generate the images first.', '먼저 이미지를 만들어 주세요'],
+    'lp.pubCopy': ['URLをコピー', 'Copy URL', 'URL 복사'],
+    'lp.pubCopied': ['コピーしました', 'Copied', '복사했습니다'],
+    'lp.pubOpen': ['開く', 'Open', '열기'],
     'lp.zip': ['まとめて落とす', 'Download all', '한꺼번에 내려받기'],
     'lp.zipBusy': ['集めています… {n}/{m}', 'Collecting… {n}/{m}', '모으는 중… {n}/{m}'],
     'lp.zipDone': ['{n}点を1つの zip にしました', 'Zipped {n} files', '{n}개를 zip으로 묶었습니다'],
@@ -669,6 +707,11 @@
         paintStale();
         paintBrief();
         paintRefs();
+        /* 公開は区画の下ではなく、見本の下に置く。
+           区画を全部スクロールしないと辿り着けないと、使われない */
+        var pub = el('section', 'panel lp-pub');
+        add(body, pub);
+        paintPublish(pub);
         paintSections();
       }
 
@@ -1281,6 +1324,243 @@
         });
       }
       document.addEventListener('visibilitychange', refreshOnReturn);
+
+      /* ---- 販売ページの公開 ----
+         公開URLは <配信の根>/<URLの名前>/<層> の形。
+         GitHub Pages は静的配信なので、その場所にファイルは無く 404 になる。
+         404.html が受けて view.html?lp=… へ渡す（lp-ya/404.html）。
+         独自ドメインに移すときは、ここの根が変わるだけ */
+      function publicBase() {
+        var at = location.pathname.lastIndexOf('/');
+        return location.origin + location.pathname.slice(0, at + 1);
+      }
+
+      /* URLに使える形へ。英小文字・数字・ハイフンだけ */
+      function slugify(raw) {
+        return String(raw || '').toLowerCase()
+          .replace(/[^a-z0-9-]+/g, '-')
+          .replace(/-{2,}/g, '-')
+          .replace(/^-+|-+$/g, '');
+      }
+
+      /* 名前を決めていなければ商品名から作る。
+         日本語しか無いと空になるので、そのときは空のまま返して人に決めさせる
+         （勝手に project の id を使うと、意味の無いURLになる） */
+      function defaultSlug() {
+        var p = view.project || {};
+        return slugify(p.shop_slug || p.product_name || p.name || '');
+      }
+
+      function publicUrlFor(slug, label) {
+        return publicBase() + slug + '/' + String(label || '-').toLowerCase();
+      }
+
+      function paintPublish(box) {
+        clear(box);
+        add(box, el('h3', 'panel__title', t('lp.pub')));
+        add(box, el('p', 'field__hint', t('lp.pubLead')));
+
+        var project = view.project || {};
+        var state = { slug: slugify(project.shop_slug || '') || defaultSlug(), line: String(project.line_url || '') };
+
+        /* URLの名前 */
+        var f1 = el('div', 'field');
+        add(f1, el('label', 'field__label', t('lp.pubSlug')));
+        var slugIn = el('input', 'input');
+        slugIn.type = 'text';
+        slugIn.value = state.slug;
+        slugIn.setAttribute('placeholder', 'simtiple');
+        slugIn.autocomplete = 'off';
+        add(f1, slugIn);
+        add(f1, el('p', 'field__hint', t('lp.pubSlugHint')));
+        var preview = el('p', 'lp-pub__url');
+        var says = el('p', 'field__hint');
+        add(f1, preview);
+        add(f1, says);
+        add(box, f1);
+
+        function showUrl() {
+          var slug = slugify(slugIn.value);
+          preview.textContent = slug
+            ? t('lp.pubPreview') + '： ' + publicUrlFor(slug, 'A')
+            : '';
+        }
+        /* 打っている最中は確かめに行かない。手が止まってから1回だけ聞く */
+        var askAt = null;
+        function askFree() {
+          var slug = slugify(slugIn.value);
+          state.slug = slug;
+          showUrl();
+          if (!slug) { says.textContent = t('lp.pubSlugEmpty'); says.className = 'field__error'; return; }
+          says.textContent = '';
+          if (!Api.lp || typeof Api.lp.slugFree !== 'function') { return; }
+          Api.lp.slugFree(slug, projectId).then(function (free) {
+            if (slugify(slugIn.value) !== slug) { return; }   /* もう別の字を打っている */
+            says.textContent = free ? t('lp.pubSlugFree') : t('lp.pubSlugTaken');
+            says.className = free ? 'field__hint' : 'field__error';
+          }).catch(function () { /* 確かめられなくても公開はできる */ });
+        }
+        slugIn.addEventListener('input', function () {
+          showUrl();
+          if (askAt) { clearTimeout(askAt); }
+          askAt = setTimeout(askFree, 500);
+        });
+        showUrl();
+
+        /* LINE */
+        var f2 = el('div', 'field');
+        add(f2, el('label', 'field__label', t('lp.pubLine')));
+        var lineIn = el('input', 'input');
+        lineIn.type = 'url';
+        lineIn.value = state.line;
+        lineIn.setAttribute('placeholder', 'https://lin.ee/xxxxxxx');
+        lineIn.autocomplete = 'off';
+        add(f2, lineIn);
+        add(f2, el('p', 'field__hint', t('lp.pubLineHint')));
+        add(box, f2);
+
+        var row = el('div', 'lp-pub__row');
+        add(row, button('btn btn--secondary', t('lp.pubSave'), function (e) {
+          savePublishSettings(e.currentTarget, slugify(slugIn.value), lineIn.value.trim());
+        }));
+        /* 公開できるのは、絵のある LP だけ */
+        var ready = sameBatch().filter(function (g) {
+          return g.feature_key === 'lp_brief' && doneOf(g) > 0;
+        });
+        var go = button('btn btn--primary', t('lp.pubGo', { n: ready.length }), function (e) {
+          publishAll(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), ready);
+        });
+        go.disabled = !ready.length;
+        add(row, go);
+        add(box, row);
+        if (!ready.length) { add(box, el('p', 'field__hint', t('lp.pubNone'))); }
+
+        /* すでに公開しているものの一覧 */
+        var live = sameBatch().filter(function (g) { return g.published_at && g.public_url_slug; });
+        if (live.length) {
+          var list = el('ul', 'lp-pub__list');
+          live.forEach(function (g) {
+            var li = el('li', 'lp-pub__item');
+            add(li, el('span', 'lp-pub__label', String(g.variant_label || '-')));
+            var url = publicBase() + String(g.public_url_slug);
+            var a = el('a', 'lp-pub__link', url);
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            add(li, a);
+            add(li, button('btn btn--secondary btn--sm', t('lp.pubCopy'), function () {
+              navigator.clipboard.writeText(url).then(function () { toast(t('lp.pubCopied'), 'success'); })
+                .catch(function () { window.prompt(t('lp.pubPreview'), url); });
+            }));
+            add(list, li);
+          });
+          add(box, list);
+          add(box, button('btn btn--secondary', t('lp.pubStop'), function (e) {
+            unpublishAll(e.currentTarget, live);
+          }));
+        }
+      }
+
+      /* その案に絵が何枚あるか */
+      function doneOf(g) {
+        var made = (g.asset_prompts && g.asset_prompts.made) || {};
+        return Object.keys(made).length;
+      }
+
+      function savePublishSettings(node, slug, line) {
+        node.disabled = true;
+        Api.projects.update(projectId, { shop_slug: slug || null, line_url: line || null })
+          .then(function (row) {
+            view.project = row || view.project;
+            if (view.project) { view.project.shop_slug = slug || null; view.project.line_url = line || null; }
+            toast(t('lp.pubSaved'), 'success');
+          })
+          .catch(function (err) {
+            console.error('[screens-lp] 公開の設定を保存できませんでした:', err);
+            toast(String(err && err.message || err), 'danger');
+          })
+          .then(function () { node.disabled = false; });
+      }
+
+      /* 層ごとに、LPのHTMLを組んでから公開する。
+         組むのは S13 と同じ LpRender。片方だけ見た目が変わらないよう、
+         組み立ては1か所から呼ぶ */
+      function buildOne(g, line) {
+        if (!window.LpRender || typeof LpRender.buildDraftHtml !== 'function') {
+          throw new Error('LpRender がありません');
+        }
+        var prompts = (g.asset_prompts && typeof g.asset_prompts === 'object') ? g.asset_prompts : {};
+        return LpRender.buildDraftHtml({
+          draft: { summary: g.content && g.content.summary, sections: g.sections },
+          project: view.project,
+          design: (window.LpRender.designFromProject ? LpRender.designFromProject(view.project) : undefined),
+          assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
+          burnedSlots: (isArray(prompts.burnedSlots) ? prompts.burnedSlots : [])
+            .filter(function (slot) { return prompts.made && prompts.made[slot]; }),
+          title: (view.project && (view.project.product_name || view.project.name)) || '',
+          /* 友だち追加。URLが無ければボタンは出ない */
+          lineUrl: line || ''
+        });
+      }
+
+      function publishAll(node, slug, line, rows) {
+        if (!slug) { toast(t('lp.pubSlugEmpty'), 'danger'); return; }
+        if (!rows.length) { toast(t('lp.pubNone'), 'danger'); return; }
+        var was = node.textContent;
+        node.disabled = true;
+        node.textContent = t('lp.pubGoing');
+        /* 名前とLINEを先に保存する。公開したページと設定がずれないように */
+        Api.projects.update(projectId, { shop_slug: slug, line_url: line || null })
+          .catch(function () { /* 保存できなくても公開は進める */ })
+          .then(function () {
+            /* 1本ずつ順に。まとめて投げると、重なったときにどれが失敗したか分からない */
+            var at = 0;
+            var okCount = 0;
+            function next() {
+              if (at >= rows.length) { return Promise.resolve(); }
+              var g = rows[at];
+              at += 1;
+              var want = slug + '/' + String(g.variant_label || '-').toLowerCase();
+              var html;
+              try { html = buildOne(g, line); } catch (err) {
+                console.error('[screens-lp] 組み立てに失敗:', g.variant_label, err);
+                return next();
+              }
+              return Api.lp.publish(g.id, html, want).then(function () {
+                okCount += 1;
+              }).catch(function (err) {
+                console.error('[screens-lp] 公開に失敗:', g.variant_label, err);
+              }).then(next);
+            }
+            return next().then(function () { return okCount; });
+          })
+          .then(function (okCount) {
+            toast(t('lp.pubDone', { n: okCount }), 'success');
+            return reloadAll().then(paint);
+          })
+          .catch(function (err) {
+            console.error('[screens-lp] 公開できませんでした:', err);
+            toast(String(err && err.message || err), 'danger');
+          })
+          .then(function () { node.disabled = false; node.textContent = was; });
+      }
+
+      function unpublishAll(node, rows) {
+        node.disabled = true;
+        var at = 0;
+        function next() {
+          if (at >= rows.length) { return Promise.resolve(); }
+          var g = rows[at];
+          at += 1;
+          return Api.lp.unpublish(g.id).catch(function (err) {
+            console.error('[screens-lp] 公開を止められませんでした:', g.variant_label, err);
+          }).then(next);
+        }
+        next().then(function () {
+          toast(t('lp.pubStopped'), 'success');
+          return reloadAll().then(paint);
+        }).then(function () { node.disabled = false; });
+      }
 
       /* この回の成果物を1つの zip にして落とす。
          入れるのは、できた絵と、それを作った生成文。
