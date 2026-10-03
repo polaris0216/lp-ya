@@ -167,6 +167,13 @@
     'lp.kindEmptyHint': ['「生成プロンプトを更新する」を押すと、足りない層のぶんが書かれます。',
       'Press "Update the prompts" to write the missing ones.',
       '"프롬프트 업데이트"를 누르면 부족한 분량이 작성됩니다.'],
+    'lp.zip': ['まとめて落とす', 'Download all', '한꺼번에 내려받기'],
+    'lp.zipBusy': ['集めています… {n}/{m}', 'Collecting… {n}/{m}', '모으는 중… {n}/{m}'],
+    'lp.zipDone': ['{n}点を1つの zip にしました', 'Zipped {n} files', '{n}개를 zip으로 묶었습니다'],
+    'lp.zipNone': ['落とせる絵がまだありません', 'Nothing to download yet', '내려받을 이미지가 없습니다'],
+    'lp.zipHint': ['この回の全ターゲット層ぶん（LP・KV・メタ広告）の絵と生成文を、1つの zip にまとめます',
+      'Zips the images and prompts of this round (LP, KV and Meta ads, every audience).',
+      '이 회차의 모든 타깃(LP·KV·메타광고) 이미지와 프롬프트를 zip으로 묶습니다'],
     'lp.movedToNewest': ['新しい回ができていたので、そちらに切り替えて生成します。', 'A newer round exists; switched to it.', '새 회차가 있어 그쪽으로 전환했습니다.'],
     'lp.rewriteQueued': ['書き直しています。数分で新しい回が増えます。', 'Rewriting; a new round will appear in a few minutes.', '다시 쓰는 중입니다. 몇 분 뒤 새 회차가 추가됩니다.'],
     'lp.missing': ['この回に無い層', 'Missing from this round', '이 회차에 없는 층'],
@@ -643,6 +650,12 @@
         }));
         all.title = t('lp.genAllHint');
         add(bulkBar, all);
+        /* できあがりを持ち出す口。生成の隣に置く（別の画面を探させない） */
+        var zipBtn = button('btn btn--secondary lp-bulk__zip', t('lp.zip'), function (e) {
+          downloadZip(e.currentTarget);
+        });
+        zipBtn.title = t('lp.zipHint');
+        add(bulkBar, zipBtn);
         add(bulkBar, el('p', 'lp-bulk__note', t('lp.genAllHint')));
         var done = doneCount();
         var total = (view.gen.sections || []).length;
@@ -1268,6 +1281,124 @@
         });
       }
       document.addEventListener('visibilitychange', refreshOnReturn);
+
+      /* この回の成果物を1つの zip にして落とす。
+         入れるのは、できた絵と、それを作った生成文。
+         フォルダ名は ASCII（A/LP/01.png）にする。日本語のフォルダ名は
+         macOS 同梱の unzip(6.0) が UTF-8 の印を無視して壊すため
+         （Finder は正しく開くが、受け取った人の道具を選ばない形にする）。
+         層の名前は中の一覧（README.txt）に書く */
+      function zipName(kind) {
+        return kind === 'kv_brief' ? 'KV' : (kind === 'ads_brief' ? 'ADS' : 'LP');
+      }
+
+      function downloadZip(node) {
+        if (!window.Zip) {
+          console.error('[screens-lp] Zip がありません。zip.js の読み込みを確認してください。');
+          toast(t('common.error'), 'danger');
+          return;
+        }
+        var rows = sameBatch();
+        /* 絵のある区画だけを数え上げる */
+        var want = [];
+        rows.forEach(function (g) {
+          var made = (g.asset_prompts && g.asset_prompts.made) || {};
+          (g.sections || []).forEach(function (sec) {
+            var url = made[String(sec.index) + '-1'];
+            if (!url) { return; }
+            want.push({ gen: g, sec: sec, url: String(url) });
+          });
+        });
+        if (!want.length) { toast(t('lp.zipNone'), 'danger'); return; }
+
+        var brand = String((view.project && (view.project.product_name || view.project.name)) || 'lp')
+          .replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'lp';
+        var was = node.textContent;
+        node.disabled = true;
+
+        var files = [];
+        var done = 0;
+        /* 一度に取りに行くのは4本まで。全部まとめて投げると、
+           枚数が多い回でブラウザが詰まる */
+        var at = 0;
+        function next() {
+          if (at >= want.length) { return Promise.resolve(); }
+          var one = want[at];
+          at += 1;
+          return fetch(one.url).then(function (r) {
+            if (!r.ok) { throw new Error('HTTP ' + r.status); }
+            return r.arrayBuffer();
+          }).then(function (buf) {
+            var ext = (one.url.split('?')[0].match(/\.(png|jpe?g|gif|webp|mp4)$/i) || [, 'png'])[1];
+            var no = ('0' + one.sec.index).slice(-2);
+            files.push({
+              name: brand + '/' + String(one.gen.variant_label || '-') + '/'
+                + zipName(one.gen.feature_key) + '/' + no + '.' + ext.toLowerCase(),
+              data: buf
+            });
+          }).catch(function (err) {
+            /* 1枚落とせなくても、残りは落とす。何が欠けたかは中に残す */
+            console.error('[screens-lp] 落とせませんでした:', one.url, err);
+            files.push({
+              name: brand + '/' + String(one.gen.variant_label || '-') + '/'
+                + zipName(one.gen.feature_key) + '/' + ('0' + one.sec.index).slice(-2) + '.取得できず.txt',
+              data: one.url
+            });
+          }).then(function () {
+            done += 1;
+            node.textContent = t('lp.zipBusy', { n: done, m: want.length });
+            return next();
+          });
+        }
+
+        var lanes = [];
+        for (var i = 0; i < Math.min(4, want.length); i += 1) { lanes.push(next()); }
+        Promise.all(lanes).then(function () {
+          /* 生成文と、層の名前の一覧を添える */
+          rows.forEach(function (g) {
+            var lines = ['# ' + String(g.title || '') + '（' + String(g.variant_label || '-') + ' / '
+              + zipName(g.feature_key) + '）', ''];
+            (g.sections || []).forEach(function (sec) {
+              lines.push('## 区画' + sec.index + ' ' + String(sec.title || ''));
+              lines.push(String(sec.prompt || ''));
+              lines.push('');
+            });
+            files.push({
+              name: brand + '/' + String(g.variant_label || '-') + '/'
+                + zipName(g.feature_key) + '/生成プロンプト.txt',
+              data: lines.join('\n')
+            });
+          });
+          var guide = ['# ' + brand, '',
+            'エルピーヤで作った絵と生成文です。',
+            '層ごとのフォルダ（A〜E）の中に、LP / KV / ADS が入っています。', ''];
+          var seen = {};
+          rows.forEach(function (g) {
+            var L = String(g.variant_label || '-');
+            if (seen[L]) { return; }
+            seen[L] = 1;
+            guide.push(L + ' … ' + String(g.title || ''));
+          });
+          files.push({ name: brand + '/README.txt', data: guide.join('\n') });
+
+          var blob = Zip.make(files);
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = brand + '.zip';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          /* 作った URL は使い終わったら捨てる（持ったままだと中身が残る） */
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 20000);
+          toast(t('lp.zipDone', { n: files.length }), 'success');
+        }).catch(function (err) {
+          console.error('[screens-lp] zip を作れませんでした:', err);
+          toast(String(err && err.message || err), 'danger');
+        }).then(function () {
+          node.disabled = false;
+          node.textContent = was;
+        });
+      }
 
       /* 同じ回（batch）の、全種類（LP / KV / メタ広告）× 全層ぶんの生成物を集める。
          「全区画をまとめて生成」はここを使う。

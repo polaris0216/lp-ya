@@ -4500,3 +4500,9 @@ input[type='radio'] {
   margin: 8px 2px 0;
   font-size: var(--fs-note); color: var(--c-text-sub); line-height: 1.6;
 }
+
+/* まとめて落とすボタン。生成の隣に、同じ幅の帯の中で並べる */
+.lp-bulk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lp-bulk__btn { flex: 1 1 auto; }
+.lp-bulk__zip { flex: 0 0 auto; }
+.lp-bulk__note { flex: 1 0 100%; margin: 4px 0 0; }
