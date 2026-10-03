@@ -4307,11 +4307,78 @@ input[type='radio'] {
 /* 成果物の種類（LP / KV / 広告）。層タブより上に置く。
    中身が無い種類は薄くするが、押せるようにしておく（無いのか壊れたのか
    分からなくなるより、押して「まだ無い」と言われる方がよい） */
-.lp-delivs { display: flex; gap: 6px; margin: 0 0 8px; flex-wrap: wrap; }
-.lp-deliv { padding: 6px 14px; border: 1px solid var(--c-line); border-radius: var(--r-pill);
-  background: var(--c-surface); font-size: var(--fs-note); font-weight: 700; color: var(--c-text-sub); }
-.lp-deliv--on { border-color: var(--c-main); color: var(--c-main); background: var(--c-main-weak, #F6F0FB); }
-.lp-deliv--empty { opacity: .55; }
+/* 成果物の切り替え（LP / KV / メタ広告）。書類ばさみの耳のかたち。
+   丸い錠剤だと「並んだボタン」に見えて、いま開いているものと
+   これから開けるものの区別が付かなかった。耳なら、開いている1枚だけが
+   下の線を越えて、中身の面とつながって見える。
+
+   仕組み:
+     .lp-tabs   下に1本の線を引く。耳はこの線の上に並ぶ
+     .lp-deliv  開いていない耳。線の上に載る（少し低い・少し沈んだ色）
+     --on       開いている耳。1px下げて、下辺を面の色で塗り、線を切る */
+.lp-tabs {
+  border-bottom: 1px solid var(--c-line);
+  margin: 0 0 16px;
+  display: flex; align-items: flex-end;
+  overflow-x: auto;                 /* 狭い画面では横に送る（折り返すと耳に見えない） */
+  scrollbar-width: none;
+}
+.lp-tabs::-webkit-scrollbar { display: none; }
+.lp-delivs { display: flex; align-items: flex-end; gap: 2px; padding: 0 0 0 4px; }
+.lp-deliv {
+  flex: 0 0 auto;
+  padding: 7px 18px;
+  border: 1px solid var(--c-line);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;     /* 耳なので上の角だけ */
+  font-size: var(--fs-note); font-weight: 700; color: var(--c-text-sub);
+  cursor: pointer;
+}
+/* 開いている耳。1px下げて下の線に食い込み、その1pxを塗って線を切る。
+   色は下の面と同じ（画面地）にする。白にすると耳だけ浮いて、
+   下の面とつながって見えない（実測して直した） */
+.lp-deliv--on {
+  margin-bottom: -1px;
+  padding: 9px 18px;                /* ほんの少し背を高くして、手前に見せる */
+  background: var(--c-bg);
+  color: var(--c-main);
+  border-color: var(--c-main);
+  border-bottom: 1px solid var(--c-bg);
+  font-weight: 800;
+}
+/* 開いていない耳は、地より少し沈めて「奥にある紙」に見せる */
+.lp-deliv { background: #EDE9F6; }
+.lp-deliv:hover { background: #F7F5FC; color: var(--c-text); }
+.lp-deliv--empty { color: var(--c-text-sub); opacity: .65; }
+/* 耳の中に出す枚数（12/34）。耳そのものの文字より小さく、控えめに */
+.lp-deliv__count { margin-left: 6px; font-size: 11px; font-weight: 700; opacity: .75; }
+.lp-deliv__count.is-none { opacity: .45; }
+
+/* 耳が「ターゲット層」のとき。層の名前は長いので、記号＋名前を並べる。
+   種類（LP / KV / メタ広告）は短いので、そのままの幅でよい */
+.lp-delivs--variants .lp-deliv {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  max-width: 300px; padding-left: 14px; padding-right: 14px;
+}
+.lp-delivs--variants .lp-variant__label { font-weight: 800; }
+.lp-delivs--variants .lp-variant__name {
+  font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lp-delivs--variants .lp-variant__count { font-size: 11px; font-weight: 700; opacity: .75; }
+.lp-delivs--variants .lp-variant__count.is-none { opacity: .45; }
+
+/* 種類の行。耳の下に並ぶので、小さめの錠剤にする */
+.lp-toolbar .lp-delivs {
+  gap: 6px; padding: 0;
+}
+.lp-toolbar .lp-deliv {
+  border: 1px solid var(--c-line); border-radius: var(--r-pill);
+  padding: 5px 14px; margin-bottom: 0; background: var(--c-surface);
+}
+.lp-toolbar .lp-deliv--on {
+  border-color: var(--c-main); color: var(--c-main);
+  background: var(--c-main-weak, #F6F0FB); padding: 5px 14px;
+}
 
 .lp-variants { display: flex; flex-wrap: wrap; gap: 6px; }
 .lp-variant {
@@ -4409,4 +4476,27 @@ input[type='radio'] {
   letter-spacing: .04em;
   line-height: 1;
   white-space: nowrap;
+}
+
+/* 版ごとの生成文。折りたたみで、開いたときだけ長い文が出る。
+   区画のカードは縦に長くなりやすいので、既定は閉じておく */
+.lp-shot__prompt { margin: 8px 0 0; }
+.lp-shot__prompt > summary { cursor: pointer; font-size: 12px; color: var(--c-text-sub); }
+.lp-shot__prompt-body {
+  margin: 8px 0; padding: 10px 12px;
+  background: var(--c-surface-2); border-radius: 8px;
+  font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word;
+  max-height: 260px; overflow-y: auto;
+}
+
+/* 一括生成。見出しのすぐ下に、幅いっぱいで置く。
+   他のボタンに紛れていると、何を押せば全部作れるのか分からない */
+.lp-bulk { margin: 0 0 18px; }
+.lp-bulk__btn {
+  width: 100%; min-height: 52px;
+  font-size: 16px; font-weight: 700; letter-spacing: .02em;
+}
+.lp-bulk__note {
+  margin: 8px 2px 0;
+  font-size: var(--fs-note); color: var(--c-text-sub); line-height: 1.6;
 }

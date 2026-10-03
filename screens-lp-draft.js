@@ -42,7 +42,6 @@
       'On the overall analysis page, press "Draft LPs from this analysis" to create one per target segment.',
       '종합 분석 페이지에서 "이 분석으로 LP 초안 만들기"를 누르면 타깃층별로 한 편씩 만들어집니다.'
     ],
-    'lp.toAnalysis': ['総合分析へ', 'To the overall analysis', '종합 분석으로'],
     'lp.summary': ['この案の流れ', 'Flow of this draft', '이 초안의 흐름'],
     'lp.applied': ['当て込んだ要因', 'Factors applied', '반영한 요인'],
     'lp.sections': ['区画', 'sections', '구획'],
@@ -193,9 +192,6 @@
         clear(notice); clear(toolbar); clear(body);
 
         /* 作る入口は総合分析（S20）にある。ここは出来たものを直す画面 */
-        add(toolbar, button('btn btn--secondary', t('lp.toAnalysis'), function () {
-          location.hash = '#/S20?id=' + encodeURIComponent(projectId);
-        }));
 
         if (view.gen) {
           /* build=1 で S13 に入ると、必ず組み直す（前の版は履歴に積まれる）。

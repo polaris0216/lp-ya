@@ -37,7 +37,6 @@
     'lp.emptyHint': ['総合分析のページで「LP・KVプロンプトを生成」を押してください。',
       'Press "Generate LP/KV prompts" on the overall analysis page.',
       '종합 분석 페이지에서 "LP·KV 프롬프트 생성"을 누르세요.'],
-    'lp.toAnalysis': ['総合分析へ', 'To the overall analysis', '종합 분석으로'],
     'lp.brief': ['マスターブリーフ（LP全体の決まり）', 'Master brief (page-wide rules)', '마스터 브리프(LP 전체 규칙)'],
     'lp.briefOpen': ['開く', 'Open', '열기'],
     'lp.briefClose': ['閉じる', 'Close', '닫기'],
@@ -48,17 +47,40 @@
     'lp.prompt': ['生成プロンプト', 'Prompt', '생성 프롬프트'],
     'lp.gen': ['この区画を生成', 'Generate this section', '이 구획 생성'],
     'lp.regen': ['作り直す', 'Regenerate', '다시 생성'],
+    'lp.genWithEdited': ['直した生成文を保存しました。この文で作ります',
+      'Saved your edited prompt. Generating with it.', '수정한 프롬프트로 생성합니다'],
+    'lp.genSaveFailed': ['直した生成文を保存できませんでした。作り直しは始めていません',
+      'Could not save your edited prompt. Nothing was queued.', '프롬프트를 저장하지 못했습니다'],
     'lp.generating': ['生成しています…', 'Generating…', '생성 중…'],
-    'lp.genAll': ['全区画をまとめて生成', 'Generate all sections', '모든 구획 한꺼번에 생성'],
+    'lp.genAll': ['全部一括生成', 'Generate everything', '전부 일괄 생성'],
+    'lp.genOne': ['生成する', 'Generate', '생성'],
+    'lp.genOneRedo': ['作り直す', 'Regenerate', '다시 생성'],
+    'lp.genOneHint': ['いま開いている層・種類の、まだ絵が無い区画だけを作ります',
+      'Generates the missing sections of the audience and kind you have open.',
+      '지금 열어둔 타깃·종류의 미생성 구획만 만듭니다'],
     'lp.makeAssets': ['動く絵を生成する', 'Generate motion visuals', '움직이는 소재 생성'],
     'lp.makeAssetsRunning': ['生成しています…', 'Generating…', '생성 중…'],
     'lp.makeAssetsQueued': ['動く絵の生成を積みました', 'Queued the motion generation', '움직이는 소재 생성을 예약했습니다'],
     'lp.makeAssetsDone': ['動く絵ができました。組み直すと本文に入ります。',
       'Motion visuals are ready. Rebuild to place them in the page.',
       '움직이는 소재가 준비되었습니다. 다시 조립하면 본문에 들어갑니다.'],
-    'lp.genAllRedo': ['全区画を作り直す', 'Regenerate all sections', '모든 구획 다시 생성'],
+    'lp.genAllRedo': ['全部を作り直す', 'Regenerate everything', '전부 다시 생성'],
+    'lp.allDone': ['全部できています', 'Everything is done', '모두 완료되었습니다'],
+    'lp.queueing': ['いま積んでいます。少し待ってください', 'Queueing — please wait.', '등록 중입니다'],
+    'lp.alreadyQueued': ['すでに生成中です。重ねて積みませんでした',
+      'Already generating — nothing was queued again.', '이미 생성 중입니다'],
+    'lp.doneOne': ['いま開いているぶんができました。他の層・種類は裏で続いています',
+      'The one you have open is done. The other audiences and kinds are still running.',
+      '지금 열어둔 분량이 완료되었습니다. 다른 타깃·종류는 계속 진행 중입니다'],
+    'lp.queuedAll': ['{n}区画を積みました。全ターゲット層の LP・KV・メタ広告が順に作られます',
+      'Queued {n} sections. LP, KV and Meta ads for every audience will be generated in turn.',
+      '{n}구획을 등록했습니다. 모든 타깃의 LP·KV·메타광고가 순서대로 만들어집니다'],
     'lp.genAllRedoConfirm': ['{n} 区画をすべて作り直します。今の絵は上書きされます。よろしいですか？', 'Regenerate all {n} sections? Current images will be replaced.', '{n}개 구획을 모두 다시 생성합니다. 지금의 이미지는 덮어씌워집니다. 진행할까요?'],
-    'lp.genAllHint': ['未生成の区画を同時並行で作ります（4枚ずつ）。1枚 30〜55秒。', 'Generates remaining sections in parallel (4 at a time), 30–55 s each.', '미생성 구획을 동시에 만듭니다(4장씩). 장당 30~55초.'],
+    'lp.genAllHint': ['全ターゲット層（A〜E）の LP・KV・メタ広告から、まだ絵が無い区画だけを作ります。'
+      + '1枚 35〜60秒、10枚ずつ同時に作ります',
+      'Generates only the sections that have no image yet, across LP, KV and Meta ads for every audience (A–E). '
+      + '35–60 s each, 10 at a time.',
+      '모든 타깃(A~E)의 LP·KV·메타광고 중, 아직 이미지가 없는 구획만 만듭니다.'],
     'lp.genAllRunning': ['まとめて生成しています…', 'Generating all…', '한꺼번에 생성 중…'],
     'lp.save': ['プロンプトを保存', 'Save prompts', '프롬프트 저장'],
     'lp.saved': ['保存しました', 'Saved', '저장했습니다'],
@@ -67,6 +89,14 @@
     'lp.queued': ['生成を積みました', 'Queued', '생성을 예약했습니다'],
     'lp.genDone': ['区画ができました', 'Section generated', '구획이 생성되었습니다'],
     'lp.refs': ['商品の見本（全区画に添付・最大16枚）', 'Product references (attached to every section, up to 16)', '상품 견본(모든 구획에 첨부·최대 16장)'],
+    'lp.refsShape': ['形の根拠 {n}枚', 'Shape references ({n})', '형태 기준 {n}장'],
+    'lp.refsShapeHint': ['商品だけがはっきり写っているもの。生成される商品の形は、この写真だけで決まります',
+      'Product-only shots. The generated product shape comes from these alone.',
+      '상품만 찍힌 사진. 생성되는 상품의 형태는 이 사진들로만 결정됩니다'],
+    'lp.refsContext': ['場面の参考 {n}枚', 'Scene references ({n})', '장면 참고 {n}장'],
+    'lp.refsContextHint': ['人や場面が主のもの。持ち方・置き場所・大きさの見当に使い、形の根拠にはしません',
+      'People/scene shots. Used for how it is held and where it sits — not for shape.',
+      '사람이나 장면이 주인 사진. 형태 기준으로는 쓰지 않습니다'],
     'lp.addRefs': ['見本を増やす（商品入力で☆）', 'Add references (star photos in Product input)', '견본 추가(상품 입력에서 ☆)'],
     'lp.refsStale': ['☆の写真が {n} 枚ありますが、見本は {m} 枚です。作り直すと追いつきます。', '{n} starred photos but {m} references. Rebuild to catch up.', '☆ 사진 {n}장 중 견본은 {m}장입니다. 다시 만들면 맞춰집니다.'],
     'lp.rebuildRefs': ['見本を作り直す', 'Rebuild references', '견본 다시 만들기'],
@@ -83,6 +113,13 @@
     'lp.prevShot': ['前の版', 'Previous', '이전'],
     'lp.nextShot': ['次の版', 'Next', '다음'],
     'lp.shotNow': ['いま使う版', 'In use', '사용 중'],
+    'lp.shotPrompt': ['この版を作った生成文を見る', 'Show the prompt that made this version', '이 버전을 만든 프롬프트 보기'],
+    'lp.shotPromptNone': ['この版には生成文が残っていません（この機能より前に作った版です）',
+      'No prompt was saved for this version (made before this feature existed).',
+      '이 버전에는 프롬프트가 남아 있지 않습니다'],
+    'lp.shotPromptUse': ['この文に戻す', 'Use this prompt', '이 프롬프트로 되돌리기'],
+    'lp.shotPromptUsed': ['生成文を戻しました。保存してから作り直してください',
+      'Prompt restored. Save, then regenerate.', '프롬프트를 되돌렸습니다. 저장 후 다시 생성하세요'],
     'lp.shotZoom': ['大きく見る', 'Open larger', '크게 보기'],
     'lp.motion': ['動く絵', 'Motion', '움직이는 소재'],
     'lp.kindLp': ['LP', 'LP', 'LP'],
@@ -119,6 +156,7 @@
       'Product input, targets, or competitor analysis changed since these prompts were written. Rewrite with the current settings? (A few minutes. Existing images stay; regenerate to apply.)',
       '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
     'lp.rewrite': ['生成プロンプトを更新する', 'Update the prompts', '프롬프트 업데이트'],
+    'lp.movedToNewest': ['新しい回ができていたので、そちらに切り替えて生成します。', 'A newer round exists; switched to it.', '새 회차가 있어 그쪽으로 전환했습니다.'],
     'lp.rewriteQueued': ['書き直しています。数分で新しい回が増えます。', 'Rewriting; a new round will appear in a few minutes.', '다시 쓰는 중입니다. 몇 분 뒤 새 회차가 추가됩니다.'],
     'lp.missing': ['この回に無い層', 'Missing from this round', '이 회차에 없는 층'],
     'lp.genLayer': ['{L} だけ生成', 'Generate {L} only', '{L}만 생성'],
@@ -189,6 +227,15 @@
       add(head, el('h2', 'screen__title', t('lp.title')));
       add(head, el('p', 'screen__lead', t('lp.lead')));
       add(screen, head);
+      /* 一括生成は、見出しのすぐ下に幅いっぱいで置く。
+         他のボタンに紛れていると、何を押せば全部作れるのか分からない
+         （2026-10-03 指示） */
+      var bulkBar = el('div', 'lp-bulk');
+      add(screen, bulkBar);
+      /* 成果物の切り替えは、他のボタンと同じ行に混ぜない。
+         書類ばさみの耳として、専用の帯に置く（下に1本の線が通る） */
+      var tabsBar = el('div', 'lp-tabs');
+      add(screen, tabsBar);
       var toolbar = el('div', 'lp-toolbar');
       add(screen, toolbar);
       var body = el('div', 'lp-body');
@@ -260,26 +307,37 @@
          高さが変わることもあるので、書き終わってから戻す */
       function paint() {
         var keepY = window.scrollY || window.pageYOffset || 0;
+        clear(bulkBar);
+        clear(tabsBar);
         clear(toolbar);
         clear(body);
         if (keepY) {
           window.requestAnimationFrame(function () { window.scrollTo(0, keepY); });
         }
-        add(toolbar, button('btn btn--secondary', t('lp.toAnalysis'), function () {
-          location.hash = '#/S20?id=' + encodeURIComponent(projectId);
-        }));
         /* 種類の切り替え（LP / KV / 広告）。中身が無い種類も押せるようにして、
-           「まだ作られていない」と言う。押せないと、無いのか壊れたのか分からない */
+           「まだ作られていない」と言う。押せないと、無いのか壊れたのか分からない。
+           置くのは層の耳の下。**層ごとに、その層のLP・KV・広告を見る**という並びにした
+           （2026-10-02 要望。前は種類が耳で、層がその下だった） */
         var kinds = el('div', 'lp-delivs');
+        var curLabel = String((view.gen && view.gen.variant_label) || '-');
         KINDS.forEach(function (k) {
           var on = view.kind === k.key;
-          var has = (view.byKind[k.key] || []).length;
-          var b = button('lp-deliv' + (on ? ' lp-deliv--on' : '') + (has ? '' : ' lp-deliv--empty'),
+          /* その種類に、いま見ている層のものがあるか */
+          var mine = (view.byKind[k.key] || []).filter(function (g) {
+            return String(g.variant_label || '-') === curLabel;
+          })[0];
+          var b = button('lp-deliv' + (on ? ' lp-deliv--on' : '') + (mine ? '' : ' lp-deliv--empty'),
             t(k.label), function () { switchKind(k.key); });
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          /* その層・その種類で何枚できているか。層をまたいで比べられる */
+          if (mine) {
+            var km = (mine.asset_prompts && mine.asset_prompts.made) || {};
+            var ks = isArray(mine.sections) ? mine.sections : [];
+            var kn = ks.filter(function (x) { return !!km[String(x.index) + '-1']; }).length;
+            add(b, el('span', 'lp-deliv__count' + (kn ? '' : ' is-none'), ' ' + kn + '/' + ks.length));
+          }
           add(kinds, b);
         });
-        add(toolbar, kinds);
 
         if (!view.gen) {
           add(body, el('p', 'empty',
@@ -306,14 +364,14 @@
         });
         labels.sort();
         if (labels.length) {
-          var tabs = el('div', 'lp-variants');
+          var tabs = el('div', 'lp-delivs lp-delivs--variants');
           labels.forEach(function (L) {
             /* この回に無い層は、その層の最新へ */
             var g = byLabel[L] || view.gens.filter(function (x) { return String(x.variant_label || '-') === L; })[0];
             if (!g) { return; }
             var on = g.id === view.gen.id;
             var inRound = !!byLabel[L];
-            var b = button('lp-variant' + (on ? ' lp-variant--on' : '') + (inRound ? '' : ' lp-variant--faded'), '',
+            var b = button('lp-deliv' + (on ? ' lp-deliv--on' : '') + (inRound ? '' : ' lp-deliv--empty'), '',
               function () { view.gen = g; view.dirty = false; paint(); });
             b.setAttribute('aria-pressed', on ? 'true' : 'false');
             if (!inRound) { b.title = String(g.created_at || '').slice(0, 16).replace('T', ' '); }
@@ -321,17 +379,29 @@
             add(b, el('span', 'lp-variant__name', String(g.title || '').slice(0, 28)));
             /* その層に絵が何枚あるかを出す。無いと、どの層を作ったのか分からない
                （実測 2026-09-27: 絵23枚が全部A層に入っているのに、B〜E層を見て
-               「まとめて生成しても1区画しか作られない」と受け取られた） */
-            var gm = (g.asset_prompts && g.asset_prompts.made) || {};
-            var gn = (isArray(g.sections) ? g.sections : []).filter(function (x) {
-              return !!gm[String(x.index) + '-1'];
-            }).length;
-            var gt = (isArray(g.sections) ? g.sections : []).length;
+               「まとめて生成しても1区画しか作られない」と受け取られた）。
+               層が外側になったので、数えるのは LP・KV・メタ広告を合わせたぶん
+               （2026-10-02。種類ごとの数は、下の行の種類に出る） */
+            var gn = 0;
+            var gt = 0;
+            KINDS.forEach(function (k) {
+              var one = (view.byKind[k.key] || []).filter(function (x) {
+                return String(x.variant_label || '-') === L;
+              })[0];
+              if (!one) { return; }
+              var om = (one.asset_prompts && one.asset_prompts.made) || {};
+              var os = isArray(one.sections) ? one.sections : [];
+              gn += os.filter(function (x) { return !!om[String(x.index) + '-1']; }).length;
+              gt += os.length;
+            });
             add(b, el('span', 'lp-variant__count' + (gn ? '' : ' is-none'), gn + '/' + gt));
             add(tabs, b);
           });
-          add(toolbar, tabs);
+          add(tabsBar, tabs);
         }
+        /* 層を選んでから、その層の中で種類を選ぶ。
+           層が1つも無いときも、種類は出す（出さないと何も切り替えられない） */
+        add(toolbar, kinds);
         /* この回に無い層（書けなかった・失敗した層）。その層だけ書き直せる。
            できた1本は join_batch でこの回に合流するので、タブに揃って出る */
         var targetLabels = (isArray(view.project && view.project.targets) ? view.project.targets : [])
@@ -402,16 +472,40 @@
         save.id = 'lp-save';
         add(toolbar, save);
         /* 未生成があれば「残りをまとめて生成」、全部できていれば「全区画を作り直す」。
-           前は全部できると押せなくなり、直したプロンプトで作り直せなかった */
-        var remaining = (view.gen.sections || []).filter(function (s) { return !made()[String(s.index) + '-1']; }).length;
+           前は全部できると押せなくなり、直したプロンプトで作り直せなかった。
+           数えるのは**同じ回の全種類（LP / KV / メタ広告）× 全層**。
+           開いている1つだけを作っていたので、5層ぶんを揃えるのに15回押す必要があった */
+        var batchPlan = sameBatch().map(function (g) {
+          return { gen: g, miss: missingOf(g).length, all: (g.sections || []).length };
+        });
+        var remaining = batchPlan.reduce(function (n, x) { return n + x.miss; }, 0);
         var anyBusy = Object.keys(view.busy).length > 0;
         /* 走っていても、残りがあれば枚数を出して押せるようにする */
-        var label = remaining ? t('lp.genAll') + '（' + remaining + '）'
+        /* 「123／11案」は読めない。この画面では斜線を「できた／全体」の意味で
+           使っている（4/8 区画が完成・LP 7/34）ので、同じ形だと二重に誤解される。
+           単位を付けて並べる（2026-10-02 指摘） */
+        /* ボタンは2つに分ける。1つで全部やっていたので、何が作られるのか分からなかった
+           （2026-10-03 指摘）。数字は出さない。押す前に知りたいのは
+           「何を作るか」であって「残り何枚か」ではない（枚数は下の層・種類に出ている）
+             生成する     … いま開いている層・種類だけ
+             全部生成する … 全ターゲット層の LP・KV・メタ広告 */
+        var mineLeft = missingOf(view.gen).length;
+        var one = button('btn btn--secondary', mineLeft ? t('lp.genOne') : t('lp.genOneRedo'), function () {
+          if (mineLeft) { generate(null); return; }
+          var n1 = (view.gen.sections || []).length;
+          if (window.confirm(t('lp.genAllRedoConfirm', { n: n1 }))) { generate('all'); }
+        });
+        one.title = t('lp.genOneHint');
+        one.disabled = anyBusy && !mineLeft;
+        add(toolbar, one);
+
+        var label = remaining
+          ? t('lp.genAll')
           : (anyBusy ? t('lp.genAllRunning') : t('lp.genAllRedo'));
-        var all = button('btn btn--primary', label, function () {
-          if (remaining) { generate(null); return; }
-          var n = (view.gen.sections || []).length;
-          if (window.confirm(t('lp.genAllRedoConfirm', { n: n }))) { generate('all'); }
+        var all = button('btn btn--primary lp-bulk__btn', label, function () {
+          if (remaining) { generateEverything(false); return; }
+          var n = batchPlan.reduce(function (x, y) { return x + y.all; }, 0);
+          if (window.confirm(t('lp.genAllRedoConfirm', { n: n }))) { generateEverything(true); }
         });
         /* 走っている最中でも押せる。区画ごとのボタンと同じく、押したぶんは
            別の仕事として積まれ、ワーカーが空いた順に取る。
@@ -427,7 +521,8 @@
           startAssets(e.currentTarget);
         }));
         all.title = t('lp.genAllHint');
-        add(toolbar, all);
+        add(bulkBar, all);
+        add(bulkBar, el('p', 'lp-bulk__note', t('lp.genAllHint')));
         var done = doneCount();
         var total = (view.gen.sections || []).length;
         var toCanvas = button('btn btn--secondary', t('lp.canvas'), function () {
@@ -559,13 +654,29 @@
           add(box, el('p', 'field__hint', t('lp.refsStale', { n: stars.length, m: refs.length })));
         }
         if (!refs.length) { add(box, el('p', 'field__hint', t('lp.noRefs'))); add(body, box); return; }
-        var row = el('div', 'lp-assets__row');
-        refs.forEach(function (u) {
-          var img = el('img', 'lp-assets__thumb');
-          img.src = u; img.alt = ''; img.loading = 'lazy';
-          add(row, img);
-        });
-        add(box, row);
+        /* 切り抜きは2種類ある（034）。
+             shape   … 商品だけがはっきり写っている。**形の根拠はこれだけ**
+             context … 商品は写るが人や場面が主。使われ方の参考
+           分けて見せないと「商品でない写真が見本に入っている」と見えてしまう。
+           役割が無い古いプロジェクトは、全部を形の根拠として扱う */
+        var roles = isArray(view.project && view.project.product_cutout_roles)
+          && view.project.product_cutout_roles.length === refs.length
+          ? view.project.product_cutout_roles : refs.map(function () { return 'shape'; });
+        var drawGroup = function (want, labelKey, hintKey) {
+          var list = refs.filter(function (u, i) { return roles[i] === want; });
+          if (!list.length) { return; }
+          add(box, el('p', 'field__label', t(labelKey, { n: list.length })));
+          add(box, el('p', 'field__hint', t(hintKey)));
+          var row = el('div', 'lp-assets__row');
+          list.forEach(function (u) {
+            var img = el('img', 'lp-assets__thumb');
+            img.src = u; img.alt = ''; img.loading = 'lazy';
+            add(row, img);
+          });
+          add(box, row);
+        };
+        drawGroup('shape', 'lp.refsShape', 'lp.refsShapeHint');
+        drawGroup('context', 'lp.refsContext', 'lp.refsContextHint');
         add(body, box);
       }
 
@@ -596,8 +707,17 @@
            前は「履歴を開く」で下に並べていたが、作り直すたびに横に伸びて
            見比べにくかった。同じ場所で入れ替えれば、変わったところが分かる */
         var hist = (view.gen.asset_prompts && view.gen.asset_prompts.history && view.gen.asset_prompts.history[slot]) || [];
+        /* 下の生成文の入力欄。版ごとの文から「この文に戻す」を押したときに
+           書き換えるので、先に名前だけ用意しておく。
+           名前は必ず固有にする: この関数の下の方に GIF 用の入力欄があり、
+           どちらも var ta だったため同じ変数になっていた（var は関数ごと）。
+           GIF側が後から代入するので、写真の生成文に入力すると
+           sec.prompt に GIF の文が書き込まれていた（実測 2026-09-29:
+           写真の生成プロンプトが【場面】【動き】【質感】に化けた） */
+        var promptTa = null;
         if (url) {
-          var shots = [{ url: url, at: '' }].concat(hist);
+          var madeP = (view.gen.asset_prompts && view.gen.asset_prompts.madePrompt) || {};
+          var shots = [{ url: url, at: '', prompt: madeP[slot] || '' }].concat(hist);
           /* 何番目を見ているかは描き直しをまたいで覚える。作り直しのあとに
              paint() が走ると、見ていた版に戻れなくなる */
           if (view.shotAt[slot] === undefined || view.shotAt[slot] >= shots.length) { view.shotAt[slot] = 0; }
@@ -625,6 +745,16 @@
           var action = el('span', 'lp-shot__action');
           add(foot, counter);
           add(foot, action);
+          /* その版を作った文。文を直して作り直したあと「前の方がよかった」と
+             なったとき、絵だけ戻せても文が戻せないと同じものを作り直せない。
+             古い版には文が残っていないことがある（この機能より前に作ったもの） */
+          var shotPrompt = el('details', 'lp-shot__prompt');
+          var shotPromptSum = el('summary', '', t('lp.shotPrompt'));
+          var shotPromptBody = el('pre', 'lp-shot__prompt-body', '');
+          var shotPromptRow = el('div', 'lp-toolbar');
+          add(shotPrompt, shotPromptSum);
+          add(shotPrompt, shotPromptBody);
+          add(shotPrompt, shotPromptRow);
 
           /* 矢印では paint() を呼ばない。全部を描き直すと画面が作り直され、
              見ていた場所を失ってページの先頭へ飛ぶ（実測）。
@@ -646,6 +776,24 @@
             add(action, at === 0
               ? el('span', 'chip chip--sm chip--success', t('lp.shotNow'))
               : button('btn btn--secondary btn--sm', t('lp.restore'), function () { restoreVersion(slot, at - 1); }));
+
+            var was = String(shots[at].prompt || '');
+            shotPromptBody.textContent = was || t('lp.shotPromptNone');
+            clear(shotPromptRow);
+            /* いま書かれている文と違うときだけ「この文に戻す」を出す。
+               同じ文なら押す意味がないので出さない */
+            if (was && was !== String(sec.prompt || '')) {
+              add(shotPromptRow, button('btn btn--secondary btn--sm', t('lp.shotPromptUse'), function () {
+                sec.prompt = was;
+                view.dirty = true;
+                if (promptTa) { promptTa.value = was; }
+                var sv = document.getElementById('lp-save'); if (sv) { sv.disabled = false; }
+                toast(t('lp.shotPromptUsed'), 'success');
+              }));
+              add(shotPromptRow, button('btn btn--text btn--sm', t('lp.copy'), function () { copyText(was); }));
+            } else if (was) {
+              add(shotPromptRow, button('btn btn--text btn--sm', t('lp.copy'), function () { copyText(was); }));
+            }
           };
 
           if (shots.length > 1) {
@@ -668,18 +816,19 @@
           show();
           add(li, stage);
           if (shots.length > 1) { add(li, foot); }
+          add(li, shotPrompt);
         }
 
         var field = el('label', 'field');
         add(field, el('span', 'field__label', t('lp.prompt')));
-        var ta = el('textarea', 'textarea lp-prompt');
-        ta.value = String(sec.prompt || '');
-        ta.rows = 6;
-        ta.addEventListener('input', function () {
-          sec.prompt = ta.value; view.dirty = true;
+        promptTa = el('textarea', 'textarea lp-prompt');
+        promptTa.value = String(sec.prompt || '');
+        promptTa.rows = 6;
+        promptTa.addEventListener('input', function () {
+          sec.prompt = promptTa.value; view.dirty = true;
           var s = document.getElementById('lp-save'); if (s) { s.disabled = false; }
         });
-        add(field, ta);
+        add(field, promptTa);
         add(li, field);
 
         var row = el('div', 'lp-toolbar');
@@ -747,18 +896,18 @@
             add(box, el('span', 'field__label',
               t('lp.motionPromptHead', { kind: String(ord.kind || '').toUpperCase(), aspect: ord.aspect || '-',
                 refs: (ord.references || []).length })));
-            var ta = el('textarea', 'textarea');
-            ta.value = String(ord.prompt || '');
-            ta.rows = 12;
-            add(box, ta);
+            var motionTa = el('textarea', 'textarea');
+            motionTa.value = String(ord.prompt || '');
+            motionTa.rows = 12;
+            add(box, motionTa);
             /* 直して保存できる。次に作るときはこの文が使われる。
                ただし、区画のプロンプトを直して作り直すと組み直されるので、そう書いておく */
             var brow = el('div', 'lp-toolbar');
             add(brow, button('btn btn--secondary btn--sm', t('lp.motionPromptSave'), function () {
-              saveOrderPrompt(slot, ta.value);
+              saveOrderPrompt(slot, motionTa.value);
             }));
             add(brow, button('btn btn--text btn--sm', t('lp.motionPromptReset'), function () {
-              ta.value = String(ord.prompt || '');
+              motionTa.value = String(ord.prompt || '');
             }));
             add(box, brow);
             add(box, el('p', 'field__hint', t('lp.motionPromptNote')));
@@ -864,11 +1013,7 @@
             titleKey: 'job.titleAssets',
             urls: [],
             onDone: function () {
-              Api.generations.get(view.gen.id).then(function (row) {
-                if (row) {
-                  view.gen = row;
-                  view.gens = view.gens.map(function (g) { return g.id === row.id ? row : g; });
-                }
+              reloadAll().then(function () {
                 freeUp();
                 toast(t('lp.motionDone'), 'success');
                 paint();
@@ -920,11 +1065,7 @@
             onDone: function () {
               /* できた素材は asset_prompts.made に入る。読み直さないと
                  区画のカードが古いままになる */
-              Api.generations.get(view.gen.id).then(function (row) {
-                if (row) {
-                  view.gen = row;
-                  view.gens = view.gens.map(function (g) { return g.id === row.id ? row : g; });
-                }
+              reloadAll().then(function () {
                 restore();
                 toast(t('lp.makeAssetsDone'), 'success');
                 paint();
@@ -945,6 +1086,230 @@
       }
 
       /* 1区画（index）か、未生成の全部（null）を作る。ワーカーの lp_section が受ける */
+      /* 積んでいる最中かどうか。二度押しで同じ仕事を重ねないための札 */
+      var queueing = false;
+
+      /* 3種類ぜんぶを取り直す。
+         生成が終わったとき、開いている1本しか取り直していなかったので、
+         層の耳や種類の数字（LP 32/34）が古いままだった
+         （実測 2026-10-03: ページを開き直すと直る、と言われた）。
+         数字は全種類から数えているので、全種類を取り直さないと合わない */
+      function reloadAll() {
+        return Promise.all(KINDS.map(function (k) {
+          return Api.generations.list({ eq: { projects_id: projectId, feature_key: k.key },
+            order: 'created_at.desc', limit: 20 }).catch(function () { return null; });
+        })).then(function (lists) {
+          KINDS.forEach(function (k, i) {
+            if (isArray(lists[i])) { view.byKind[k.key] = lists[i]; }
+          });
+          view.gens = view.byKind[view.kind] || [];
+          /* 開いている案は、取り直したものに差し替える（絵の数が増えている） */
+          if (view.gen) {
+            var fresh = view.gens.filter(function (g) { return g.id === view.gen.id; })[0];
+            if (fresh) { view.gen = fresh; }
+          }
+        });
+      }
+
+      /* 画面に戻ってきたら数え直す。
+         終わりの合図は、このページが始めた生成にしか届かない。別のタブ・別の端末・
+         手元から積んだ生成では合図が来ないので、耳の数字が古いまま残る
+         （実測 2026-10-03: DB は KV 8/8 なのに画面は KV 0/8 のままだった）。
+         文を書きかけ（dirty）のときは描き直さない。書いた字が消えるため */
+      function refreshOnReturn() {
+        if (!document.body.contains(screen)) {
+          document.removeEventListener('visibilitychange', refreshOnReturn);
+          window.removeEventListener('focus', refreshOnReturn);
+          return;
+        }
+        if (document.hidden || view.dirty) { return; }
+        reloadAll().then(paint).catch(function () {});
+      }
+      document.addEventListener('visibilitychange', refreshOnReturn);
+      window.addEventListener('focus', refreshOnReturn);
+
+      /* 同じ回（batch）の、全種類（LP / KV / メタ広告）× 全層ぶんの生成物を集める。
+         「全区画をまとめて生成」はここを使う。
+         これまでは開いている種類・層の1つしか作らなかったので、
+         5層ぶんのLPとKVと広告を作るのに15回押す必要があった（2026-10-02 要望） */
+      function sameBatch() {
+        var myBatch = view.gen && view.gen.content && view.gen.content.batch;
+        var myTime = (view.gen && view.gen.created_at || '').slice(0, 16);
+        var out = [];
+        KINDS.forEach(function (k) {
+          (view.byKind[k.key] || []).forEach(function (g) {
+            var b = g.content && g.content.batch;
+            var same = myBatch ? (b === myBatch) : ((g.created_at || '').slice(0, 16) === myTime);
+            if (same && isArray(g.sections) && g.sections.length) { out.push(g); }
+          });
+        });
+        return out;
+      }
+
+      /* その生成物の、まだ絵が無い区画の番号 */
+      function missingOf(g) {
+        var made = (g.asset_prompts && g.asset_prompts.made) || {};
+        return (g.sections || []).filter(function (s) { return !made[String(s.index) + '-1']; })
+          .map(function (s) { return s.index; });
+      }
+
+      /* 全種類・全層をまとめて積む。1つの生成物＝1つの仕事（ワーカーは3件まで同時に取る） */
+      function generateEverything(redo) {
+        if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
+        /* 二度押しで同じ仕事が重なるのを止める。
+           実測 2026-10-02: 4回押されて同じ内容が4重に積まれ、57件の待ち行列になった。
+           混みすぎて1枚に879秒かかっていた（ふだんは40〜60秒）。
+           押せてしまう作りだったので、押した側は重なっていることに気づけない */
+        if (queueing) { toast(t('lp.queueing'), 'success'); return; }
+        queueing = true;
+        var unlock = function () { queueing = false; };
+        /* 積む前に必ず取り直す。ページは開きっぱなしのことがあり、手元の写しは古い。
+           実測 2026-10-03: 230枚できている案を「1枚も無い」と見て全部積み直し、
+           2時間かけて出来上がりを上書きしていた。
+           さらに「生成プロンプトを更新する」で新しい回が増えていても、
+           画面が古い回のままだと、古い回に積んでしまう（新しい回は0枚のまま）。
+           いちばん新しい回に合わせてから積む */
+        reloadAll().then(function () {
+          var newest = null;
+          KINDS.forEach(function (k) {
+            (view.byKind[k.key] || []).forEach(function (g) {
+              if (!isArray(g.sections) || !g.sections.length) { return; }
+              if (!newest || (g.created_at || '') > (newest.created_at || '')) { newest = g; }
+            });
+          });
+          var mine = view.gen && view.gen.content && view.gen.content.batch;
+          var top = newest && newest.content && newest.content.batch;
+          if (newest && top && mine && top !== mine) {
+            view.gen = (view.byKind[view.kind] || []).filter(function (g) {
+              var b = g.content && g.content.batch;
+              return b === top && isArray(g.sections) && g.sections.length;
+            })[0] || newest;
+            view.dirty = false;
+            paint();
+            toast(t('lp.movedToNewest'), 'success');
+          }
+          queueAll(redo, unlock);
+        }).catch(function () { queueAll(redo, unlock); });
+      }
+
+      /* 積む本体。generateEverything が取り直したあとに呼ぶ */
+      function queueAll(redo, unlock) {
+        var plan = sameBatch().map(function (g) {
+          return { gen: g, sections: redo ? (g.sections || []).map(function (s) { return s.index; }) : missingOf(g) };
+        }).filter(function (x) { return x.sections.length; });
+        if (!plan.length) { unlock(); toast(t('lp.allDone'), 'success'); return; }
+        var total = plan.reduce(function (n, x) { return n + x.sections.length; }, 0);
+        /* すでに同じ案の仕事が待っていれば積まない。
+           画面を開き直すと札が下りるので、札だけでは防ぎきれない */
+        var already = function () {
+          if (!Api.generationJobs.list) { return Promise.resolve({}); }
+          /* order は文字列で渡す（'created_at.desc'）。
+             オブジェクトを渡していたので毎回エラーになり、catch が黙って {} を返し、
+             重複の検出がまったく効いていなかった（実測 2026-10-02:
+             1時間20分あけて押した2回ぶんが、そのまま二重に積まれた） */
+          return Api.generationJobs.list({
+            eq: { projects_id: projectId, feature_key: 'lp_section' },
+            order: 'created_at.desc', limit: 200
+          }).then(function (rows) {
+            var busyGen = {};
+            (isArray(rows) ? rows : []).forEach(function (r) {
+              if (r.status !== 'pending' && r.status !== 'processing') { return; }
+              var g = r.payload && r.payload.generation_id;
+              if (g) { busyGen[g] = true; }
+            });
+            return busyGen;
+          }).catch(function (err) {
+            /* 調べられなくても積めなくならない。ただし黙らない。
+             黙っていたせいで、効いていないことに気づけなかった */
+            console.error('[screens-lp] すでに走っている仕事を調べられませんでした', err);
+            return {};
+          });
+        };
+
+        var put = function () {
+          plan.forEach(function (x) {
+            if (x.gen.id === view.gen.id) {
+              x.sections.forEach(function (ix) { view.busy[String(ix) + '-1'] = true; });
+            }
+          });
+          paint();
+          already().then(function (busyGen) {
+          var skipped = plan.filter(function (x) { return busyGen[x.gen.id]; }).length;
+          plan = plan.filter(function (x) { return !busyGen[x.gen.id]; });
+          if (!plan.length) {
+            unlock();
+            Object.keys(view.busy).forEach(function (k2) { delete view.busy[k2]; });
+            paint();
+            toast(t('lp.alreadyQueued'), 'success');
+            return;
+          }
+          if (skipped) { console.log('[screens-lp] すでに走っている ' + skipped + '案は積みませんでした'); }
+          return Promise.all(plan.map(function (x) {
+            return Api.generationJobs.insert({
+              feature_key: 'lp_section',
+              status: 'pending',
+              projects_id: projectId,
+              users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+              payload: { generation_id: x.gen.id, sections: x.sections },
+              lang: currentLocale()
+            });
+          })).then(function (jobs) {
+            unlock();
+            toast(t('lp.queuedAll', { n: total }), 'success');
+            /* 進み具合のポップアップを出す。
+               見張れるのは1件なので、いま開いている案の仕事を見る。
+               開いている案が無ければ先頭の仕事。
+               実測 2026-10-02: ここを足し忘れて、まとめて生成のときだけ
+               ポップアップが出なくなっていた（1案ずつのときは出ていた） */
+            var mineAt = 0;
+            plan.forEach(function (x, i) { if (x.gen.id === view.gen.id) { mineAt = i; } });
+            var watched = jobs[mineAt];
+            if (!App.watchJob || !watched) { paint(); return; }
+            App.watchJob({
+              jobId: watched.id,
+              /* 一緒に積んだ仕事。中止はこれも全部止める。
+                 1件だけ止めても残りが動き続けるので「中止されない」と見える
+                 （実測 2026-10-02） */
+              siblings: jobs.map(function (x) { return x && x.id; }).filter(Boolean),
+              titleKey: 'job.titleAssets',
+              urls: [],
+              onDone: function () {
+                /* 全種類を取り直す。1本だけだと層の耳の数字が古いまま残る */
+                reloadAll().then(function () {
+                  plan[mineAt].sections.forEach(function (ix) {
+                    delete view.busy[String(ix) + '-1'];
+                    view.shotAt[String(ix) + '-1'] = 0;
+                  });
+                  toast(plan.length > 1 ? t('lp.doneOne') : t('lp.genDone'), 'success');
+                  paint();
+                });
+              },
+              onFail: function (why) {
+                plan[mineAt].sections.forEach(function (ix) { delete view.busy[String(ix) + '-1']; });
+                toast(String(why || t('common.error')), 'danger');
+                paint();
+              }
+            });
+          }).catch(function (err) {
+            unlock();
+            Object.keys(view.busy).forEach(function (k2) { delete view.busy[k2]; });
+            paint();
+            toast(String(err && err.message || err), 'danger');
+          });
+          });
+        };
+        if (view.dirty) {
+          Api.generations.update(view.gen.id, { sections: view.gen.sections }).then(function () {
+            view.dirty = false;
+            var sv = document.getElementById('lp-save'); if (sv) { sv.disabled = true; }
+            put();
+          }).catch(function (err) {
+            unlock();
+            toast(t('lp.genSaveFailed') + '：' + String(err && err.message || err), 'danger');
+          });
+        } else { put(); }
+      }
+
       function generate(index) {
         if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
         var targets = index === null
@@ -970,11 +1335,7 @@
               titleKey: 'job.titleAssets',
               urls: [],
               onDone: function () {
-                Api.generations.get(view.gen.id).then(function (row) {
-                  if (row) {
-                    view.gen = row;
-                    view.gens = view.gens.map(function (g) { return g.id === row.id ? row : g; });
-                  }
+                reloadAll().then(function () {
                   /* できたてを見せる。前の版を見ていた位置のままだと、
                      作り直したのに絵が変わらないように見える */
                   targets.forEach(function (ix) {
@@ -999,9 +1360,20 @@
             toast(String(err && err.message || err), 'danger');
           });
         };
-        /* 直したプロンプトは先に保存してから作る */
+        /* 直したプロンプトは先に保存してから作る。
+           保存が転んだら作らない。前は catch が無く、転ぶと何も起きないまま
+           「押したのに動かない」になっていた */
         if (view.dirty) {
-          Api.generations.update(view.gen.id, { sections: view.gen.sections }).then(function () { view.dirty = false; go(); });
+          Api.generations.update(view.gen.id, { sections: view.gen.sections }).then(function () {
+            view.dirty = false;
+            var sv = document.getElementById('lp-save'); if (sv) { sv.disabled = true; }
+            toast(t('lp.genWithEdited'), 'success');
+            go();
+          }).catch(function (err) {
+            targets.forEach(function (ix) { delete view.busy[String(ix) + '-1']; });
+            paint();
+            toast(t('lp.genSaveFailed') + '：' + String(err && err.message || err), 'danger');
+          });
         } else { go(); }
       }
     }

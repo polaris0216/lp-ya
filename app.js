@@ -1677,6 +1677,9 @@
     stopWatch();
     watch = {
     jobId: jobId,
+    /* 一緒に積まれた仕事。中止はこれも全部止める
+       （まとめて生成は1回の操作で何件もの仕事を積む） */
+    siblings: Array.isArray(o.siblings) ? o.siblings.filter(function (x) { return x && x !== jobId; }) : [],
     titleKey: titleKey,
     startedAt: new Date().getTime(),
     status: 'pending',
@@ -1965,16 +1968,29 @@
     /* 走っている間だけ中止を出す。押したあとは「止めています…」にして
        二度押しを防ぐ（申し出は1回でよい） */
     if (!done && !failed && watch.status !== 'cancelled') {
+      var many = 1 + ((watch.siblings || []).length);
       var stop = wButton('btn btn--text jobwatch__stop',
-        watch.cancelling ? t('job.cancelling') : t('job.cancel'), function () {
+        watch.cancelling ? t('job.cancelling')
+          : (many > 1 ? t('job.cancelAll', { n: many }) : t('job.cancel')), function () {
         if (watch.cancelling || !global.Api || !global.Api.generationJobs
             || typeof global.Api.generationJobs.cancel !== 'function') { return; }
         watch.cancelling = true;
         paintWatch();
-        global.Api.generationJobs.cancel(watch.jobId).catch(function (err) {
-          console.error('[App] 中止を申し出られませんでした', err);
-          watch.cancelling = false;
-          paintWatch();
+        /* まとめて生成すると、1回の操作で何件もの仕事が積まれる。
+           見張っている1件だけ止めても、残りは動き続ける
+           （実測 2026-10-02: 14件積まれていて、中止を押しても止まらないと言われた）。
+           一緒に積まれたものも全部止める */
+        var ids = [watch.jobId].concat(watch.siblings || []);
+        Promise.all(ids.map(function (id) {
+          return global.Api.generationJobs.cancel(id).catch(function (err) {
+            console.error('[App] 中止を申し出られませんでした', id, err);
+            return null;
+          });
+        })).then(function (got) {
+          if (!got.filter(Boolean).length) {
+            watch.cancelling = false;
+            paintWatch();
+          }
         });
       });
       stop.disabled = !!watch.cancelling;

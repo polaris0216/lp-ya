@@ -98,6 +98,10 @@
     { value: 'greenfunding', label: 'GREENFUNDING', note: '3:2 ・ 1枚' },
     { value: 'kickstarter', label: 'Kickstarter', note: '16:9 ・ 1枚' },
     { value: 'indiegogo', label: 'Indiegogo', note: '16:9 ・ 8枚' },
+    /* wadiz の上部は2枠: 代表画像1枚（1200×675以上）＋ 紹介写真10枚（800×480以上）
+       ＝ 計11枚。どちらも「文字の入っていない画像」を求められる。
+       数字と決まりは tools/job-worker.mjs の KV_SPEC にまとめてある */
+    { value: 'wadiz', label: 'Wadiz（韓国）', note: '16:9 ・ 代表1枚＋紹介10枚 ・ すべて文字なし' },
     { value: 'other', label: 'その他', note: '16:9 ・ 8枚' }
   ];
 
