@@ -28,6 +28,12 @@
     { key: 'ads_brief', label: 'lp.kindAds' }
   ];
 
+  /* 種類の呼び名。KINDS を引くのはここだけ */
+  function kindLabel(key) {
+    var one = KINDS.filter(function (k) { return k.key === key; })[0];
+    return one ? one.label : 'lp.kindLp';
+  }
+
   var LOCAL = {
     'lp.title': ['生成プロンプト', 'Generation prompts', '생성 프롬프트'],
     'lp.lead': ['総合分析から書いたマスターブリーフ（LP全体の決まり）と、区画ごとの生成プロンプトです。プロンプトを直してから、区画ごとに生成します。',
@@ -157,6 +163,10 @@
       '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
     'lp.rewrite': ['生成プロンプトを更新する', 'Update the prompts', '프롬프트 업데이트'],
     'lp.loadingSections': ['区画を読み込んでいます…', 'Loading sections…', '구획을 불러오는 중…'],
+    'lp.kindEmptyFor': ['{v}層の{k}はまだ作られていません。', 'No {k} for audience {v} yet.', '{v} 타깃의 {k}는 아직 없습니다.'],
+    'lp.kindEmptyHint': ['「生成プロンプトを更新する」を押すと、足りない層のぶんが書かれます。',
+      'Press "Update the prompts" to write the missing ones.',
+      '"프롬프트 업데이트"를 누르면 부족한 분량이 작성됩니다.'],
     'lp.movedToNewest': ['新しい回ができていたので、そちらに切り替えて生成します。', 'A newer round exists; switched to it.', '새 회차가 있어 그쪽으로 전환했습니다.'],
     'lp.rewriteQueued': ['書き直しています。数分で新しい回が増えます。', 'Rewriting; a new round will appear in a few minutes.', '다시 쓰는 중입니다. 몇 분 뒤 새 회차가 추가됩니다.'],
     'lp.missing': ['この回に無い層', 'Missing from this round', '이 회차에 없는 층'],
@@ -222,7 +232,7 @@
       /* shotAt は区画ごとに「いま何番目の版を見ているか」。paint() で作り直しても
          見ていた版に戻れるよう、描画の外に持つ */
       var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {}, motionOpen: {},
-        kind: 'lp_brief', byKind: {} };
+        kind: 'lp_brief', byKind: {}, missingLabel: '' };
       /* 一覧では本文（content.brief）を取らない。1本25,000字あり、
          3種類×20件で5.9MBになる。画面が開くたびにこれを読んでいたので、
          取り直しが重なると白いまま返らなくなった（実測 2026-10-04）。
@@ -338,13 +348,20 @@
       function switchKind(key) {
         if (view.kind === key) { return; }
         var want = view.gen ? String(view.gen.variant_label || '') : '';
+        var wantBatch = batchOf(view.gen);
         view.kind = key;
         view.gens = view.byKind[key] || [];
         view.shotAt = {};
-        var same = want
-          ? view.gens.filter(function (g) { return String(g.variant_label || '') === want; })[0]
-          : null;
-        view.gen = same || firstVariant(view.gens);
+        /* 同じ回の同じ層を開く。無ければ、同じ層の別の回を開く。
+           **層を乗り換えない。** 前は見つからないと別の層の先頭に飛んでいたので、
+           B層を選んだまま KV を押すと A層の KV が出て、
+           「作られているのに数えられていない」と見えた（2026-10-04 指摘）。
+           その層のものが本当に無いなら、無いと言う（lp.kindEmpty） */
+        var mine = view.gens.filter(function (g) { return String(g.variant_label || '') === want; });
+        view.gen = mine.filter(function (g) { return batchOf(g) === wantBatch; })[0]
+          || mine[0]
+          || (want ? null : firstVariant(view.gens));
+        view.missingLabel = view.gen ? '' : want;
         view.dirty = false;
         paint();
         withDetail();
@@ -429,9 +446,17 @@
         }
 
         if (!view.gen) {
-          add(body, el('p', 'empty',
-            view.kind === 'lp_brief' ? t('lp.empty') : t('lp.kindEmpty')));
-          if (view.kind === 'lp_brief') { add(body, el('p', 'field__hint', t('lp.emptyHint'))); }
+          /* 層まで決まっているなら、どの層の何が無いのかを言う。
+             ただ「ありません」だと、別の層にはあるのか分からない */
+          add(body, el('p', 'empty', view.missingLabel
+            ? t('lp.kindEmptyFor', { v: view.missingLabel, k: t(kindLabel(view.kind)) })
+            : (view.kind === 'lp_brief' ? t('lp.empty') : t('lp.kindEmpty'))));
+          if (view.kind === 'lp_brief' && !view.missingLabel) {
+            add(body, el('p', 'field__hint', t('lp.emptyHint')));
+          }
+          if (view.missingLabel) { add(body, el('p', 'field__hint', t('lp.kindEmptyHint'))); }
+          /* 層の耳は出したままにする。戻れないと行き止まりになる */
+          add(tabsBar, kinds);
           return;
         }
         /* 層の切り替え。タブは必ず出す。
@@ -461,7 +486,7 @@
             var on = g.id === view.gen.id;
             var inRound = !!byLabel[L];
             var b = button('lp-deliv' + (on ? ' lp-deliv--on' : '') + (inRound ? '' : ' lp-deliv--empty'), '',
-              function () { view.gen = g; view.dirty = false; paint(); withDetail(); });
+              function () { view.gen = g; view.missingLabel = ''; view.dirty = false; paint(); withDetail(); });
             b.setAttribute('aria-pressed', on ? 'true' : 'false');
             if (!inRound) { b.title = String(g.created_at || '').slice(0, 16).replace('T', ' '); }
             add(b, el('span', 'lp-variant__label', L));
