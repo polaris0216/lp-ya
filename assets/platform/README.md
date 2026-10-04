@@ -7,7 +7,7 @@
 
 ## makuake.png
 
-- 元: `Makuake_logo/png/Makuake_Logo_yoko.png`（1920×530）→ 高さ72pxに縮小
+- 元: `Makuake_logo/png/Makuake_Logo_yoko.png`（1920×530）→ 幅1040pxに縮小
 - 出どころ: Makuakeヘルプ「Makuakeロゴを使いたいのですが、何に気をつけたらいいですか？」
   https://mkhelp.makuake.com/hc/ja/articles/13897727579929
   → 《Makuakeロゴデータ》 https://app.box.com/s/shy8cpwa8db4hyf6ajvmtkb43w6akzhe
@@ -21,7 +21,7 @@
 ## campfire.png
 
 - 元: `CAMPFIRE_brand_resource/3 LOGO PR/png/campfire-pr-badge-vertical.png`
-  （→ 高さ150pxに縮小、583×150）
+  （630×162）そのまま。配布されている PNG はこれが最大
   横組み（1386×91）もあるが、縦横比が 15:1 で、ロゴを大きく見せる組みだと
   細い帯になって読めない。縦組みは 3.9:1 で、ほかの3つとほぼ同じ比率になる
 - 出どころ: CAMPFIREヘルプ「CAMPFIREのサービスロゴを利用することはできますか？」
@@ -64,3 +64,21 @@
 
 で `lp-ya/platform-logos.js` を作り直す。PNG はページに data URI で
 焼き込む（iframe の srcdoc・ZIP・公開ページ、どれでも相対パスが効かないため）。
+
+## 大きさについて（2026-10-05）
+
+出す幅の上限は「元の横幅の1.3倍」まで。3割までの引き伸ばしは目で分からないが、
+それを超えるとぼやける。素材の横幅は焼き込みのときに自動で読み取って、
+`platform-logos.js` に一緒に書き出している。
+
+    makuake       1040px … 元が1920pxあるので余裕。520pxで出せる
+    CAMPFIRE       630px … 配布PNGの最大。520pxで出せる
+    machi-ya       347px … 各社サイトで配っているのがこれだけ。451pxまで
+    GREENFUNDING  ベクター … 上限なし
+
+実測 2026-10-05: makuake を261pxまで縮めて焼き込んでいたため、500pxで出すと
+4倍に引き伸ばされて「画質が悪い」状態になっていた。
+machi-ya は imgix で `?w=1388` を取っても、元が347pxなので単に拡大されるだけ
+（細かさを比べて確認済み）。白ヌキ版は871pxあるが、白地には置けない。
+CAMPFIRE の PDF（ベクター）からも起こせるが、紙面が説明シートで白地が付くため、
+背景色を変えたページで白い四角が出る。透過の配布PNGを使っている。

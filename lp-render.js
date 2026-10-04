@@ -224,6 +224,9 @@
          !important なのは、ボタンの大きさが style 属性に直接書いてあるため
          （CF版のLPは lineButtonCss を読まないので、そちらを壊さないよう
          インラインのまま残してある）。画面下の固定バーは今の大きさのまま */
+      /* 誘いの塊のボタンは、見本では字がそこまで太くない。
+         太さも大きさも style 属性に直接入っているので、ここで上書きする */
+      '.cta-block .line-cta__a{font-weight:600!important;letter-spacing:.02em}',
       '@media (min-width:768px){.cta-block .line-cta__a{'
         + 'font-size:26px!important;min-height:76px!important;'
         + 'padding:0 56px!important;border-radius:12px!important;'
@@ -760,23 +763,39 @@
     machiya: { name: 'machi-ya', sub: 'クラウドファンディング公開中', logo: 'machiya' }
   };
 
-  /* 焼き込んだロゴは platform-logos.js が置いていく（data URI）。
+  /* 焼き込んだロゴは platform-logos.js が置いていく（data URI と元の横幅）。
      読むのは呼ばれたとき。読み込みの順番に縛られないため */
   function builtInLogo(name) {
     var all = (typeof window !== 'undefined' && window.LPYA_PLATFORM_LOGOS) || {};
-    return (name && all[name]) || '';
+    return (name && all[name]) || null;
+  }
+
+  /* ロゴをどこまで大きく出してよいか。
+     各社がくれる素材の大きさはバラバラで（makuake 1920px / CAMPFIRE 630px /
+     machi-ya 347px / GREENFUNDING はベクター）、元より大きく出すとぼやける。
+     3割までの引き伸ばしは目で分からないので、そこを上限にする。
+     実測 2026-10-05: makuake を261pxまで縮めて焼き込んでいたため、
+     500pxで出すと4倍に引き伸ばされて「画質が悪い」状態になっていた */
+  var LOGO_MAX = 520;
+  function logoCap(one) {
+    if (!one || !one.w) { return LOGO_MAX; }      /* ベクターは上限なし */
+    return Math.min(LOGO_MAX, Math.round(one.w * 1.3));
   }
 
   function platformBadge(key, logoUrl) {
     var one = PLATFORMS[String(key || '').toLowerCase()];
-    var src = logoUrl ? String(logoUrl) : builtInLogo(one && one.logo);
+    var built = logoUrl ? null : builtInLogo(one && one.logo);
+    var src = logoUrl ? String(logoUrl) : (built && built.src) || '';
     if (!src && !one) { return ''; }
+    /* 自分で入れたロゴは大きさが分からないので、上限いっぱいで出す */
+    var cap = logoUrl ? LOGO_MAX : logoCap(built);
     var inner = src
       /* loading="lazy" は付けない。焼き込んだ data URI は取りに行く先が無いので
          遅らせる意味がなく、読む前は幅も高さも無いので 0×0 に潰れる。
          実測 2026-10-04: 描画が止まっている枠の中でロゴが消えた */
       ? '<img class="cta-block__logo" src="' + escapeHtml(src)
-          + '" alt="' + escapeHtml(one ? one.name : '') + '">'
+          + '" alt="' + escapeHtml(one ? one.name : '')
+          + '" style="max-width:' + cap + 'px">'
       : '<span class="cta-block__name">' + escapeHtml(one.name) + '</span>';
     /* 添え文句は、ロゴの絵が無いときだけ。絵があるときは見本どおり
        ロゴ1つで見せる（CAMPFIRE のバッジのように絵の中に入っている物もある） */
@@ -819,7 +838,7 @@
     var ink = d.titleColor;
     var hot = d.accentColor;
     return [
-      '.cta-block{margin:48px 0;padding:8px 0;text-align:center}',
+      '.cta-block{margin:36px 0;padding:4px 0;text-align:center}',
       /* 1行目。見本ではロゴが本文の幅の半分ほどを占めている。
          幅で決めるのは、掲載先ごとに縦横比が違うため（高さで止めると
          横長のロゴが細い帯になる）。高さは自分からついてくる */
@@ -829,32 +848,32 @@
          PC（列1000px）はこの比率をそのまま使う。
          スマホは画面が狭いぶん、同じ比率だと字が小さくなりすぎるので、
          ロゴだけ少し広げて、字はスマホで読める下限に合わせる */
-      '.cta-block__brand{margin:0 0 16px;line-height:1}',
-      '.cta-block__logo{display:block;width:60%;max-width:520px;height:auto;margin:0 auto}',
+      '.cta-block__brand{margin:0 0 10px;line-height:1}',
+      '.cta-block__logo{display:block;width:52%;height:auto;margin:0 auto}',
       /* ロゴを持っていない掲載先のための文字組み。大きさはロゴに合わせる */
       '.cta-block__name{display:block;font-size:40px;font-weight:800;letter-spacing:.04em;color:' + ink + '}',
       '.cta-block__sub{display:block;margin-top:4px;font-size:12px;letter-spacing:.18em;color:' + ink + '99}',
       /* 2行目 */
-      '.cta-block__t{margin:0 0 8px;font-weight:800;font-size:22px;line-height:1.4;color:' + ink + '}',
+      '.cta-block__t{margin:0 0 6px;font-weight:700;font-size:20px;line-height:1.4;color:' + ink + '}',
       /* 3行目。数字だけさらに大きく。見本は「最大」「OFF」より「30%」が一回り大きい */
-      '.cta-block__l{margin:0 0 12px;font-weight:800;font-size:32px;line-height:1.25;color:' + ink + '}',
+      '.cta-block__l{margin:0 0 8px;font-weight:700;font-size:30px;line-height:1.2;color:' + ink + '}',
       '.cta-block__l .accent{font-size:1.5em;font-style:normal;letter-spacing:-.01em}',
       '.cta-block__l--long{font-size:20px;line-height:1.5}',
       '.cta-block__l--long .accent{font-size:1em}',
       '.cta-block__t .accent,.cta-block__l .accent,.cta-block__n .accent{color:' + hot + ';font-style:normal}',
       /* 4行目 */
-      '.cta-block__n{margin:0 0 20px;font-weight:700;font-size:17px;line-height:1.5;color:' + ink + '}',
+      '.cta-block__n{margin:0 0 14px;font-weight:500;font-size:15px;line-height:1.5;color:' + ink + '}',
       /* 5行目 */
       '.cta-block__b{margin:0}',
       '@media (min-width:768px){',
-      '.cta-block{margin:72px 0;padding:12px 0}',
-      '.cta-block__brand{margin-bottom:22px}',
+      '.cta-block{margin:60px 0;padding:8px 0}',
+      '.cta-block__brand{margin-bottom:16px}',
       '.cta-block__logo{width:50%}',
       '.cta-block__name{font-size:56px}',
-      '.cta-block__t{font-size:34px;margin-bottom:10px}',
-      '.cta-block__l{font-size:46px;margin-bottom:16px}',
+      '.cta-block__t{font-size:34px;margin-bottom:8px}',
+      '.cta-block__l{font-size:48px;margin-bottom:12px}',
       '.cta-block__l--long{font-size:26px}',
-      '.cta-block__n{font-size:30px;margin-bottom:26px}',
+      '.cta-block__n{font-size:28px;margin-bottom:20px}',
       '}'
     ].join('');
   }
