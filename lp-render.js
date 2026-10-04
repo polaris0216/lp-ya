@@ -742,8 +742,11 @@
     var src = logoUrl ? String(logoUrl) : builtInLogo(one && one.logo);
     if (!src && !one) { return ''; }
     var inner = src
+      /* loading="lazy" は付けない。焼き込んだ data URI は取りに行く先が無いので
+         遅らせる意味がなく、読む前は幅も高さも無いので 0×0 に潰れる。
+         実測 2026-10-04: 描画が止まっている枠の中でロゴが消えた */
       ? '<img class="cta-block__logo" src="' + escapeHtml(src)
-          + '" alt="' + escapeHtml(one ? one.name : '') + '" loading="lazy">'
+          + '" alt="' + escapeHtml(one ? one.name : '') + '">'
       : '<span class="cta-block__name">' + escapeHtml(one.name) + '</span>';
     /* バッジにもう入っている文句は足さない */
     var sub = (one && !(src && one.inBadge))
