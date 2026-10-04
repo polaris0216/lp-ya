@@ -194,6 +194,25 @@
          列を増やさずに済み、made / redoSlots と同じ入れ物に収まる。
          既定は「絵」。ただし絵がまだ無くて文字版があるなら文字で出す
          （空の「未生成」が並ぶより、読める形になっているほうがよい） */
+      /* その区画の絵。動く絵（GIF・動画）があればそちらを使う */
+      function visualOf(sec) {
+        var bag = (view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object')
+          ? view.gen.asset_prompts : {};
+        var slot = String(sec.index) + '-1';
+        var mov = bag.motion && bag.motion[slot];
+        var still = bag.made && bag.made[slot];
+        return mov || still || '';
+      }
+
+      /* 動画は <video>、それ以外は <img>。S12 の見せ方に合わせる */
+      function mediaTag(url) {
+        var u = String(url);
+        if (/\.(mp4|webm|mov)(\?|$)/i.test(u)) {
+          return '<video src="' + escapeHtml(u) + '" autoplay loop muted playsinline preload="metadata"></video>';
+        }
+        return '<img src="' + escapeHtml(u) + '" alt="" loading="lazy">';
+      }
+
       function modeOf(sec, url) {
         var picked = view.mode[String(sec.index)];
         if (picked === 'text' || picked === 'both' || picked === 'image') { return picked; }
@@ -261,6 +280,11 @@
           ? view.gen.asset_prompts : {};
         bag.mode = view.mode;
         view.gen.asset_prompts = bag;
+        /* 販売ページは AI の文章で組むので、区画の見せ方を使わない。
+           そのまま組み直しても見た目が変わらず「反映されていない」に見える
+           （2026-10-05 指摘）。変えた結果がその場で見えるよう、
+           区画そのままへ切り替える */
+        if (previewKind() === 'sales') { view.preview = 'canvas'; }
         build(false);
         paint();
         /* 保存は待たない。見た目はもう変わっているし、失敗しても選び直せる */
@@ -330,12 +354,14 @@
            区画ごとに「絵」「文字」「絵＋文字」を選べる。同じ区画の絵版と文字版は
            生成のときに両方できているので、ここでは選んで並べるだけ */
         if (view.gen.feature_key === 'lp_brief') {
-          var madeMap = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
           var parts = (view.gen.sections || []).map(function (sec) {
-            var url = madeMap[String(sec.index) + '-1'];
+            /* 動く絵があれば、その区画の絵はそちら。
+               止まった絵と2つ並べると同じ場面が続いてくどい
+               （2026-10-05 要望: 絵とGIFだけを並べたい） */
+            var url = visualOf(sec);
             var mode = modeOf(sec, url);
             var cap = sec.body ? '<p class="cap">' + escapeHtml(String(sec.body)) + '</p>' : '';
-            var img = url ? '<img src="' + escapeHtml(url) + '" alt="" loading="lazy">' : '';
+            var img = url ? mediaTag(url) : '';
             var txt = sec.text ? textBlock(sec) : '';
             /* 選んだとおりに出す。
                「絵」を選んだのに本文（cap）を足していたので、絵だけにしたはずの
@@ -688,7 +714,6 @@
            （2026-10-05 指摘「消えたけど復活させて」） */
         var sections = view.gen.sections || [];
         if (!sections.length) { return; }
-        var madeMap = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
         /* 区画が30本あると、この一覧だけで画面が埋まる。折りたたむ。
            開いたかどうかは覚えておく（層を切り替えるたびに閉じると面倒）
            （2026-10-04 要望） */
@@ -714,7 +739,7 @@
 
         var list = el('div', 'lpr-modes__list');
         sections.forEach(function (sec) {
-          var url = madeMap[String(sec.index) + '-1'];
+          var url = visualOf(sec);
           var row = el('div', 'lpr-modes__row');
           add(row, el('span', 'lpr-modes__no', String(sec.index)));
           add(row, el('span', 'lpr-modes__name', String(sec.title || t('lpr.mode'))));
