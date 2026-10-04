@@ -1544,7 +1544,10 @@
         add(box2, sum);
         add(box2, el('p', 'field__hint', t('lp.pubInfoHint')));
         var ins = {};
-        [['shipping', 'lp.pubShipping', 'lp.pubShippingPh', ''],
+        /* 上の2つは LINE登録の塊の2行目・3行目になる。事実なので AI には書かせない */
+        [['sale_start', 'lp.pubStart', 'lp.pubStartPh', 'lp.pubStartHint'],
+          ['discount', 'lp.pubOff', 'lp.pubOffPh', 'lp.pubOffHint'],
+          ['shipping', 'lp.pubShipping', 'lp.pubShippingPh', ''],
           ['delivery', 'lp.pubDelivery', 'lp.pubDeliveryPh', ''],
           ['warranty', 'lp.pubWarranty', 'lp.pubWarrantyPh', ''],
           ['returns', 'lp.pubReturns', 'lp.pubReturnsPh', ''],
