@@ -4293,6 +4293,8 @@ input[type='radio'] {
 }
 .lpr-shelf__title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: 700; }
 .lpr-pick { margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--c-line); }
+/* いまの下見が使っていない区画。選んでも見た目が変わらないので薄くする */
+.lpr-pick--off { opacity: .6; }
 .lpr-pick__head { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
 .lpr-pick__no {
   flex: 0 0 auto; min-width: 22px; padding: 1px 5px;

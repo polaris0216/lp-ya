@@ -64,6 +64,9 @@
       '{n} sections have more than one photo. Pick one and the page updates right away.',
       '사진이 여러 장인 구획은 {n}건입니다.'],
     'lpr.shelfNone': ['作り直した写真がまだありません。', 'No regenerated photos yet.', '아직 다시 만든 사진이 없습니다.'],
+    'lpr.pickUnused': ['この区画は販売ページでは使っていません（区画そのままには出ます）',
+      'Not used by the sales page (shown in the plain lineup)',
+      '판매 페이지에서는 사용하지 않습니다'],
     'lpr.shelfOne': ['残り {n} 区画は写真が1枚なので、そのまま使います。',
       'The other {n} sections have a single photo and use it automatically.',
       '나머지 {n} 구획은 사진이 1장이라 그대로 사용합니다.'],
@@ -922,6 +925,11 @@
           else if (shots.length === 1) { one += 1; }
         });
         if (!many.length && !one) { return; }
+        /* いまの下見がどの区画の絵を使っているか。
+           販売ページは AI が選んだ区画だけを使う（30本あっても8本など）。
+           使っていない区画の写真を選んでも見た目が変わらず、
+           「選んでも反映されない」に見える（実測 2026-10-05） */
+        var used = usedSlots();
         add(shelf, el('h3', 'lpr-shelf__title', t('lpr.shelf')));
         add(shelf, el('p', 't-note', many.length
           ? t('lpr.shelfHint', { n: many.length })
@@ -934,6 +942,10 @@
           add(head, el('span', 'lpr-pick__no', String(pair.sec.index)));
           add(head, el('span', 'lpr-pick__name', String(pair.sec.title || '')));
           add(g, head);
+          if (used && !used[String(pair.sec.index) + '-1']) {
+            g.className = 'lpr-pick lpr-pick--off';
+            add(g, el('p', 't-note', t('lpr.pickUnused')));
+          }
           var band = el('div', 'lpr-pick__band');
           pair.shots.forEach(function (shot, i) {
             var on = shot.url === now[String(pair.sec.index) + '-1'];
@@ -952,6 +964,19 @@
           add(g, band);
           add(shelf, g);
         });
+      }
+
+      /* いまの下見が実際に出している区画。
+         区画そのままは全部出すので null（＝ぜんぶ使う）を返す */
+      function usedSlots() {
+        if (previewKind() !== 'sales') { return null; }
+        var sales = (view.gen.content && view.gen.content.sales) || null;
+        if (!sales) { return null; }
+        var out = {};
+        [(sales.hero && sales.hero.slot)]
+          .concat((sales.blocks || []).map(function (b) { return b && b.slot; }))
+          .forEach(function (slot) { if (slot) { out[String(slot)] = 1; } });
+        return out;
       }
 
       /* いま各区画で使っている写真（動く絵が優先） */
