@@ -40,6 +40,7 @@
     'lpr.modeImage': ['絵', 'Visual', '이미지'],
     'lpr.modeText': ['文字', 'Text', '텍스트'],
     'lpr.modeBoth': ['絵＋文字', 'Visual + text', '이미지＋텍스트'],
+    'lpr.modeCount': ['{n}区画', '{n} sections', '{n}개 구획'],
     'lpr.modeAll': ['すべての区画を', 'All sections', '모든 구획을'],
     'lpr.modeNoText': ['文字版なし', 'No text version', '텍스트 버전 없음'],
     'lpr.modeNoImage': ['絵は未生成', 'Visual not generated', '이미지 미생성'],
@@ -121,7 +122,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [] };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -360,16 +361,42 @@
           eq: { projects_id: projectId, feature_key: view.gen.feature_key },
           select: LIGHT_COLS, order: 'created_at.desc', limit: 40
         }).then(function (rows) {
+          var all = Array.isArray(rows) ? rows : [];
           var mine = batchOf(view.gen);
-          view.siblings = (Array.isArray(rows) ? rows : []).filter(function (g) {
-            return mine ? batchOf(g) === mine : true;
-          }).sort(function (a, b) {
+          var same = mine ? all.filter(function (g) { return batchOf(g) === mine; }) : [];
+          /* 同じ回で揃わないことがある（古い回には content.batch が無い、
+             層を1つだけ作り直した、など）。そのときは種類ごとに
+             いちばん新しいものを層ごとに拾う。耳が消えるより出すほうがよい
+             （実測 2026-10-04: 耳が1つも出ないと言われた） */
+          var use = same.length >= 2 ? same : newestPerLabel(all);
+          view.siblings = use.sort(function (a, b) {
             return String(a.variant_label || '').localeCompare(String(b.variant_label || ''));
           });
           paint();
         }).catch(function (err) {
           console.error('[screens-lp-result] 他の層を読めませんでした:', err);
+          view.siblings = [];
+          paint();
         });
+      }
+
+      /* 層ごとに、いちばん新しいものを1つずつ。
+         並びは created_at の新しい順で来るので、先に出たほうを残す */
+      function newestPerLabel(rows) {
+        var seen = {};
+        var out = [];
+        rows.forEach(function (g) {
+          var L = String(g.variant_label || '-');
+          if (seen[L]) { return; }
+          seen[L] = 1;
+          out.push(g);
+        });
+        /* いま見ているものが入っていなければ足す（自分の耳が消えない） */
+        if (!out.some(function (g) { return g.id === view.gen.id; })) {
+          out.push({ id: view.gen.id, variant_label: view.gen.variant_label,
+            title: view.gen.title, published_at: view.gen.published_at });
+        }
+        return out;
       }
 
       /* 層を切り替える。中身（HTMLと区画）はそのときに取りに行く */
@@ -515,7 +542,20 @@
         var sections = view.gen.sections || [];
         if (!sections.length) { return; }
         var madeMap = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
-        add(modes, el('h3', 'lpr-modes__title', t('lpr.mode')));
+        /* 区画が30本あると、この一覧だけで画面が埋まる。折りたたむ。
+           開いたかどうかは覚えておく（層を切り替えるたびに閉じると面倒）
+           （2026-10-04 要望） */
+        var open = el('details', 'lpr-modes__box');
+        if (view.modesOpen) { open.open = true; }
+        open.addEventListener('toggle', function () { view.modesOpen = open.open; });
+        var head = el('summary', 'lpr-modes__sum');
+        add(head, el('span', 'lpr-modes__title', t('lpr.mode')));
+        add(head, el('span', 't-note', t('lpr.modeCount', { n: sections.length })));
+        add(open, head);
+        add(modes, open);
+        /* 以下は開いた中に積む */
+        var modes0 = modes;
+        modes = open;
         add(modes, el('p', 't-note', t('lpr.modeHint')));
 
         var all = el('div', 'lpr-modes__all');
@@ -548,6 +588,7 @@
           add(list, row);
         });
         add(modes, list);
+        modes = modes0;   /* 入れ物を元に戻す（次に描くときに迷わない） */
       }
 
       function measure() {

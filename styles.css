@@ -4537,3 +4537,14 @@ input[type='radio'] {
 .lp-pub__lead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
 .lp-pub__leadmail { flex: 1 1 200px; word-break: break-all; }
 .lp-pub__leadmeta { flex: 0 0 auto; opacity: .7; }
+
+/* 区画の見せ方は折りたたむ。30区画あると、ここだけで画面が埋まる */
+.lpr-modes__box { border: 1px solid var(--c-line, #e4dfea); border-radius: 12px; padding: 10px 14px; }
+.lpr-modes__sum {
+  cursor: pointer; display: flex; align-items: baseline; gap: 10px;
+  list-style: none;
+}
+.lpr-modes__sum::-webkit-details-marker { display: none; }
+.lpr-modes__sum::before { content: '▸'; display: inline-block; transition: transform .15s; }
+.lpr-modes__box[open] .lpr-modes__sum::before { transform: rotate(90deg); }
+.lpr-modes__box .lpr-modes__title { margin: 0; font-size: 15px; font-weight: 700; }
