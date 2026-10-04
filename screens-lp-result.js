@@ -307,7 +307,7 @@
           var weak = accent + '33';
           view.html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             + '<title>' + escapeHtml(view.project.product_name || view.project.name || '') + '</title>'
-            + /* スマホでは画面いっぱい。広い画面でだけ、読みやすい幅に収める
+            /* スマホでは画面いっぱい。広い画面でだけ、読みやすい幅に収める
                （2026-10-04 要望: 画面に満ちるように） */
             + '<style>*{box-sizing:border-box}html,body{width:100%;overflow-x:hidden}'
             + 'body{margin:0;background:#fff}main{max-width:100%;margin:0 auto}'
