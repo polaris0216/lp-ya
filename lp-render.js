@@ -726,10 +726,21 @@
       'function size(){send({kind:"size",height:document.documentElement.scrollHeight,',
       'sections:document.querySelectorAll("section").length,',
       'images:document.querySelectorAll("img,video").length});}',
-      'window.addEventListener("load",size);',
-      'window.addEventListener("resize",size);',
+      /* どの区画の絵が、枠のどこにあるか。
+         枠は中身の高さぶん伸ばしてあって自分ではスクロールしないので、
+         位置だけ渡せば、外のページのスクロールから
+         「いま見ている区画」を外側で決められる（2026-10-05 要望） */
+      'function spots(){var out=[];',
+      'var all=document.querySelectorAll("[data-slot]");',
+      'for(var i=0;i<all.length;i++){var n=all[i];var r=n.getBoundingClientRect();',
+      'out.push({slot:n.getAttribute("data-slot"),',
+      'top:Math.round(r.top+window.scrollY),h:Math.round(r.height)});}',
+      'send({kind:"spots",spots:out});}',
+      'function tell(){size();spots();}',
+      'window.addEventListener("load",tell);',
+      'window.addEventListener("resize",tell);',
       /* 絵が後から入ると高さが変わる。少し置いてもう一度測る */
-      'setTimeout(size,400);setTimeout(size,1500);setTimeout(size,4000);',
+      'setTimeout(tell,400);setTimeout(tell,1500);setTimeout(tell,4000);',
       /* クリックの種類だけを知らせる。中身は送らない */
       'document.addEventListener("click",function(e){',
       'var n=e.target;while(n&&n!==document.body){',
@@ -972,6 +983,9 @@
     var href = lineHref(o.lineUrl);
     var style = o.lineStyle || { variant: 'green', label: t('gen.lineButtonLabel'), height: 48, radius: 12 };
     var pic = function (slot) { return slot && assets[slot] ? String(assets[slot]) : ''; };
+    /* どの区画の絵かを札に残す。枠の外（生成結果の棚）が
+       「いまどの区画を見ているか」を知るのに使う（2026-10-05 要望） */
+    var slotAttr = function (slot) { return slot ? ' data-slot="' + escapeHtml(String(slot)) + '"' : ''; };
     var out = [];
 
     out.push('<!DOCTYPE html><html lang="' + langCode(o) + '"><head><meta charset="UTF-8">');
@@ -992,7 +1006,8 @@
     out.push('<div class="hero">');
     /* KVを出したなら、冒頭の1枚は重ねない（同じ絵が続く） */
     if (!(o.kv && o.kv.length) && pic(sales.hero.slot)) {
-      out.push('<img src="' + escapeHtml(pic(sales.hero.slot)) + '" alt="' + escapeHtml(o.title || '') + '">');
+      out.push('<img src="' + escapeHtml(pic(sales.hero.slot)) + '" alt="' + escapeHtml(o.title || '')
+        + '"' + slotAttr(sales.hero.slot) + '>');
     }
     out.push('<div class="wrap hero__copy">');
     out.push('<h1>' + escapeHtml(sales.hero.catch || o.title || '') + '</h1>');
@@ -1034,7 +1049,8 @@
     sales.blocks.forEach(function (b, i) {
       out.push('<section class="block">');
       if (pic(b.slot)) {
-        out.push('<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '') + '" loading="lazy">');
+        out.push('<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '')
+          + '" loading="lazy"' + slotAttr(b.slot) + '>');
       }
       if (b.title) { out.push('<h2>' + salesInline(b.title) + '</h2>'); }
       if (b.body) { out.push('<p>' + salesInline(b.body) + '</p>'); }

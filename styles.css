@@ -4295,6 +4295,15 @@ input[type='radio'] {
 .lpr-pick { margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--c-line); }
 /* いまの下見が使っていない区画。選んでも見た目が変わらないので薄くする */
 .lpr-pick--off { opacity: .6; }
+/* いま見ている区画。スクロールに合わせて移る（2026-10-05 要望） */
+.lpr-pick--here {
+  margin-inline: -8px; padding-inline: 8px;
+  border-radius: var(--r-control);
+  background: var(--c-brand-soft, #F3EBFA);
+  opacity: 1;
+}
+.lpr-pick--here .lpr-pick__no { background: var(--c-brand, #7A3FA6); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .lpr-shelf { scroll-behavior: auto; } }
 .lpr-pick__head { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
 .lpr-pick__no {
   flex: 0 0 auto; min-width: 22px; padding: 1px 5px;

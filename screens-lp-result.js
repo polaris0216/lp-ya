@@ -152,7 +152,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {} };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '' };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -190,6 +190,11 @@
       add(root, screen);
 
       /* 指定が無ければ、生成プロンプト（lp_brief）の最新を出す。無ければ従来の LP案 */
+      /* スクロールを見張る。描き直しのたびに付け外しすると漏れるので、
+         画面を作るときに1回だけ繋ぐ */
+      window.addEventListener('scroll', followScroll, { passive: true });
+      window.addEventListener('resize', followScroll, { passive: true });
+
       var genQuery = params.gen
         ? Api.generations.get(params.gen)
         : Api.generations.first({ eq: { projects_id: projectId, feature_key: 'lp_brief' }, order: 'created_at.desc' })
@@ -290,12 +295,14 @@
       }
 
       /* 動画は <video>、それ以外は <img>。S12 の見せ方に合わせる */
-      function mediaTag(url) {
+      function mediaTag(url, slot) {
         var u = String(url);
+        var tag = slot ? ' data-slot="' + escapeHtml(String(slot)) + '"' : '';
         if (/\.(mp4|webm|mov)(\?|$)/i.test(u)) {
-          return '<video src="' + escapeHtml(u) + '" autoplay loop muted playsinline preload="metadata"></video>';
+          return '<video src="' + escapeHtml(u) + '" autoplay loop muted playsinline preload="metadata"'
+            + tag + '></video>';
         }
-        return '<img src="' + escapeHtml(u) + '" alt="" loading="lazy">';
+        return '<img src="' + escapeHtml(u) + '" alt="" loading="lazy"' + tag + '>';
       }
 
       function modeOf(sec, url) {
@@ -446,7 +453,7 @@
             var url = visualOf(sec);
             var mode = modeOf(sec, url);
             var cap = sec.body ? '<p class="cap">' + escapeHtml(String(sec.body)) + '</p>' : '';
-            var img = url ? mediaTag(url) : '';
+            var img = url ? mediaTag(url, String(sec.index) + '-1') : '';
             var txt = sec.text ? textBlock(sec) : '';
             /* 選んだとおりに出す。
                「絵」を選んだのに本文（cap）を足していたので、絵だけにしたはずの
@@ -846,6 +853,7 @@
 
         paintModes();
         paintShelf();
+        markShelf();
         frame.srcdoc = view.html;
         frame.addEventListener('load', measure, { once: true });
       }
@@ -938,6 +946,7 @@
         var now = currentShots();
         many.forEach(function (pair) {
           var g = el('div', 'lpr-pick');
+          g.setAttribute('data-slot', String(pair.sec.index) + '-1');
           var head = el('p', 'lpr-pick__head');
           add(head, el('span', 'lpr-pick__no', String(pair.sec.index)));
           add(head, el('span', 'lpr-pick__name', String(pair.sec.title || '')));
@@ -1001,6 +1010,11 @@
         if (!m || m.lpya !== 1 || !frame) { return; }
         /* 自分の枠からのものだけ受ける */
         if (e.source !== frame.contentWindow) { return; }
+        if (m.kind === 'spots') {
+          view.spots = Array.isArray(m.spots) ? m.spots : [];
+          followScroll();
+          return;
+        }
         if (m.kind === 'size') {
           frame.style.height = Math.min(Number(m.height) || 0, 12000) + 'px';
           stats.textContent = t('lpr.stats', {
@@ -1009,6 +1023,44 @@
           });
         }
       });
+
+      /* 下見をスクロールすると、棚もいま見ている区画に合わせる
+         （2026-10-05 要望）。枠は中身の高さぶん伸ばしてあって自分では
+         スクロールしないので、外のページのスクロール位置から決める。
+         目で追っているのは画面の真ん中あたりなので、そこに来た区画を選ぶ */
+      function followScroll() {
+        var spots = view.spots || [];
+        if (!spots.length) { return; }
+        var base = frame.getBoundingClientRect().top + window.scrollY;
+        var eye = window.scrollY + window.innerHeight * 0.4;
+        var best = null;
+        var bestGap = Infinity;
+        spots.forEach(function (one) {
+          var top = base + Number(one.top || 0);
+          var bottom = top + Number(one.h || 0);
+          /* 画面の目の高さがその絵の中にあれば、それ。無ければいちばん近いもの */
+          var gap = (eye >= top && eye <= bottom) ? 0 : Math.min(Math.abs(eye - top), Math.abs(eye - bottom));
+          if (gap < bestGap) { bestGap = gap; best = String(one.slot || ''); }
+        });
+        if (!best || best === view.atSlot) { return; }
+        view.atSlot = best;
+        markShelf();
+      }
+
+      /* 棚のうち、いま見ている区画を目立たせて、見える所まで寄せる */
+      function markShelf() {
+        var groups = shelf.querySelectorAll('.lpr-pick');
+        var hit = null;
+        for (var i = 0; i < groups.length; i++) {
+          var on = groups[i].getAttribute('data-slot') === view.atSlot;
+          groups[i].classList.toggle('lpr-pick--here', on);
+          if (on) { hit = groups[i]; }
+        }
+        if (!hit) { return; }
+        /* 棚の中だけを動かす。ページ全体が飛ぶと、読んでいる所を見失う */
+        var top = hit.offsetTop - shelf.clientHeight / 2 + hit.clientHeight / 2;
+        shelf.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }
 
       function download() {
         var blob = new Blob([view.html], { type: 'text/html' });
