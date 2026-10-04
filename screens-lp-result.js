@@ -1052,7 +1052,14 @@
           return;
         }
         if (m.kind === 'size') {
-          frame.style.height = Math.min(Number(m.height) || 0, 12000) + 'px';
+          /* 枠は中身の高さぶん伸ばす。足りないと枠の中にスクロールが出て、
+             外のページと二重にスクロールすることになる
+             （実測 2026-10-05: 区画をぜんぶ出して中身が12475pxになり、
+             上限12000pxを超えて枠の中がスクロールしていた）。
+             上限はおかしな値が来たときの歯止めとしてだけ残す */
+          var tall = Number(m.height);
+          if (!isFinite(tall) || tall < 0) { tall = 0; }
+          frame.style.height = Math.min(tall, 200000) + 'px';
           stats.textContent = t('lpr.stats', {
             sections: Number(m.sections) || 0, images: Number(m.images) || 0,
             height: Number(m.height) || 0
