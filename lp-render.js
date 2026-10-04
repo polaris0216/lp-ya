@@ -737,6 +737,14 @@
       'top:Math.round(r.top+window.scrollY),h:Math.round(r.height)});}',
       'send({kind:"spots",spots:out});}',
       'function tell(){size();spots();}',
+      /* 絵は読み込むまで高さが0で、全部が同じ位置に重なって測れない。
+         1枚読めるたびに測り直す（まとめて少し待ってから1回）。
+         実測 2026-10-05: 決まった秒数だけで測っていたら、
+         30枚ぜんぶ top が同じ値になり、棚が動かなかった */
+      'var wait=null;function soon(){clearTimeout(wait);wait=setTimeout(tell,150);}',
+      'var marks=document.querySelectorAll("[data-slot]");',
+      'for(var k=0;k<marks.length;k++){marks[k].addEventListener("load",soon);',
+      'marks[k].addEventListener("loadeddata",soon);}',
       'window.addEventListener("load",tell);',
       'window.addEventListener("resize",tell);',
       /* 絵が後から入ると高さが変わる。少し置いてもう一度測る */
