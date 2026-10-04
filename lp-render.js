@@ -213,7 +213,16 @@
       /* スマホでは幅いっぱい。押し外しを減らす */
       '@media (max-width:480px){.line-cta__a{display:flex;width:100%;padding:0 18px}}',
       /* 動きを嫌う設定の人には動かさない */
-      '@media (prefers-reduced-motion:reduce){.line-cta__a{animation:none}}'
+      '@media (prefers-reduced-motion:reduce){.line-cta__a{animation:none}}',
+      /* 画面が広いときは、誘いの塊の中のボタンだけ大きくする。
+         見本（幅1080px）はボタンの字が40px・高さ130pxだった。
+         !important なのは、ボタンの大きさが style 属性に直接書いてあるため
+         （CF版のLPは lineButtonCss を読まないので、そちらを壊さないよう
+         インラインのまま残してある）。画面下の固定バーは今の大きさのまま */
+      '@media (min-width:768px){.cta-block .line-cta__a{'
+        + 'font-size:26px!important;min-height:76px!important;'
+        + 'padding:0 56px!important;border-radius:12px!important;'
+        + 'box-shadow:0 5px 0 rgba(0,0,0,.18)!important}}'
     ].join('');
   }
 
@@ -567,16 +576,18 @@
       '.hero{padding:0 0 8px}',
       '.hero img{display:block;width:100%;height:auto}',
       'html,body{width:100%;overflow-x:hidden}',
-      '.hero__copy{padding:28px 0 8px}',
+      /* 上下だけ足す。padding をまとめて書くと .wrap の横余白が消えて、
+         見出しが画面の端にくっつく（2026-10-05 指摘「左によったり」） */
+      '.hero__copy{padding-top:28px;padding-bottom:8px}',
       'h1{margin:0 0 10px;font-family:' + fontStack(d.titleFont) + ';font-size:' + Math.round(d.titleSize * 1.1)
         + 'px;line-height:1.35;color:' + d.titleColor + '}',
       '.hero__sub{margin:0;color:' + d.bodyColor + ';opacity:.85}',
       '.block{padding:36px 0;border-top:1px solid rgba(0,0,0,.08)}',
       '.block:first-of-type{border-top:0}',
       '.block img{display:block;width:100%;height:auto;border-radius:12px;margin:0 0 16px}',
-      '.block h2{margin:0 0 8px;font-family:' + fontStack(d.titleFont) + ';font-size:'
-        + Math.round(d.titleSize * 0.7) + 'px;line-height:1.4;color:' + d.titleColor + '}',
-      '.block p{margin:0 0 10px;font-size:' + d.bodySize + 'px}',
+      '.block h2{margin:0 0 10px;font-family:' + fontStack(d.titleFont) + ';font-size:'
+        + Math.round(d.titleSize * 0.78) + 'px;line-height:1.45;font-weight:700;color:' + d.titleColor + '}',
+      '.block p{margin:0 0 12px;font-size:' + d.bodySize + 'px}',
       '.block h3{margin:18px 0 6px;font:700 ' + Math.round(d.titleSize * 0.58) + 'px/1.6 ' + fontStack(d.titleFont)
         + ';color:' + d.titleColor + ';padding-left:10px;border-left:4px solid ' + d.accentColor + '}',
       'strong{font-weight:700;color:' + d.titleColor + '}',
@@ -588,10 +599,6 @@
       'table.spec th{width:38%;font-weight:600;color:' + d.titleColor + ';background:rgba(0,0,0,.02)}',
       '.faq dt{margin:16px 0 4px;font-weight:600;color:' + d.titleColor + '}',
       '.faq dd{margin:0;font-size:' + d.bodySize + 'px}',
-      '.cta{margin:8px 0 0;padding:28px 20px;border-radius:16px;background:rgba(0,0,0,.04);text-align:center}',
-      '.cta h2{margin:0 0 8px;font-family:' + fontStack(d.titleFont) + ';font-size:'
-        + Math.round(d.titleSize * 0.75) + 'px;color:' + d.titleColor + '}',
-      '.cta p{margin:0 0 16px}',
       '.notes{margin:28px 0 0;padding:0 0 96px;font-size:13px;opacity:.75}',
       '.notes li{margin:4px 0}',
       /* 画面下の固定バー。実物も同じで、スクロールのどこからでも1タップで届く */
@@ -612,10 +619,29 @@
          こちらが作る絵も1024幅なので、等倍で出せてぼやけない */
       '.wrap{max-width:1000px;padding:0 28px}',
       '.kv__cell img,.hero img{max-height:78vh;object-fit:cover}',
-      'h1{font-size:' + Math.round(d.titleSize * 1.35) + 'px}',
-      '.block{padding:48px 0}',
-      '.block h2{font-size:' + Math.round(d.titleSize * 0.85) + 'px}',
-      '.cta{padding:40px 32px}',
+      /* 画面が広いぶん、文字も一段上げる。スマホの大きさのままPCで見ると
+         1000pxの列に16pxの字が流れて、小さく頼りなく見える（2026-10-05 指摘） */
+      'body{font-size:' + (d.bodySize + 2) + 'px;line-height:1.9}',
+      'h1{font-size:' + Math.round(d.titleSize * 1.6) + 'px;margin-bottom:14px}',
+      '.hero__copy{padding-top:44px;padding-bottom:12px}',
+      '.hero__sub{font-size:' + (d.bodySize + 3) + 'px}',
+      '.block{padding:60px 0}',
+      '.block h2{font-size:' + Math.round(d.titleSize * 1.05) + 'px;margin-bottom:14px}',
+      '.block h3{font-size:' + Math.round(d.titleSize * 0.72) + 'px}',
+      '.block p{font-size:' + (d.bodySize + 2) + 'px;margin-bottom:14px}',
+      '.faq dd,table.spec{font-size:' + (d.bodySize + 1) + 'px}',
+      '.notes{font-size:14px}',
+      /* 読む所は1行を詰める。1000pxのまま文章を流すと目が行を追えない。
+         絵だけは1000pxいっぱいに出す（実物の販売ページもそうだった）。
+         文字は左ぞろえのまま、塊ごと真ん中に寄せる。
+         左ぞろえと中央ぞろえが混ざると、ちぐはぐに見える
+         （2026-10-05 指摘「左によったり中央揃いだったり」）。
+         真ん中にそろえるのは、誘いの塊（.cta-block）だけにする。
+         塊ごと真ん中に寄せると、文字の左端が絵の左端とずれて、
+         1枚の中に左端が2つできる。だから幅を詰めるだけにして、
+         左端は絵とそろえる */
+      '.hero__copy>*,.block>h2,.block>h3,.block>p,.block>ul,.block>ol,'
+        + '.faq,table.spec,.notes{max-width:760px}',
       '}'
     ].join('');
   }
@@ -782,32 +808,39 @@
     var ink = d.titleColor;
     var hot = d.accentColor;
     return [
-      '.cta-block{margin:40px 0;padding:8px 0;text-align:center}',
+      '.cta-block{margin:48px 0;padding:8px 0;text-align:center}',
       /* 1行目。見本ではロゴが本文の幅の半分ほどを占めている。
          幅で決めるのは、掲載先ごとに縦横比が違うため（高さで止めると
          横長のロゴが細い帯になる）。高さは自分からついてくる */
-      '.cta-block__brand{margin:0 0 14px;line-height:1}',
-      '.cta-block__logo{display:block;width:58%;max-width:460px;height:auto;margin:0 auto}',
+      /* 見本（2026-10-05 支給・幅1080px）を測った比率:
+           ロゴ 545/1080 = 50%、2行目 36px、3行目 48px（数字だけ72px＝1.5倍）、
+           4行目 32px、ボタンの字 40px。
+         PC（列1000px）はこの比率をそのまま使う。
+         スマホは画面が狭いぶん、同じ比率だと字が小さくなりすぎるので、
+         ロゴだけ少し広げて、字はスマホで読める下限に合わせる */
+      '.cta-block__brand{margin:0 0 16px;line-height:1}',
+      '.cta-block__logo{display:block;width:60%;max-width:520px;height:auto;margin:0 auto}',
       /* ロゴを持っていない掲載先のための文字組み。大きさはロゴに合わせる */
       '.cta-block__name{display:block;font-size:40px;font-weight:800;letter-spacing:.04em;color:' + ink + '}',
       '.cta-block__sub{display:block;margin-top:4px;font-size:12px;letter-spacing:.18em;color:' + ink + '99}',
       /* 2行目 */
-      '.cta-block__t{margin:0 0 6px;font-weight:800;font-size:20px;line-height:1.4;color:' + ink + '}',
+      '.cta-block__t{margin:0 0 8px;font-weight:800;font-size:22px;line-height:1.4;color:' + ink + '}',
       /* 3行目。数字だけさらに大きく。見本は「最大」「OFF」より「30%」が一回り大きい */
-      '.cta-block__l{margin:0 0 10px;font-weight:800;font-size:30px;line-height:1.25;color:' + ink + '}',
-      '.cta-block__l .accent{font-size:1.45em;font-style:normal;letter-spacing:-.01em}',
+      '.cta-block__l{margin:0 0 12px;font-weight:800;font-size:32px;line-height:1.25;color:' + ink + '}',
+      '.cta-block__l .accent{font-size:1.5em;font-style:normal;letter-spacing:-.01em}',
       '.cta-block__t .accent,.cta-block__l .accent,.cta-block__n .accent{color:' + hot + ';font-style:normal}',
       /* 4行目 */
-      '.cta-block__n{margin:0 0 18px;font-weight:700;font-size:15px;line-height:1.5;color:' + ink + '}',
+      '.cta-block__n{margin:0 0 20px;font-weight:700;font-size:17px;line-height:1.5;color:' + ink + '}',
       /* 5行目 */
       '.cta-block__b{margin:0}',
       '@media (min-width:768px){',
-      '.cta-block{margin:56px 0;padding:12px 0}',
-      '.cta-block__brand{margin-bottom:18px}',
-      '.cta-block__name{font-size:52px}',
-      '.cta-block__t{font-size:28px;margin-bottom:8px}',
-      '.cta-block__l{font-size:42px;margin-bottom:14px}',
-      '.cta-block__n{font-size:19px;margin-bottom:24px}',
+      '.cta-block{margin:72px 0;padding:12px 0}',
+      '.cta-block__brand{margin-bottom:22px}',
+      '.cta-block__logo{width:50%}',
+      '.cta-block__name{font-size:56px}',
+      '.cta-block__t{font-size:34px;margin-bottom:10px}',
+      '.cta-block__l{font-size:46px;margin-bottom:16px}',
+      '.cta-block__n{font-size:30px;margin-bottom:26px}',
       '}'
     ].join('');
   }
@@ -985,19 +1018,11 @@
       out.push('</dl></section>');
     }
 
-    /* 最後の一押し */
-    if (sales.cta || href) {
-      var cta = sales.cta || {};
-      out.push('<section class="cta">');
-      if (cta.title) { out.push('<h2>' + escapeHtml(cta.title) + '</h2>'); }
-      if (cta.body) { out.push('<p>' + escapeHtml(cta.body) + '</p>'); }
-      if (href) {
-        out.push(lineButtonMarkup(
-          { variant: style.variant, label: cta.button || style.label, height: 52, radius: style.radius }, href));
-      }
-      if (wantMail) { out.push(mailFormMarkup(o.mail.label, o.mail.note)); }
-      out.push('</section>');
-    }
+    /* 最後の一押し。くり返し出てくるのと同じ塊にする。
+       ここだけ別の形にすると、1枚のページに誘いが2種類あることになって
+       ちぐはぐに見える（2026-10-05 指摘）。
+       以前はここで escapeHtml を使っていたので [[…]] が生のまま出ていた */
+    if (href || wantMail) { out.push(callOut()); }
 
     /* 条件の但し書き */
     if (Array.isArray(sales.notes) && sales.notes.length) {
