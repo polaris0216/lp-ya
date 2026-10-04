@@ -59,6 +59,14 @@
       'This audience has {n} takes. Picking one rebuilds the page from that take.',
       '이 층은 {n}회 생성했습니다.'],
     'lpr.shots': ['この区画の絵', 'Visuals for this section', '이 구획의 이미지'],
+    'lpr.shelf': ['区画ごとの写真', 'Photos by section', '구획별 사진'],
+    'lpr.shelfHint': ['写真が複数ある区画は {n} 件です。選ぶと、その場でページに入れ替わります。',
+      '{n} sections have more than one photo. Pick one and the page updates right away.',
+      '사진이 여러 장인 구획은 {n}건입니다.'],
+    'lpr.shelfNone': ['作り直した写真がまだありません。', 'No regenerated photos yet.', '아직 다시 만든 사진이 없습니다.'],
+    'lpr.shelfOne': ['残り {n} 区画は写真が1枚なので、そのまま使います。',
+      'The other {n} sections have a single photo and use it automatically.',
+      '나머지 {n} 구획은 사진이 1장이라 그대로 사용합니다.'],
     'lpr.shotNow': ['いま使っている絵', 'In use', '사용 중'],
     'lpr.shotUse': ['これを使う', 'Use this', '이것을 사용'],
     'lpr.shotOne': ['作り直していないので、選べる絵は1枚だけです',
@@ -141,7 +149,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '' };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {} };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -156,6 +164,12 @@
       add(screen, stats);
       var modes = el('div', 'lpr-modes');
       add(screen, modes);
+      /* LPの下見と、その右の棚を横に並べる。
+         棚には区画ごとの過去の写真を出し、押すとその場で入れ替わる
+         （2026-10-05 要望: 右にサイドメニューとして出す）。
+         狭い画面では棚が下に回る */
+      var stage = el('div', 'lpr-stage');
+      var shelf = el('aside', 'lpr-shelf');
       var frameWrap = el('div', 'lpr-frame');
       var frame = el('iframe', 'lpr-frame__iframe');
       frame.setAttribute('title', t('lpr.title'));
@@ -167,7 +181,9 @@
          高さの測りは、読み込み後に中から教えてもらう（下の measure）*/
       frame.setAttribute('sandbox', 'allow-scripts');
       add(frameWrap, frame);
-      add(screen, frameWrap);
+      add(stage, frameWrap);
+      add(stage, shelf);
+      add(screen, stage);
       add(root, screen);
 
       /* 指定が無ければ、生成プロンプト（lp_brief）の最新を出す。無ければ従来の LP案 */
@@ -659,7 +675,8 @@
           /* 印は層で合わせる。古い案に切り替えると id が耳と変わるので、
              id で見ていると耳の印が消える（2026-10-05） */
           var on = String(g.variant_label || '-') === String(view.gen.variant_label || '-');
-          var b = button('lp-deliv' + (on ? ' lp-deliv--on' : ''), '', function () { switchVariant(g.id); });
+          var b = button('lp-deliv' + (on ? ' lp-deliv--on' : ''), '',
+            function () { switchVariant(takeFor(g)); });
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           add(b, el('span', 'lp-variant__label', String(g.variant_label || '-')));
           add(b, el('span', 'lp-variant__name', String(g.title || '').slice(0, 24)));
@@ -668,6 +685,15 @@
         });
         add(tabsBar, tabs);
         paintTakes();
+      }
+
+      /* その層で開く案。既定は最新（2026-10-05 要望: 最新の案を適用）。
+         自分で古い案を選んだ層は、それを覚えておいて戻れるようにする */
+      function takeFor(g) {
+        var L = String(g.variant_label || '-');
+        if (view.takePick && view.takePick[L]) { return view.takePick[L]; }
+        var takes = (view.takes && view.takes[L]) || [];
+        return takes.length ? takes[takes.length - 1].id : g.id;
       }
 
       /* いま見ている層の「何回目の案」を選ぶ。
@@ -688,7 +714,11 @@
           add(pick, o);
         });
         pick.value = view.gen.id;
-        pick.addEventListener('change', function () { switchVariant(pick.value); });
+        pick.addEventListener('change', function () {
+          if (!view.takePick) { view.takePick = {}; }
+          view.takePick[label] = pick.value;
+          switchVariant(pick.value);
+        });
         add(row, pick);
         add(row, el('span', 't-note', t('lpr.takeHint', { n: takes.length })));
         add(tabsBar, row);
@@ -812,6 +842,7 @@
         }
 
         paintModes();
+        paintShelf();
         frame.srcdoc = view.html;
         frame.addEventListener('load', measure, { once: true });
       }
@@ -870,33 +901,69 @@
           if (!sec.text) { add(row, el('span', 't-note', t('lpr.modeNoText'))); }
           else if (!url) { add(row, el('span', 't-note', t('lpr.modeNoImage'))); }
           add(list, row);
-          /* 作り直した絵があれば、そのなかから選べるようにする */
-          var shots = shotsOf(sec);
-          if (shots.length >= 2) { add(list, shotPicker(sec, shots, url)); }
         });
         add(modes, list);
         modes = modes0;   /* 入れ物を元に戻す（次に描くときに迷わない） */
       }
 
-      /* その区画の候補を小さく並べる。押すとその絵に差し替わる */
-      function shotPicker(sec, shots, now) {
-        var band = el('div', 'lpr-shots');
-        add(band, el('span', 'lpr-shots__head', t('lpr.shots') + '（' + shots.length + '）'));
-        shots.forEach(function (one) {
-          var on = one.url === now;
-          var b = el('button', 'lpr-shot' + (on ? ' lpr-shot--on' : ''));
-          b.type = 'button';
-          b.title = on ? t('lpr.shotNow') : t('lpr.shotUse');
-          b.setAttribute('aria-pressed', on ? 'true' : 'false');
-          /* 動く絵も止めた1コマ目が出るので、<img> で足りる */
-          var im = el('img', 'lpr-shot__im');
-          im.src = one.url; im.alt = ''; im.loading = 'lazy';
-          add(b, im);
-          if (on) { add(b, el('span', 'lpr-shot__now', t('lpr.shotNow'))); }
-          if (!on) { b.addEventListener('click', function () { useShot(sec, one.url); }); }
-          add(band, b);
+      /* 下見の右に出す棚。区画ごとに、これまで作った写真を並べる。
+         写真が1枚しか無い区画は出さない（選ぶ余地がなく、ただ長くなる）。
+         押すとその場で入れ替わり、保存もする（2026-10-05 要望） */
+      function paintShelf() {
+        clear(shelf);
+        if (view.gen.feature_key !== 'lp_brief') { return; }
+        var sections = view.gen.sections || [];
+        if (!sections.length) { return; }
+        var many = [];
+        var one = 0;
+        sections.forEach(function (sec) {
+          var shots = shotsOf(sec);
+          if (shots.length >= 2) { many.push({ sec: sec, shots: shots }); }
+          else if (shots.length === 1) { one += 1; }
         });
-        return band;
+        if (!many.length && !one) { return; }
+        add(shelf, el('h3', 'lpr-shelf__title', t('lpr.shelf')));
+        add(shelf, el('p', 't-note', many.length
+          ? t('lpr.shelfHint', { n: many.length })
+          : t('lpr.shelfNone')));
+        if (one) { add(shelf, el('p', 't-note', t('lpr.shelfOne', { n: one }))); }
+        var now = currentShots();
+        many.forEach(function (pair) {
+          var g = el('div', 'lpr-pick');
+          var head = el('p', 'lpr-pick__head');
+          add(head, el('span', 'lpr-pick__no', String(pair.sec.index)));
+          add(head, el('span', 'lpr-pick__name', String(pair.sec.title || '')));
+          add(g, head);
+          var band = el('div', 'lpr-pick__band');
+          pair.shots.forEach(function (shot, i) {
+            var on = shot.url === now[String(pair.sec.index) + '-1'];
+            var b = el('button', 'lpr-shot' + (on ? ' lpr-shot--on' : ''));
+            b.type = 'button';
+            b.title = on ? t('lpr.shotNow') : t('lpr.shotUse');
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            var im = el('img', 'lpr-shot__im');
+            im.src = shot.url; im.alt = ''; im.loading = 'lazy';
+            add(b, im);
+            /* いま使っているものに印。チェックの形にして、ひと目で分かるように */
+            add(b, el('span', 'lpr-shot__tick', on ? '✓' : String(pair.shots.length - i)));
+            if (!on) { b.addEventListener('click', function () { useShot(pair.sec, shot.url); }); }
+            add(band, b);
+          });
+          add(g, band);
+          add(shelf, g);
+        });
+      }
+
+      /* いま各区画で使っている写真（動く絵が優先） */
+      function currentShots() {
+        var bag = (view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object')
+          ? view.gen.asset_prompts : {};
+        var out = {};
+        (view.gen.sections || []).forEach(function (sec) {
+          var slot = String(sec.index) + '-1';
+          out[slot] = (bag.motion && bag.motion[slot]) || (bag.made && bag.made[slot]) || '';
+        });
+        return out;
       }
 
       /* 高さと中身の数は、枠の中から知らせてもらう。
