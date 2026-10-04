@@ -717,15 +717,14 @@
      makuake と CAMPFIRE は、各社が公式に配布しているロゴ素材を同梱している
      （lp-ya/assets/platform/。出どころと各社の条件は同じ場所の README.md）。
      CAMPFIRE は規約が「クラウドファンディング公開中」のバッジ入りを使えと
-     言っているので、素のロゴではなくバッジ版を持っている。だから
-     こちらで「クラウドファンディング公開中」の行を足すと二重になる（inBadge）。
+     言っているので、素のロゴではなくバッジ版を持っている。
      GREENFUNDING と machi-ya はブランド素材の配布ページが無く、各社が自分の
      サイトで配っているロゴそのもの（2026-10-04 利用者の指示で登録）。
      どの掲載先でも、自分で素材を持っている人は URL を入れればそちらが勝つ
      （sales_info.platform_logo）。 */
   var PLATFORMS = {
     makuake: { name: 'Makuake', sub: 'クラウドファンディング公開中', logo: 'makuake' },
-    campfire: { name: 'CAMPFIRE', sub: 'クラウドファンディング公開中', logo: 'campfire', inBadge: true },
+    campfire: { name: 'CAMPFIRE', sub: 'クラウドファンディング公開中', logo: 'campfire' },
     greenfunding: { name: 'GREENFUNDING', sub: 'クラウドファンディング公開中', logo: 'greenfunding' },
     machiya: { name: 'machi-ya', sub: 'クラウドファンディング公開中', logo: 'machiya' }
   };
@@ -748,8 +747,9 @@
       ? '<img class="cta-block__logo" src="' + escapeHtml(src)
           + '" alt="' + escapeHtml(one ? one.name : '') + '">'
       : '<span class="cta-block__name">' + escapeHtml(one.name) + '</span>';
-    /* バッジにもう入っている文句は足さない */
-    var sub = (one && !(src && one.inBadge))
+    /* 添え文句は、ロゴの絵が無いときだけ。絵があるときは見本どおり
+       ロゴ1つで見せる（CAMPFIRE のバッジのように絵の中に入っている物もある） */
+    var sub = (one && !src)
       ? '<span class="cta-block__sub">' + escapeHtml(one.sub) + '</span>' : '';
     return '<p class="cta-block__brand">' + inner + sub + '</p>';
   }
@@ -769,38 +769,45 @@
     return out.join('');
   }
 
-  /* 誘いの塊の見た目。
-     色はページの指定（ブランドカラー）から組み立てる。決め打ちにすると、
-     どの商品でも同じ赤になって、ブランドの色が死ぬ
-     （2026-10-04 要望: 背景色と文字色はページに合わせて柔軟に）。
-       地    … 背景をごく薄く敷く（下地の色から作る）
-       文字  … 見出しの色
-       強調  … 差し色（大きい1行と、強調した言葉） */
+  /* 誘いの塊の見た目。実物の見本（2026-10-04 支給）と同じ組み:
+       1行目  掲載先のロゴ（大きく。ここがいちばん目を引く）
+       2行目  販売開始時期＋数量限定割引（[[…]]の所だけ差し色）
+       3行目  最大割引率（[[…]]の数字だけ、さらに大きく差し色）
+       4行目  ＼開始をいち早くお届け！！／
+       5行目  LINE友だち追加のボタン
+     地は敷かない（見本が白地のまま）。
+     色は決め打ちにせず、ページの見出し色と差し色から組む。
+     決め打ちにすると、どの商品でも同じ赤になってブランドの色が死ぬ */
   function ctaBlockCss(d) {
     var ink = d.titleColor;
     var hot = d.accentColor;
     return [
-      '.cta-block{margin:32px 0;padding:30px 18px;border-radius:16px;'
-        + 'background:' + hot + '0D;border:1px solid ' + hot + '1F;text-align:center}',
-      /* 掲載先のロゴ。各社のガイドラインが求めているのは2つ——
-         広告主のロゴや商品名より大きくしないことと、周りにロゴの高さの
-         半分の余白（アイソレーション）。だから幅ではなく高さで止める。
-         狭い画面では max-width が先に効いて、高さが自分から縮む */
-      '.cta-block__logo{display:block;width:auto;height:auto;max-width:100%;'
-        + 'max-height:26px;margin:0 auto 7px}',
-      '.cta-block__brand{margin:0 auto 16px;line-height:1.2}',
-      '.cta-block__name{display:block;font-size:30px;font-weight:800;letter-spacing:.04em;color:' + ink + '}',
-      '.cta-block__sub{display:block;margin-top:2px;font-size:11px;letter-spacing:.18em;color:' + ink + '99}',
-      '.cta-block__t{margin:0 0 4px;font-weight:700;font-size:17px;line-height:1.6;color:' + ink + '}',
-      /* いちばん大きい1行。実物は数字だけをさらに大きく、色を変えていた */
-      '.cta-block__l{margin:0 0 6px;font-weight:800;font-size:30px;line-height:1.35;color:' + hot + '}',
-      '.cta-block__n{margin:0 0 18px;font-weight:700;font-size:15px;color:' + ink + 'CC}',
+      '.cta-block{margin:40px 0;padding:8px 0;text-align:center}',
+      /* 1行目。見本ではロゴが本文の幅の半分ほどを占めている。
+         幅で決めるのは、掲載先ごとに縦横比が違うため（高さで止めると
+         横長のロゴが細い帯になる）。高さは自分からついてくる */
+      '.cta-block__brand{margin:0 0 14px;line-height:1}',
+      '.cta-block__logo{display:block;width:58%;max-width:460px;height:auto;margin:0 auto}',
+      /* ロゴを持っていない掲載先のための文字組み。大きさはロゴに合わせる */
+      '.cta-block__name{display:block;font-size:40px;font-weight:800;letter-spacing:.04em;color:' + ink + '}',
+      '.cta-block__sub{display:block;margin-top:4px;font-size:12px;letter-spacing:.18em;color:' + ink + '99}',
+      /* 2行目 */
+      '.cta-block__t{margin:0 0 6px;font-weight:800;font-size:20px;line-height:1.4;color:' + ink + '}',
+      /* 3行目。数字だけさらに大きく。見本は「最大」「OFF」より「30%」が一回り大きい */
+      '.cta-block__l{margin:0 0 10px;font-weight:800;font-size:30px;line-height:1.25;color:' + ink + '}',
+      '.cta-block__l .accent{font-size:1.45em;font-style:normal;letter-spacing:-.01em}',
+      '.cta-block__t .accent,.cta-block__l .accent,.cta-block__n .accent{color:' + hot + ';font-style:normal}',
+      /* 4行目 */
+      '.cta-block__n{margin:0 0 18px;font-weight:700;font-size:15px;line-height:1.5;color:' + ink + '}',
+      /* 5行目 */
       '.cta-block__b{margin:0}',
       '@media (min-width:768px){',
-      '.cta-block{padding:38px 28px}',
-      '.cta-block__logo{max-height:30px;margin-bottom:9px}',
-      '.cta-block__name{font-size:36px}',
-      '.cta-block__l{font-size:38px}',
+      '.cta-block{margin:56px 0;padding:12px 0}',
+      '.cta-block__brand{margin-bottom:18px}',
+      '.cta-block__name{font-size:52px}',
+      '.cta-block__t{font-size:28px;margin-bottom:8px}',
+      '.cta-block__l{font-size:42px;margin-bottom:14px}',
+      '.cta-block__n{font-size:19px;margin-bottom:24px}',
       '}'
     ].join('');
   }

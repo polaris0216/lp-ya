@@ -20,8 +20,10 @@
 
 ## campfire.png
 
-- 元: `CAMPFIRE_brand_resource/3 LOGO PR/png/campfire-pr-badge-horizontal.png`
-  （1386×91）→ 高さ56pxに縮小
+- 元: `CAMPFIRE_brand_resource/3 LOGO PR/png/campfire-pr-badge-vertical.png`
+  （→ 高さ150pxに縮小、583×150）
+  横組み（1386×91）もあるが、縦横比が 15:1 で、ロゴを大きく見せる組みだと
+  細い帯になって読めない。縦組みは 3.9:1 で、ほかの3つとほぼ同じ比率になる
 - 出どころ: CAMPFIREヘルプ「CAMPFIREのサービスロゴを利用することはできますか？」
   https://help.camp-fire.jp/hc/ja/campfireのサービスロゴを利用することはできますか
   → CAMPFIRE ロゴ素材（配布用）
