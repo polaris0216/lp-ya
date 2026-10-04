@@ -4491,21 +4491,31 @@ input[type='radio'] {
 
 /* 一括生成。見出しのすぐ下に、幅いっぱいで置く。
    他のボタンに紛れていると、何を押せば全部作れるのか分からない */
-.lp-bulk { margin: 0 0 18px; }
+/* 生成とダウンロードは1行に並べる。
+   前は .lp-bulk__btn に width:100% が残っていて、生成が帯いっぱいに広がり、
+   ダウンロードが次の行へ落ちていた（2026-10-04 指摘）。
+   決まりが2か所に分かれていたのが原因なので、1つにまとめる */
+.lp-bulk {
+  margin: 0 0 18px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch;
+}
 .lp-bulk__btn {
-  width: 100%; min-height: 52px;
+  flex: 1 1 60%; min-width: 0; min-height: 52px;
   font-size: 16px; font-weight: 700; letter-spacing: .02em;
 }
+.lp-bulk__zip {
+  flex: 0 1 auto; min-height: 52px; white-space: nowrap;
+  font-size: 15px; font-weight: 600;
+}
 .lp-bulk__note {
+  flex: 1 0 100%;
   margin: 8px 2px 0;
   font-size: var(--fs-note); color: var(--c-text-sub); line-height: 1.6;
 }
-
-/* まとめて落とすボタン。生成の隣に、同じ幅の帯の中で並べる */
-.lp-bulk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.lp-bulk__btn { flex: 1 1 auto; }
-.lp-bulk__zip { flex: 0 0 auto; }
-.lp-bulk__note { flex: 1 0 100%; margin: 4px 0 0; }
+/* 画面が狭いときは、無理に横に並べず縦に積む（文字が潰れるより読めるほうがよい） */
+@media (max-width: 420px) {
+  .lp-bulk__btn, .lp-bulk__zip { flex: 1 1 100%; }
+}
 
 /* 販売ページの公開 */
 .lp-pub__url { margin: 6px 0 0; font-size: 13px; color: var(--c-text-sub, #666); word-break: break-all; }

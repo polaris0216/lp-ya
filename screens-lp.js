@@ -253,7 +253,7 @@
     'lp.pubCopy': ['URLをコピー', 'Copy URL', 'URL 복사'],
     'lp.pubCopied': ['コピーしました', 'Copied', '복사했습니다'],
     'lp.pubOpen': ['開く', 'Open', '열기'],
-    'lp.zip': ['まとめて落とす', 'Download all', '한꺼번에 내려받기'],
+    'lp.zip': ['まとめてダウンロード', 'Download all', '한꺼번에 내려받기'],
     'lp.zipBusy': ['集めています… {n}/{m}', 'Collecting… {n}/{m}', '모으는 중… {n}/{m}'],
     'lp.zipDone': ['{n}点を1つの zip にしました', 'Zipped {n} files', '{n}개를 zip으로 묶었습니다'],
     'lp.zipNone': ['落とせる絵がまだありません', 'Nothing to download yet', '내려받을 이미지가 없습니다'],

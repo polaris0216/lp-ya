@@ -121,12 +121,15 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {} };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [] };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
       add(head, el('p', 'screen__lead', t('lpr.lead')));
       add(screen, head);
+      /* 層の耳。生成プロンプトの画面と同じ並びにして、行き来しても迷わない */
+      var tabsBar = el('div', 'lp-tabs');
+      add(screen, tabsBar);
       var toolbar = el('div', 'lp-toolbar');
       add(screen, toolbar);
       var stats = el('p', 't-note lpr-stats');
@@ -152,6 +155,10 @@
         view.project = got[0];
         view.gen = got[1];
         if (!view.gen) { add(root, el('p', 'empty', t('lpr.noGen'))); return; }
+        /* 同じ回の、他の層も読む。生成結果も層ごとに見られるようにする
+           （2026-10-04 要望）。絵と文字は層ごとに別なので、
+           1つしか見られないと他の層を確かめられなかった */
+        loadSiblings();
         view.html = String(view.gen.generated_html || '');
         view.mode = (view.gen.asset_prompts && typeof view.gen.asset_prompts.mode === 'object'
           && view.gen.asset_prompts.mode) || {};
@@ -335,6 +342,76 @@
         if (save) { saveHtml(); }
       }
 
+      /* 同じ回（batch）の、同じ種類の層をぜんぶ持っておく。
+         重いのは generated_html と sections なので、一覧では取らない。
+         切り替えたときに、その1本だけ取りに行く */
+      var LIGHT_COLS = 'id,feature_key,variant_label,title,created_at,'
+        + 'published_at,public_url_slug,batch:content->>batch';
+
+      function batchOf(g) {
+        if (!g) { return ''; }
+        if (g.content && g.content.batch) { return String(g.content.batch); }
+        return g.batch ? String(g.batch) : '';
+      }
+
+      function loadSiblings() {
+        if (!Api.generations || typeof Api.generations.list !== 'function') { return; }
+        Api.generations.list({
+          eq: { projects_id: projectId, feature_key: view.gen.feature_key },
+          select: LIGHT_COLS, order: 'created_at.desc', limit: 40
+        }).then(function (rows) {
+          var mine = batchOf(view.gen);
+          view.siblings = (Array.isArray(rows) ? rows : []).filter(function (g) {
+            return mine ? batchOf(g) === mine : true;
+          }).sort(function (a, b) {
+            return String(a.variant_label || '').localeCompare(String(b.variant_label || ''));
+          });
+          paint();
+        }).catch(function (err) {
+          console.error('[screens-lp-result] 他の層を読めませんでした:', err);
+        });
+      }
+
+      /* 層を切り替える。中身（HTMLと区画）はそのときに取りに行く */
+      function switchVariant(id) {
+        if (!id || id === view.gen.id) { return; }
+        var hold = view.gen;
+        Api.generations.get(id).then(function (row) {
+          if (!row) { return; }
+          view.gen = row;
+          view.html = String(row.generated_html || '');
+          view.mode = (row.asset_prompts && typeof row.asset_prompts.mode === 'object'
+            && row.asset_prompts.mode) || {};
+          view.history = Array.isArray(row.html_history) ? row.html_history : [];
+          view.at = -1;
+          /* まだ組んでいない層は、その場で組む（空の画面を見せない） */
+          if (!view.html) { build(false); }
+          paint();
+        }).catch(function (err) {
+          view.gen = hold;
+          console.error('[screens-lp-result] 層を切り替えられませんでした:', err);
+          toast(String(err && err.message || err), 'danger');
+        });
+      }
+
+      /* 層の耳。1層しか無い回では出さない（押せない耳は邪魔） */
+      function paintVariants() {
+        clear(tabsBar);
+        var rows = view.siblings || [];
+        if (rows.length < 2) { return; }
+        var tabs = el('div', 'lp-delivs lp-delivs--variants');
+        rows.forEach(function (g) {
+          var on = g.id === view.gen.id;
+          var b = button('lp-deliv' + (on ? ' lp-deliv--on' : ''), '', function () { switchVariant(g.id); });
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          add(b, el('span', 'lp-variant__label', String(g.variant_label || '-')));
+          add(b, el('span', 'lp-variant__name', String(g.title || '').slice(0, 24)));
+          if (g.published_at) { add(b, el('span', 'lp-deliv__count', '公開中')); }
+          add(tabs, b);
+        });
+        add(tabsBar, tabs);
+      }
+
       function saveHtml() {
         {
           /* 前の版を履歴に積んでから上書きする。同じ中身なら積まない */
@@ -383,6 +460,7 @@
       }
 
       function paint() {
+        paintVariants();
         clear(toolbar);
         add(toolbar, button('btn btn--secondary', t('lpr.backToDraft'), function () {
           location.hash = '#/S12?id=' + encodeURIComponent(projectId) + '&gen=' + encodeURIComponent(view.gen.id);
