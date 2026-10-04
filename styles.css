@@ -4520,3 +4520,10 @@ input[type='radio'] {
 .lp-pub__link { flex: 1 1 240px; font-size: 13px; word-break: break-all; }
 .lp-pub__terms { margin: 16px 0 0; border: 1px solid var(--c-line, #e4dfea); border-radius: 12px; padding: 12px 14px; }
 .lp-pub__sum { cursor: pointer; font-weight: 600; }
+.lp-pub__modes { display: flex; flex-wrap: wrap; gap: 14px; margin: 6px 0 0; }
+.lp-pub__mode, .lp-pub__check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.lp-pub__leads { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--c-line, #e4dfea); }
+.lp-pub__leadlist { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.lp-pub__lead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.lp-pub__leadmail { flex: 1 1 200px; word-break: break-all; }
+.lp-pub__leadmeta { flex: 0 0 auto; opacity: .7; }

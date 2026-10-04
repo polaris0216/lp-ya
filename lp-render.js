@@ -41,6 +41,11 @@
     'gen.lineButtonLabel': '友だち追加',
     'sales.spec': '商品の仕様',
     'sales.faq': 'よくある質問',
+    'sales.mailLabel': 'メールでお知らせを受け取る',
+    'sales.mailBtn': '登録する',
+    'sales.mailOk': '登録しました。お知らせをお送りします。',
+    'sales.mailNg': '登録できませんでした。メールアドレスをご確認ください。',
+    'sales.mailNote': 'いつでも解除できます。お知らせ以外には使いません。',
     'gen.ctaButton': '詳しく見る',
     'gen.imagePlaceholder': '（画像をここに入れます）'
   };
@@ -506,13 +511,24 @@
      参考にした形（実際の販売ページ）:
        大きな写真と短い見出し → 特長を写真と交互に → 仕様の表 → よくある質問 → 最後の一押し
      LINEボタンは、本文の途中・末尾・画面下の固定バーに出す */
+  /* 本文の中の強調。**太字** __下線__ ==マーカー== [[差し色]]。
+     書き方を決めておけば、AI が書く文でも使い分けられる */
+  function salesInline(text) {
+    var out = escapeHtml(String(text || ''));
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/__([^_]+)__/g, '<u>$1</u>');
+    out = out.replace(/==([^=]+)==/g, '<mark>$1</mark>');
+    out = out.replace(/\[\[([^\]]+)\]\]/g, '<em class="accent">$1</em>');
+    return out;
+  }
+
   function salesCss(design) {
     var d = design || DEFAULT_DESIGN;
     return [
       '*{box-sizing:border-box}',
       'body{margin:0;background:' + d.bgColor + ';color:' + d.bodyColor + ';font-family:' + fontStack(d.bodyFont)
         + ';line-height:1.8;-webkit-text-size-adjust:100%;overflow-wrap:break-word}',
-      '.wrap{max-width:720px;margin:0 auto;padding:0 20px}',
+      '.wrap{max-width:720px;margin:0 auto;padding:0 18px}',
       '.hero{padding:0 0 8px}',
       '.hero img{display:block;width:100%;height:auto}',
       '.hero__copy{padding:28px 0 8px}',
@@ -524,7 +540,13 @@
       '.block img{display:block;width:100%;height:auto;border-radius:12px;margin:0 0 16px}',
       '.block h2{margin:0 0 8px;font-family:' + fontStack(d.titleFont) + ';font-size:'
         + Math.round(d.titleSize * 0.7) + 'px;line-height:1.4;color:' + d.titleColor + '}',
-      '.block p{margin:0;font-size:' + d.bodySize + 'px}',
+      '.block p{margin:0 0 10px;font-size:' + d.bodySize + 'px}',
+      '.block h3{margin:18px 0 6px;font:700 ' + Math.round(d.titleSize * 0.58) + 'px/1.6 ' + fontStack(d.titleFont)
+        + ';color:' + d.titleColor + ';padding-left:10px;border-left:4px solid ' + d.accentColor + '}',
+      'strong{font-weight:700;color:' + d.titleColor + '}',
+      'u{text-decoration:none;background:linear-gradient(transparent 62%,' + d.accentColor + '33 62%)}',
+      'mark{background:' + d.accentColor + '33;color:inherit;padding:0 2px;border-radius:2px}',
+      '.accent{font-style:normal;font-weight:700;color:' + d.accentColor + '}',
       'table.spec{width:100%;border-collapse:collapse;margin:8px 0 0;font-size:' + (d.bodySize - 1) + 'px}',
       'table.spec th,table.spec td{text-align:left;padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.08);vertical-align:top}',
       'table.spec th{width:38%;font-weight:600;color:' + d.titleColor + ';background:rgba(0,0,0,.02)}',
@@ -538,7 +560,160 @@
       '.notes li{margin:4px 0}',
       '.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));'
         + 'background:rgba(255,255,255,.96);box-shadow:0 -2px 12px rgba(0,0,0,.12);text-align:center;z-index:9}',
-      '@media (max-width:480px){h1{font-size:' + Math.round(d.titleSize * 0.9) + 'px}}'
+      /* スマホを基準にする。上の指定はそのままスマホの見え方で、
+         画面が広いときだけ、読みやすいように少し大きくする
+         （2026-10-04 要望: 基本はスマホ）。
+         文字の最小は16px。それ未満だと iOS が入力欄で勝手に拡大する */
+      '@media (min-width:768px){',
+      '.wrap{padding:0 28px}',
+      'h1{font-size:' + Math.round(d.titleSize * 1.35) + 'px}',
+      '.block{padding:48px 0}',
+      '.block h2{font-size:' + Math.round(d.titleSize * 0.85) + 'px}',
+      '.cta{padding:40px 32px}',
+      '}'
+    ].join('');
+  }
+
+  /* ---- メールの登録欄 ----
+     LINE を使わない人向け。公開ページから直接メールを受け取る。
+     送り先は Supabase の RPC（elpiya_subscribe）ひとつだけ。
+     表への書き込みは誰にも許していないので、ここから入るしかない。
+     入れた人には「入りました」とだけ返す（何件目かは見せない） */
+  function mailFormMarkup(label, note) {
+    return '<form class="sub" data-sub>'
+      + '<label class="sub__label" for="sub-email">' + escapeHtml(label || t('sales.mailLabel')) + '</label>'
+      + '<div class="sub__row">'
+      + '<input class="sub__input" id="sub-email" type="email" name="email" required '
+      + 'autocomplete="email" inputmode="email" placeholder="you@example.com">'
+      + '<button class="sub__btn" type="submit">' + escapeHtml(t('sales.mailBtn')) + '</button>'
+      + '</div>'
+      + (note ? '<p class="sub__note">' + escapeHtml(note) + '</p>' : '')
+      + '<p class="sub__say" data-sub-say role="status"></p>'
+      + '</form>';
+  }
+
+  function mailFormCss(d) {
+    return [
+      '.sub{margin:16px 0 0;text-align:left}',
+      '.sub__label{display:block;margin:0 0 6px;font-weight:600;color:' + d.titleColor + '}',
+      '.sub__row{display:flex;gap:8px;flex-wrap:wrap}',
+      '.sub__input{flex:1 1 200px;min-height:48px;padding:0 14px;border:1px solid rgba(0,0,0,.2);'
+        + 'border-radius:10px;font-size:16px;background:#fff;color:#222}',
+      '.sub__btn{flex:0 0 auto;min-height:48px;padding:0 22px;border:0;border-radius:10px;'
+        + 'background:' + d.accentColor + ';color:#fff;font-size:16px;font-weight:600;cursor:pointer}',
+      '.sub__note{margin:8px 0 0;font-size:12px;opacity:.75}',
+      '.sub__say{margin:8px 0 0;font-size:14px;min-height:1.4em}',
+      '.sub__say.is-ok{color:#1b7f3b}',
+      '.sub__say.is-ng{color:#b3261e}',
+      '@media (max-width:420px){.sub__btn{flex:1 1 100%}}'
+    ].join('');
+  }
+
+  function mailFormJs(url, key, slug) {
+    return [
+      '(function(){',
+      'var f=document.querySelector("[data-sub]");if(!f)return;',
+      'var say=f.querySelector("[data-sub-say]");',
+      'f.addEventListener("submit",function(e){e.preventDefault();',
+      'var mail=f.querySelector("input[type=email]").value.trim();',
+      'if(!mail){return;}',
+      'var btn=f.querySelector("button");btn.disabled=true;',
+      'fetch(' + JSON.stringify(url + '/rest/v1/rpc/elpiya_subscribe') + ',{method:"POST",',
+      'headers:{apikey:' + JSON.stringify(key) + ',Authorization:"Bearer "+' + JSON.stringify(key) + ',',
+      '"Content-Type":"application/json"},',
+      'body:JSON.stringify({p_slug:' + JSON.stringify(slug) + ',p_email:mail})})',
+      '.then(function(r){return r.json();})',
+      '.then(function(ok){',
+      'say.textContent=ok?' + JSON.stringify(t('sales.mailOk')) + ':' + JSON.stringify(t('sales.mailNg')) + ';',
+      'say.className="sub__say "+(ok?"is-ok":"is-ng");',
+      'if(ok){f.querySelector("input[type=email]").value="";}})',
+      '.catch(function(){say.textContent=' + JSON.stringify(t('sales.mailNg')) + ';say.className="sub__say is-ng";})',
+      '.then(function(){btn.disabled=false;});});',
+      '}());'
+    ].join('');
+  }
+
+  /* ---- 冒頭のKVスライダー ----
+     ページの始まりを KV（キービジュアル）にしたいとき用。
+     ・ゆっくり自動で流れる（5秒ごと）
+     ・左右のボタンでも動く
+     ・指でなぞっても動く（スクロールスナップに任せる。自前で指を追わない）
+     ・見ている人が「動かすのをやめたい」ときは、触れば自動が止まる
+     ・1枚しか無ければ、ボタンも点も出さない（ただの絵になる）
+     JS は十数行で済む形にした。スクロールの位置で見せるので、
+     位置の計算も当たり判定も要らない */
+  function kvSliderMarkup(urls, alt) {
+    var list = (urls || []).filter(Boolean);
+    if (!list.length) { return ''; }
+    var out = ['<div class="kv" data-kv>'];
+    out.push('<div class="kv__track" data-kv-track>');
+    list.forEach(function (url, i) {
+      out.push('<div class="kv__cell"><img src="' + escapeHtml(String(url)) + '" alt="'
+        + escapeHtml(alt || '') + '"' + (i ? ' loading="lazy"' : '') + '></div>');
+    });
+    out.push('</div>');
+    if (list.length > 1) {
+      out.push('<button class="kv__arrow kv__arrow--prev" type="button" data-kv-prev aria-label="前へ">‹</button>');
+      out.push('<button class="kv__arrow kv__arrow--next" type="button" data-kv-next aria-label="次へ">›</button>');
+      out.push('<div class="kv__dots" data-kv-dots>');
+      list.forEach(function (_, i) {
+        out.push('<span class="kv__dot' + (i ? '' : ' is-on') + '"></span>');
+      });
+      out.push('</div>');
+    }
+    out.push('</div>');
+    return out.join('');
+  }
+
+  function kvSliderCss() {
+    return [
+      '.kv{position:relative;overflow:hidden;background:#000}',
+      '.kv__track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;'
+        + '-webkit-overflow-scrolling:touch;scrollbar-width:none}',
+      '.kv__track::-webkit-scrollbar{display:none}',
+      '.kv__cell{flex:0 0 100%;scroll-snap-align:center}',
+      '.kv__cell img{display:block;width:100%;height:auto}',
+      '.kv__arrow{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;'
+        + 'border:0;border-radius:50%;background:rgba(255,255,255,.82);color:#222;font-size:22px;line-height:1;'
+        + 'cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}',
+      '.kv__arrow--prev{left:10px}',
+      '.kv__arrow--next{right:10px}',
+      '.kv__dots{position:absolute;left:0;right:0;bottom:10px;display:flex;gap:6px;justify-content:center}',
+      '.kv__dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.5)}',
+      '.kv__dot.is-on{background:#fff}',
+      /* 指で操作する画面では、矢印は小さめに寄せる */
+      '@media (max-width:480px){.kv__arrow{width:34px;height:34px;font-size:19px}}'
+    ].join('');
+  }
+
+  function kvSliderJs() {
+    return [
+      '(function(){',
+      'var kv=document.querySelector("[data-kv]");if(!kv)return;',
+      'var track=kv.querySelector("[data-kv-track]");',
+      'var cells=track.children;if(cells.length<2)return;',
+      'var dots=kv.querySelectorAll(".kv__dot");',
+      'var at=0,timer=null;',
+      'function show(i){at=(i+cells.length)%cells.length;',
+      'track.scrollTo({left:cells[at].offsetLeft,behavior:"smooth"});',
+      'for(var d=0;d<dots.length;d++){dots[d].className="kv__dot"+(d===at?" is-on":"");}}',
+      /* 自動で流す。人が触ったら止める（勝手に動き続けるのは邪魔） */
+      'function play(){stop();timer=setInterval(function(){show(at+1);},5000);}',
+      'function stop(){if(timer){clearInterval(timer);timer=null;}}',
+      'var p=kv.querySelector("[data-kv-prev]"),n=kv.querySelector("[data-kv-next]");',
+      'if(p)p.addEventListener("click",function(){stop();show(at-1);});',
+      'if(n)n.addEventListener("click",function(){stop();show(at+1);});',
+      'track.addEventListener("pointerdown",stop);',
+      /* 指でなぞって止まった位置を、点に反映する */
+      'var tick=null;',
+      'track.addEventListener("scroll",function(){if(tick)clearTimeout(tick);',
+      'tick=setTimeout(function(){var i=Math.round(track.scrollLeft/track.clientWidth);',
+      'at=Math.max(0,Math.min(cells.length-1,i));',
+      'for(var d=0;d<dots.length;d++){dots[d].className="kv__dot"+(d===at?" is-on":"");}},120);});',
+      /* 画面に無いときは動かさない（裏のタブで回り続けない） */
+      'document.addEventListener("visibilitychange",function(){document.hidden?stop():play();});',
+      'play();',
+      '}());'
     ].join('');
   }
 
@@ -560,11 +735,18 @@
     if (sales.hero.sub) {
       out.push('<meta name="description" content="' + escapeHtml(String(sales.hero.sub).slice(0, 110)) + '">');
     }
-    out.push('<style>' + salesCss(d) + '</style></head><body>');
+    var wantMail = !!(o.mail && o.mail.url && o.mail.key && o.mail.slug);
+    out.push('<style>' + salesCss(d) + (o.kv && o.kv.length ? kvSliderCss() : '')
+      + (wantMail ? mailFormCss(d) : '') + '</style></head><body>');
 
-    /* 冒頭 */
+    /* 冒頭。KVから始める指定なら、まず横に流れるKVを置く
+       （2026-10-04 要望: ページの最初をKVにできるようにする） */
+    if (o.kv && o.kv.length) {
+      out.push(kvSliderMarkup(o.kv, o.title || ''));
+    }
     out.push('<div class="hero">');
-    if (pic(sales.hero.slot)) {
+    /* KVを出したなら、冒頭の1枚は重ねない（同じ絵が続く） */
+    if (!(o.kv && o.kv.length) && pic(sales.hero.slot)) {
       out.push('<img src="' + escapeHtml(pic(sales.hero.slot)) + '" alt="' + escapeHtml(o.title || '') + '">');
     }
     out.push('<div class="wrap hero__copy">');
@@ -580,11 +762,15 @@
       if (pic(b.slot)) {
         out.push('<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '') + '" loading="lazy">');
       }
-      if (b.title) { out.push('<h2>' + escapeHtml(b.title) + '</h2>'); }
-      if (b.body) { out.push('<p>' + escapeHtml(b.body) + '</p>'); }
+      if (b.title) { out.push('<h2>' + salesInline(b.title) + '</h2>'); }
+      if (b.body) { out.push('<p>' + salesInline(b.body) + '</p>'); }
       out.push('</section>');
-      if (href && i === half) {
-        out.push('<div style="text-align:center;padding:8px 0 24px">' + lineButtonMarkup(style, href) + '</div>');
+      /* 本文の半ばで一度誘う。LINE・メールのどちらか、または両方 */
+      if ((href || wantMail) && i === half) {
+        out.push('<div class="mid" style="padding:8px 0 24px">');
+        if (href) { out.push('<div style="text-align:center">' + lineButtonMarkup(style, href) + '</div>'); }
+        if (wantMail) { out.push(mailFormMarkup(o.mail.label, o.mail.note)); }
+        out.push('</div>');
       }
     });
 
@@ -616,6 +802,7 @@
         out.push(lineButtonMarkup(
           { variant: style.variant, label: cta.button || style.label, height: 52, radius: style.radius }, href));
       }
+      if (wantMail) { out.push(mailFormMarkup(o.mail.label, o.mail.note)); }
       out.push('</section>');
     }
 
@@ -630,6 +817,10 @@
     /* 画面下の固定バー。スクロールのどこにいても1タップで届く */
     if (href) {
       out.push('<div class="bar">' + lineButtonMarkup(style, href) + '</div>');
+    }
+    if (o.kv && o.kv.length > 1) { out.push('<script>' + kvSliderJs() + '<\/script>'); }
+    if (wantMail) {
+      out.push('<script>' + mailFormJs(o.mail.url, o.mail.key, o.mail.slug) + '<\/script>');
     }
     out.push('</body></html>');
     return out.join('');
@@ -997,6 +1188,13 @@
     draftBody: draftBody,
     buildHtml: buildHtml,
     buildSalesHtml: buildSalesHtml,
+    kvSliderMarkup: kvSliderMarkup,
+    kvSliderCss: kvSliderCss,
+    kvSliderJs: kvSliderJs,
+    mailNote: t('sales.mailNote'),
+    mailFormMarkup: mailFormMarkup,
+    mailFormCss: mailFormCss,
+    mailFormJs: mailFormJs,
     salesCss: salesCss,
     assetPoolOf: assetPoolOf,
     designOf: designOf,

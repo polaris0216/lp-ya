@@ -110,7 +110,8 @@
     featureCredits: TABLE_PREFIX + 'feature_credits',
     coupons: TABLE_PREFIX + 'coupons',
     inquiries: TABLE_PREFIX + 'inquiries',
-    platformSelectors: TABLE_PREFIX + 'platform_selectors'
+    platformSelectors: TABLE_PREFIX + 'platform_selectors',
+    leads: TABLE_PREFIX + 'leads'
   };
 
   /* ---------- 日本語エラーメッセージ ---------- */
@@ -697,6 +698,9 @@
 
   var api = {
     URL: SUPABASE_URL,
+    /* 公開ページに埋め込む鍵。anon は公開前提の鍵で、RLS と
+       SECURITY DEFINER の関数でしか中身に触れない（S1 / S9） */
+    ANON_KEY: ANON_KEY,
     TABLES: TABLES,
     MESSAGES: MESSAGES,
     ApiError: ApiError,
@@ -905,6 +909,9 @@
 
   /* LP A/Bテスト（公開と計測）。すべて 007 の SECURITY DEFINER RPC。
      テーブルを anon に開かないための窓口なので、直接 REST を叩かないこと。 */
+  /* 集まったメール。読めるのも消せるのも持ち主だけ（RLS） */
+  api.leads = makeTable(TABLES.leads);
+
   api.lp = {
     /* slug を渡すと、公開URLがその名前になる（simtiple/a）。
        渡さなければ、これまでどおりランダムな32桁 */

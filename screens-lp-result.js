@@ -177,13 +177,55 @@
         return (!url && sec.text) ? 'text' : 'image';
       }
 
-      /* 文字版は「1行目が見出し、残りが本文」。改行ごとに段落にする */
+      /* 文字版の組み方。
+         これまでは「1行目が見出し、残りは全部 p」だけで、どの行も同じ大きさに
+         見えていた（2026-10-04 指摘）。読む人が目で追えるよう、段をつける:
+           1行目          大見出し（h2）
+           短くて句点の無い行  小見出し（h3）
+           「…：…」の行    言葉と説明の組（dl）
+           「・」「-」で始まる行 箇条書き
+           それ以外        本文（p）
+         強調の書き方も読む:
+           **太字**  __下線__  ==マーカー==  [[差し色]]
+         区画の文はAIが書くので、書き方を決めておけば使い分けられる */
+      function inline(text) {
+        var out = escapeHtml(String(text || ''));
+        out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        out = out.replace(/__([^_]+)__/g, '<u>$1</u>');
+        out = out.replace(/==([^=]+)==/g, '<mark>$1</mark>');
+        out = out.replace(/\[\[([^\]]+)\]\]/g, '<em class="accent">$1</em>');
+        return out;
+      }
+
       function textBlock(sec) {
         var lines = String(sec.text || '').split('\n').map(function (s) { return s.trim(); })
           .filter(function (s) { return s; });
         if (!lines.length) { return ''; }
-        return '<h2>' + escapeHtml(lines[0]) + '</h2>'
-          + lines.slice(1).map(function (s) { return '<p>' + escapeHtml(s) + '</p>'; }).join('');
+        var out = ['<h2>' + inline(lines[0]) + '</h2>'];
+        var list = [];
+        function flush() {
+          if (!list.length) { return; }
+          out.push('<ul>' + list.map(function (x) { return '<li>' + inline(x) + '</li>'; }).join('') + '</ul>');
+          list = [];
+        }
+        lines.slice(1).forEach(function (raw) {
+          var bullet = /^[・\-—–]\s*(.+)$/.exec(raw);
+          if (bullet) { list.push(bullet[1]); return; }
+          flush();
+          var pair = /^(.{1,14})[：:]\s*(.+)$/.exec(raw);
+          if (pair) {
+            out.push('<dl><dt>' + inline(pair[1]) + '</dt><dd>' + inline(pair[2]) + '</dd></dl>');
+            return;
+          }
+          /* 短くて句点で終わらない行は、小見出しとして扱う */
+          if (raw.length <= 22 && !/[。．.!！?？]$/.test(raw)) {
+            out.push('<h3>' + inline(raw) + '</h3>');
+            return;
+          }
+          out.push('<p>' + inline(raw) + '</p>');
+        });
+        flush();
+        return out.join('');
       }
 
       function setMode(index, value) {
@@ -220,18 +262,49 @@
             var cap = sec.body ? '<p class="cap">' + escapeHtml(String(sec.body)) + '</p>' : '';
             var img = url ? '<img src="' + escapeHtml(url) + '" alt="" loading="lazy">' : '';
             var txt = sec.text ? textBlock(sec) : '';
-            if (mode === 'text' && txt) { return '<section class="txt">' + txt + cap + '</section>'; }
-            if (mode === 'both' && (img || txt)) { return '<section>' + img + txt + cap + '</section>'; }
-            if (img) { return '<section>' + img + cap + '</section>'; }
-            if (txt) { return '<section class="txt">' + txt + cap + '</section>'; }
+            /* 選んだとおりに出す。
+               「絵」を選んだのに本文（cap）を足していたので、絵だけにしたはずの
+               区画に文字が残っていた（2026-10-04 指摘）。
+                 絵      … 絵だけ。文字は一切出さない
+                 文字    … 文字だけ
+                 絵＋文字 … 両方 */
+            if (mode === 'image') {
+              return img
+                ? '<section>' + img + '</section>'
+                : '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（絵が未生成）</p></section>';
+            }
+            if (mode === 'text') {
+              return (txt || cap)
+                ? '<section class="txt">' + txt + cap + '</section>'
+                : '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（文字がありません）</p></section>';
+            }
+            if (mode === 'both' && (img || txt || cap)) { return '<section>' + img + txt + cap + '</section>'; }
             return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（未生成）</p></section>';
           });
+          /* 差し色はブランド指定から。無ければ既定。
+             下線とマーカーは同じ色を薄くして使う（色を増やすとうるさい） */
+          var dez = designFromProject(view.project);
+          var accent = String(dez.accentColor || '#C13584');
+          var weak = accent + '33';
           view.html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             + '<title>' + escapeHtml(view.project.product_name || view.project.name || '') + '</title>'
             + '<style>*{box-sizing:border-box}body{margin:0;background:#fff}main{max-width:712px;margin:0 auto}section{margin:0}img{display:block;width:100%;height:auto}'
             + '.todo{padding:28px 24px;border:1px dashed #D9CFE0;color:#6B6270;font:14px/1.6 system-ui;text-align:center}'
-            + '.txt{padding:34px 24px 30px}.txt h2{margin:0 0 12px;font:700 24px/1.5 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#171018}'
-            + '.txt p{margin:0 0 10px;font:16px/1.9 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#3A323E}'
+            /* 文字の段。見出し・小見出し・本文・箇条書き・言葉と説明で、
+               大きさと色を変える。全部同じ見た目だと目で追えない */
+            + '.txt{padding:34px 24px 30px;font-family:-apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif}'
+            + '.txt h2{margin:0 0 14px;font:700 26px/1.45;color:#171018;letter-spacing:.01em}'
+            + '.txt h3{margin:22px 0 8px;font:700 18px/1.6;color:#171018;padding-left:12px;border-left:4px solid ' + accent + '}'
+            + '.txt p{margin:0 0 12px;font:16px/1.95;color:#3A323E}'
+            + '.txt ul{margin:0 0 14px;padding-left:1.2em}'
+            + '.txt li{margin:4px 0;font:16px/1.9;color:#3A323E}'
+            + '.txt dl{display:flex;gap:10px;margin:0 0 8px;font:15px/1.8}'
+            + '.txt dt{flex:0 0 7.5em;font-weight:700;color:#171018}'
+            + '.txt dd{flex:1 1 auto;margin:0;color:#3A323E}'
+            + '.txt strong{font-weight:700;color:#171018}'
+            + '.txt u{text-decoration:none;background:linear-gradient(transparent 62%,' + weak + ' 62%)}'
+            + '.txt mark{background:' + weak + ';color:inherit;padding:0 2px;border-radius:2px}'
+            + '.txt .accent{font-style:normal;font-weight:700;color:' + accent + '}'
             + '.cap{margin:0;padding:14px 24px 22px;font:15px/1.85 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#3A323E;white-space:pre-wrap}</style></head><body><main>'
             + parts.join('') + '</main></body></html>';
           if (save) { saveHtml(); }

@@ -224,6 +224,23 @@
       'No sales copy yet. Write it first to include price, shipping, warranty and FAQ.',
       '아직 판매 문구가 없습니다.'],
     'lp.pubHasCopy': ['販売ページの文章: {n}層ぶんあります', 'Sales copy: {n} audiences', '판매 문구: {n}개 타깃'],
+    'lp.pubMode': ['受け取り方', 'How to collect leads', '수집 방법'],
+    'lp.pubModeHint': ['ページを見た人と、どうやって繋がるかを選びます。',
+      'How visitors connect with you.', '방문자와 연결되는 방법'],
+    'lp.pubModeLine': ['LINE友だち追加', 'LINE', 'LINE'],
+    'lp.pubModeMail': ['メール登録', 'Email', '이메일'],
+    'lp.pubModeBoth': ['両方', 'Both', '둘 다'],
+    'lp.pubKv': ['ページの最初をKVから始める', 'Start the page with the KV slider', 'KV로 시작'],
+    'lp.pubKvHint': ['チェックすると、ページの一番上にKVが横に並び、5秒ごとにゆっくり流れます。'
+      + '左右のボタンでも動かせます。KVが1枚のときはボタンは出ません。',
+      'Puts the KV images at the very top as a slider that advances every 5 seconds.',
+      'KV가 맨 위에 슬라이더로 들어갑니다.'],
+    'lp.pubKvNone': ['この層のKVがまだありません', 'No KV for this audience yet', 'KV가 없습니다'],
+    'lp.leads': ['集まったメール', 'Collected emails', '수집된 이메일'],
+    'lp.leadsNone': ['まだありません', 'None yet', '아직 없습니다'],
+    'lp.leadsCount': ['{n}件', '{n}', '{n}건'],
+    'lp.leadsCsv': ['CSVで落とす', 'Download CSV', 'CSV 내려받기'],
+    'lp.leadsDel': ['消す', 'Delete', '삭제'],
     'lp.pubSave': ['保存する', 'Save', '저장'],
     'lp.pubSaved': ['保存しました', 'Saved', '저장했습니다'],
     'lp.pubGo': ['{n}層をまとめて公開する', 'Publish {n} audiences', '{n}개 타깃 공개'],
@@ -1438,6 +1455,29 @@
         });
         showUrl();
 
+        /* 受け取り方（LINE / メール / 両方） */
+        var fm = el('div', 'field');
+        add(fm, el('label', 'field__label', t('lp.pubMode')));
+        add(fm, el('p', 'field__hint', t('lp.pubModeHint')));
+        var modeRow = el('div', 'lp-pub__modes');
+        var mode = String(project.lead_mode || 'line');
+        var modeIns = {};
+        [['line', 'lp.pubModeLine'], ['mail', 'lp.pubModeMail'], ['both', 'lp.pubModeBoth']].forEach(function (pair) {
+          var lab = el('label', 'lp-pub__mode');
+          var r = el('input', '');
+          r.type = 'radio';
+          r.name = 'lp-lead-mode';
+          r.value = pair[0];
+          r.checked = (mode === pair[0]);
+          r.addEventListener('change', function () { if (r.checked) { mode = pair[0]; showLine(); } });
+          add(lab, r);
+          add(lab, el('span', '', t(pair[1])));
+          add(modeRow, lab);
+          modeIns[pair[0]] = r;
+        });
+        add(fm, modeRow);
+        add(box, fm);
+
         /* LINE */
         var f2 = el('div', 'field');
         add(f2, el('label', 'field__label', t('lp.pubLine')));
@@ -1449,6 +1489,24 @@
         add(f2, lineIn);
         add(f2, el('p', 'field__hint', t('lp.pubLineHint')));
         add(box, f2);
+        /* メールだけのときは LINE の欄を隠す（入れても使われないので迷わせない） */
+        function showLine() { f2.style.display = (mode === 'mail') ? 'none' : ''; }
+        showLine();
+
+        /* ページの最初をKVから */
+        var kvAll = kvUrls();
+        var fk = el('div', 'field');
+        var kvLab = el('label', 'lp-pub__check');
+        var kvBox = el('input', '');
+        kvBox.type = 'checkbox';
+        kvBox.checked = !!(project.sales_info && project.sales_info.kv_first);
+        kvBox.disabled = !kvAll.length;
+        add(kvLab, kvBox);
+        add(kvLab, el('span', '', t('lp.pubKv')));
+        add(fk, kvLab);
+        add(fk, el('p', kvAll.length ? 'field__hint' : 'field__error',
+          kvAll.length ? t('lp.pubKvHint') : t('lp.pubKvNone')));
+        add(box, fk);
 
         /* 販売の条件。入れた項目だけがページに出る */
         var info = (project.sales_info && typeof project.sales_info === 'object') ? project.sales_info : {};
@@ -1481,8 +1539,11 @@
             var x = ins[k].value.trim();
             if (x) { v[k] = x; }
           });
+          /* KVから始めるかは、販売の条件と同じ入れ物に持つ（列を増やさない） */
+          if (kvBox.checked) { v.kv_first = true; }
           return v;
         }
+        function leadMode() { return mode; }
 
         /* 販売ページの文章があるか */
         var withCopy = sameBatch().filter(function (g) {
@@ -1493,22 +1554,30 @@
 
         var row = el('div', 'lp-pub__row');
         add(row, button('btn btn--secondary', t('lp.pubSave'), function (e) {
-          savePublishSettings(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), termsValue());
+          savePublishSettings(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), termsValue(), leadMode());
         }));
         add(row, button('btn btn--secondary', t('lp.pubWrite'), function (e) {
-          writeSalesCopy(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), termsValue());
+          writeSalesCopy(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), termsValue(), leadMode());
         }));
         /* 公開できるのは、絵のある LP だけ */
         var ready = sameBatch().filter(function (g) {
           return g.feature_key === 'lp_brief' && doneOf(g) > 0;
         });
         var go = button('btn btn--primary', t('lp.pubGo', { n: ready.length }), function (e) {
-          publishAll(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), ready);
+          publishAll(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), ready, termsValue(), leadMode());
         });
         go.disabled = !ready.length;
         add(row, go);
         add(box, row);
         if (!ready.length) { add(box, el('p', 'field__hint', t('lp.pubNone'))); }
+
+        /* 集まったメール。メールで受け取る設定のときだけ出す */
+        if (mode === 'mail' || mode === 'both') {
+          var leadBox = el('div', 'lp-pub__leads');
+          add(leadBox, el('h4', 'field__label', t('lp.leads')));
+          add(box, leadBox);
+          paintLeads(leadBox);
+        }
 
         /* すでに公開しているものの一覧 */
         var live = sameBatch().filter(function (g) { return g.published_at && g.public_url_slug; });
@@ -1536,6 +1605,89 @@
         }
       }
 
+      /* 集まったメールを見る・落とす・消す。
+         出すのは最新200件まで（全部を一度に出すと画面が重い）。
+         CSV はブラウザの中で作る（送り先を増やさない） */
+      function paintLeads(box) {
+        if (!window.Api || !Api.leads || typeof Api.leads.list !== 'function') { return; }
+        var hold = el('p', 'field__hint', '…');
+        add(box, hold);
+        Api.leads.list({ eq: { projects_id: projectId }, order: 'created_at.desc', limit: 200 })
+          .then(function (rows) {
+            hold.remove();
+            var list = isArray(rows) ? rows : [];
+            if (!list.length) { add(box, el('p', 'field__hint', t('lp.leadsNone'))); return; }
+            add(box, el('p', 'field__hint', t('lp.leadsCount', { n: list.length })));
+            var row = el('div', 'lp-pub__row');
+            add(row, button('btn btn--secondary btn--sm', t('lp.leadsCsv'), function () {
+              /* Excel が文字化けしないよう BOM を付ける */
+              var head = '\ufeff日時,メール,層,ページ\n';
+              var body = list.map(function (x) {
+                return [String(x.created_at || '').slice(0, 19).replace('T', ' '),
+                  String(x.email || ''), String(x.variant || ''), String(x.slug || '')]
+                  .map(function (c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(',');
+              }).join('\n');
+              var blob = new Blob([head + body], { type: 'text/csv;charset=utf-8' });
+              var a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = (slugify((view.project && view.project.shop_slug) || 'leads') || 'leads') + '.csv';
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              setTimeout(function () { URL.revokeObjectURL(a.href); }, 20000);
+            }));
+            add(box, row);
+            var ul = el('ul', 'lp-pub__leadlist');
+            list.slice(0, 50).forEach(function (x) {
+              var li = el('li', 'lp-pub__lead');
+              add(li, el('span', 'lp-pub__leadmail', String(x.email || '')));
+              add(li, el('span', 'lp-pub__leadmeta',
+                String(x.variant || '') + ' / ' + String(x.created_at || '').slice(0, 10)));
+              add(li, button('btn btn--secondary btn--sm', t('lp.leadsDel'), function () {
+                Api.leads.remove(x.id).then(function () {
+                  li.remove();
+                }).catch(function (err) {
+                  console.error('[screens-lp] メールを消せませんでした:', err);
+                  toast(String(err && err.message || err), 'danger');
+                });
+              }));
+              add(ul, li);
+            });
+            add(box, ul);
+          })
+          .catch(function (err) {
+            hold.textContent = String(err && err.message || err);
+            console.error('[screens-lp] 集まったメールを読めませんでした:', err);
+          });
+      }
+
+      /* いま見ている層の KV の絵。ページの最初に並べる。
+         KV は別の生成物（kv_brief）なので、同じ回・同じ層のものを拾う */
+      function kvUrls() {
+        var label = String((view.gen && view.gen.variant_label) || '-');
+        var batch = batchOf(view.gen);
+        var kv = (view.byKind.kv_brief || []).filter(function (g) {
+          return String(g.variant_label || '-') === label && batchOf(g) === batch;
+        })[0];
+        if (!kv) { return []; }
+        var made = (kv.asset_prompts && kv.asset_prompts.made) || {};
+        return (kv.sections || []).map(function (sec) { return made[String(sec.index) + '-1']; })
+          .filter(Boolean).map(String);
+      }
+
+      /* その層の KV（公開するときに使う）。層ごとに引き直す */
+      function kvUrlsFor(g) {
+        var label = String(g.variant_label || '-');
+        var batch = batchOf(g);
+        var kv = (view.byKind.kv_brief || []).filter(function (x) {
+          return String(x.variant_label || '-') === label && batchOf(x) === batch;
+        })[0];
+        if (!kv) { return []; }
+        var made = (kv.asset_prompts && kv.asset_prompts.made) || {};
+        return (kv.sections || []).map(function (sec) { return made[String(sec.index) + '-1']; })
+          .filter(Boolean).map(String);
+      }
+
       /* その案に絵が何枚あるか */
       function doneOf(g) {
         var made = (g.asset_prompts && g.asset_prompts.made) || {};
@@ -1545,20 +1697,21 @@
       /* 販売ページの文章を AI に書かせる。
          先に販売の条件を保存してから積む（書いている最中に条件を読むので、
          保存前に積むと「未入力」のまま書かれる） */
-      function writeSalesCopy(node, slug, line, terms) {
+      function writeSalesCopy(node, slug, line, terms, mode) {
         if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
         var batch = batchOf(view.gen);
         if (!batch) { toast(t('lp.pubNone'), 'danger'); return; }
         var was = node.textContent;
         node.disabled = true;
         node.textContent = t('lp.pubWriting');
-        var patch = { shop_slug: slug || null, line_url: line || null };
+        var patch = { shop_slug: slug || null, line_url: line || null, lead_mode: mode || 'line' };
         if (terms) { patch.sales_info = Object.keys(terms).length ? terms : null; }
         Api.projects.update(projectId, patch).catch(function () { /* 保存できなくても進める */ })
           .then(function () {
             if (view.project) {
               view.project.shop_slug = patch.shop_slug;
               view.project.line_url = patch.line_url;
+              view.project.lead_mode = patch.lead_mode;
               if (terms) { view.project.sales_info = patch.sales_info; }
             }
             return Api.generationJobs.insert({
@@ -1588,9 +1741,9 @@
           .then(function () { node.disabled = false; node.textContent = was; });
       }
 
-      function savePublishSettings(node, slug, line, terms) {
+      function savePublishSettings(node, slug, line, terms, mode) {
         node.disabled = true;
-        var patch = { shop_slug: slug || null, line_url: line || null };
+        var patch = { shop_slug: slug || null, line_url: line || null, lead_mode: mode || 'line' };
         if (terms) { patch.sales_info = Object.keys(terms).length ? terms : null; }
         Api.projects.update(projectId, patch)
           .then(function (row) {
@@ -1598,6 +1751,7 @@
             if (view.project) {
               view.project.shop_slug = patch.shop_slug;
               view.project.line_url = patch.line_url;
+              view.project.lead_mode = patch.lead_mode;
               if (terms) { view.project.sales_info = patch.sales_info; }
             }
             toast(t('lp.pubSaved'), 'success');
@@ -1612,7 +1766,7 @@
       /* 層ごとに、LPのHTMLを組んでから公開する。
          組むのは S13 と同じ LpRender。片方だけ見た目が変わらないよう、
          組み立ては1か所から呼ぶ */
-      function buildOne(g, line) {
+      function buildOne(g, line, terms, mode) {
         if (!window.LpRender || typeof LpRender.buildDraftHtml !== 'function') {
           throw new Error('LpRender がありません');
         }
@@ -1624,12 +1778,23 @@
            無ければ、これまでどおり区画をそのまま並べる */
         var sales = g.content && g.content.sales;
         if (sales && LpRender.buildSalesHtml) {
+          var wantLine = (mode !== 'mail');
+          var wantMail = (mode === 'mail' || mode === 'both');
           var made = LpRender.buildSalesHtml({
             sales: sales,
             assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
             design: design,
             title: (view.project && (view.project.product_name || view.project.name)) || '',
-            lineUrl: line || ''
+            lineUrl: wantLine ? (line || '') : '',
+            /* ページの最初を KV から（チェックしたときだけ） */
+            kv: (terms && terms.kv_first) ? kvUrlsFor(g) : [],
+            /* メールで受け取る。送り先は公開ページから直接 Supabase の RPC */
+            mail: wantMail ? {
+              url: Api.URL,
+              key: Api.ANON_KEY,
+              slug: String(g.public_url_slug || ''),
+              note: (window.LpRender && LpRender.mailNote) || ''
+            } : null
           });
           if (made) { return made; }
         }
@@ -1646,14 +1811,24 @@
         });
       }
 
-      function publishAll(node, slug, line, rows) {
+      function publishAll(node, slug, line, rows, terms, mode) {
         if (!slug) { toast(t('lp.pubSlugEmpty'), 'danger'); return; }
         if (!rows.length) { toast(t('lp.pubNone'), 'danger'); return; }
         var was = node.textContent;
         node.disabled = true;
         node.textContent = t('lp.pubGoing');
         /* 名前とLINEを先に保存する。公開したページと設定がずれないように */
-        Api.projects.update(projectId, { shop_slug: slug, line_url: line || null })
+        var patch = { shop_slug: slug, line_url: line || null, lead_mode: mode || 'line' };
+        if (terms) { patch.sales_info = Object.keys(terms).length ? terms : null; }
+        Api.projects.update(projectId, patch)
+          .then(function () {
+            if (view.project) {
+              view.project.shop_slug = patch.shop_slug;
+              view.project.line_url = patch.line_url;
+              view.project.lead_mode = patch.lead_mode;
+              if (terms) { view.project.sales_info = patch.sales_info; }
+            }
+          })
           .catch(function () { /* 保存できなくても公開は進める */ })
           .then(function () {
             /* 1本ずつ順に。まとめて投げると、重なったときにどれが失敗したか分からない */
@@ -1664,8 +1839,11 @@
               var g = rows[at];
               at += 1;
               var want = slug + '/' + String(g.variant_label || '-').toLowerCase();
+              /* メールの送り先はこのページの slug。公開してから決まるのでは遅いので、
+                 これから付ける名前を先に入れておく */
+              g.public_url_slug = want;
               var html;
-              try { html = buildOne(g, line); } catch (err) {
+              try { html = buildOne(g, line, terms, mode); } catch (err) {
                 console.error('[screens-lp] 組み立てに失敗:', g.variant_label, err);
                 return next();
               }
