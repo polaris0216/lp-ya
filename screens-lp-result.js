@@ -122,7 +122,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [] };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -160,6 +160,7 @@
            （2026-10-04 要望）。絵と文字は層ごとに別なので、
            1つしか見られないと他の層を確かめられなかった */
         loadSiblings();
+        loadKv();
         view.html = String(view.gen.generated_html || '');
         view.mode = (view.gen.asset_prompts && typeof view.gen.asset_prompts.mode === 'object'
           && view.gen.asset_prompts.mode) || {};
@@ -291,6 +292,10 @@
           });
           /* 差し色はブランド指定から。無ければ既定。
              下線とマーカーは同じ色を薄くして使う（色を増やすとうるさい） */
+          /* KVから始めるか。設定は販売の条件と同じ入れ物（sales_info）にある */
+          var wantKv = !!(view.project && view.project.sales_info
+            && view.project.sales_info.kv_first && view.kvUrls && view.kvUrls.length
+            && window.LpRender && LpRender.kvSliderMarkup);
           var dez = designFromProject(view.project);
           var accent = String(dez.accentColor || '#C13584');
           var weak = accent + '33';
@@ -313,8 +318,17 @@
             + '.txt u{text-decoration:none;background:linear-gradient(transparent 62%,' + weak + ' 62%)}'
             + '.txt mark{background:' + weak + ';color:inherit;padding:0 2px;border-radius:2px}'
             + '.txt .accent{font-style:normal;font-weight:700;color:' + accent + '}'
-            + '.cap{margin:0;padding:14px 24px 22px;font:15px/1.85 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#3A323E;white-space:pre-wrap}</style></head><body><main>'
-            + parts.join('') + '</main></body></html>';
+            + '.cap{margin:0;padding:14px 24px 22px;font:15px/1.85 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#3A323E;white-space:pre-wrap}'
+            /* 「ページの最初をKVから始める」を入れていたら、ここでも同じように出す。
+               これまで公開ページだけに効いていて、生成結果で確かめられなかった
+               （2026-10-04 指摘）。見えているものと公開するものを揃える */
+            + (wantKv ? LpRender.kvSliderCss() : '')
+            + '</style></head><body>'
+            + (wantKv ? LpRender.kvSliderMarkup(view.kvUrls, view.project.product_name || '') : '')
+            + '<main>'
+            + parts.join('') + '</main>'
+            + (wantKv && view.kvUrls.length > 1 ? '<script>' + LpRender.kvSliderJs() + '<\/script>' : '')
+            + '</body></html>';
           if (save) { saveHtml(); }
           return;
         }
@@ -380,6 +394,38 @@
         });
       }
 
+      /* いま見ている層の KV の絵。ページの最初に並べるのに使う。
+         KV は別の生成物（kv_brief）なので、同じ回・同じ層のものを拾う。
+         読めたら組み直す（チェックを入れた直後でも反映される） */
+      function loadKv() {
+        if (!Api.generations || typeof Api.generations.list !== 'function') { return; }
+        var label = String(view.gen.variant_label || '-');
+        var mine = batchOf(view.gen);
+        Api.generations.list({
+          eq: { projects_id: projectId, feature_key: 'kv_brief' },
+          select: 'id,variant_label,sections,asset_prompts,batch:content->>batch',
+          order: 'created_at.desc', limit: 20
+        }).then(function (rows) {
+          var all = Array.isArray(rows) ? rows : [];
+          var kv = all.filter(function (g) {
+            return String(g.variant_label || '-') === label && (!mine || batchOf(g) === mine);
+          })[0] || all.filter(function (g) {
+            return String(g.variant_label || '-') === label;
+          })[0];
+          var made = (kv && kv.asset_prompts && kv.asset_prompts.made) || {};
+          view.kvUrls = ((kv && kv.sections) || [])
+            .map(function (sec) { return made[String(sec.index) + '-1']; })
+            .filter(Boolean).map(String);
+          if (view.kvUrls.length && view.project && view.project.sales_info
+            && view.project.sales_info.kv_first) {
+            build(false);
+            paint();
+          }
+        }).catch(function (err) {
+          console.error('[screens-lp-result] KV を読めませんでした:', err);
+        });
+      }
+
       /* 層ごとに、いちばん新しいものを1つずつ。
          並びは created_at の新しい順で来るので、先に出たほうを残す */
       function newestPerLabel(rows) {
@@ -411,6 +457,9 @@
             && row.asset_prompts.mode) || {};
           view.history = Array.isArray(row.html_history) ? row.html_history : [];
           view.at = -1;
+          /* 層が変われば KV も変わる */
+          view.kvUrls = [];
+          loadKv();
           /* まだ組んでいない層は、その場で組む（空の画面を見せない） */
           if (!view.html) { build(false); }
           paint();
