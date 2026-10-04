@@ -1041,13 +1041,24 @@
       function followScroll() {
         var spots = view.spots || [];
         if (!spots.length) { return; }
-        var base = frame.getBoundingClientRect().top + window.scrollY;
+        var box = frame.getBoundingClientRect();
+        var base = box.top + window.scrollY;
         var eye = window.scrollY + window.innerHeight * 0.4;
         var best = null;
         var bestGap = Infinity;
-        spots.forEach(function (one) {
-          var top = base + Number(one.top || 0);
-          var bottom = top + Number(one.h || 0);
+        /* 絵がまだ読めていないと、どれも高さ0で同じ位置に重なる。
+           そのときは並び順から等間隔とみなす。読めたら本当の位置に入れ替わる
+           （実測 2026-10-05: 30区画ぜんぶ top:289 h:0 で、棚が動かなかった） */
+        var flat = spots.every(function (one) { return !Number(one.h); });
+        spots.forEach(function (one, i) {
+          var top, bottom;
+          if (flat) {
+            top = base + box.height * (i / spots.length);
+            bottom = base + box.height * ((i + 1) / spots.length);
+          } else {
+            top = base + Number(one.top || 0);
+            bottom = top + Number(one.h || 0);
+          }
           /* 画面の目の高さがその絵の中にあれば、それ。無ければいちばん近いもの */
           var gap = (eye >= top && eye <= bottom) ? 0 : Math.min(Math.abs(eye - top), Math.abs(eye - bottom));
           if (gap < bestGap) { bestGap = gap; best = String(one.slot || ''); }
