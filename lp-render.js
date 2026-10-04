@@ -592,7 +592,14 @@
       '.hero__sub{margin:0;color:' + d.bodyColor + ';opacity:.85}',
       '.block{padding:36px 0;border-top:1px solid rgba(0,0,0,.08)}',
       '.block:first-of-type{border-top:0}',
-      '.block img{display:block;width:100%;height:auto;border-radius:12px;margin:0 0 16px}',
+      /* 絵は列の端から端まで。角も丸めない。
+         実測した実物（Makuake・nowgoav.jp/lavaclip-lp）はどちらも
+         絵が列いっぱいで、左右の余白も角丸も無かった。
+         本文の左右余白（.wrap の padding）は文字のためのものなので、
+         絵はその分だけ外へはみ出させる
+         （2026-10-05 指摘「なぜ写真の両端に余白があり角が丸いのか」） */
+      '.block img{display:block;height:auto;margin:0 0 16px;border-radius:0;'
+        + 'width:calc(100% + 36px);margin-left:-18px;margin-right:-18px}',
       '.block h2{margin:0 0 10px;font-family:' + fontStack(d.titleFont) + ';font-size:'
         + Math.round(d.titleSize * 0.78) + 'px;line-height:1.45;font-weight:700;color:' + d.titleColor + '}',
       '.block p{margin:0 0 12px;font-size:' + d.bodySize + 'px}',
@@ -626,6 +633,11 @@
          本文の絵がすべて width=1000 で、列もその幅だった。
          こちらが作る絵も1024幅なので、等倍で出せてぼやけない */
       '.wrap{max-width:1000px;padding:0 28px}',
+      /* 広い画面では列が1000px。絵もその幅（944+28+28）で端までそろう */
+      '.block img{width:calc(100% + 56px);margin-left:-28px;margin-right:-28px}',
+      /* 冒頭の絵と KV も同じ幅に収める。ここだけ画面いっぱいだと、
+         下に続く絵と左右がそろわない */
+      '.hero img,.kv{max-width:1000px;margin-left:auto;margin-right:auto}',
       '.kv__cell img,.hero img{max-height:78vh;object-fit:cover}',
       /* 画面が広いぶん、文字も一段上げる。スマホの大きさのままPCで見ると
          1000pxの列に16pxの字が流れて、小さく頼りなく見える（2026-10-05 指摘） */
