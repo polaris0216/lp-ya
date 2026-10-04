@@ -761,6 +761,19 @@
       'window.addEventListener("resize",tell);',
       /* 絵が後から入ると高さが変わる。少し置いてもう一度測る */
       'setTimeout(tell,400);setTimeout(tell,1500);setTimeout(tell,4000);',
+      /* 外から「この区画の絵を差し替えて」と言われたら、その1枚だけ替える。
+         枠ごと作り直すと読み込み直しで高さが変わり、見ていた場所から
+         別の区画へ飛んでしまう（2026-10-05 指摘）。
+         受けるのは差し替えの合図だけで、ページの中身は触らせない */
+      'window.addEventListener("message",function(e){var m=e&&e.data;',
+      'if(!m||m.lpya!==1||m.kind!=="swap")return;',
+      'var slot=String(m.slot||"").replace(/[^0-9A-Za-z_-]/g,"");',
+      'if(!slot)return;var n=document.querySelector("[data-slot=\\""+slot+"\\"]");',
+      'if(!n)return;',
+      /* 絵と動く絵では札が違う。入れ替わるときは親に組み直してもらう */
+      'var want=/\\.(mp4|webm|mov)(\\?|$)/i.test(String(m.url||""))?"VIDEO":"IMG";',
+      'if(n.tagName!==want){send({kind:"swapfail",slot:slot});return;}',
+      'n.src=String(m.url||"");soon();},false);',
       /* クリックの種類だけを知らせる。中身は送らない */
       'document.addEventListener("click",function(e){',
       'var n=e.target;while(n&&n!==document.body){',

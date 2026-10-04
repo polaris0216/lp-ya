@@ -153,7 +153,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '' };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '', goTo: '', lastPick: '' };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -273,6 +273,7 @@
           ? view.gen.asset_prompts : {};
         var slot = String(sec.index) + '-1';
         var motion = /\.(gif|mp4|webm|mov)(\?|$)/i.test(String(url));
+        view.lastPick = slot;
         var key = motion ? 'motion' : 'made';
         var hk = motion ? 'motionHistory' : 'history';
         var now = Object.assign({}, bag[key] || {});
@@ -287,8 +288,14 @@
         bag[key] = now;
         bag[hk] = hist;
         view.gen.asset_prompts = bag;
+        /* 持っている HTML は新しくしておく（公開・保存・ダウンロード用）。
+           ただし枠には貼り直さない——貼り直すと読み込みし直しで高さが変わり、
+           いじっていた区画から別の区画へ飛ぶ（2026-10-05 指摘）。
+           枠の中には「この1枚だけ替えて」と伝える */
         build(false);
-        paint();
+        swapInFrame(slot, url);
+        paintShelf();
+        markShelf();
         /* 保存は待たない。見た目はもう変わっているし、選び直せる */
         Api.generations.update(view.gen.id, { asset_prompts: bag }).catch(function (err) {
           console.error('[screens-lp-result] 絵の選び直しを保存できません:', err);
@@ -1032,8 +1039,15 @@
         if (!m || m.lpya !== 1 || !frame) { return; }
         /* 自分の枠からのものだけ受ける */
         if (e.source !== frame.contentWindow) { return; }
+        if (m.kind === 'swapfail') {
+          /* 絵と動く絵の入れ替えは、札ごと作り直さないと替わらない */
+          rebuildAndReturn(String(m.slot || ''));
+          return;
+        }
         if (m.kind === 'spots') {
           view.spots = Array.isArray(m.spots) ? m.spots : [];
+          /* 作り直したときは、いじっていた区画まで戻す */
+          if (view.goTo) { var back = view.goTo; view.goTo = ''; goToSlot(back); }
           followScroll();
           return;
         }
@@ -1086,6 +1100,27 @@
         if (!best || best === view.atSlot) { return; }
         view.atSlot = best;
         markShelf();
+      }
+
+      /* 枠の中の1枚だけを差し替えてもらう。
+         絵と動く絵で札が違うときは替えられないので、
+         枠から swapfail が返る。そのときだけ作り直して、
+         いじっていた区画まで戻す */
+      function swapInFrame(slot, url) {
+        var win = frame.contentWindow;
+        if (!win) { rebuildAndReturn(slot); return; }
+        try {
+          win.postMessage({ lpya: 1, kind: 'swap', slot: slot, url: url }, '*');
+        } catch (err) {
+          rebuildAndReturn(slot);
+        }
+      }
+
+      /* 作り直したあと、いじっていた区画まで戻る。
+         位置は枠から届いてからでないと分からないので、先に覚えておく */
+      function rebuildAndReturn(slot) {
+        view.goTo = slot || '';
+        paint();
       }
 
       /* 棚の見出しを押したら、下見のその区画まで運ぶ（2026-10-05 要望）。
