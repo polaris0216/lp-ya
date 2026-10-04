@@ -756,12 +756,14 @@
 
         paintStale();
         paintBrief();
-        paintRefs();
-        /* 公開は区画の下ではなく、見本の下に置く。
-           区画を全部スクロールしないと辿り着けないと、使われない */
+        /* 公開は、見本より先に出す。
+           見本（最大16枚）と区画（30本）の下に置くと、延々スクロールしないと
+           辿り着けない（2026-10-04 指摘）。
+           作る順でも、公開の設定を先に決めるほうが筋が通る */
         var pub = el('section', 'panel lp-pub');
         add(body, pub);
         paintPublish(pub);
+        paintRefs();
         paintSections();
       }
 
