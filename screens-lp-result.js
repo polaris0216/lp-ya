@@ -52,6 +52,17 @@
     'lpr.modeAll': ['すべての区画を', 'All sections', '모든 구획을'],
     'lpr.modeNoText': ['文字版なし', 'No text version', '텍스트 버전 없음'],
     'lpr.modeNoImage': ['絵は未生成', 'Visual not generated', '이미지 미생성'],
+    'lpr.live': ['公開中', 'Live', '공개 중'],
+    'lpr.take': ['使う案', 'Version', '사용할 안'],
+    'lpr.takeNo': ['{n}回目', 'Take {n}', '{n}회차'],
+    'lpr.takeHint': ['この層は {n} 回作っています。選ぶと、そのときの絵と文字で組み直します。',
+      'This audience has {n} takes. Picking one rebuilds the page from that take.',
+      '이 층은 {n}회 생성했습니다.'],
+    'lpr.shots': ['この区画の絵', 'Visuals for this section', '이 구획의 이미지'],
+    'lpr.shotNow': ['いま使っている絵', 'In use', '사용 중'],
+    'lpr.shotUse': ['これを使う', 'Use this', '이것을 사용'],
+    'lpr.shotOne': ['作り直していないので、選べる絵は1枚だけです',
+      'Only one visual so far', '아직 1장뿐입니다'],
     'lpr.publicUrl': ['公開URL', 'Public URL', '공개 URL'],
     'lpr.history': ['過去の版', 'Past versions', '이전 버전'],
     'lpr.latest': ['最新', 'Latest', '최신'],
@@ -202,6 +213,61 @@
         var mov = bag.motion && bag.motion[slot];
         var still = bag.made && bag.made[slot];
         return mov || still || '';
+      }
+
+      /* その区画で選べる絵。いま使っているもの＋作り直して押し出された履歴。
+         履歴は asset-ingest が作り直しのたびに最大10件ためている
+         （2026-10-05 要望: 複数の生成物からどれを使うか選びたい） */
+      function shotsOf(sec) {
+        var bag = (view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object')
+          ? view.gen.asset_prompts : {};
+        var slot = String(sec.index) + '-1';
+        var out = [];
+        var seen = {};
+        var push = function (url, at) {
+          var u = String(url || '');
+          if (!u || seen[u]) { return; }
+          seen[u] = 1;
+          out.push({ url: u, at: at || '' });
+        };
+        /* 動く絵は静止画と置き場が別。どちらも同じ区画の候補として並べる */
+        push(bag.motion && bag.motion[slot]);
+        push(bag.made && bag.made[slot]);
+        [['motionHistory', 1], ['history', 1]].forEach(function (pair) {
+          var h = bag[pair[0]] && bag[pair[0]][slot];
+          (Array.isArray(h) ? h : []).forEach(function (one) { push(one && one.url, one && one.at); });
+        });
+        return out;
+      }
+
+      /* 選んだ絵を、その区画の「いま使う絵」にする。
+         捨てずに入れ替える: 今まで使っていたものは履歴の先頭へ戻すので、
+         選び直せば元に戻せる */
+      function useShot(sec, url) {
+        var bag = (view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object')
+          ? view.gen.asset_prompts : {};
+        var slot = String(sec.index) + '-1';
+        var motion = /\.(gif|mp4|webm|mov)(\?|$)/i.test(String(url));
+        var key = motion ? 'motion' : 'made';
+        var hk = motion ? 'motionHistory' : 'history';
+        var now = Object.assign({}, bag[key] || {});
+        var hist = Object.assign({}, bag[hk] || {});
+        var prev = now[slot];
+        if (prev === url) { return; }
+        var rest = (Array.isArray(hist[slot]) ? hist[slot] : [])
+          .filter(function (one) { return one && one.url !== url; });
+        if (prev) { rest = [{ url: prev, at: new Date().toISOString() }].concat(rest); }
+        hist[slot] = rest.slice(0, 10);
+        now[slot] = url;
+        bag[key] = now;
+        bag[hk] = hist;
+        view.gen.asset_prompts = bag;
+        build(false);
+        paint();
+        /* 保存は待たない。見た目はもう変わっているし、選び直せる */
+        Api.generations.update(view.gen.id, { asset_prompts: bag }).catch(function (err) {
+          console.error('[screens-lp-result] 絵の選び直しを保存できません:', err);
+        });
       }
 
       /* 動画は <video>、それ以外は <img>。S12 の見せ方に合わせる */
@@ -475,7 +541,7 @@
         if (!Api.generations || typeof Api.generations.list !== 'function') { return; }
         Api.generations.list({
           eq: { projects_id: projectId, feature_key: view.gen.feature_key },
-          select: LIGHT_COLS, order: 'created_at.desc', limit: 40
+          select: LIGHT_COLS, order: 'created_at.desc', limit: 200
         }).then(function (rows) {
           var all = Array.isArray(rows) ? rows : [];
           var mine = batchOf(view.gen);
@@ -484,6 +550,16 @@
              層を1つだけ作り直した、など）。そのときは種類ごとに
              いちばん新しいものを層ごとに拾う。耳が消えるより出すほうがよい
              （実測 2026-10-04: 耳が1つも出ないと言われた） */
+          /* 層ごとの「何回目の案」をぜんぶ覚えておく。古い順に数えて
+             1回目・2回目…と呼ぶ（2026-10-05 要望: どの回を使うか選びたい） */
+          view.takes = {};
+          all.slice().sort(function (a, b) {
+            return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+          }).forEach(function (g) {
+            var L = String(g.variant_label || '-');
+            if (!view.takes[L]) { view.takes[L] = []; }
+            view.takes[L].push(g);
+          });
           var use = same.length >= 2 ? same : newestPerLabel(all);
           view.siblings = use.sort(function (a, b) {
             return String(a.variant_label || '').localeCompare(String(b.variant_label || ''));
@@ -576,18 +652,54 @@
       function paintVariants() {
         clear(tabsBar);
         var rows = view.siblings || [];
-        if (rows.length < 2) { return; }
+        /* 層が1つしかなくても、案（何回目）は選べるようにする */
+        if (rows.length < 2) { paintTakes(); return; }
         var tabs = el('div', 'lp-delivs lp-delivs--variants');
         rows.forEach(function (g) {
-          var on = g.id === view.gen.id;
+          /* 印は層で合わせる。古い案に切り替えると id が耳と変わるので、
+             id で見ていると耳の印が消える（2026-10-05） */
+          var on = String(g.variant_label || '-') === String(view.gen.variant_label || '-');
           var b = button('lp-deliv' + (on ? ' lp-deliv--on' : ''), '', function () { switchVariant(g.id); });
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           add(b, el('span', 'lp-variant__label', String(g.variant_label || '-')));
           add(b, el('span', 'lp-variant__name', String(g.title || '').slice(0, 24)));
-          if (g.published_at) { add(b, el('span', 'lp-deliv__count', '公開中')); }
+          if (g.published_at) { add(b, el('span', 'lp-deliv__count', t('lpr.live'))); }
           add(tabs, b);
         });
         add(tabsBar, tabs);
+        paintTakes();
+      }
+
+      /* いま見ている層の「何回目の案」を選ぶ。
+         同じ層を作り直すたびに生成物の行が増えるが、これまでは
+         いちばん新しいものしか開けなかった（2026-10-05 要望） */
+      function paintTakes() {
+        var label = String(view.gen.variant_label || '-');
+        var takes = (view.takes && view.takes[label]) || [];
+        if (takes.length < 2) { return; }
+        var row = el('div', 'lpr-takes');
+        add(row, el('span', 't-note', t('lpr.take')));
+        var pick = el('select', 'select select--sm');
+        takes.forEach(function (g, i) {
+          var o = el('option', null, t('lpr.takeNo', { n: i + 1 })
+            + '　' + when(g.created_at)
+            + (g.published_at ? '　' + t('lpr.live') : ''));
+          o.value = g.id;
+          add(pick, o);
+        });
+        pick.value = view.gen.id;
+        pick.addEventListener('change', function () { switchVariant(pick.value); });
+        add(row, pick);
+        add(row, el('span', 't-note', t('lpr.takeHint', { n: takes.length })));
+        add(tabsBar, row);
+      }
+
+      /* 「10/4 21:15」。年は出さない（同じ案を並べるので月日で足りる） */
+      function when(iso) {
+        var d = new Date(String(iso || ''));
+        if (isNaN(d.getTime())) { return '-'; }
+        var p = function (n) { return (n < 10 ? '0' : '') + n; };
+        return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
       }
 
       function saveHtml() {
@@ -758,9 +870,33 @@
           if (!sec.text) { add(row, el('span', 't-note', t('lpr.modeNoText'))); }
           else if (!url) { add(row, el('span', 't-note', t('lpr.modeNoImage'))); }
           add(list, row);
+          /* 作り直した絵があれば、そのなかから選べるようにする */
+          var shots = shotsOf(sec);
+          if (shots.length >= 2) { add(list, shotPicker(sec, shots, url)); }
         });
         add(modes, list);
         modes = modes0;   /* 入れ物を元に戻す（次に描くときに迷わない） */
+      }
+
+      /* その区画の候補を小さく並べる。押すとその絵に差し替わる */
+      function shotPicker(sec, shots, now) {
+        var band = el('div', 'lpr-shots');
+        add(band, el('span', 'lpr-shots__head', t('lpr.shots') + '（' + shots.length + '）'));
+        shots.forEach(function (one) {
+          var on = one.url === now;
+          var b = el('button', 'lpr-shot' + (on ? ' lpr-shot--on' : ''));
+          b.type = 'button';
+          b.title = on ? t('lpr.shotNow') : t('lpr.shotUse');
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          /* 動く絵も止めた1コマ目が出るので、<img> で足りる */
+          var im = el('img', 'lpr-shot__im');
+          im.src = one.url; im.alt = ''; im.loading = 'lazy';
+          add(b, im);
+          if (on) { add(b, el('span', 'lpr-shot__now', t('lpr.shotNow'))); }
+          if (!on) { b.addEventListener('click', function () { useShot(sec, one.url); }); }
+          add(band, b);
+        });
+        return band;
       }
 
       /* 高さと中身の数は、枠の中から知らせてもらう。
