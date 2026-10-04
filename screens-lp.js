@@ -548,8 +548,10 @@
             add(body, el('p', 'field__hint', t('lp.emptyHint')));
           }
           if (view.missingLabel) { add(body, el('p', 'field__hint', t('lp.kindEmptyHint'))); }
-          /* 層の耳は出したままにする。戻れないと行き止まりになる */
-          add(tabsBar, kinds);
+          /* 種類は、いつもと同じ「耳の下の行」に出す。
+             戻れないと行き止まりになるので、何も無いときも出す
+             （耳の帯に入れると、層と種類の並びが入れ替わって見える） */
+          add(toolbar, kinds);
           return;
         }
         /* 層の切り替え。タブは必ず出す。
