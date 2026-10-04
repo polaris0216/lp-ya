@@ -214,14 +214,18 @@
       '판매자 정보를 입력하세요.'],
     'lp.pubNote': ['そのほか', 'Other', '기타'],
     'lp.pubLogo': ['掲載先ロゴの画像URL', 'Platform logo URL', '게재처 로고 URL'],
-    'lp.pubLogoPh': ['https://… （空なら名前の文字で出します）', 'https://… (name shown if empty)', 'https://…'],
+    'lp.pubLogoPh': ['https://… （ふつうは空のままで大丈夫です）', 'https://… (usually leave empty)', 'https://…'],
     'lp.pubLogoHint': ['LINEの誘いの上に出す、クラウドファンディングの掲載先です。'
-      + '空のままなら「Makuake」のように名前を文字で出します。'
-      + '公式のロゴ画像を使いたい場合は、各社のブランド素材のページから取得して、'
-      + 'その画像のURLを入れてください（ロゴの使い方は各社の決まりに従ってください）。',
-      'Shown above the LINE call-to-action. Left empty, the platform name is typeset instead. '
-      + 'To use the official logo, get it from the platform brand assets page and paste its URL.',
-      'LINE 유도 위에 표시되는 게재처입니다.'],
+      + 'Makuake と CAMPFIRE は、各社が公式に配っているロゴを入れてあるので、'
+      + 'ここは空のままで大丈夫です。'
+      + 'GREENFUNDING と machi-ya は公式の配布が見つからなかったので、'
+      + '空だと名前を文字で出します。'
+      + '各社からロゴ素材をもらっている場合だけ、その画像のURLをここに入れてください'
+      + '（使い方は各社の決まりに従ってください）。',
+      'Shown above the LINE call-to-action. Makuake and CAMPFIRE ship with their '
+      + 'officially distributed logo, so you can leave this empty. For the others the '
+      + 'platform name is typeset instead; paste a logo URL only if you have the asset.',
+      'LINE 유도 위에 표시되는 게재처입니다. Makuake와 CAMPFIRE는 공식 로고가 들어 있습니다.'],
     'lp.pubWrite': ['販売ページの文章をAIに書かせる', 'Write the sales copy with AI', 'AI로 판매 문구 작성'],
     'lp.pubWriteHint': ['ターゲット層ごとに、冒頭・特長・仕様・よくある質問・最後の一押しを書きます。'
       + '数分かかります。書いたあとに公開してください。',

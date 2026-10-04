@@ -714,26 +714,40 @@
      5回くり返していた（冒頭の絵の直後 → 以降およそ4〜5枚おき）。
      ボタンだけだと流し読みで素通りされるので、同じ形にする */
   /* クラウドファンディングの掲載先。日本の4つ。
-     ロゴ画像はこちらでは持たない（各社の商標で、配布の条件もそれぞれ違う）。
-     既定は名前の文字組みにして、公式のブランド素材を使いたい人は
-     URL を入れてもらう（sales_info.platform_logo）。
-     文字組みでも「どこで売るか」は十分に伝わる */
+     makuake と CAMPFIRE は、各社が公式に配布しているロゴ素材を同梱している
+     （lp-ya/assets/platform/。出どころと各社の条件は同じ場所の README.md）。
+     CAMPFIRE は規約が「クラウドファンディング公開中」のバッジ入りを使えと
+     言っているので、素のロゴではなくバッジ版を持っている。だから
+     こちらで「クラウドファンディング公開中」の行を足すと二重になる（inBadge）。
+     GREENFUNDING と machi-ya は公式の配布が見つからなかったので名前の文字組み。
+     どの掲載先でも、自分で素材を持っている人は URL を入れればそちらが勝つ
+     （sales_info.platform_logo）。 */
   var PLATFORMS = {
-    makuake: { name: 'Makuake', sub: 'クラウドファンディング' },
-    campfire: { name: 'CAMPFIRE', sub: 'クラウドファンディング' },
-    greenfunding: { name: 'GREENFUNDING', sub: 'クラウドファンディング' },
-    machiya: { name: 'machi-ya', sub: 'クラウドファンディング' }
+    makuake: { name: 'Makuake', sub: 'クラウドファンディング公開中', logo: 'makuake' },
+    campfire: { name: 'CAMPFIRE', sub: 'クラウドファンディング公開中', logo: 'campfire', inBadge: true },
+    greenfunding: { name: 'GREENFUNDING', sub: 'クラウドファンディング公開中' },
+    machiya: { name: 'machi-ya', sub: 'クラウドファンディング公開中' }
   };
 
+  /* 焼き込んだロゴは platform-logos.js が置いていく（data URI）。
+     読むのは呼ばれたとき。読み込みの順番に縛られないため */
+  function builtInLogo(name) {
+    var all = (typeof window !== 'undefined' && window.LPYA_PLATFORM_LOGOS) || {};
+    return (name && all[name]) || '';
+  }
+
   function platformBadge(key, logoUrl) {
-    if (logoUrl) {
-      return '<img class="cta-block__logo" src="' + escapeHtml(String(logoUrl))
-        + '" alt="" loading="lazy">';
-    }
     var one = PLATFORMS[String(key || '').toLowerCase()];
-    if (!one) { return ''; }
-    return '<p class="cta-block__brand"><span class="cta-block__name">' + escapeHtml(one.name)
-      + '</span><span class="cta-block__sub">' + escapeHtml(one.sub) + '</span></p>';
+    var src = logoUrl ? String(logoUrl) : builtInLogo(one && one.logo);
+    if (!src && !one) { return ''; }
+    var inner = src
+      ? '<img class="cta-block__logo" src="' + escapeHtml(src)
+          + '" alt="' + escapeHtml(one ? one.name : '') + '" loading="lazy">'
+      : '<span class="cta-block__name">' + escapeHtml(one.name) + '</span>';
+    /* バッジにもう入っている文句は足さない */
+    var sub = (one && !(src && one.inBadge))
+      ? '<span class="cta-block__sub">' + escapeHtml(one.sub) + '</span>' : '';
+    return '<p class="cta-block__brand">' + inner + sub + '</p>';
   }
 
   /* 誘いの塊。実物の販売ページと同じ並び:
@@ -764,9 +778,13 @@
     return [
       '.cta-block{margin:32px 0;padding:30px 18px;border-radius:16px;'
         + 'background:' + hot + '0D;border:1px solid ' + hot + '1F;text-align:center}',
-      /* 掲載先。実物はロゴを300pxほどで置いていた */
-      '.cta-block__logo{display:block;width:auto;max-width:300px;max-height:64px;margin:0 auto 14px}',
-      '.cta-block__brand{margin:0 auto 14px;line-height:1.2}',
+      /* 掲載先のロゴ。各社のガイドラインが求めているのは2つ——
+         広告主のロゴや商品名より大きくしないことと、周りにロゴの高さの
+         半分の余白（アイソレーション）。だから幅ではなく高さで止める。
+         狭い画面では max-width が先に効いて、高さが自分から縮む */
+      '.cta-block__logo{display:block;width:auto;height:auto;max-width:100%;'
+        + 'max-height:26px;margin:0 auto 7px}',
+      '.cta-block__brand{margin:0 auto 16px;line-height:1.2}',
       '.cta-block__name{display:block;font-size:30px;font-weight:800;letter-spacing:.04em;color:' + ink + '}',
       '.cta-block__sub{display:block;margin-top:2px;font-size:11px;letter-spacing:.18em;color:' + ink + '99}',
       '.cta-block__t{margin:0 0 4px;font-weight:700;font-size:17px;line-height:1.6;color:' + ink + '}',
@@ -776,6 +794,7 @@
       '.cta-block__b{margin:0}',
       '@media (min-width:768px){',
       '.cta-block{padding:38px 28px}',
+      '.cta-block__logo{max-height:30px;margin-bottom:9px}',
       '.cta-block__name{font-size:36px}',
       '.cta-block__l{font-size:38px}',
       '}'
