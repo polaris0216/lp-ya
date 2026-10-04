@@ -64,6 +64,7 @@
       '{n} sections have more than one photo. Pick one and the page updates right away.',
       '사진이 여러 장인 구획은 {n}건입니다.'],
     'lpr.shelfNone': ['作り直した写真がまだありません。', 'No regenerated photos yet.', '아직 다시 만든 사진이 없습니다.'],
+    'lpr.pickGo': ['この区画まで移動', 'Jump to this section', '이 구획으로 이동'],
     'lpr.pickUnused': ['この区画は販売ページでは使っていません（区画そのままには出ます）',
       'Not used by the sales page (shown in the plain lineup)',
       '판매 페이지에서는 사용하지 않습니다'],
@@ -954,9 +955,15 @@
         many.forEach(function (pair) {
           var g = el('div', 'lpr-pick');
           g.setAttribute('data-slot', String(pair.sec.index) + '-1');
-          var head = el('p', 'lpr-pick__head');
+          /* 見出しは押せる。押すと下見がその区画まで動く */
+          var head = el('button', 'lpr-pick__head');
+          head.type = 'button';
+          head.title = t('lpr.pickGo');
           add(head, el('span', 'lpr-pick__no', String(pair.sec.index)));
           add(head, el('span', 'lpr-pick__name', String(pair.sec.title || '')));
+          (function (slot) {
+            head.addEventListener('click', function () { goToSlot(slot); });
+          }(String(pair.sec.index) + '-1'));
           add(g, head);
           if (used && !used[String(pair.sec.index) + '-1']) {
             g.className = 'lpr-pick lpr-pick--off';
@@ -1038,34 +1045,55 @@
          （2026-10-05 要望）。枠は中身の高さぶん伸ばしてあって自分では
          スクロールしないので、外のページのスクロール位置から決める。
          目で追っているのは画面の真ん中あたりなので、そこに来た区画を選ぶ */
+      /* 目を置く高さ。追従と、棚から飛ぶときの着地点を同じにする。
+         ずれていると、押した区画と光る区画が食い違う */
+      function eyeLine() { return window.scrollY + window.innerHeight * 0.4; }
+
+      /* i 番目の区画が、ページのどこからどこまでか。
+         絵がまだ読めていないと、どれも高さ0で同じ位置に重なる。
+         そのときは並び順から等間隔とみなす。読めたら本当の位置に入れ替わる
+         （実測 2026-10-05: 30区画ぜんぶ top:289 h:0 で、棚が動かなかった） */
+      function spotRange(i) {
+        var spots = view.spots || [];
+        var box = frame.getBoundingClientRect();
+        var base = box.top + window.scrollY;
+        if (spots.every(function (one) { return !Number(one.h); })) {
+          return { top: base + box.height * (i / spots.length),
+            bottom: base + box.height * ((i + 1) / spots.length) };
+        }
+        var top = base + Number(spots[i].top || 0);
+        return { top: top, bottom: top + Number(spots[i].h || 0) };
+      }
+
       function followScroll() {
         var spots = view.spots || [];
         if (!spots.length) { return; }
-        var box = frame.getBoundingClientRect();
-        var base = box.top + window.scrollY;
-        var eye = window.scrollY + window.innerHeight * 0.4;
+        var eye = eyeLine();
         var best = null;
         var bestGap = Infinity;
-        /* 絵がまだ読めていないと、どれも高さ0で同じ位置に重なる。
-           そのときは並び順から等間隔とみなす。読めたら本当の位置に入れ替わる
-           （実測 2026-10-05: 30区画ぜんぶ top:289 h:0 で、棚が動かなかった） */
-        var flat = spots.every(function (one) { return !Number(one.h); });
         spots.forEach(function (one, i) {
-          var top, bottom;
-          if (flat) {
-            top = base + box.height * (i / spots.length);
-            bottom = base + box.height * ((i + 1) / spots.length);
-          } else {
-            top = base + Number(one.top || 0);
-            bottom = top + Number(one.h || 0);
-          }
+          var r = spotRange(i);
           /* 画面の目の高さがその絵の中にあれば、それ。無ければいちばん近いもの */
-          var gap = (eye >= top && eye <= bottom) ? 0 : Math.min(Math.abs(eye - top), Math.abs(eye - bottom));
+          var gap = (eye >= r.top && eye <= r.bottom)
+            ? 0 : Math.min(Math.abs(eye - r.top), Math.abs(eye - r.bottom));
           if (gap < bestGap) { bestGap = gap; best = String(one.slot || ''); }
         });
         if (!best || best === view.atSlot) { return; }
         view.atSlot = best;
         markShelf();
+      }
+
+      /* 棚の見出しを押したら、下見のその区画まで運ぶ（2026-10-05 要望）。
+         追従の逆向き。着地点は追従と同じ目の高さにそろえるので、
+         運んだあと、その区画がそのまま光る */
+      function goToSlot(slot) {
+        var spots = view.spots || [];
+        var at = -1;
+        spots.forEach(function (one, i) { if (at < 0 && String(one.slot) === slot) { at = i; } });
+        if (at < 0) { return; }
+        var r = spotRange(at);
+        var top = r.top - (eyeLine() - window.scrollY) + 1;
+        window.scrollTo({ top: Math.max(0, Math.round(top)), behavior: 'smooth' });
       }
 
       /* 棚のうち、いま見ている区画を目立たせて、見える所まで寄せる */

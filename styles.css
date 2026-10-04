@@ -4304,7 +4304,14 @@ input[type='radio'] {
 }
 .lpr-pick--here .lpr-pick__no { background: var(--c-brand, #7A3FA6); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .lpr-shelf { scroll-behavior: auto; } }
-.lpr-pick__head { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
+/* 見出しは押せる。押すと下見がその区画まで動く（2026-10-05 要望） */
+.lpr-pick__head {
+  display: flex; align-items: center; gap: 6px; margin: 0 0 6px;
+  width: 100%; padding: 2px 0; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.lpr-pick__head:hover .lpr-pick__name { text-decoration: underline; }
+.lpr-pick__head:focus-visible { outline: 2px solid var(--c-brand, #7A3FA6); outline-offset: 2px; }
 .lpr-pick__no {
   flex: 0 0 auto; min-width: 22px; padding: 1px 5px;
   border-radius: var(--r-control); background: var(--c-surface-2, #F4F1F6);
