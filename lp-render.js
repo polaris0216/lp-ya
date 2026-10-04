@@ -183,11 +183,13 @@
      ・ゆっくり鼓動させて気づかせる。動きを嫌う設定の人には動かさない
      文字色と背景は変えない（LINE のガイドラインの範囲に収める） */
   function lineButtonMarkup(style, href) {
-    var h = style.height || 52;
-    var base = 'display:inline-flex;align-items:center;justify-content:center;gap:8px;'
-      + 'min-height:' + h + 'px;padding:0 32px;border-radius:' + Math.round(h / 2) + 'px;'
-      + 'font-size:17px;font-weight:700;text-decoration:none;line-height:1.4;'
-      + 'box-shadow:0 4px 14px rgba(6,199,85,.35);';
+    var h = style.height || 56;
+    /* 角丸の四角＋下に影。実物の販売ページがこの形で、押せる物に見える。
+       丸いピルより面が広く、指でも狙いやすい */
+    var base = 'display:inline-flex;align-items:center;justify-content:center;gap:10px;'
+      + 'min-height:' + h + 'px;padding:0 44px;border-radius:10px;'
+      + 'font-size:19px;font-weight:700;text-decoration:none;line-height:1.4;'
+      + 'box-shadow:0 4px 0 rgba(0,0,0,.18);';
     var skin = 'background:#06C755;color:#FFFFFF;border:0;';
     if (style.variant === 'outline') { skin = 'background:#FFFFFF;color:#06C755;border:2px solid #06C755;box-shadow:none;'; }
     return '<div class="line-cta">'
@@ -711,24 +713,72 @@
      「小見出し＋大きく目立つ1行＋ボタン」の塊を、本文の中に
      5回くり返していた（冒頭の絵の直後 → 以降およそ4〜5枚おき）。
      ボタンだけだと流し読みで素通りされるので、同じ形にする */
+  /* クラウドファンディングの掲載先。日本の4つ。
+     ロゴ画像はこちらでは持たない（各社の商標で、配布の条件もそれぞれ違う）。
+     既定は名前の文字組みにして、公式のブランド素材を使いたい人は
+     URL を入れてもらう（sales_info.platform_logo）。
+     文字組みでも「どこで売るか」は十分に伝わる */
+  var PLATFORMS = {
+    makuake: { name: 'Makuake', sub: 'クラウドファンディング' },
+    campfire: { name: 'CAMPFIRE', sub: 'クラウドファンディング' },
+    greenfunding: { name: 'GREENFUNDING', sub: 'クラウドファンディング' },
+    machiya: { name: 'machi-ya', sub: 'クラウドファンディング' }
+  };
+
+  function platformBadge(key, logoUrl) {
+    if (logoUrl) {
+      return '<img class="cta-block__logo" src="' + escapeHtml(String(logoUrl))
+        + '" alt="" loading="lazy">';
+    }
+    var one = PLATFORMS[String(key || '').toLowerCase()];
+    if (!one) { return ''; }
+    return '<p class="cta-block__brand"><span class="cta-block__name">' + escapeHtml(one.name)
+      + '</span><span class="cta-block__sub">' + escapeHtml(one.sub) + '</span></p>';
+  }
+
+  /* 誘いの塊。実物の販売ページと同じ並び:
+       掲載先 → 小さい1行 → いちばん大きい1行 → ＼添え書き／ → ボタン */
   function ctaBlockMarkup(o, style, href, wantMail, mail) {
     var out = ['<div class="cta-block">'];
-    if (o.title) { out.push('<p class="cta-block__t">' + escapeHtml(o.title) + '</p>'); }
+    var badge = platformBadge(o.platform, o.logo);
+    if (badge) { out.push(badge); }
+    if (o.title) { out.push('<p class="cta-block__t">' + salesInline(o.title) + '</p>'); }
     if (o.lead) { out.push('<p class="cta-block__l">' + salesInline(o.lead) + '</p>'); }
+    if (o.note) { out.push('<p class="cta-block__n">＼' + escapeHtml(o.note) + '／</p>'); }
     if (href) { out.push('<div class="cta-block__b">' + lineButtonMarkup(style, href) + '</div>'); }
     if (wantMail) { out.push(mailFormMarkup(mail.label, mail.note)); }
     out.push('</div>');
     return out.join('');
   }
 
+  /* 誘いの塊の見た目。
+     色はページの指定（ブランドカラー）から組み立てる。決め打ちにすると、
+     どの商品でも同じ赤になって、ブランドの色が死ぬ
+     （2026-10-04 要望: 背景色と文字色はページに合わせて柔軟に）。
+       地    … 背景をごく薄く敷く（下地の色から作る）
+       文字  … 見出しの色
+       強調  … 差し色（大きい1行と、強調した言葉） */
   function ctaBlockCss(d) {
+    var ink = d.titleColor;
+    var hot = d.accentColor;
     return [
-      '.cta-block{margin:28px 0;padding:26px 18px;border-radius:16px;background:rgba(0,0,0,.04);text-align:center}',
-      '.cta-block__t{margin:0 0 6px;font-weight:700;font-size:17px;color:' + d.titleColor + '}',
-      /* 目を引く1行。実物は赤の大きな字で割引率を出していた */
-      '.cta-block__l{margin:0 0 16px;font-weight:700;font-size:26px;line-height:1.4;color:' + d.accentColor + '}',
+      '.cta-block{margin:32px 0;padding:30px 18px;border-radius:16px;'
+        + 'background:' + hot + '0D;border:1px solid ' + hot + '1F;text-align:center}',
+      /* 掲載先。実物はロゴを300pxほどで置いていた */
+      '.cta-block__logo{display:block;width:auto;max-width:300px;max-height:64px;margin:0 auto 14px}',
+      '.cta-block__brand{margin:0 auto 14px;line-height:1.2}',
+      '.cta-block__name{display:block;font-size:30px;font-weight:800;letter-spacing:.04em;color:' + ink + '}',
+      '.cta-block__sub{display:block;margin-top:2px;font-size:11px;letter-spacing:.18em;color:' + ink + '99}',
+      '.cta-block__t{margin:0 0 4px;font-weight:700;font-size:17px;line-height:1.6;color:' + ink + '}',
+      /* いちばん大きい1行。実物は数字だけをさらに大きく、色を変えていた */
+      '.cta-block__l{margin:0 0 6px;font-weight:800;font-size:30px;line-height:1.35;color:' + hot + '}',
+      '.cta-block__n{margin:0 0 18px;font-weight:700;font-size:15px;color:' + ink + 'CC}',
       '.cta-block__b{margin:0}',
-      '@media (min-width:768px){.cta-block{padding:32px 28px}.cta-block__l{font-size:30px}}'
+      '@media (min-width:768px){',
+      '.cta-block{padding:38px 28px}',
+      '.cta-block__name{font-size:36px}',
+      '.cta-block__l{font-size:38px}',
+      '}'
     ].join('');
   }
 
@@ -860,7 +910,9 @@
     var cta = sales.cta || {};
     var callOut = function () {
       return ctaBlockMarkup(
-        { title: cta.title || '', lead: cta.lead || cta.body || '' },
+        { title: cta.title || '', lead: cta.lead || cta.body || '', note: cta.note || '',
+          /* 掲載先。日本のクラウドファンディングなら、その名前かロゴを出す */
+          platform: o.platform || '', logo: o.platformLogo || '' },
         { variant: style.variant, label: cta.button || style.label, height: 52, radius: style.radius },
         href, wantMail, o.mail || {});
     };

@@ -213,6 +213,15 @@
       'Japanese law requires seller details on a sales page.',
       '판매자 정보를 입력하세요.'],
     'lp.pubNote': ['そのほか', 'Other', '기타'],
+    'lp.pubLogo': ['掲載先ロゴの画像URL', 'Platform logo URL', '게재처 로고 URL'],
+    'lp.pubLogoPh': ['https://… （空なら名前の文字で出します）', 'https://… (name shown if empty)', 'https://…'],
+    'lp.pubLogoHint': ['LINEの誘いの上に出す、クラウドファンディングの掲載先です。'
+      + '空のままなら「Makuake」のように名前を文字で出します。'
+      + '公式のロゴ画像を使いたい場合は、各社のブランド素材のページから取得して、'
+      + 'その画像のURLを入れてください（ロゴの使い方は各社の決まりに従ってください）。',
+      'Shown above the LINE call-to-action. Left empty, the platform name is typeset instead. '
+      + 'To use the official logo, get it from the platform brand assets page and paste its URL.',
+      'LINE 유도 위에 표시되는 게재처입니다.'],
     'lp.pubWrite': ['販売ページの文章をAIに書かせる', 'Write the sales copy with AI', 'AI로 판매 문구 작성'],
     'lp.pubWriteHint': ['ターゲット層ごとに、冒頭・特長・仕様・よくある質問・最後の一押しを書きます。'
       + '数分かかります。書いたあとに公開してください。',
@@ -1524,7 +1533,8 @@
           ['warranty', 'lp.pubWarranty', 'lp.pubWarrantyPh', ''],
           ['returns', 'lp.pubReturns', 'lp.pubReturnsPh', ''],
           ['seller', 'lp.pubSeller', 'lp.pubSellerPh', 'lp.pubSellerHint'],
-          ['note', 'lp.pubNote', '', '']].forEach(function (one) {
+          ['note', 'lp.pubNote', '', ''],
+          ['platform_logo', 'lp.pubLogo', 'lp.pubLogoPh', 'lp.pubLogoHint']].forEach(function (one) {
           var f = el('div', 'field');
           add(f, el('label', 'field__label', t(one[1])));
           var i = el('input', 'input');
@@ -1789,6 +1799,8 @@
             assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
             design: design,
             title: (view.project && (view.project.product_name || view.project.name)) || '',
+            platform: String((view.project && view.project.cf_platform) || ''),
+            platformLogo: String((terms && terms.platform_logo) || ''),
             lineUrl: wantLine ? (line || '') : '',
             /* ページの最初を KV から（チェックしたときだけ） */
             kv: (terms && terms.kv_first) ? kvUrlsFor(g) : [],

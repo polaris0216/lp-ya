@@ -298,6 +298,9 @@
           assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
           design: designFromProject(project),
           title: project.product_name || project.name || '',
+          /* 掲載先（Makuake など）。ロゴのURLを入れていればそちらを出す */
+          platform: String(project.cf_platform || ''),
+          platformLogo: String(info.platform_logo || ''),
           lineUrl: (mode !== 'mail') ? String(project.line_url || '') : '',
           kv: info.kv_first ? (view.kvUrls || []) : [],
           mail: (mode === 'mail' || mode === 'both') ? {
