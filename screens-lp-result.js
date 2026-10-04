@@ -412,6 +412,8 @@
           || ((project.shop_slug || '') + '/' + String(view.gen.variant_label || '-').toLowerCase()));
         return LpRender.buildSalesHtml({
           sales: view.gen.content.sales,
+          /* LP案で作った区画ぜんぶ。順番どおりに並べるのに使う */
+          sections: view.gen.sections || [],
           assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
           design: designFromProject(project),
           title: project.product_name || project.name || '',
@@ -996,6 +998,9 @@
          区画そのままは全部出すので null（＝ぜんぶ使う）を返す */
       function usedSlots() {
         if (previewKind() !== 'sales') { return null; }
+        /* 販売ページも、区画をぜんぶ順番どおりに出すようになった
+           （2026-10-05）。渡す区画があるなら、使っていない区画は無い */
+        if ((view.gen.sections || []).length) { return null; }
         var sales = (view.gen.content && view.gen.content.sales) || null;
         if (!sales) { return null; }
         var out = {};

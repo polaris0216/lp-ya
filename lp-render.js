@@ -982,6 +982,49 @@
   }
 
   /* 販売ページを組む。sales が無ければ null（呼ぶ側がこれまでの組み方に戻す） */
+  /* 本文を段落に割る。区画の文章は改行で段が分かれている */
+  function paras(text) {
+    return String(text || '').split('\n')
+      .map(function (x) { return x.trim(); })
+      .filter(function (x) { return x; });
+  }
+
+  /* 区画そのものから、見出しと本文を起こす。
+     区画名（「ヒーロー」「日本上陸・正規の表記」など）は中の呼び名なので
+     見出しには使わない。文章の1行目が売り文句になっている */
+  function fromSection(sec, slot) {
+    var lines = paras(sec && sec.text);
+    return { slot: slot,
+      title: lines[0] || String((sec && sec.title) || ''),
+      body: lines.slice(1).join('\n') || String((sec && sec.body) || '') };
+  }
+
+  /* 並べる塊。LP案で作った区画をぜんぶ、作った順に出す。
+     AI が書いた文章（sales.blocks）はスロットで引き当てて使い、
+     書かれていない区画は区画自身の文章で埋める。
+     実測 2026-10-05: AI は30区画のうち7区画しか選ばず、
+     作った絵の大半がページに出ていなかった（利用者の指摘） */
+  function allBlocks(o, sales) {
+    var secs = Array.isArray(o.sections) ? o.sections : [];
+    var written = Array.isArray(sales.blocks) ? sales.blocks : [];
+    if (!secs.length) { return written; }
+    var byslot = {};
+    written.forEach(function (b) { if (b && b.slot) { byslot[String(b.slot)] = b; } });
+    var heroSlot = String((sales.hero && sales.hero.slot) || '');
+    var out = [];
+    secs.forEach(function (sec) {
+      var slot = String(sec.index) + '-1';
+      /* 冒頭に出した区画は重ねない */
+      if (slot === heroSlot) { return; }
+      out.push(byslot[slot] || fromSection(sec, slot));
+    });
+    /* AI がどの区画にも結びつけずに書いた塊は、落とさず後ろへ */
+    written.forEach(function (b) {
+      if (b && !b.slot) { out.push(b); }
+    });
+    return out;
+  }
+
   function buildSalesHtml(options) {
     var o = options || {};
     var sales = o.sales;
@@ -1053,18 +1096,19 @@
 
     /* 特長。4枚ごとに誘いを挟む */
     var EVERY = 4;
+    var blocks = allBlocks(o, sales);
     out.push('<div class="wrap">');
-    sales.blocks.forEach(function (b, i) {
+    blocks.forEach(function (b, i) {
       out.push('<section class="block">');
       if (pic(b.slot)) {
         out.push('<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '')
           + '" loading="lazy"' + slotAttr(b.slot) + '>');
       }
       if (b.title) { out.push('<h2>' + salesInline(b.title) + '</h2>'); }
-      if (b.body) { out.push('<p>' + salesInline(b.body) + '</p>'); }
+      paras(b.body).forEach(function (line) { out.push('<p>' + salesInline(line) + '</p>'); });
       out.push('</section>');
       /* 4枚ごとに誘う。最後の1枚の直後は置かない（すぐ下に締めの塊が来る） */
-      if ((href || wantMail) && (i + 1) % EVERY === 0 && i < sales.blocks.length - 1) {
+      if ((href || wantMail) && (i + 1) % EVERY === 0 && i < blocks.length - 1) {
         out.push(callOut());
       }
     });

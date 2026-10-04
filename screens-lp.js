@@ -1815,6 +1815,8 @@
           var wantMail = (mode === 'mail' || mode === 'both');
           var made = LpRender.buildSalesHtml({
             sales: sales,
+            /* LP案で作った区画ぜんぶ。順番どおりに並べるのに使う */
+            sections: (g && g.sections) || [],
             assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
             design: design,
             title: (view.project && (view.project.product_name || view.project.name)) || '',
