@@ -301,6 +301,9 @@
           /* 掲載先（Makuake など）。ロゴのURLを入れていればそちらを出す */
           platform: String(project.cf_platform || ''),
           platformLogo: String(info.platform_logo || ''),
+          /* 誘いの塊の2行目・3行目。売る人が入れた事実をそのまま出す */
+          saleStart: String(info.sale_start || ''),
+          discount: String(info.discount || ''),
           lineUrl: (mode !== 'mail') ? String(project.line_url || '') : '',
           kv: info.kv_first ? (view.kvUrls || []) : [],
           mail: (mode === 'mail' || mode === 'both') ? {
@@ -680,9 +683,9 @@
       function paintModes() {
         clear(modes);
         if (view.gen.feature_key !== 'lp_brief') { return; }
-        /* 絵か文字かの選択は「区画そのまま」のときの話。
-           販売ページは AI が書いた文章で組むので、ここでは選べない */
-        if (previewKind() === 'sales') { return; }
+        /* 販売ページを見ているときも出す。ここで決めた見せ方は
+           「区画そのまま」に効くもので、切り替えるたびに消えると探せない
+           （2026-10-05 指摘「消えたけど復活させて」） */
         var sections = view.gen.sections || [];
         if (!sections.length) { return; }
         var madeMap = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};

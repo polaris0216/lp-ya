@@ -46,6 +46,11 @@
     'sales.mailOk': '登録しました。お知らせをお送りします。',
     'sales.mailNg': '登録できませんでした。メールアドレスをご確認ください。',
     'sales.mailNote': 'いつでも解除できます。お知らせ以外には使いません。',
+    /* 誘いの塊の決まり文句。見本（2026-10-05 支給）の組みに合わせてある */
+    'sales.ctaLimited': '数量限定割引',
+    'sales.ctaUpTo': '最大',
+    'sales.ctaNote': '開始をいち早くお届け！！',
+    'sales.ctaButton': 'LINE友だち追加',
     'gen.ctaButton': '詳しく見る',
     'gen.imagePlaceholder': '（画像をここに入れます）'
   };
@@ -787,7 +792,13 @@
     var badge = platformBadge(o.platform, o.logo);
     if (badge) { out.push(badge); }
     if (o.title) { out.push('<p class="cta-block__t">' + salesInline(o.title) + '</p>'); }
-    if (o.lead) { out.push('<p class="cta-block__l">' + salesInline(o.lead) + '</p>'); }
+    if (o.lead) {
+      /* 「最大30%OFF」のような短い1行は大きく。AI が書いた長い1文が来たときは
+         同じ大きさだと3行に折れて見本と別物になるので、一段落とす */
+      var longLead = String(o.lead).replace(/\[\[|\]\]/g, '').length > 16;
+      out.push('<p class="cta-block__l' + (longLead ? ' cta-block__l--long' : '') + '">'
+        + salesInline(o.lead) + '</p>');
+    }
     if (o.note) { out.push('<p class="cta-block__n">＼' + escapeHtml(o.note) + '／</p>'); }
     if (href) { out.push('<div class="cta-block__b">' + lineButtonMarkup(style, href) + '</div>'); }
     if (wantMail) { out.push(mailFormMarkup(mail.label, mail.note)); }
@@ -828,6 +839,8 @@
       /* 3行目。数字だけさらに大きく。見本は「最大」「OFF」より「30%」が一回り大きい */
       '.cta-block__l{margin:0 0 12px;font-weight:800;font-size:32px;line-height:1.25;color:' + ink + '}',
       '.cta-block__l .accent{font-size:1.5em;font-style:normal;letter-spacing:-.01em}',
+      '.cta-block__l--long{font-size:20px;line-height:1.5}',
+      '.cta-block__l--long .accent{font-size:1em}',
       '.cta-block__t .accent,.cta-block__l .accent,.cta-block__n .accent{color:' + hot + ';font-style:normal}',
       /* 4行目 */
       '.cta-block__n{margin:0 0 20px;font-weight:700;font-size:17px;line-height:1.5;color:' + ink + '}',
@@ -840,6 +853,7 @@
       '.cta-block__name{font-size:56px}',
       '.cta-block__t{font-size:34px;margin-bottom:10px}',
       '.cta-block__l{font-size:46px;margin-bottom:16px}',
+      '.cta-block__l--long{font-size:26px}',
       '.cta-block__n{font-size:30px;margin-bottom:26px}',
       '}'
     ].join('');
@@ -971,12 +985,24 @@
        （実測 2026-10-04: nowgoav.jp/lavaclip-lp は本文中に5回置いていた）
        早い段階で1回出すのが肝心で、下まで読んだ人だけに見せる作りでは遅い */
     var cta = sales.cta || {};
+    /* 見本（2026-10-05 支給）の2行目と3行目は、販売の時期と割引率。
+       これは事実なので AI には書かせない（作り話をさせない決まりにしてある）。
+       売る人が「販売ページを公開する」で入れた値をそのまま使い、
+       入っていないときだけ AI の文章で埋める。
+       空欄のまま出すと、見本と似ても似つかない見た目になる
+       （実測 2026-10-05: AI の長い1文が3行目に46pxで流れて3行に折れた） */
+    var when = String(o.saleStart || '').trim();
+    var off = String(o.discount || '').trim();
+    var line2 = when ? (when + '販売[[' + t('sales.ctaLimited') + ']]') : (cta.title || '');
+    var line3 = off ? (t('sales.ctaUpTo') + '[[' + off + ']]OFF') : (cta.lead || cta.body || '');
     var callOut = function () {
       return ctaBlockMarkup(
-        { title: cta.title || '', lead: cta.lead || cta.body || '', note: cta.note || '',
+        { title: line2, lead: line3, note: cta.note || t('sales.ctaNote'),
           /* 掲載先。日本のクラウドファンディングなら、その名前かロゴを出す */
           platform: o.platform || '', logo: o.platformLogo || '' },
-        { variant: style.variant, label: cta.button || style.label, height: 52, radius: style.radius },
+        /* ボタンの字は固定。ここは文章ではなく「押す所」で、
+           見本も「LINE友だち追加」で揃っている */
+        { variant: style.variant, label: t('sales.ctaButton'), height: 52, radius: style.radius },
         href, wantMail, o.mail || {});
     };
     if (href || wantMail) {

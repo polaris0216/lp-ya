@@ -213,6 +213,18 @@
       'Japanese law requires seller details on a sales page.',
       '판매자 정보를 입력하세요.'],
     'lp.pubNote': ['そのほか', 'Other', '기타'],
+    'lp.pubStart': ['販売開始の時期', 'Launch timing', '판매 개시 시기'],
+    'lp.pubStartPh': ['9月上旬', 'early September', '9월 초'],
+    'lp.pubStartHint': ['LINE登録の塊の2行目に「9月上旬販売 数量限定割引」のように出ます。'
+      + '空のままだとAIが書いた文章が入りますが、見本どおりの見た目にはなりません。',
+      'Shown as the second line of the LINE block. Leave empty and the AI copy is used instead.',
+      'LINE 등록 블록의 둘째 줄에 표시됩니다.'],
+    'lp.pubOff': ['最大の割引率', 'Max discount', '최대 할인율'],
+    'lp.pubOffPh': ['30%', '30%', '30%'],
+    'lp.pubOffHint': ['LINE登録の塊の3行目に「最大 30% OFF」のように、いちばん大きく出ます。'
+      + '実際に出す割引だけを入れてください（景品表示法）。',
+      'Shown as the biggest line of the LINE block. Only enter a discount you will actually offer.',
+      'LINE 등록 블록에서 가장 크게 표시됩니다.'],
     'lp.pubLogo': ['掲載先ロゴの画像URL', 'Platform logo URL', '게재처 로고 URL'],
     'lp.pubLogoPh': ['https://… （ふつうは空のままで大丈夫です）', 'https://… (usually leave empty)', 'https://…'],
     'lp.pubLogoHint': ['LINEの誘いの上に出す、クラウドファンディングの掲載先です。'
@@ -1805,6 +1817,9 @@
             title: (view.project && (view.project.product_name || view.project.name)) || '',
             platform: String((view.project && view.project.cf_platform) || ''),
             platformLogo: String((terms && terms.platform_logo) || ''),
+            /* 誘いの塊の2行目・3行目。売る人が入れた事実をそのまま出す */
+            saleStart: String((terms && terms.sale_start) || ''),
+            discount: String((terms && terms.discount) || ''),
             lineUrl: wantLine ? (line || '') : '',
             /* ページの最初を KV から（チェックしたときだけ） */
             kv: (terms && terms.kv_first) ? kvUrlsFor(g) : [],
