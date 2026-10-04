@@ -1004,13 +1004,12 @@
      書かれていない区画は区画自身の文章で埋める。
      実測 2026-10-05: AI は30区画のうち7区画しか選ばず、
      作った絵の大半がページに出ていなかった（利用者の指摘） */
-  function allBlocks(o, sales) {
+  function allBlocks(o, sales, heroSlot) {
     var secs = Array.isArray(o.sections) ? o.sections : [];
     var written = Array.isArray(sales.blocks) ? sales.blocks : [];
     if (!secs.length) { return written; }
     var byslot = {};
     written.forEach(function (b) { if (b && b.slot) { byslot[String(b.slot)] = b; } });
-    var heroSlot = String((sales.hero && sales.hero.slot) || '');
     var out = [];
     secs.forEach(function (sec) {
       var slot = String(sec.index) + '-1';
@@ -1056,7 +1055,8 @@
     }
     out.push('<div class="hero">');
     /* KVを出したなら、冒頭の1枚は重ねない（同じ絵が続く） */
-    if (!(o.kv && o.kv.length) && pic(sales.hero.slot)) {
+    var heroShown = !(o.kv && o.kv.length) && !!pic(sales.hero.slot);
+    if (heroShown) {
       out.push('<img src="' + escapeHtml(pic(sales.hero.slot)) + '" alt="' + escapeHtml(o.title || '')
         + '"' + slotAttr(sales.hero.slot) + '>');
     }
@@ -1094,9 +1094,15 @@
       out.push('<div class="wrap">' + callOut() + '</div>');
     }
 
-    /* 特長。4枚ごとに誘いを挟む */
-    var EVERY = 4;
-    var blocks = allBlocks(o, sales);
+    /* 特長。何枚かごとに誘いを挟む。
+       実測した実物（nowgoav.jp/lavaclip-lp）は絵29枚に対して誘い5回、
+       およそ6枚おきだった。区画をぜんぶ出すようになったので、
+       4枚おきのままだと9回出て多すぎる（2026-10-05） */
+    var EVERY = 6;
+    /* 冒頭に絵を出したときだけ、その区画を本文から外す。
+       KV から始めるときは冒頭の絵を出さないので、外すと
+       その区画の絵がどこにも出なくなる（実測 2026-10-05: 区画1が消えていた） */
+    var blocks = allBlocks(o, sales, heroShown ? String(sales.hero.slot || '') : '');
     out.push('<div class="wrap">');
     blocks.forEach(function (b, i) {
       out.push('<section class="block">');
