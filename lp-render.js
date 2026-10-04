@@ -176,12 +176,43 @@
       .split("'").join('&#39;');
   }
 
+  /* LINE友だち追加のボタン。
+     実物の販売ページ（nowgoav.jp/lavaclip-lp）に合わせた:
+     ・LINE公式の緑（#06C755）、白文字、丸いピル
+     ・スマホでは幅いっぱい（押し外しがない。指で押す的は十分大きく）
+     ・ゆっくり鼓動させて気づかせる。動きを嫌う設定の人には動かさない
+     文字色と背景は変えない（LINE のガイドラインの範囲に収める） */
   function lineButtonMarkup(style, href) {
-    var base = 'display:inline-flex;align-items:center;justify-content:center;min-height:' + style.height + 'px;padding:0 28px;border-radius:' + style.radius + 'px;font-size:16px;font-weight:600;text-decoration:none;line-height:1.4;';
+    var h = style.height || 52;
+    var base = 'display:inline-flex;align-items:center;justify-content:center;gap:8px;'
+      + 'min-height:' + h + 'px;padding:0 32px;border-radius:' + Math.round(h / 2) + 'px;'
+      + 'font-size:17px;font-weight:700;text-decoration:none;line-height:1.4;'
+      + 'box-shadow:0 4px 14px rgba(6,199,85,.35);';
     var skin = 'background:#06C755;color:#FFFFFF;border:0;';
-    if (style.variant === 'outline') { skin = 'background:#FFFFFF;color:#06C755;border:2px solid #06C755;'; }
-    if (style.variant === 'large') { skin = 'background:#06C755;color:#FFFFFF;border:0;width:100%;'; }
-    return '<div class="line-cta"><a href="' + escapeHtml(href) + '" style="' + base + skin + '">' + escapeHtml(style.label) + '</a></div>';
+    if (style.variant === 'outline') { skin = 'background:#FFFFFF;color:#06C755;border:2px solid #06C755;box-shadow:none;'; }
+    return '<div class="line-cta">'
+      + '<a class="line-cta__a" href="' + escapeHtml(href) + '" target="_blank" rel="noopener" style="' + base + skin + '">'
+      + lineMarkSvg() + '<span>' + escapeHtml(style.label) + '</span></a></div>';
+  }
+
+  /* LINE の吹き出し。画像を外から読まずに済むよう、形だけを描く */
+  function lineMarkSvg() {
+    return '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+      + '<path fill="currentColor" d="M12 3C6.9 3 2.8 6.4 2.8 10.6c0 3.8 3.3 6.9 7.7 7.5.3.1.7.2.8.5.1.3.1.6 0 .9l-.1.8c0 .2-.2.9.8.5 1-.4 5.3-3.1 7.2-5.3 1.3-1.4 2-2.9 2-4.9C21.2 6.4 17.1 3 12 3z"/>'
+      + '</svg>';
+  }
+
+  /* ボタンの見た目のうち、style 属性に書けないもの（鼓動・スマホ幅） */
+  function lineButtonCss() {
+    return [
+      '.line-cta{text-align:center}',
+      '.line-cta__a{animation:lpya-beat 2.4s ease-in-out infinite}',
+      '@keyframes lpya-beat{0%,88%,100%{transform:scale(1)}92%{transform:scale(1.04)}96%{transform:scale(.99)}}',
+      /* スマホでは幅いっぱい。押し外しを減らす */
+      '@media (max-width:480px){.line-cta__a{display:flex;width:100%;padding:0 18px}}',
+      /* 動きを嫌う設定の人には動かさない */
+      '@media (prefers-reduced-motion:reduce){.line-cta__a{animation:none}}'
+    ].join('');
   }
 
   function lineBarMarkup(style, href) {
@@ -561,8 +592,12 @@
       '.cta p{margin:0 0 16px}',
       '.notes{margin:28px 0 0;padding:0 0 96px;font-size:13px;opacity:.75}',
       '.notes li{margin:4px 0}',
+      /* 画面下の固定バー。実物も同じで、スクロールのどこからでも1タップで届く */
       '.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));'
         + 'background:rgba(255,255,255,.96);box-shadow:0 -2px 12px rgba(0,0,0,.12);text-align:center;z-index:9}',
+      '.bar .line-cta__a{animation:none;box-shadow:none}',
+      /* バーの高さぶん、本文の下に余白を作る（最後の行が隠れない） */
+      'body{padding-bottom:84px}',
       /* スマホを基準にする。上の指定はそのままスマホの見え方で、
          画面が広いときだけ、読みやすいように少し大きくする
          （2026-10-04 要望: 基本はスマホ）。
@@ -570,7 +605,10 @@
       /* 画面が広いときは、読みやすい幅に収める。
          広いまま1行を伸ばすと、目が行を追えなくなる */
       '@media (min-width:768px){',
-      '.wrap{max-width:860px;padding:0 28px}',
+      /* 本文の幅は1000px。実物の販売ページ（nowgoav.jp/lavaclip-lp）を測ると
+         本文の絵がすべて width=1000 で、列もその幅だった。
+         こちらが作る絵も1024幅なので、等倍で出せてぼやけない */
+      '.wrap{max-width:1000px;padding:0 28px}',
       '.kv__cell img,.hero img{max-height:78vh;object-fit:cover}',
       'h1{font-size:' + Math.round(d.titleSize * 1.35) + 'px}',
       '.block{padding:48px 0}',
@@ -665,6 +703,32 @@
       'if(g==="button"){send({kind:"click",what:"cta_click"});return;}',
       'n=n.parentNode;}},true);',
       '}());'
+    ].join('');
+  }
+
+  /* ---- LINE・メールへの誘い（くり返し置く塊） ----
+     実物の販売ページを測ると、ボタンを1つ置くのではなく
+     「小見出し＋大きく目立つ1行＋ボタン」の塊を、本文の中に
+     5回くり返していた（冒頭の絵の直後 → 以降およそ4〜5枚おき）。
+     ボタンだけだと流し読みで素通りされるので、同じ形にする */
+  function ctaBlockMarkup(o, style, href, wantMail, mail) {
+    var out = ['<div class="cta-block">'];
+    if (o.title) { out.push('<p class="cta-block__t">' + escapeHtml(o.title) + '</p>'); }
+    if (o.lead) { out.push('<p class="cta-block__l">' + salesInline(o.lead) + '</p>'); }
+    if (href) { out.push('<div class="cta-block__b">' + lineButtonMarkup(style, href) + '</div>'); }
+    if (wantMail) { out.push(mailFormMarkup(mail.label, mail.note)); }
+    out.push('</div>');
+    return out.join('');
+  }
+
+  function ctaBlockCss(d) {
+    return [
+      '.cta-block{margin:28px 0;padding:26px 18px;border-radius:16px;background:rgba(0,0,0,.04);text-align:center}',
+      '.cta-block__t{margin:0 0 6px;font-weight:700;font-size:17px;color:' + d.titleColor + '}',
+      /* 目を引く1行。実物は赤の大きな字で割引率を出していた */
+      '.cta-block__l{margin:0 0 16px;font-weight:700;font-size:26px;line-height:1.4;color:' + d.accentColor + '}',
+      '.cta-block__b{margin:0}',
+      '@media (min-width:768px){.cta-block{padding:32px 28px}.cta-block__l{font-size:30px}}'
     ].join('');
   }
 
@@ -772,7 +836,7 @@
     }
     var wantMail = !!(o.mail && o.mail.url && o.mail.key && o.mail.slug);
     out.push('<style>' + salesCss(d) + (o.kv && o.kv.length ? kvSliderCss() : '')
-      + (wantMail ? mailFormCss(d) : '') + '</style></head><body>');
+      + (wantMail ? mailFormCss(d) : '') + ctaBlockCss(d) + lineButtonCss() + '</style></head><body>');
 
     /* 冒頭。KVから始める指定なら、まず横に流れるKVを置く
        （2026-10-04 要望: ページの最初をKVにできるようにする） */
@@ -789,8 +853,23 @@
     if (sales.hero.sub) { out.push('<p class="hero__sub">' + escapeHtml(sales.hero.sub) + '</p>'); }
     out.push('</div></div>');
 
-    /* 特長。半分ほど進んだところで一度 LINE に誘う */
-    var half = Math.max(1, Math.floor(sales.blocks.length / 2));
+    /* 誘いの塊。実物の販売ページと同じ置き方にする:
+         冒頭の絵の直後に1回 → 以降およそ4枚おき → 最後にもう1回 → 画面下の固定バー
+       （実測 2026-10-04: nowgoav.jp/lavaclip-lp は本文中に5回置いていた）
+       早い段階で1回出すのが肝心で、下まで読んだ人だけに見せる作りでは遅い */
+    var cta = sales.cta || {};
+    var callOut = function () {
+      return ctaBlockMarkup(
+        { title: cta.title || '', lead: cta.lead || cta.body || '' },
+        { variant: style.variant, label: cta.button || style.label, height: 52, radius: style.radius },
+        href, wantMail, o.mail || {});
+    };
+    if (href || wantMail) {
+      out.push('<div class="wrap">' + callOut() + '</div>');
+    }
+
+    /* 特長。4枚ごとに誘いを挟む */
+    var EVERY = 4;
     out.push('<div class="wrap">');
     sales.blocks.forEach(function (b, i) {
       out.push('<section class="block">');
@@ -800,12 +879,9 @@
       if (b.title) { out.push('<h2>' + salesInline(b.title) + '</h2>'); }
       if (b.body) { out.push('<p>' + salesInline(b.body) + '</p>'); }
       out.push('</section>');
-      /* 本文の半ばで一度誘う。LINE・メールのどちらか、または両方 */
-      if ((href || wantMail) && i === half) {
-        out.push('<div class="mid" style="padding:8px 0 24px">');
-        if (href) { out.push('<div style="text-align:center">' + lineButtonMarkup(style, href) + '</div>'); }
-        if (wantMail) { out.push(mailFormMarkup(o.mail.label, o.mail.note)); }
-        out.push('</div>');
+      /* 4枚ごとに誘う。最後の1枚の直後は置かない（すぐ下に締めの塊が来る） */
+      if ((href || wantMail) && (i + 1) % EVERY === 0 && i < sales.blocks.length - 1) {
+        out.push(callOut());
       }
     });
 
@@ -1225,6 +1301,9 @@
     draftBody: draftBody,
     buildHtml: buildHtml,
     buildSalesHtml: buildSalesHtml,
+    ctaBlockMarkup: ctaBlockMarkup,
+    lineButtonCss: lineButtonCss,
+    ctaBlockCss: ctaBlockCss,
     kvSliderMarkup: kvSliderMarkup,
     kvSliderCss: kvSliderCss,
     kvSliderJs: kvSliderJs,

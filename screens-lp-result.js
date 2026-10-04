@@ -311,7 +311,9 @@
                （2026-10-04 要望: 画面に満ちるように） */
             + '<style>*{box-sizing:border-box}html,body{width:100%;overflow-x:hidden}'
             + 'body{margin:0;background:#fff}main{max-width:100%;margin:0 auto}'
-            + '@media (min-width:768px){main{max-width:860px}}'
+            /* 本文の幅は1000px。生成する絵が1024幅なので等倍で出せる
+               （実物の販売ページも本文の絵がすべて width=1000 だった） */
+            + '@media (min-width:768px){main{max-width:1000px}}'
             + 'section{margin:0}img{display:block;width:100%;height:auto}'
             + '.todo{padding:28px 24px;border:1px dashed #D9CFE0;color:#6B6270;font:14px/1.6 system-ui;text-align:center}'
             /* 文字の段。見出し・小見出し・本文・箇条書き・言葉と説明で、
