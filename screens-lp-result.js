@@ -925,22 +925,29 @@
         if (view.gen.feature_key !== 'lp_brief') { return; }
         var sections = view.gen.sections || [];
         if (!sections.length) { return; }
+        /* 写真がある区画はぜんぶ並べる。1枚だけの区画も出す——
+           スクロールに合わせて棚を動かすので、抜けがあると追えない
+           （実測 2026-10-05: 複数ある区画だけ出していたら、
+           ほとんどの場所で棚が動かなかった）。
+           選べるのは2枚以上ある区画だけ */
         var many = [];
         var one = 0;
         sections.forEach(function (sec) {
           var shots = shotsOf(sec);
-          if (shots.length >= 2) { many.push({ sec: sec, shots: shots }); }
-          else if (shots.length === 1) { one += 1; }
+          if (!shots.length) { return; }
+          if (shots.length === 1) { one += 1; }
+          many.push({ sec: sec, shots: shots });
         });
-        if (!many.length && !one) { return; }
+        if (!many.length) { return; }
+        var pickable = many.filter(function (p) { return p.shots.length >= 2; }).length;
         /* いまの下見がどの区画の絵を使っているか。
            販売ページは AI が選んだ区画だけを使う（30本あっても8本など）。
            使っていない区画の写真を選んでも見た目が変わらず、
            「選んでも反映されない」に見える（実測 2026-10-05） */
         var used = usedSlots();
         add(shelf, el('h3', 'lpr-shelf__title', t('lpr.shelf')));
-        add(shelf, el('p', 't-note', many.length
-          ? t('lpr.shelfHint', { n: many.length })
+        add(shelf, el('p', 't-note', pickable
+          ? t('lpr.shelfHint', { n: pickable })
           : t('lpr.shelfNone')));
         if (one) { add(shelf, el('p', 't-note', t('lpr.shelfOne', { n: one }))); }
         var now = currentShots();
@@ -956,6 +963,7 @@
             add(g, el('p', 't-note', t('lpr.pickUnused')));
           }
           var band = el('div', 'lpr-pick__band');
+          var only = pair.shots.length < 2;
           pair.shots.forEach(function (shot, i) {
             var on = shot.url === now[String(pair.sec.index) + '-1'];
             var b = el('button', 'lpr-shot' + (on ? ' lpr-shot--on' : ''));
@@ -966,8 +974,10 @@
             im.src = shot.url; im.alt = ''; im.loading = 'lazy';
             add(b, im);
             /* いま使っているものに印。チェックの形にして、ひと目で分かるように */
-            add(b, el('span', 'lpr-shot__tick', on ? '✓' : String(pair.shots.length - i)));
+            /* 1枚しか無い区画は、選ぶ余地がないので番号も付けない */
+            if (!only) { add(b, el('span', 'lpr-shot__tick', on ? '✓' : String(pair.shots.length - i))); }
             if (!on) { b.addEventListener('click', function () { useShot(pair.sec, shot.url); }); }
+            else { b.disabled = only; }
             add(band, b);
           });
           add(g, band);
