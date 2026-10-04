@@ -719,14 +719,15 @@
      CAMPFIRE は規約が「クラウドファンディング公開中」のバッジ入りを使えと
      言っているので、素のロゴではなくバッジ版を持っている。だから
      こちらで「クラウドファンディング公開中」の行を足すと二重になる（inBadge）。
-     GREENFUNDING と machi-ya は公式の配布が見つからなかったので名前の文字組み。
+     GREENFUNDING と machi-ya はブランド素材の配布ページが無く、各社が自分の
+     サイトで配っているロゴそのもの（2026-10-04 利用者の指示で登録）。
      どの掲載先でも、自分で素材を持っている人は URL を入れればそちらが勝つ
      （sales_info.platform_logo）。 */
   var PLATFORMS = {
     makuake: { name: 'Makuake', sub: 'クラウドファンディング公開中', logo: 'makuake' },
     campfire: { name: 'CAMPFIRE', sub: 'クラウドファンディング公開中', logo: 'campfire', inBadge: true },
-    greenfunding: { name: 'GREENFUNDING', sub: 'クラウドファンディング公開中' },
-    machiya: { name: 'machi-ya', sub: 'クラウドファンディング公開中' }
+    greenfunding: { name: 'GREENFUNDING', sub: 'クラウドファンディング公開中', logo: 'greenfunding' },
+    machiya: { name: 'machi-ya', sub: 'クラウドファンディング公開中', logo: 'machiya' }
   };
 
   /* 焼き込んだロゴは platform-logos.js が置いていく（data URI）。

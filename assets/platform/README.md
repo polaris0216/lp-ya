@@ -37,13 +37,24 @@
     → 誘いの塊の地は差し色の5%（＝ほぼ白）なので、カラー版で合っている
   - 周囲にロゴの高さの1/2のアイソレーション（余白）
 
-## 入れていない掲載先
+## greenfunding.svg
 
-**GREENFUNDING**（株式会社ワンモア）と **machi-ya**（メディアジーン）は、
-2026-10-04 時点で公式のロゴ配布ページが見つからなかった。
-第三者のロゴ集（brandfetch 等）は「公式に許可された配布」ではないので使わない。
-この2つは名前の文字組みで出す。素材を各社からもらえたら、
-ここに置いて `tools/make-platform-logos.mjs` を回せば差し替わる。
+- 元: `header-logo_green_funding-….svg`（117×36）そのまま
+- 出どころ: GREENFUNDING が自分のサイトのヘッダーで配っているもの
+  https://assets.greenfunding.jp/assets/layouts/common/header-logo_green_funding-b78e4742b64ff7bcba14ff2125d7688eb902de64f08ac7131d254915543f25d7.svg
+- 注意: Makuake や CAMPFIRE と違い、**ロゴ素材の配布ページと使用条件の文書は
+  見つかっていない**（運営は株式会社ワンモア）。2026-10-04、利用者の
+  「各社公式に使用を許可している」という判断で登録した。
+  条件の文書が出てきたら、ここに書き足して必要なら直すこと。
+
+## machiya.png
+
+- 元: `logo-c-….png`（347×82、透過）そのまま
+- 出どころ: machi-ya が自分のサイトで配っているもの
+  https://static.camp-fire.jp/assets/machiya/logo-c-e5d98bfe7060f24b80f542a37af89b0960ef25f55c12e308778c5374eefa1a6d.png
+  （`?auto=format` を付けると JPEG になって透過が落ちるので、付けずに取る）
+- 注意: greenfunding と同じ。**配布ページと使用条件の文書は見つかっていない**
+  （運営はメディアジーン、掲載は CAMPFIRE 上）。同じく利用者の判断で登録した。
 
 ## 差し替え方
 
