@@ -1092,8 +1092,15 @@
         spots.forEach(function (one, i) { if (at < 0 && String(one.slot) === slot) { at = i; } });
         if (at < 0) { return; }
         var r = spotRange(at);
-        var top = r.top - (eyeLine() - window.scrollY) + 1;
-        window.scrollTo({ top: Math.max(0, Math.round(top)), behavior: 'smooth' });
+        var want = Math.max(0, Math.round(r.top - (eyeLine() - window.scrollY) + 1));
+        var from = window.scrollY;
+        window.scrollTo({ top: want, behavior: 'smooth' });
+        /* なめらかな移動が効かない場面がある（動きを減らす設定、
+           裏に回ったタブなど）。少し待って1ミリも動いていなければ、そのまま飛ばす。
+           動き出していれば触らない（途中で引ったくると見失う） */
+        setTimeout(function () {
+          if (window.scrollY === from && Math.abs(want - from) > 8) { window.scrollTo(0, want); }
+        }, 350);
       }
 
       /* 棚のうち、いま見ている区画を目立たせて、見える所まで寄せる */
