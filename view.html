@@ -56,38 +56,31 @@
     if (data.title || data.headline) { document.title = data.title || data.headline; }
 
     var frame = document.createElement('iframe');
-    frame.setAttribute('sandbox', 'allow-same-origin allow-popups');
+    /* 中の JS を動かす。KVのスライドもメールの登録も、ページの中の小さな
+       JS で動いている。allow-same-origin は付けない（付けると枠の意味が
+       無くなる）。そのぶん、親から中の document には触れないので、
+       クリックは中から知らせてもらう（lp-render の frameReportJs）。
+       実測 2026-10-04: allow-scripts が無く、矢印を押しても動かなかった */
+    frame.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
+    frame.srcdoc = data.html;
     stateNode.remove();
     document.body.appendChild(frame);
-    var doc = frame.contentDocument;
-    doc.open();
-    doc.write(data.html);
-    doc.close();
 
     track('view');
 
-    /* クリック計測: LINEのリンク（lin.ee / line.me）→ line_add、
-       それ以外のリンク・ボタン → cta_click。1種類につき1回だけ送る。 */
+    /* クリック計測。中の JS が種類だけを知らせてくる。
+       1種類につき1回だけ送る */
     var sent = {};
-    function once(kind) {
-      if (sent[kind]) { return; }
-      sent[kind] = true;
-      track(kind);
-    }
-    doc.addEventListener('click', function (event) {
-      var node = event.target;
-      while (node && node !== doc.body) {
-        var tag = (node.tagName || '').toLowerCase();
-        if (tag === 'a') {
-          var href = String(node.getAttribute('href') || '');
-          if (href.indexOf('lin.ee') !== -1 || href.indexOf('line.me') !== -1) { once('line_add'); }
-          else { once('cta_click'); }
-          return;
-        }
-        if (tag === 'button') { once('cta_click'); return; }
-        node = node.parentNode;
-      }
-    }, true);
+    window.addEventListener('message', function (event) {
+      var m = event && event.data;
+      if (!m || m.lpya !== 1) { return; }
+      if (event.source !== frame.contentWindow) { return; }
+      if (m.kind !== 'click') { return; }
+      var what = (m.what === 'line_add') ? 'line_add' : 'cta_click';
+      if (sent[what]) { return; }
+      sent[what] = true;
+      track(what);
+    });
   }).catch(function (err) {
     stateNode.textContent = '読み込みに失敗しました。時間をおいて再度お試しください。';
     console.error(err);

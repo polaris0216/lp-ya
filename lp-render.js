@@ -528,9 +528,12 @@
       '*{box-sizing:border-box}',
       'body{margin:0;background:' + d.bgColor + ';color:' + d.bodyColor + ';font-family:' + fontStack(d.bodyFont)
         + ';line-height:1.8;-webkit-text-size-adjust:100%;overflow-wrap:break-word}',
-      '.wrap{max-width:720px;margin:0 auto;padding:0 18px}',
+      /* スマホでは画面いっぱい。横に余白を作ると、小さい画面で本文が細くなる。
+         絵は端から端まで見せる（2026-10-04 要望: 画面に満ちるように） */
+      '.wrap{max-width:100%;margin:0 auto;padding:0 18px}',
       '.hero{padding:0 0 8px}',
       '.hero img{display:block;width:100%;height:auto}',
+      'html,body{width:100%;overflow-x:hidden}',
       '.hero__copy{padding:28px 0 8px}',
       'h1{margin:0 0 10px;font-family:' + fontStack(d.titleFont) + ';font-size:' + Math.round(d.titleSize * 1.1)
         + 'px;line-height:1.35;color:' + d.titleColor + '}',
@@ -564,8 +567,11 @@
          画面が広いときだけ、読みやすいように少し大きくする
          （2026-10-04 要望: 基本はスマホ）。
          文字の最小は16px。それ未満だと iOS が入力欄で勝手に拡大する */
+      /* 画面が広いときは、読みやすい幅に収める。
+         広いまま1行を伸ばすと、目が行を追えなくなる */
       '@media (min-width:768px){',
-      '.wrap{padding:0 28px}',
+      '.wrap{max-width:860px;padding:0 28px}',
+      '.kv__cell img,.hero img{max-height:78vh;object-fit:cover}',
       'h1{font-size:' + Math.round(d.titleSize * 1.35) + 'px}',
       '.block{padding:48px 0}',
       '.block h2{font-size:' + Math.round(d.titleSize * 0.85) + 'px}',
@@ -629,6 +635,35 @@
       'if(ok){f.querySelector("input[type=email]").value="";}})',
       '.catch(function(){say.textContent=' + JSON.stringify(t('sales.mailNg')) + ';say.className="sub__say is-ng";})',
       '.then(function(){btn.disabled=false;});});',
+      '}());'
+    ].join('');
+  }
+
+  /* ---- 枠の中から親へ知らせる ----
+     公開ページも生成結果も iframe の中に出す。中の JS（KVのスライド・
+     メールの登録）を動かすには allow-scripts が要るが、それを付けると
+     親から中の document に触れなくなる（同じ生い立ちを外すため）。
+     そこで、高さとクリックは中から postMessage で知らせる。
+     実測 2026-10-04: allow-scripts が無く、矢印を押しても動かなかった */
+  function frameReportJs() {
+    return [
+      '(function(){',
+      'function send(m){try{parent.postMessage(Object.assign({lpya:1},m),"*");}catch(e){}}',
+      'function size(){send({kind:"size",height:document.documentElement.scrollHeight,',
+      'sections:document.querySelectorAll("section").length,',
+      'images:document.querySelectorAll("img,video").length});}',
+      'window.addEventListener("load",size);',
+      'window.addEventListener("resize",size);',
+      /* 絵が後から入ると高さが変わる。少し置いてもう一度測る */
+      'setTimeout(size,400);setTimeout(size,1500);setTimeout(size,4000);',
+      /* クリックの種類だけを知らせる。中身は送らない */
+      'document.addEventListener("click",function(e){',
+      'var n=e.target;while(n&&n!==document.body){',
+      'var g=(n.tagName||"").toLowerCase();',
+      'if(g==="a"){var h=String(n.getAttribute("href")||"");',
+      'send({kind:"click",what:(h.indexOf("lin.ee")>=0||h.indexOf("line.me")>=0)?"line_add":"cta_click"});return;}',
+      'if(g==="button"){send({kind:"click",what:"cta_click"});return;}',
+      'n=n.parentNode;}},true);',
       '}());'
     ].join('');
   }
@@ -822,6 +857,8 @@
     if (wantMail) {
       out.push('<script>' + mailFormJs(o.mail.url, o.mail.key, o.mail.slug) + '<\/script>');
     }
+    /* 高さとクリックを親へ知らせる（枠の中で動かすため） */
+    out.push('<script>' + frameReportJs() + '<\/script>');
     out.push('</body></html>');
     return out.join('');
   }
@@ -1191,6 +1228,7 @@
     kvSliderMarkup: kvSliderMarkup,
     kvSliderCss: kvSliderCss,
     kvSliderJs: kvSliderJs,
+    frameReportJs: frameReportJs,
     mailNote: t('sales.mailNote'),
     mailFormMarkup: mailFormMarkup,
     mailFormCss: mailFormCss,

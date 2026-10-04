@@ -140,7 +140,13 @@
       var frameWrap = el('div', 'lpr-frame');
       var frame = el('iframe', 'lpr-frame__iframe');
       frame.setAttribute('title', t('lpr.title'));
-      frame.setAttribute('sandbox', 'allow-same-origin');
+      /* 中の JS を動かす。KV のスライドもメールの登録も、ページの中の
+         小さな JS で動いている。allow-scripts が無いと一切動かず、
+         「矢印を押しても左右に動かない」になる（実測 2026-10-04）。
+         allow-same-origin と併せると枠の外にも触れてしまうので、
+         ここは同じ生い立ちを外して「別の生い立ち」で動かす。
+         高さの測りは、読み込み後に中から教えてもらう（下の measure）*/
+      frame.setAttribute('sandbox', 'allow-scripts');
       add(frameWrap, frame);
       add(screen, frameWrap);
       add(root, screen);
@@ -301,7 +307,12 @@
           var weak = accent + '33';
           view.html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             + '<title>' + escapeHtml(view.project.product_name || view.project.name || '') + '</title>'
-            + '<style>*{box-sizing:border-box}body{margin:0;background:#fff}main{max-width:712px;margin:0 auto}section{margin:0}img{display:block;width:100%;height:auto}'
+            + /* スマホでは画面いっぱい。広い画面でだけ、読みやすい幅に収める
+               （2026-10-04 要望: 画面に満ちるように） */
+            + '<style>*{box-sizing:border-box}html,body{width:100%;overflow-x:hidden}'
+            + 'body{margin:0;background:#fff}main{max-width:100%;margin:0 auto}'
+            + '@media (min-width:768px){main{max-width:860px}}'
+            + 'section{margin:0}img{display:block;width:100%;height:auto}'
             + '.todo{padding:28px 24px;border:1px dashed #D9CFE0;color:#6B6270;font:14px/1.6 system-ui;text-align:center}'
             /* 文字の段。見出し・小見出し・本文・箇条書き・言葉と説明で、
                大きさと色を変える。全部同じ見た目だと目で追えない */
@@ -328,6 +339,9 @@
             + '<main>'
             + parts.join('') + '</main>'
             + (wantKv && view.kvUrls.length > 1 ? '<script>' + LpRender.kvSliderJs() + '<\/script>' : '')
+            /* 高さは中から知らせてもらう（枠の中で JS を動かすため、
+               親からは中の document に触れない） */
+            + (LpRender.frameReportJs ? '<script>' + LpRender.frameReportJs() + '<\/script>' : '')
             + '</body></html>';
           if (save) { saveHtml(); }
           return;
@@ -640,16 +654,24 @@
         modes = modes0;   /* 入れ物を元に戻す（次に描くときに迷わない） */
       }
 
-      function measure() {
-        try {
-          var doc = frame.contentDocument;
-          var sections = doc.querySelectorAll('section').length;
-          var images = doc.querySelectorAll('img, svg image, video').length;
-          var height = doc.documentElement.scrollHeight;
-          stats.textContent = t('lpr.stats', { sections: sections, images: images, height: height });
-          frame.style.height = Math.min(height, 12000) + 'px';
-        } catch (e) { /* 測れなくても表示は続ける */ }
-      }
+      /* 高さと中身の数は、枠の中から知らせてもらう。
+         前は親から contentDocument を読んでいたが、中の JS を動かすために
+         同じ生い立ちを外したので、もう読めない（2026-10-04）*/
+      function measure() { /* 読み込みの合図。実際の値は下の受け口で入る */ }
+
+      window.addEventListener('message', function (e) {
+        var m = e && e.data;
+        if (!m || m.lpya !== 1 || !frame) { return; }
+        /* 自分の枠からのものだけ受ける */
+        if (e.source !== frame.contentWindow) { return; }
+        if (m.kind === 'size') {
+          frame.style.height = Math.min(Number(m.height) || 0, 12000) + 'px';
+          stats.textContent = t('lpr.stats', {
+            sections: Number(m.sections) || 0, images: Number(m.images) || 0,
+            height: Number(m.height) || 0
+          });
+        }
+      });
 
       function download() {
         var blob = new Blob([view.html], { type: 'text/html' });
