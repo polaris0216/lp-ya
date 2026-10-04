@@ -4548,3 +4548,4 @@ input[type='radio'] {
 .lpr-modes__sum::before { content: '▸'; display: inline-block; transition: transform .15s; }
 .lpr-modes__box[open] .lpr-modes__sum::before { transform: rotate(90deg); }
 .lpr-modes__box .lpr-modes__title { margin: 0; font-size: 15px; font-weight: 700; }
+.lpr-view { display: inline-flex; gap: 4px; }

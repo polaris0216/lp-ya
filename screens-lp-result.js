@@ -41,6 +41,14 @@
     'lpr.modeText': ['文字', 'Text', '텍스트'],
     'lpr.modeBoth': ['絵＋文字', 'Visual + text', '이미지＋텍스트'],
     'lpr.modeCount': ['{n}区画', '{n} sections', '{n}개 구획'],
+    'lpr.viewSales': ['販売ページ', 'Sales page', '판매 페이지'],
+    'lpr.viewCanvas': ['区画そのまま', 'Sections only', '구획 그대로'],
+    'lpr.viewHint': ['販売ページは、公開したときに見える形です（LINE友だち追加もここに出ます）。'
+      + '区画そのままは、作った絵と文字だけを縦に並べたものです。',
+      'The sales page is what visitors see once published (including the LINE button).',
+      '판매 페이지는 공개 시 보이는 형태입니다.'],
+    'lpr.noSales': ['販売ページの文章がまだありません。生成プロンプトの画面で「販売ページの文章をAIに書かせる」を押してください',
+      'No sales copy yet. Write it on the prompts screen.', '판매 문구가 없습니다'],
     'lpr.modeAll': ['すべての区画を', 'All sections', '모든 구획을'],
     'lpr.modeNoText': ['文字版なし', 'No text version', '텍스트 버전 없음'],
     'lpr.modeNoImage': ['絵は未生成', 'Visual not generated', '이미지 미생성'],
@@ -122,7 +130,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [] };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '' };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -261,10 +269,56 @@
         });
       }
 
+      /* 販売ページの文章があるか */
+      function hasSales() {
+        return !!(view.gen && view.gen.content && view.gen.content.sales);
+      }
+
+      /* いま出す形。販売ページの文章があれば、既定はそちら。
+         公開したときに見えるものを、そのまま見せる
+         （2026-10-04 指摘: LINE登録のところが見えない。
+         公開ページにしか出ず、生成結果では確かめられなかった） */
+      function previewKind() {
+        if (view.preview === 'canvas') { return 'canvas'; }
+        if (view.preview === 'sales' && hasSales()) { return 'sales'; }
+        return hasSales() ? 'sales' : 'canvas';
+      }
+
+      /* 販売ページを組む。中身は公開のときと同じ道具・同じ値を使う */
+      function buildSales() {
+        var project = view.project || {};
+        var info = (project.sales_info && typeof project.sales_info === 'object') ? project.sales_info : {};
+        var mode = String(project.lead_mode || 'line');
+        var prompts = (view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object')
+          ? view.gen.asset_prompts : {};
+        var slug = String(view.gen.public_url_slug
+          || ((project.shop_slug || '') + '/' + String(view.gen.variant_label || '-').toLowerCase()));
+        return LpRender.buildSalesHtml({
+          sales: view.gen.content.sales,
+          assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
+          design: designFromProject(project),
+          title: project.product_name || project.name || '',
+          lineUrl: (mode !== 'mail') ? String(project.line_url || '') : '',
+          kv: info.kv_first ? (view.kvUrls || []) : [],
+          mail: (mode === 'mail' || mode === 'both') ? {
+            url: Api.URL, key: Api.ANON_KEY, slug: slug,
+            note: (window.LpRender && LpRender.mailNote) || ''
+          } : null
+        });
+      }
+
       function build(save) {
         if (!window.LpRender || typeof LpRender.buildDraftHtml !== 'function') {
           console.error('[screens-lp-result] LpRender.buildDraftHtml がありません。lp-render.js を確認してください。');
           return;
+        }
+        if (previewKind() === 'sales' && typeof LpRender.buildSalesHtml === 'function') {
+          var made = buildSales();
+          if (made) {
+            view.html = made;
+            if (save) { saveHtml(); }
+            return;
+          }
         }
         /* 生成プロンプト（lp_brief）は、区画を縦に並べるだけ（キャンバス）。
            区画ごとに「絵」「文字」「絵＋文字」を選べる。同じ区画の絵版と文字版は
@@ -561,6 +615,25 @@
           build(true); paint();
         }));
         add(toolbar, button('btn btn--secondary', t('lpr.download'), download));
+        /* 出す形の切り替え。販売ページ（公開したときに見える形。LINEもここ）と、
+           区画そのまま（作った絵と文字を縦に並べただけ） */
+        var kind = previewKind();
+        var sw = el('div', 'lpr-view');
+        [['sales', 'lpr.viewSales'], ['canvas', 'lpr.viewCanvas']].forEach(function (pair) {
+          var b = button('btn btn--sm' + (kind === pair[0] ? ' btn--primary' : ' btn--secondary'),
+            t(pair[1]), function () {
+              view.preview = pair[0];
+              build(false);
+              paint();
+            });
+          b.setAttribute('aria-pressed', kind === pair[0] ? 'true' : 'false');
+          /* 販売ページの文章が無ければ、そちらは選べない */
+          if (pair[0] === 'sales' && !hasSales()) { b.disabled = true; b.title = t('lpr.noSales'); }
+          add(sw, b);
+        });
+        add(toolbar, sw);
+        if (!hasSales()) { add(toolbar, el('span', 't-note', t('lpr.noSales'))); }
+        else { add(toolbar, el('span', 't-note', t('lpr.viewHint'))); }
         if (window.Api && Api.lp) {
           if (view.gen.published_at && view.gen.public_url) {
             add(toolbar, button('btn btn--secondary', t('lpr.unpublish'), function () { setPublish(false); }));
@@ -604,6 +677,9 @@
       function paintModes() {
         clear(modes);
         if (view.gen.feature_key !== 'lp_brief') { return; }
+        /* 絵か文字かの選択は「区画そのまま」のときの話。
+           販売ページは AI が書いた文章で組むので、ここでは選べない */
+        if (previewKind() === 'sales') { return; }
         var sections = view.gen.sections || [];
         if (!sections.length) { return; }
         var madeMap = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
