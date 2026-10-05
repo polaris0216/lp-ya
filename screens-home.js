@@ -2680,13 +2680,30 @@
     }
 
     /* ☆が変わったら、商品だけを抜いた白背景の見本を作り直す（裏で）。
-       見本は素材の生成に全部添付されるので、☆を増やせば見本も増える */
+       見本は素材の生成に全部添付されるので、☆を増やせば見本も増える。
+
+       ☆が1枚も無いときも積む（2026-10-06）。この仕事は切り抜く前に
+       「見本に使う写真」をAIが選ぶところから始まるので、
+       自動分析で写真が入っただけの状態から、☆をAIに付けさせられる。
+       以前はここで「☆が無ければ何もしない」と返していたため、
+       分析のあと写真は並ぶのに☆が1つも付かなかった（利用者の指摘） */
     var lastShots = '';
+    /* AIに☆を選ばせる仕事は、1回開いているあいだに1度だけ積む */
+    var askedAiShots = false;
     function refreshCutouts() {
       var now = JSON.stringify(form.productShots.slice().sort());
-      if (now === lastShots || !form.productShots.length) { return; }
+      var aiPicks = !form.productShots.length;
+      /* ☆が0枚のときは「前回と同じ（どちらも空）」になるので、
+         変わったかどうかでは判定できない。ここを変化だけで見ていたため、
+         自動分析のあと写真は並ぶのに☆が付かなかった（2026-10-06 実測） */
+      if (aiPicks) {
+        if (askedAiShots || !form.images.length) { return; }
+        askedAiShots = true;
+      } else {
+        if (now === lastShots) { return; }
+      }
       lastShots = now;
-      if (!window.Api || !window.Api.generationJobs) { return; }
+      if (!window.Api || !window.Api.generationJobs || !projectId) { return; }
       window.Api.generationJobs.insert({
         feature_key: 'product_cutouts',
         status: 'pending',
@@ -2694,7 +2711,30 @@
         users_id: (window.Api.auth && typeof window.Api.auth.userId === 'function') ? window.Api.auth.userId() : undefined,
         payload: {},
         lang: (window.I18N && typeof window.I18N.locale === 'function') ? window.I18N.locale() : 'ja'
+      }).then(function (job) {
+        /* AIが☆を選ぶときは、終わったら画面に戻す。
+           黙って裏で付けても、この画面を開き直すまで見えない */
+        if (!aiPicks || !job || !job.id || !window.App || typeof App.watchJob !== 'function') { return; }
+        toast(t('s4.shotsAiPicking'), 'success');
+        App.watchJob({
+          jobId: job.id, titleKey: 'job.titleAssets', urls: [],
+          onDone: function () { reloadShots(); }
+        });
       }).catch(function (err) { console.warn('[screens-home] 切り抜きの仕事を積めませんでした', err); });
+    }
+
+    /* AIが選んだ☆を画面に戻す */
+    function reloadShots() {
+      if (!projectId || !apiReady()) { return; }
+      window.Api.projects.get(projectId).then(function (row) {
+        var shots = isArray(row.product_shot_urls) ? row.product_shot_urls.map(String) : [];
+        if (!shots.length) { return; }
+        form.productShots = shots;
+        lastShots = JSON.stringify(shots.slice().sort());
+        askedAiShots = false;
+        paintImages();
+        toast(t('s4.shotsAiPicked', { n: shots.length }), 'success');
+      }).catch(function (err) { console.warn('[screens-home] ☆を読み直せませんでした', err); });
     }
 
     /* ★の写真を見本に登録する。保存 → 切り抜きの仕事 → 終わったら枚数を知らせる */
