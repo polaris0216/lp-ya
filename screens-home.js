@@ -976,8 +976,12 @@
         return input;
       }
 
-      /* 参考ページからのAI自動入力（手入力も残す） */
+      /* AI自動分析。参照ページ（自分の商品）と競合LPを1つの区画で受け、
+         ボタン1つで両方を読ませる（2026-10-06 利用者の決め）。
+         欄は分けたまま置く。混ぜると、自分の商品ページが競合として分析される */
       var refPanel = panel('product.refPanel', 'product.refPanelDesc');
+
+      refPanel.appendChild(el('p', 'field__label', t('product.refUrlsLabel')));
       refHost = el('div', 'stack');
       refPanel.appendChild(refHost);
       var refActions = el('div', 'btn-row');
@@ -985,20 +989,12 @@
         form.refUrls.push('');
         paintRefUrls();
       }));
-      refRunButton = button('btn btn--primary', t('product.refRun'), runAutofill);
-      refActions.appendChild(refRunButton);
       refPanel.appendChild(refActions);
-      /* 読み取った組み立て方を出す。保存しても見えない場所に置くと、
-         入っているのか失敗したのか画面から分からない */
-      refStructureHost = el('div');
-      refPanel.appendChild(refStructureHost);
-      screen.appendChild(refPanel);
 
-      /* 競合LP。参照ページ（自分の商品）とは別物なので、欄を分けて置く。
-         混ぜると、自分の商品ページが競合として分析される */
-      var rivalPanel = panel('product.rivalPanel', 'product.rivalPanelDesc');
+      refPanel.appendChild(el('p', 'field__label', t('product.rivalPanel')));
+      refPanel.appendChild(el('p', 'field__hint', t('product.rivalPanelDesc')));
       rivalHost = el('div', 'stack');
-      rivalPanel.appendChild(rivalHost);
+      refPanel.appendChild(rivalHost);
       rivalAddButton = button('btn btn--secondary', '＋ ' + t('product.rivalAdd'), function () {
         if (form.rivalUrls.length >= MAX_RIVALS) { return; }
         form.rivalUrls.push('');
@@ -1006,10 +1002,21 @@
       });
       var rivalActions = el('div', 'btn-row');
       rivalActions.appendChild(rivalAddButton);
-      rivalPanel.appendChild(rivalActions);
+      refPanel.appendChild(rivalActions);
       rivalNote = el('p', 'field__hint');
-      rivalPanel.appendChild(rivalNote);
-      screen.appendChild(rivalPanel);
+      refPanel.appendChild(rivalNote);
+
+      /* 両方をまとめて読ませるボタン。2つの欄の下に1つだけ置く */
+      refRunButton = button('btn btn--primary btn--block', t('product.refRun'), runAutofill);
+      var runRow = el('div', 'btn-row');
+      runRow.appendChild(refRunButton);
+      refPanel.appendChild(runRow);
+
+      /* 読み取った組み立て方を出す。保存しても見えない場所に置くと、
+         入っているのか失敗したのか画面から分からない */
+      refStructureHost = el('div');
+      refPanel.appendChild(refStructureHost);
+      screen.appendChild(refPanel);
 
       /* 商品写真 */
       var photoPanel = panel('product.photoPanel', 'product.photoPanelDesc');
