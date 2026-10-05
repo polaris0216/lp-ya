@@ -1035,12 +1035,20 @@
     if (!secs.length) { return written; }
     var byslot = {};
     written.forEach(function (b) { if (b && b.slot) { byslot[String(b.slot)] = b; } });
+    /* 区画ごとの見せ方（絵／文字／絵＋文字）。
+       これまで販売ページは見ていなかったので、「絵」にしてあるのに
+       文字が出て、設定と食い違っていた（2026-10-05 指摘） */
+    var modes = (o.modes && typeof o.modes === 'object') ? o.modes : {};
     var out = [];
     secs.forEach(function (sec) {
       var slot = String(sec.index) + '-1';
       /* 冒頭に出した区画は重ねない */
       if (slot === heroSlot) { return; }
-      out.push(byslot[slot] || fromSection(sec, slot));
+      var one = byslot[slot] || fromSection(sec, slot);
+      var how = modes[String(sec.index)];
+      if (how === 'image') { one = { slot: slot, title: '', body: '' }; }
+      else if (how === 'text') { one = { slot: '', title: one.title, body: one.body }; }
+      out.push(one);
     });
     /* AI がどの区画にも結びつけずに書いた塊は、落とさず後ろへ */
     written.forEach(function (b) {
@@ -1129,6 +1137,7 @@
        その区画の絵がどこにも出なくなる（実測 2026-10-05: 区画1が消えていた） */
     var blocks = allBlocks(o, sales, heroShown ? String(sales.hero.slot || '') : '');
     out.push('<div class="wrap">');
+    blocks = blocks.filter(function (b) { return pic(b.slot) || b.title || b.body; });
     blocks.forEach(function (b, i) {
       out.push('<section class="block">');
       if (pic(b.slot)) {

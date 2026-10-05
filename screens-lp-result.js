@@ -421,6 +421,8 @@
           sales: view.gen.content.sales,
           /* LP案で作った区画ぜんぶ。順番どおりに並べるのに使う */
           sections: view.gen.sections || [],
+          /* 区画ごとの見せ方。販売ページでも同じ設定を効かせる */
+          modes: view.mode || {},
           assets: (prompts.made && typeof prompts.made === 'object') ? prompts.made : {},
           design: designFromProject(project),
           title: project.product_name || project.name || '',

@@ -605,10 +605,13 @@ table { border-collapse: collapse; width: 100%; }
   .app-main { max-width: 900px; }
 }
 
+/* 段の間。これまで各段にも margin-bottom が残っていて、
+   gap と足されて52pxになっていた（2026-10-05 指摘「行ごとの余白が広すぎ」）。
+   margin は外し、間はここだけで決める */
 .screen {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-section);
+  gap: var(--sp-group);
 }
 
 .screen__title {
@@ -633,6 +636,8 @@ table { border-collapse: collapse; width: 100%; }
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+  /* 見出しのかたまりの下だけ、少し多めに空ける */
+  margin-bottom: 8px;
 }
 
 /* 見出し下の短いグラデーション罫線（グラデはアクセント限定で使う） */
@@ -4257,7 +4262,7 @@ input[type='radio'] {
 /* ---------- S12 LP案 ---------- */
 .lp-notice:empty { display: none; }
 .lp-notice__warn { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--r-control); background: #FEF3C7; color: #92400E; font-size: var(--fs-note); }
-.lp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; }
+.lp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
 .lp-history { max-width: 360px; }
 .lp-summary { margin: 6px 0 12px; line-height: 1.7; }
 .lp-applied { margin: 4px 0 0; padding-left: 18px; }
@@ -4277,7 +4282,7 @@ input[type='radio'] {
 .lp-visual__text { margin: 2px 0 0; padding: 8px 10px; border-left: 3px solid var(--c-line); color: var(--c-text-sub); font-size: var(--fs-note); }
 
 /* ---------- S13 生成結果 ---------- */
-.lpr-stats { margin: 0 0 10px; }
+.lpr-stats { margin: 0; }
 /* LPの下見と、その右の棚。狭い画面では棚が下に回る
    （2026-10-05 要望: 右にサイドメニュー） */
 .lpr-stage { display: grid; gap: 12px; align-items: start; }
@@ -4328,7 +4333,7 @@ input[type='radio'] {
 /* ---------- S13 キャンバス: 区画ごとに絵か文字かを選ぶ ---------- */
 .lpr-modes:empty { display: none; }
 .lpr-modes {
-  margin: 0 0 16px; padding: 14px 16px;
+  margin: 0; padding: 14px 16px;
   border: 1px solid var(--c-line); border-radius: var(--r-card);
 }
 .lpr-modes__title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: 700; }
@@ -4388,7 +4393,7 @@ input[type='radio'] {
      --on       開いている耳。1px下げて、下辺を面の色で塗り、線を切る */
 .lp-tabs {
   border-bottom: 1px solid var(--c-line);
-  margin: 0 0 16px;
+  margin: 0;
   display: flex; align-items: flex-end;
   overflow-x: auto;                 /* 狭い画面では横に送る（折り返すと耳に見えない） */
   scrollbar-width: none;
