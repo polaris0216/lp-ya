@@ -462,6 +462,7 @@
              これまで区画そのままには入れていなかったので、見せ方を
              「絵」「文字」どれにしても LINE 登録が出てこなかった
              （2026-10-05 指摘: どの設定でも必ず出すこと）*/
+          var dez = designFromProject(view.project);
           var proj = view.project || {};
           var sinfo = (proj.sales_info && typeof proj.sales_info === 'object') ? proj.sales_info : {};
           var lead = String(proj.lead_mode || 'line');
@@ -485,6 +486,15 @@
             /* 動く絵があれば、その区画の絵はそちら。
                止まった絵と2つ並べると同じ場面が続いてくどい
                （2026-10-05 要望: 絵とGIFだけを並べたい） */
+            /* よくある質問は、絵ではなく SVG の板。回答まで字が崩れずに出る
+               （2026-10-05 指摘: 質問だけで回答が出ていなかった） */
+            if (LpRender.isFaq && LpRender.isFaq(sec)) {
+              var qa = LpRender.faqItems(sec);
+              if (qa.length) {
+                return '<section data-slot="' + escapeHtml(String(sec.index) + '-1') + '">'
+                  + LpRender.faqPanel(qa, dez, 1000, String(sec.title || '')) + '</section>';
+              }
+            }
             var url = visualOf(sec);
             var mode = modeOf(sec, url);
             var cap = sec.body ? '<p class="cap">' + escapeHtml(String(sec.body)) + '</p>' : '';
@@ -526,7 +536,6 @@
           var wantKv = !!(view.project && view.project.sales_info
             && view.project.sales_info.kv_first && view.kvUrls && view.kvUrls.length
             && window.LpRender && LpRender.kvSliderMarkup);
-          var dez = designFromProject(view.project);
           var accent = String(dez.accentColor || '#C13584');
           var weak = accent + '33';
           view.html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">'

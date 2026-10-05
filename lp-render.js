@@ -361,6 +361,111 @@
      残りは呼ぶ側が小さな添え書きとして下に出す（makuake の作り）。 */
   var PANEL_BODY_LINES = 3;
 
+  /* よくある質問を、SVG の1枚絵にする。
+     なぜ絵を作らせないか: 回答まで含めると文字が多く、画像生成に日本語を
+     長く描かせると字形が崩れる（この作りの大もとの決まり）。
+     実測 2026-10-05: 絵に渡していたのは見出しと補足だけで、回答は
+     一度も渡っていなかった。だから質問しか出ていなかった（利用者の指摘）。
+     SVG なら字は崩れず、あとから直せる */
+  function isFaq(sec) {
+    if (!sec) { return false; }
+    if (String(sec.key || '') === 'faq') { return true; }
+    return /よくある質問|FAQ|Q&A|Q＆A/i.test(String(sec.title || ''));
+  }
+
+  function faqItems(sec) {
+    var raw = String((sec && (sec.body || sec.text)) || '');
+    if (!raw) { return []; }
+    /* 「Q1 …」で切る。1行に続いていても、改行で並んでいても拾える */
+    var parts = raw.split(/Q\s*\d+[.．、:：]?\s*/).map(function (x) { return x.trim(); });
+    parts.shift();                               /* 1つめは見出しの残り */
+    var out = [];
+    parts.forEach(function (one) {
+      if (!one) { return; }
+      /* 質問と回答の切れ目。「→」「A.」「答:」のどれか。無ければ最初の句点 */
+      var at = one.search(/\s*(?:→|⇒|A[.．:：]|答[.．:：])\s*/);
+      var q, a;
+      if (at >= 0) {
+        q = one.slice(0, at).trim();
+        a = one.slice(at).replace(/^\s*(?:→|⇒|A[.．:：]|答[.．:：])\s*/, '').trim();
+      } else {
+        var dot = one.indexOf('。');
+        q = dot > 0 ? one.slice(0, dot + 1).trim() : one.trim();
+        a = dot > 0 ? one.slice(dot + 1).trim() : '';
+      }
+      if (q) { out.push({ q: q, a: a }); }
+    });
+    return out.slice(0, 8);
+  }
+
+  function faqPanel(items, design, width, title) {
+    var list = Array.isArray(items) ? items : [];
+    if (!list.length) { return ''; }
+    var d = design || DEFAULT_DESIGN;
+    var W = width || 1000;
+    var pad = Math.round(W * 0.07);
+    var headSize = Math.round(W * 0.045);
+    var qSize = Math.round(W * 0.030);
+    var aSize = Math.round(W * 0.026);
+    var qStep = Math.round(qSize * 1.6);
+    var aStep = Math.round(aSize * 1.75);
+    var inner = W - pad * 2;
+    var badge = Math.round(qSize * 2.1);
+    var wrapQ = function (t) { return wrapLines(t, (inner - badge - 12) / (qSize * 0.58)); };
+    var wrapA = function (t) { return wrapLines(t, (inner - badge - 12) / (aSize * 0.62)); };
+
+    /* まず高さを数える */
+    var rows = list.map(function (one, i) {
+      var ql = wrapQ('Q' + (i + 1) + '　' + one.q);
+      var al = one.a ? wrapA(one.a) : [];
+      return { ql: ql, al: al, h: ql.length * qStep + (al.length ? Math.round(aSize * 0.7) : 0) + al.length * aStep };
+    });
+    var gap = Math.round(aSize * 1.5);
+    var H = pad + headSize + Math.round(headSize * 1.6)
+      + rows.reduce(function (n, r) { return n + r.h + gap; }, 0) + pad;
+
+    var ink = d.titleColor;
+    var hot = d.accentColor;
+    var body = d.bodyColor;
+    var out = [];
+    out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
+      + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
+    out.push('<rect width="' + W + '" height="' + H + '" fill="' + escapeHtml(d.bgColor || '#FFFFFF') + '"/>');
+    var fam = 'Hiragino Sans, Yu Gothic UI, Noto Sans JP, system-ui, sans-serif';
+    var y = pad + headSize;
+    out.push('<text x="' + pad + '" y="' + y + '" font-family="' + fam + '" font-size="' + headSize
+      + '" font-weight="800" fill="' + ink + '">' + escapeHtml(title || t('sales.faq')) + '</text>');
+    /* 見出しと1問目のあいだ。詰めると札が見出しの足に重なる */
+    y += Math.round(headSize * 1.6);
+    rows.forEach(function (r, i) {
+      var top = y;
+      /* 左の札（Q1・Q2…）。数字は差し色で */
+      out.push('<rect x="' + pad + '" y="' + (top - qSize) + '" width="' + badge + '" height="'
+        + Math.round(qSize * 1.5) + '" rx="' + Math.round(qSize * 0.35) + '" fill="' + hot + '"/>');
+      out.push('<text x="' + (pad + badge / 2) + '" y="' + (top + Math.round(qSize * 0.12))
+        + '" font-family="' + fam + '" font-size="' + Math.round(qSize * 0.82)
+        + '" font-weight="800" fill="#FFFFFF" text-anchor="middle">Q' + (i + 1) + '</text>');
+      var x = pad + badge + 12;
+      wrapQ(r.ql.length ? list[i].q : '').forEach(function (line, li) {
+        out.push('<text x="' + x + '" y="' + (top + li * qStep) + '" font-family="' + fam
+          + '" font-size="' + qSize + '" font-weight="700" fill="' + ink + '">'
+          + escapeHtml(line) + '</text>');
+      });
+      y = top + wrapQ(list[i].q).length * qStep;
+      if (r.al.length) {
+        y += Math.round(aSize * 0.7);
+        r.al.forEach(function (line, li) {
+          out.push('<text x="' + x + '" y="' + (y + li * aStep) + '" font-family="' + fam
+            + '" font-size="' + aSize + '" fill="' + body + '">' + escapeHtml(line) + '</text>');
+        });
+        y += r.al.length * aStep;
+      }
+      y += gap;
+    });
+    out.push('</svg>');
+    return out.join('');
+  }
+
   function burnedPanel(src, title, body, design, width, options) {
     var o = options || {};
     var W = width;
@@ -1045,6 +1150,13 @@
       /* 冒頭に出した区画は重ねない */
       if (slot === heroSlot) { return; }
       var one = byslot[slot] || fromSection(sec, slot);
+      /* よくある質問の区画は、絵でなく SVG の板にする。
+         絵に渡していたのは見出しだけで、回答が一度も出ていなかった
+         （実測 2026-10-05・利用者の指摘） */
+      if (isFaq(sec)) {
+        var qa = faqItems(sec);
+        if (qa.length) { out.push({ slot: slot, title: String(sec.title || t('sales.faq')), body: '', faq: qa }); return; }
+      }
       var how = modes[String(sec.index)];
       if (how === 'image') { one = { slot: slot, title: '', body: '' }; }
       else if (how === 'text') { one = { slot: '', title: one.title, body: one.body }; }
@@ -1137,9 +1249,16 @@
        その区画の絵がどこにも出なくなる（実測 2026-10-05: 区画1が消えていた） */
     var blocks = allBlocks(o, sales, heroShown ? String(sales.hero.slot || '') : '');
     out.push('<div class="wrap">');
-    blocks = blocks.filter(function (b) { return pic(b.slot) || b.title || b.body; });
+    blocks = blocks.filter(function (b) { return pic(b.slot) || b.title || b.body || b.faq; });
     blocks.forEach(function (b, i) {
       out.push('<section class="block">');
+      if (b.faq) {
+        /* よくある質問は、絵ではなく SVG の板。回答まで字が崩れずに出る */
+        out.push('<div class="faq-panel">' + faqPanel(b.faq, d, 1000, b.title) + '</div>');
+        out.push('</section>');
+        if ((href || wantMail) && (i + 1) % EVERY === 0 && i < blocks.length - 1) { out.push(callOut()); }
+        return;
+      }
       if (pic(b.slot)) {
         out.push('<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '')
           + '" loading="lazy"' + slotAttr(b.slot) + '>');
@@ -1581,6 +1700,9 @@
     lineSpots: lineSpots,
     lineHref: lineHref,
     lineStyleOf: lineStyleOf,
+    isFaq: isFaq,
+    faqItems: faqItems,
+    faqPanel: faqPanel,
     burnedPanel: burnedPanel,
     escapeHtml: escapeHtml,
     wrapLines: wrapLines
