@@ -2433,6 +2433,12 @@
         product_shot_urls: form.productShots.filter(function (url) {
           return form.images.indexOf(url) !== -1;
         }),
+        /* ☆をこの画面で変えたときだけ「人が選んだ」と印を付ける（041）。
+           印が付くと、AI は見本の写真を選び直して上書きしない。
+           変えていないときは undefined で、cleanPayload が外す
+           （AI の選択をただ開いただけで凍らせないため）。
+           LP案の画面の「AIに選び直させる」で 'ai' に戻せる */
+        shots_by: JSON.stringify(form.productShots.slice().sort()) === lastShots ? undefined : 'human',
         video_urls: form.videos.slice(),
         rewards: rewardsValue(),
         category: form.category || null,

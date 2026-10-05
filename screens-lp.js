@@ -105,6 +105,20 @@
       '사람이나 장면이 주인 사진. 형태 기준으로는 쓰지 않습니다'],
     'lp.addRefs': ['見本を増やす（商品入力で☆）', 'Add references (star photos in Product input)', '견본 추가(상품 입력에서 ☆)'],
     'lp.refsStale': ['☆の写真が {n} 枚ありますが、見本は {m} 枚です。作り直すと追いつきます。', '{n} starred photos but {m} references. Rebuild to catch up.', '☆ 사진 {n}장 중 견본은 {m}장입니다. 다시 만들면 맞춰집니다.'],
+    'lp.shots': ['商品の見本に使う写真', 'Photos used as product references', '상품 견본으로 쓰는 사진'],
+    'lp.shotsAi': ['AIが選びました', 'Picked by AI', 'AI가 선택'],
+    'lp.shotsHuman': ['あなたが選びました', 'Picked by you', '직접 선택'],
+    'lp.shotsNow': ['{n} 枚の写真から商品の形を取っています。出来が気になるときは選び直してください。',
+      'Product shape is taken from {n} photos. Re-pick if the result looks off.',
+      '{n}장의 사진에서 상품 형태를 가져옵니다. 결과가 아쉬우면 다시 고르세요.'],
+    'lp.shotsPick': ['写真を選び直す', 'Re-pick photos', '사진 다시 고르기'],
+    'lp.shotsClose': ['選び直しを閉じる', 'Close', '닫기'],
+    'lp.shotsHint': ['商品がはっきり写っていて、向きが散らばっているものを選ぶと形が崩れません。写真を押すと入り切りできます。',
+      'Pick clear product shots from varied angles. Tap a photo to toggle.',
+      '상품이 선명하고 각도가 다양한 사진을 고르세요. 사진을 누르면 켜고 끕니다.'],
+    'lp.shotsSave': ['この写真で見本を作り直す', 'Rebuild references with these', '이 사진으로 견본 다시 만들기'],
+    'lp.shotsNone': ['写真を1枚以上選んでください', 'Select at least one photo', '사진을 1장 이상 선택하세요'],
+    'lp.shotsAuto': ['AIに選び直させる', 'Let AI re-pick', 'AI에게 다시 고르게 하기'],
     'lp.rebuildRefs': ['見本を作り直す', 'Rebuild references', '견본 다시 만들기'],
     'lp.rebuildRefsQueued': ['見本を作り直しています。1分ほどで揃います。', 'Rebuilding references; about a minute.', '견본을 다시 만드는 중입니다. 1분 정도 걸립니다.'],
     'lp.noRefs': ['切り抜きがありません。商品入力で商品が写っている写真に☆を付けると、自動で切り抜きます。',
@@ -789,6 +803,7 @@
         add(body, pub);
         paintPublish(pub);
         paintRefs();
+        paintShots();
         paintSections();
       }
 
@@ -874,6 +889,99 @@
         add(body, box);
       }
 
+      /* 見本の切り抜きを作り直す。ワーカーは切り抜く前に、見本に使う写真
+         そのものを選び直す（shots_by が 'human' なら人の選択を残す） */
+      function rebuildRefs() {
+        return Api.generationJobs.insert({
+          feature_key: 'product_cutouts', status: 'pending', projects_id: projectId,
+          users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+          payload: {}, lang: currentLocale()
+        }).then(function (job) {
+          toast(t('lp.rebuildRefsQueued'), 'success');
+          if (App.watchJob) {
+            App.watchJob({ jobId: job.id, titleKey: 'job.titleAssets', urls: [], onDone: function () {
+              Api.projects.get(projectId).then(function (p) { view.project = p; paint(); });
+            } });
+          }
+        }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
+      }
+
+      /* 見本に使う写真は、ふだん AI が採点して選ぶ（tools/pick-product-shots.mjs）。
+         出来が良くないときに人が選び直せる口（2026-10-06 利用者の決め:
+         「基本A案、ただ結果が良くなかったら人が選択して反映させる余地も残して」）。
+         人が選んだら shots_by='human' を立て、以後 AI は黙って上書きしない（041） */
+      function paintShots() {
+        var all = isArray(view.project && view.project.image_urls)
+          ? view.project.image_urls.map(String) : [];
+        if (!all.length) { return; }
+        var on = {};
+        (isArray(view.project && view.project.product_shot_urls) ? view.project.product_shot_urls : [])
+          .forEach(function (u) { on[String(u)] = true; });
+        var byHuman = String((view.project && view.project.shots_by) || 'ai') === 'human';
+
+        var box = el('section', 'panel');
+        var headRow = el('div', 'lpd-section__head');
+        add(headRow, el('span', 'panel__title', t('lp.shots')));
+        add(headRow, el('span', 'chip chip--sm', t(byHuman ? 'lp.shotsHuman' : 'lp.shotsAi')));
+        var pane = el('div', '');
+        pane.hidden = true;
+        var toggle = button('btn btn--secondary btn--sm', t('lp.shotsPick'), function () {
+          pane.hidden = !pane.hidden;
+          toggle.textContent = t(pane.hidden ? 'lp.shotsPick' : 'lp.shotsClose');
+        });
+        add(headRow, toggle);
+        add(box, headRow);
+        add(box, el('p', 'field__hint', t('lp.shotsNow', {
+          n: Object.keys(on).length
+        })));
+
+        add(pane, el('p', 'field__hint', t('lp.shotsHint')));
+        var row = el('div', 'lp-assets__row');
+        all.forEach(function (u) {
+          /* 入り切りは枠と濃さで見せる。チェックボックスを重ねるより、
+             写真そのものを押せた方が速い */
+          var img = el('img', 'lp-assets__thumb');
+          img.src = u; img.alt = ''; img.loading = 'lazy';
+          img.style.cursor = 'pointer';
+          var dress = function () {
+            img.style.outline = on[u] ? '3px solid var(--color-primary, #2f6df6)' : '1px solid #ddd';
+            img.style.opacity = on[u] ? '1' : '0.4';
+          };
+          dress();
+          img.addEventListener('click', function () { on[u] = !on[u]; dress(); });
+          add(row, img);
+        });
+        add(pane, row);
+
+        var acts = el('div', 'lpd-section__head');
+        add(acts, button('btn btn--primary btn--sm', t('lp.shotsSave'), function (e) {
+          var picked = all.filter(function (u) { return !!on[u]; });
+          if (!picked.length) { toast(t('lp.shotsNone'), 'danger'); return; }
+          var node = e && e.currentTarget;
+          if (node) { node.disabled = true; }
+          Api.projects.update(projectId, { product_shot_urls: picked, shots_by: 'human' })
+            .then(function (p) { view.project = p; return rebuildRefs(); })
+            .catch(function (err) {
+              if (node) { node.disabled = false; }
+              toast(String(err && err.message || err), 'danger');
+            });
+        }));
+        /* AI に戻す口。これが無いと、一度人が選んだら二度と自動に戻せない */
+        add(acts, button('btn btn--secondary btn--sm', t('lp.shotsAuto'), function (e) {
+          var node = e && e.currentTarget;
+          if (node) { node.disabled = true; }
+          Api.projects.update(projectId, { shots_by: 'ai' })
+            .then(function (p) { view.project = p; return rebuildRefs(); })
+            .catch(function (err) {
+              if (node) { node.disabled = false; }
+              toast(String(err && err.message || err), 'danger');
+            });
+        }));
+        add(pane, acts);
+        add(box, pane);
+        add(body, box);
+      }
+
       /* 商品の見本（切り抜き）。全区画の生成に添付される */
       function paintRefs() {
         var refs = isArray(view.project && view.project.product_cutout_urls) ? view.project.product_cutout_urls : [];
@@ -888,20 +996,7 @@
           location.hash = '#/S4?id=' + encodeURIComponent(projectId);
         }));
         if (stale && stars.length) {
-          add(headRow, button('btn btn--primary btn--sm', t('lp.rebuildRefs'), function () {
-            Api.generationJobs.insert({
-              feature_key: 'product_cutouts', status: 'pending', projects_id: projectId,
-              users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
-              payload: {}, lang: currentLocale()
-            }).then(function (job) {
-              toast(t('lp.rebuildRefsQueued'), 'success');
-              if (App.watchJob) {
-                App.watchJob({ jobId: job.id, titleKey: 'job.titleAssets', urls: [], onDone: function () {
-                  Api.projects.get(projectId).then(function (p) { view.project = p; paint(); });
-                } });
-              }
-            }).catch(function (err) { toast(String(err && err.message || err), 'danger'); });
-          }));
+          add(headRow, button('btn btn--primary btn--sm', t('lp.rebuildRefs'), function () { rebuildRefs(); }));
         }
         add(box, headRow);
         if (stale && stars.length) {
