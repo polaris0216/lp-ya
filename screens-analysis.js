@@ -1086,6 +1086,15 @@
     return host.length > domain.length && host.slice(host.length - domain.length - 1) === '.' + domain;
   }
 
+  /* URLからプラットフォームを見分ける道具を、他の画面にも貸す。
+     商品入力（S4）でも競合LPのURLを受けるようになったため（2026-10-06）。
+     同じ判定を2か所に書くと、片方だけ新しいサイトに対応して食い違う */
+  App.platformOfUrl = function (raw) {
+    var parsed = normalizeUrl(raw);
+    return parsed.ok ? detectPlatform(parsed.host, parsed.path) : 'other';
+  };
+  App.checkUrl = function (raw) { return normalizeUrl(raw); };
+
   function detectPlatform(host, path) {
     var lowerHost = String(host || '').toLowerCase();
     var lowerPath = String(path || '').toLowerCase();
@@ -1938,6 +1947,25 @@
         }).filter(Boolean);
       }
 
+      /* すでに走っている分析があれば、もう一度頼まない。
+         頼むとポイントがもう一度引かれ、同じ分析が二重に走る。
+         商品入力の画面から積めるようにしたので（2026-10-06）、
+         この画面に来たときには、もう走っていることがある。
+         画面を読み直しただけでも同じことが起きていた */
+      window.Api.generationJobs.list({
+        eq: { report_id: String(view.report.id), feature_key: 'competitor_analysis' },
+        order: 'created_at.desc', limit: 5
+      }).catch(function () { return []; }).then(function (jobs) {
+        var live = null;
+        (jobs || []).forEach(function (job) {
+          if (live) { return; }
+          if (job.status === 'pending' || job.status === 'processing') { live = job; }
+        });
+        if (live) { waitForJob(live.id); return; }
+        startAnalysis();
+      });
+
+      function startAnalysis() {
       window.Api.analysis.run({
         report_id: String(view.report.id),
         lang: (App.getLang && App.getLang()) || 'ja'
@@ -1952,6 +1980,7 @@
         console.error('[screens-analysis] 分析の実行に失敗しました', err);
         showFailure(root, errorMessage(err, 'sa.analysisFailed'), runCollection);
       });
+      }
     }
 
     function drawNoReport() {

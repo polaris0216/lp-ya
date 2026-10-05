@@ -64,6 +64,8 @@
   /* ---------- 定数 ---------- */
   var MAX_IMAGES = 15;
   var MAX_BRAND_COLORS = 5;
+  /* 競合LPのURLの上限。競合分析の画面（S10 の MAX_URLS）と同じ数にそろえる */
+  var MAX_RIVALS = 5;
   var DEFAULT_SWATCH = '#A855F7';
   var TARGET_LABELS = ['A', 'B', 'C', 'D', 'E'];
   var FONT_SLOTS = [
@@ -752,7 +754,13 @@
 
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
       category: '', outputLang: 'ja', cfPlatform: 'makuake', fundingGoal: '', valueProp: '', brandTone: '',
-      refUrls: [''], brandColors: [], brandFonts: {}, targets: [], videos: [],
+      refUrls: [''],
+      /* 競合LPのURL（最大5件）。競合分析（S10）の入力をここに移した
+         （2026-10-06 利用者の決め: 貼る作業を1画面で終わらせる）。
+         保存先はプロジェクトではなく analysis_reports なので、
+         フォームの保存とは別に送る */
+      rivalUrls: [''],
+      brandColors: [], brandFonts: {}, targets: [], videos: [],
       /* 自動入力が出す配色案（5案）。フォントと同じく、ここから選ぶ。
          選んだものが brandColors に入る。案そのものは保存しない
          （選び終えたら要らない。読み直したときは brandColors だけが残る） */
@@ -783,6 +791,9 @@
     var rewardIndex = 0;
     var rewardAnim = 0;   // 1=次へ -1=前へ。滑り込む向き
     var refHost = null;
+    var rivalHost = null;
+    var rivalAddButton = null;
+    var rivalNote = null;
     var refStructureHost = null;
     var refRunButton = null;
     var colorsHost = null;
@@ -814,7 +825,13 @@
             select: 'target_audience',
             limit: 50
           }),
-          wanted ? window.Api.projects.get(wanted) : Promise.resolve(null)
+          wanted ? window.Api.projects.get(wanted) : Promise.resolve(null),
+          /* 競合LPのURLは projects ではなく analysis_reports にある。
+             この画面で入れられるようにしたので、開き直したときに戻す */
+          (wanted && window.Api.analysisReports)
+            ? window.Api.analysisReports.list({ eq: { projects_id: wanted },
+                order: 'created_at.desc', limit: 1 }).catch(function () { return []; })
+            : Promise.resolve([])
         ]);
       }).then(function (results) {
         targetCandidates = uniqueTargets(results[0] || []);
@@ -823,6 +840,12 @@
           fillFormFrom(results[1]);
           selectProject(results[1]);
         }
+        var report = (results[2] || [])[0];
+        var saved = (report && isArray(report.competitor_urls)) ? report.competitor_urls : [];
+        var rivals = saved.map(function (one) {
+          return (one && typeof one === 'object') ? String(one.url || '') : String(one || '');
+        }).filter(Boolean);
+        form.rivalUrls = rivals.length ? rivals : [''];
         paint();
         /* まだ作られていないなら、まず名前だけ決めてもらう */
         if (!projectId) { askProjectName(); }
@@ -970,6 +993,23 @@
       refStructureHost = el('div');
       refPanel.appendChild(refStructureHost);
       screen.appendChild(refPanel);
+
+      /* 競合LP。参照ページ（自分の商品）とは別物なので、欄を分けて置く。
+         混ぜると、自分の商品ページが競合として分析される */
+      var rivalPanel = panel('product.rivalPanel', 'product.rivalPanelDesc');
+      rivalHost = el('div', 'stack');
+      rivalPanel.appendChild(rivalHost);
+      rivalAddButton = button('btn btn--secondary', '＋ ' + t('product.rivalAdd'), function () {
+        if (form.rivalUrls.length >= MAX_RIVALS) { return; }
+        form.rivalUrls.push('');
+        paintRivalUrls();
+      });
+      var rivalActions = el('div', 'btn-row');
+      rivalActions.appendChild(rivalAddButton);
+      rivalPanel.appendChild(rivalActions);
+      rivalNote = el('p', 'field__hint');
+      rivalPanel.appendChild(rivalNote);
+      screen.appendChild(rivalPanel);
 
       /* 商品写真 */
       var photoPanel = panel('product.photoPanel', 'product.photoPanelDesc');
@@ -1186,6 +1226,7 @@
       paintImages();
       paintRewards();
       paintRefUrls();
+      paintRivalUrls();
       paintRefStructure();
       paintBrandPalettes();
       paintBrandColors();
@@ -1281,6 +1322,98 @@
         });
         row.appendChild(remove);
         refHost.appendChild(row);
+      });
+    }
+
+    function paintRivalUrls() {
+      if (!rivalHost) { return; }
+      clear(rivalHost);
+      form.rivalUrls.forEach(function (url, index) {
+        var row = el('div', 'row--input-action');
+        var input = el('input', 'input');
+        input.type = 'url';
+        input.value = url;
+        input.setAttribute('placeholder', 'https://');
+        input.setAttribute('aria-label', t('product.rivalUrl') + ' ' + (index + 1));
+        input.addEventListener('input', function () { form.rivalUrls[index] = input.value; });
+        row.appendChild(input);
+        row.appendChild(button('btn btn--text', t('common.delete'), function () {
+          form.rivalUrls.splice(index, 1);
+          if (!form.rivalUrls.length) { form.rivalUrls.push(''); }
+          paintRivalUrls();
+        }));
+        rivalHost.appendChild(row);
+      });
+      if (rivalAddButton) { rivalAddButton.disabled = form.rivalUrls.length >= MAX_RIVALS; }
+      if (rivalNote) {
+        rivalNote.textContent = t('product.rivalCount',
+          { n: filledRivalUrls().length, max: MAX_RIVALS });
+      }
+    }
+
+    function filledRivalUrls() {
+      var out = [];
+      form.rivalUrls.forEach(function (url) {
+        var one = String(url || '').trim();
+        if (one && out.indexOf(one) === -1) { out.push(one); }
+      });
+      return out.slice(0, MAX_RIVALS);
+    }
+
+    /* 競合分析を積む。商品の自動入力と同じボタンから呼ぶ。
+       走る順番（商品 → 競合）はワーカーが守るので、ここでは積むだけでよい。
+       プラットフォームの見分けは競合分析の画面と同じ道具を借りる
+       （同じ判定を2か所に書くと、片方だけ新しいサイトに対応して食い違う） */
+    function queueRivalAnalysis() {
+      var urls = filledRivalUrls();
+      if (!urls.length) { return Promise.resolve(null); }
+      if (!projectId || !apiReady() || !window.Api.analysisReports) { return Promise.resolve(null); }
+      var platformOf = (typeof App.platformOfUrl === 'function')
+        ? App.platformOfUrl : function () { return 'other'; };
+      var payload = {
+        projects_id: String(projectId),
+        competitor_urls: urls,
+        source_platforms: urls.map(platformOf),
+        source_outcomes: urls.map(function () { return 'unknown'; }),
+        /* status と analysis_status は同じ意味の列が二重にある。
+           旧側だけに入れると NOT NULL で必ず落ちる（S10 と同じ書き方） */
+        status: 'pending',
+        analysis_status: 'pending'
+      };
+      /* 書きかけの行があれば使い回す。押すたびに行が増えると、
+         どれが今の分析か分からなくなる */
+      return window.Api.analysisReports.list({
+        eq: { projects_id: String(projectId) }, order: 'created_at.desc', limit: 10
+      }).then(function (rows) {
+        var mine = null;
+        var sameDone = false;
+        var want = urls.slice().sort().join('\n');
+        (rows || []).forEach(function (row) {
+          var had = (isArray(row.competitor_urls) ? row.competitor_urls : []).map(function (one) {
+            return (one && typeof one === 'object') ? String(one.url || '') : String(one || '');
+          }).sort().join('\n');
+          /* 同じURLの分析がもう終わっているなら、積まない。
+             このボタンは商品の読み取りのために何度も押される。
+             毎回ポイントを引いて同じ分析をやり直すのは、押した人の意図ではない */
+          if (row.analysis_status === 'done' && had === want) { sameDone = true; }
+          if (mine) { return; }
+          if (row.analysis_status === 'draft' || row.analysis_status === 'pending') { mine = row; }
+        });
+        if (sameDone && !mine) { return { skipped: true }; }
+        return mine
+          ? window.Api.analysisReports.update(mine.id, payload)
+          : window.Api.analysisReports.insert(payload);
+      }).then(function (row) {
+        if (row && row.skipped) { return row; }
+        if (!row || !row.id) { return null; }
+        return window.Api.analysis.run({
+          report_id: String(row.id),
+          lang: (App.getLang && App.getLang()) || 'ja'
+        }).then(function () { return row; });
+      }).catch(function (err) {
+        console.error('[screens-home] 競合分析を積めませんでした', err);
+        toast(errorMessage(err), 'danger');
+        return null;
       });
     }
 
@@ -1859,6 +1992,14 @@
         product: { name: form.name.trim(), category: form.category, price: digitsOf(form.price) }
       }).then(function (result) {
         setAnalyzing(false, refRunButton, 'product.refRun');
+        /* 競合LPも貼ってあれば、同じボタンで積む。走る順番（商品 → 競合）は
+           ワーカーが守るので、ここでは積むだけ（2026-10-06） */
+        queueRivalAnalysis().then(function (row) {
+          if (!row) { return; }
+          toast(row.skipped
+            ? t('product.rivalSame')
+            : t('product.rivalQueued', { n: filledRivalUrls().length }), 'success');
+        });
         if (result && result.queued) { startWatch(result.job_id, 'job.title'); return; }
         var before = form.images.length;
         if (applyAutofill(result && result.content ? result.content : result)) {
