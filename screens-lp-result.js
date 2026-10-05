@@ -65,9 +65,9 @@
       '사진이 여러 장인 구획은 {n}건입니다.'],
     'lpr.shelfNone': ['作り直した写真がまだありません。', 'No regenerated photos yet.', '아직 다시 만든 사진이 없습니다.'],
     'lpr.pickGo': ['この区画まで移動', 'Jump to this section', '이 구획으로 이동'],
-    'lpr.pickUnused': ['この区画は販売ページでは使っていません（区画そのままには出ます）',
-      'Not used by the sales page (shown in the plain lineup)',
-      '판매 페이지에서는 사용하지 않습니다'],
+    'lpr.pickUnused': ['価格やリスクの話はMakuake本体に任せるので、販売ページには出しません（区画そのままには出ます）',
+      'Left to the Makuake page itself, so not shown here (still in the plain lineup)',
+      'Makuake 본편에 맡기므로 판매 페이지에는 표시하지 않습니다'],
     'lpr.shelfOne': ['残り {n} 区画は写真が1枚なので、そのまま使います。',
       'The other {n} sections have a single photo and use it automatically.',
       '나머지 {n} 구획은 사진이 1장이라 그대로 사용합니다.'],
@@ -1062,9 +1062,19 @@
          区画そのままは全部出すので null（＝ぜんぶ使う）を返す */
       function usedSlots() {
         if (previewKind() !== 'sales') { return null; }
-        /* 販売ページも、区画をぜんぶ順番どおりに出すようになった
-           （2026-10-05）。渡す区画があるなら、使っていない区画は無い */
-        if ((view.gen.sections || []).length) { return null; }
+        /* 販売ページは「公開前に LINE に登録してもらう」ページなので、
+           価格表・送料・リスク・保証・比較は Makuake 本体に任せて出さない
+           （2026-10-05・参照した SHELBRU に合わせた）。
+           どれを出していないかが分かるように、ここで返す */
+        var secs = view.gen.sections || [];
+        if (secs.length && LpRender.roleOf) {
+          var used = {};
+          secs.forEach(function (sec) {
+            if (LpRender.roleOf(sec) !== 'later') { used[String(sec.index) + '-1'] = 1; }
+          });
+          return used;
+        }
+        if (secs.length) { return null; }
         var sales = (view.gen.content && view.gen.content.sales) || null;
         if (!sales) { return null; }
         var out = {};

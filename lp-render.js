@@ -367,6 +367,67 @@
      実測 2026-10-05: 絵に渡していたのは見出しと補足だけで、回答は
      一度も渡っていなかった。だから質問しか出ていなかった（利用者の指摘）。
      SVG なら字は崩れず、あとから直せる */
+  /* ---- 区画の役割 ----
+     販売ページは「Makuake公開前に LINE に登録してもらう」ページ。
+     元の区画はクラウドファンディング本体のLP向けに作ってあるので、
+     そのまま順番に並べると、買う段になって要るもの（価格表・リスク・保証）が
+     途中に挟まって流れが切れる。
+
+     実測 2026-10-05、参照した5ページのうち唯一おなじ目的の SHELBRU は
+       冒頭 → 申し込み → 共感・課題 → 商品紹介 → 実績 → 特長ポイント
+       → 容量・色 → 使うシーン → 声 → 申し込み
+     の順で、**仕様の表も価格表も置いていなかった**（Makuake本体に任せている）。
+
+     なので役割で並べ替える。Makuake側に任せる役割は、販売ページには出さない
+     （区画そのままには今までどおり全部出るので、無くなるわけではない）。 */
+  var ROLES = [
+    { key: 'hero',    re: /ヒーロー|冒頭|キービジュアル|トップ/ },
+    { key: 'empathy', re: /不満|悩み|課題|困|気になる点|こんな方|ありませんか/ },
+    { key: 'intro',   re: /全体像|導入|とは|紹介|概要ビジュアル|本編/ },
+    { key: 'proof',   re: /実績|日本上陸|正規|受賞|メディア|支援|チーム/ },
+    { key: 'point',   re: /.*/ },                     /* 当てはまらないものは特長 */
+    { key: 'howto',   re: /使い方|たたみ方|手順|ステップ|how ?to/i },
+    { key: 'variation', re: /カラー|色|バリエーション|ラインナップ|サイズ展開/ },
+    { key: 'scene',   re: /場面|シーン|シチュエーション|暮らし|使うとき/ },
+    { key: 'voice',   re: /声|レビュー|口コミ|使った人|愛用/ },
+    { key: 'spec',    re: /寸法|スペック|仕様|商品概要/ },
+    { key: 'faq',     re: /よくある質問|FAQ|Q&A|Q＆A/i },
+    { key: 'brand',   re: /作り手|ブランド|物語|出会い|環境|取り組み/ },
+    /* 「まとめ」は入れない。「まとめ買いで気になる点」のような
+       共感の区画まで巻き込む（実測 2026-10-05） */
+    { key: 'closing', re: /締め|最後に|エンディング|クロージング/ },
+    /* ここから下は Makuake 本体に任せる。販売ページには出さない */
+    /* 「比較」は広く取ると、特長の「身近な物とのサイズ比較」まで巻き込む。
+       Makuake側へ回すのは「一般的な◯◯との比較」「比較表」だけに絞る */
+    { key: 'later',   re: /価格表|割引率|リターン|送料|タイムライン|リスク|保証|サポート|ストレッチ|(?:一般的|従来|他社|市販)[^]{0,8}比較|比較表/ }
+  ];
+
+  /* 販売ページに出す役割と、その並び（SHELBRU の順） */
+  var SALES_ORDER = ['hero', 'empathy', 'intro', 'proof', 'point', 'howto',
+    'variation', 'scene', 'voice', 'spec', 'faq', 'brand', 'closing'];
+
+  function roleOf(sec) {
+    var name = String((sec && sec.title) || '');
+    /* 後ろから当てる。point は何にでも当たる受け皿なので、
+       より具体的な役割が先に勝つようにする */
+    for (var i = ROLES.length - 1; i >= 0; i -= 1) {
+      if (ROLES[i].key === 'point') { continue; }
+      if (ROLES[i].re.test(name)) { return ROLES[i].key; }
+    }
+    return 'point';
+  }
+
+  /* 役割の順に並べ替える。同じ役割の中では元の順を保つ */
+  function byRole(secs) {
+    var out = [];
+    SALES_ORDER.forEach(function (role) {
+      secs.forEach(function (sec) {
+        if (roleOf(sec) === role) { out.push(sec); }
+      });
+    });
+    return out;
+  }
+
   function isFaq(sec) {
     if (!sec) { return false; }
     if (String(sec.key || '') === 'faq') { return true; }
@@ -705,6 +766,10 @@
          （2026-10-05 指摘「なぜ写真の両端に余白があり角が丸いのか」） */
       '.block img{display:block;height:auto;margin:0 0 16px;border-radius:0;'
         + 'width:calc(100% + 36px);margin-left:-18px;margin-right:-18px}',
+      /* 特長の番号。見出しの上に小さく、差し色で。
+         ページ内で1種類だけにする（参照ページもどれも1種類だった） */
+      '.pt{display:block;margin:0 0 6px;font-size:13px;font-weight:800;'
+        + 'letter-spacing:.18em;color:' + d.accentColor + '}',
       '.block h2{margin:0 0 10px;font-family:' + fontStack(d.titleFont) + ';font-size:'
         + Math.round(d.titleSize * 0.78) + 'px;line-height:1.45;font-weight:700;color:' + d.titleColor + '}',
       '.block p{margin:0 0 12px;font-size:' + d.bodySize + 'px}',
@@ -1135,9 +1200,17 @@
      実測 2026-10-05: AI は30区画のうち7区画しか選ばず、
      作った絵の大半がページに出ていなかった（利用者の指摘） */
   function allBlocks(o, sales, heroSlot) {
-    var secs = Array.isArray(o.sections) ? o.sections : [];
+    var raw = Array.isArray(o.sections) ? o.sections : [];
+    /* 役割の順に並べ替え、Makuake本体に任せる役割は外す。
+       外したものが消えるわけではない（区画そのままには全部出る） */
+    var secs = raw.filter(function (sec) { return roleOf(sec) !== 'later'; });
+    secs = byRole(secs);
     var written = Array.isArray(sales.blocks) ? sales.blocks : [];
-    if (!secs.length) { return written; }
+    if (!secs.length) { return raw.length ? byRole(raw) : written; }
+    /* 特長の区画には通し番号を振る。絵に焼かせると抜けが出る
+       （実測: 参照した FLEXY は Point ❺ が存在しなかった）。
+       こちらで振れば必ず1から続く */
+    var pointNo = 0;
     var byslot = {};
     written.forEach(function (b) { if (b && b.slot) { byslot[String(b.slot)] = b; } });
     /* 区画ごとの見せ方（絵／文字／絵＋文字）。
@@ -1150,6 +1223,7 @@
       /* 冒頭に出した区画は重ねない */
       if (slot === heroSlot) { return; }
       var one = byslot[slot] || fromSection(sec, slot);
+      if (roleOf(sec) === 'point') { pointNo += 1; one = Object.assign({}, one, { point: pointNo }); }
       /* よくある質問の区画は、絵でなく SVG の板にする。
          絵に渡していたのは見出しだけで、回答が一度も出ていなかった
          （実測 2026-10-05・利用者の指摘） */
@@ -1263,7 +1337,12 @@
         out.push('<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '')
           + '" loading="lazy"' + slotAttr(b.slot) + '>');
       }
-      if (b.title) { out.push('<h2>' + salesInline(b.title) + '</h2>'); }
+      if (b.title) {
+        /* 特長の見出しには通し番号を添える。参照した5ページのうち
+           機能を列挙する型は必ず番号を振っていた（POINT 1〜5／Point ❶〜❽／Point1〜4） */
+        out.push('<h2>' + (b.point ? '<span class="pt">Point ' + b.point + '</span>' : '')
+          + salesInline(b.title) + '</h2>');
+      }
       paras(b.body).forEach(function (line) { out.push('<p>' + salesInline(line) + '</p>'); });
       out.push('</section>');
       /* 4枚ごとに誘う。最後の1枚の直後は置かない（すぐ下に締めの塊が来る） */
@@ -1700,6 +1779,8 @@
     lineSpots: lineSpots,
     lineHref: lineHref,
     lineStyleOf: lineStyleOf,
+    roleOf: roleOf,
+    byRole: byRole,
     isFaq: isFaq,
     faqItems: faqItems,
     faqPanel: faqPanel,
