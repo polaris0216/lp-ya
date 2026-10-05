@@ -458,6 +458,29 @@
            区画ごとに「絵」「文字」「絵＋文字」を選べる。同じ区画の絵版と文字版は
            生成のときに両方できているので、ここでは選んで並べるだけ */
         if (view.gen.feature_key === 'lp_brief') {
+          /* LINE（または メール）の誘い。販売ページと同じ塊を使う。
+             これまで区画そのままには入れていなかったので、見せ方を
+             「絵」「文字」どれにしても LINE 登録が出てこなかった
+             （2026-10-05 指摘: どの設定でも必ず出すこと）*/
+          var proj = view.project || {};
+          var sinfo = (proj.sales_info && typeof proj.sales_info === 'object') ? proj.sales_info : {};
+          var lead = String(proj.lead_mode || 'line');
+          var ctaHref = (lead !== 'mail' && LpRender.lineHref)
+            ? LpRender.lineHref(String(proj.line_url || '')) : '';
+          var ctaCopy = (view.gen.content && view.gen.content.sales && view.gen.content.sales.cta) || {};
+          var when = String(sinfo.sale_start || '').trim();
+          var off = String(sinfo.discount || '').trim();
+          var callOut = function () {
+            if (!ctaHref || !LpRender.ctaBlockMarkup) { return ''; }
+            return LpRender.ctaBlockMarkup({
+              title: when ? (when + '販売[[数量限定割引]]') : String(ctaCopy.title || ''),
+              lead: off ? ('最大[[' + off + ']]OFF') : String(ctaCopy.lead || ctaCopy.body || ''),
+              note: String(ctaCopy.note || '開始をいち早くお届け！！'),
+              platform: String(proj.cf_platform || ''),
+              logo: String(sinfo.platform_logo || '')
+            }, { variant: 'green', label: 'LINE友だち追加', height: 52, radius: 12 },
+            ctaHref, false, {});
+          };
           var parts = (view.gen.sections || []).map(function (sec) {
             /* 動く絵があれば、その区画の絵はそちら。
                止まった絵と2つ並べると同じ場面が続いてくどい
@@ -486,6 +509,17 @@
             if (mode === 'both' && (img || txt || cap)) { return '<section>' + img + txt + cap + '</section>'; }
             return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（未生成）</p></section>';
           });
+          /* 置き方も販売ページと同じ: 冒頭の直後 → 6枚おき → 末尾 */
+          if (callOut()) {
+            var EVERY = 6;
+            var withCta = [];
+            parts.forEach(function (one, i) {
+              withCta.push(one);
+              if (i === 0 || ((i + 1) % EVERY === 0 && i < parts.length - 1)) { withCta.push(callOut()); }
+            });
+            withCta.push(callOut());
+            parts = withCta;
+          }
           /* 差し色はブランド指定から。無ければ既定。
              下線とマーカーは同じ色を薄くして使う（色を増やすとうるさい） */
           /* KVから始めるか。設定は販売の条件と同じ入れ物（sales_info）にある */
@@ -526,10 +560,22 @@
                これまで公開ページだけに効いていて、生成結果で確かめられなかった
                （2026-10-04 指摘）。見えているものと公開するものを揃える */
             + (wantKv ? LpRender.kvSliderCss() : '')
+            /* 誘いの塊の見た目。販売ページと同じものを使う */
+            + (ctaHref && LpRender.ctaBlockCss ? LpRender.ctaBlockCss(dez) + LpRender.lineButtonCss() : '')
+            + (ctaHref ? '.cta-block{padding-left:18px;padding-right:18px}'
+              + '.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px;'
+              + 'background:rgba(255,255,255,.96);box-shadow:0 -2px 12px rgba(0,0,0,.12);'
+              + 'text-align:center;z-index:9}.bar .line-cta__a{animation:none;box-shadow:none}'
+              + 'body{padding-bottom:84px}' : '')
             + '</style></head><body>'
             + (wantKv ? LpRender.kvSliderMarkup(view.kvUrls, view.project.product_name || '') : '')
             + '<main>'
             + parts.join('') + '</main>'
+            /* 画面下の固定バー。どこまで読んでも1タップで届く */
+            + (ctaHref && LpRender.lineButtonMarkup
+              ? '<div class="bar">' + LpRender.lineButtonMarkup(
+                { variant: 'green', label: 'LINE友だち追加', height: 48, radius: 12 }, ctaHref) + '</div>'
+              : '')
             + (wantKv && view.kvUrls.length > 1 ? '<script>' + LpRender.kvSliderJs() + '<\/script>' : '')
             /* 高さは中から知らせてもらう（枠の中で JS を動かすため、
                親からは中の document に触れない） */

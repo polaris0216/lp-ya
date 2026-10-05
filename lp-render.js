@@ -1562,6 +1562,7 @@
     buildHtml: buildHtml,
     buildSalesHtml: buildSalesHtml,
     ctaBlockMarkup: ctaBlockMarkup,
+    lineButtonMarkup: lineButtonMarkup,
     lineButtonCss: lineButtonCss,
     ctaBlockCss: ctaBlockCss,
     kvSliderMarkup: kvSliderMarkup,
