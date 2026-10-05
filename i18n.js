@@ -312,8 +312,8 @@
 
     // 参考ページからのAI自動入力
     'product.refPanel': ['AI自動分析', 'AI analysis', 'AI 자동 분석'],
-    'product.refUrlsLabel': ['参考ページ（自分の商品）', 'Reference pages (your product)', '참고 페이지(자사 상품)'],
-    'product.refPanelDesc': ['URLを貼って「AI自動分析」を押すと、2つを続けて読みます。①参考ページ（すでに販売している海外クラファンや Alibaba などの自分の商品ページ）から、商品写真・訴求メッセージ・ターゲット案・ブランドトーン・配色・フォントを下のフォームに埋めます。②競合LPは、①が終わってから分析します。すべて手入力したい場合はこの区画を使わずに下へ進んでください。',
+    'product.refUrlsLabel': ['参考ページ（商品販売元ページ）', 'Reference pages (the product\u2019s own sales page)', '참고 페이지(상품 판매처 페이지)'],
+    'product.refPanelDesc': ['URLを貼って「AI自動分析」を押すと、2つを続けて読みます。①参考ページ（すでに販売している海外クラファンや Alibaba などの商品販売元ページ）から、商品写真・訴求メッセージ・ターゲット案・ブランドトーン・配色・フォントを下のフォームに埋めます。②競合LPは、①が終わってから分析します。すべて手入力したい場合はこの区画を使わずに下へ進んでください。',
       'Paste URLs and press "Analyse with AI". It reads two things in order: (1) your own product page — photos, messaging, target segments, brand tone, colours and fonts go into the form below; (2) competitor LPs, analysed once step 1 finishes. To type everything yourself, skip this panel.',
       'URL을 붙여넣고 "AI 자동 분석"을 누르면 두 가지를 차례로 읽습니다. ①자사 상품 페이지에서 사진·소구 메시지·타깃 안·브랜드 톤·배색·폰트를 아래 폼에 채우고, ②경쟁 LP는 ①이 끝난 뒤 분석합니다.'],
     'product.refUrl': ['参考ページURL', 'Reference page URL', '참고 페이지 URL'],
