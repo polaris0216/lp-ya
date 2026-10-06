@@ -102,9 +102,12 @@
      どの工程からでも他の工程へ直接行けるようにする。
      pending は「工程としては残すが、画面はまだ無い」印。耳は出したまま
      押せなくする。消してしまうと、全体で何工程あるのかが画面から消える。 */
+  /* 競合LP分析（S10）は工程から外した（2026-10-07 利用者の決め）。
+     競合LPのURLも結果の指定も商品入力（S4）で入れられるようになり、
+     あの画面を開く理由が無くなったため。画面そのものは残してあるが、
+     開くと商品入力へ送る */
   var WORKFLOW = [
     { id: 'S4', labelKey: 'wf.input' },
-    { id: 'S10', labelKey: 'wf.competitor' },
     { id: 'S11', labelKey: 'wf.report' },
     { id: 'S20', labelKey: 'wf.overall' },
     { id: 'S12', labelKey: 'wf.prompt' },

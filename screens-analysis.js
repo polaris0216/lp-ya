@@ -1089,6 +1089,11 @@
   /* URLからプラットフォームを見分ける道具を、他の画面にも貸す。
      商品入力（S4）でも競合LPのURLを受けるようになったため（2026-10-06）。
      同じ判定を2か所に書くと、片方だけ新しいサイトに対応して食い違う */
+  /* 終了後に目標金額を隠す媒体。自動判定（調達額÷目標）が効かないので、
+     人に「達成した／伸びなかった」を選んでもらうしかない。
+     商品入力の画面でも同じ判定が要るので貸す（2026-10-07） */
+  App.goalHidden = function (raw) { return hidesGoal(raw); };
+
   App.platformOfUrl = function (raw) {
     var parsed = normalizeUrl(raw);
     return parsed.ok ? detectPlatform(parsed.host, parsed.path) : 'other';
@@ -1261,13 +1266,23 @@
     });
   }
 
+  /* 見せるのは「分析ずみ（done）か、これから分析する（pending）」の新しい1件。
+     書きかけ（draft）は飛ばす。商品入力の画面で競合LPを保存すると draft の行が
+     できるので、いちばん新しい1件をそのまま見せると、
+     せっかく終わっている分析が隠れて空のレポートが出る（2026-10-07） */
   function loadLatestReport(projectId) {
     return window.Api.analysisReports.list({
       eq: { projects_id: String(projectId) },
       order: 'created_at.desc',
-      limit: 1
+      limit: 10
     }).then(function (rows) {
-      return (rows && rows.length) ? rows[0] : null;
+      var list = rows || [];
+      var shown = null;
+      list.forEach(function (row) {
+        if (shown) { return; }
+        if (row.analysis_status !== STATUS_DRAFT) { shown = row; }
+      });
+      return shown || (list.length ? list[0] : null);
     });
   }
 
@@ -1801,7 +1816,7 @@
       if (App && typeof App.saveProgressButton === 'function') {
         var saveHere = App.saveProgressButton({
           projectId: projectId,
-          step: 'S10',
+          step: 'S4',
           save: function () {
             return view.entries.length ? persist(STATUS_DRAFT) : Promise.resolve(null);
           }
@@ -1990,7 +2005,7 @@
       add(head, el('h1', 'screen__title', t('report.title')));
       add(wrap, head);
       add(wrap, emptyBox(t('report.empty'), t('s11.reportEmptyAction'), function () {
-        go('S10', { id: projectId });
+        go('S4', { id: projectId });
       }));
       root.appendChild(wrap);
     }
@@ -2013,7 +2028,7 @@
 
       var actions = el('div', 'stack');
       add(actions, button('btn btn--secondary btn--block', t('s11.reAnalyze'), function () {
-        go('S10', { id: projectId });
+        go('S4', { id: projectId });
       }));
       add(wrap, actions);
       root.appendChild(wrap);
@@ -2421,7 +2436,7 @@
 
       if (!sources.length) {
         add(section, emptyBox(t('analysis.empty'), t('s11.reAnalyze'), function () {
-          go('S10', { id: projectId });
+          go('S4', { id: projectId });
         }));
         return section;
       }
@@ -2980,7 +2995,7 @@
           go('S20', { id: projectId, reportId: report.id });
         }));
         add(actions, button('btn btn--secondary btn--block', t('s11.reAnalyze'), function () {
-          go('S10', { id: projectId });
+          go('S4', { id: projectId });
         }));
       } else {
         /* ---- 総合分析: 全リンクを突き合わせた結果 ---- */
@@ -3034,8 +3049,18 @@
   /* ------------------------------------------------------------------
    * 画面登録（第2引数は必ず { render: 関数 } のオブジェクト）
    * ------------------------------------------------------------------ */
+  /* 競合LP分析の画面は、商品入力（S4）に吸収した（2026-10-07 利用者の決め）。
+     URLも「達成した／伸びなかった」も向こうで入れられる。
+     古いブックマークや、どこかに残ったリンクから来ても迷子にしないよう、
+     開いたら商品入力へ送る。画面を作る関数は消していない
+     （上級設定を戻したくなったときに、ここから繋ぎ直せる） */
   App.registerScreen('S10', {
-    render: function (root, params) { renderAnalysis(root, params || {}); }
+    render: function (root, params) {
+      var one = (params && params.id) ? String(params.id) : '';
+      if (typeof App.replace === 'function') { App.replace('S4', one ? { id: one } : {}); return; }
+      window.location.replace(window.location.pathname + window.location.search
+        + '#/S4' + (one ? '?id=' + encodeURIComponent(one) : ''));
+    }
   });
 
   App.registerScreen('S11', {

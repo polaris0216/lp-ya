@@ -66,6 +66,8 @@
   var MAX_BRAND_COLORS = 5;
   /* 競合LPのURLの上限。競合分析の画面（S10 の MAX_URLS）と同じ数にそろえる */
   var MAX_RIVALS = 5;
+  /* 競合の結果。競合LP分析の画面と同じ語を使う（保存先の列が同じなので） */
+  var OUTCOMES = ['success', 'failure', 'unknown'];
   var DEFAULT_SWATCH = '#A855F7';
   var TARGET_LABELS = ['A', 'B', 'C', 'D', 'E'];
   var FONT_SLOTS = [
@@ -755,11 +757,13 @@
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
       category: '', outputLang: 'ja', cfPlatform: 'makuake', fundingGoal: '', valueProp: '', brandTone: '',
       refUrls: [''],
-      /* 競合LPのURL（最大5件）。競合分析（S10）の入力をここに移した
-         （2026-10-06 利用者の決め: 貼る作業を1画面で終わらせる）。
+      /* 競合LPのURL（最大5件）。1件ずつ { url, outcome } で持つ。
+         outcome は「達成した / 伸びなかった / 未指定」。終了後に目標金額を隠す媒体
+         （Kickstarter・Indiegogo）は自動判定ができないので、人に選んでもらう。
+         競合LP分析の画面をここに吸収した（2026-10-07 利用者の決め）。
          保存先はプロジェクトではなく analysis_reports なので、
          フォームの保存とは別に送る */
-      rivalUrls: [''],
+      rivalUrls: [{ url: '', outcome: 'unknown' }],
       brandColors: [], brandFonts: {}, targets: [], videos: [],
       /* 自動入力が出す配色案（5案）。フォントと同じく、ここから選ぶ。
          選んだものが brandColors に入る。案そのものは保存しない
@@ -794,6 +798,11 @@
     var rivalHost = null;
     var rivalAddButton = null;
     var rivalNote = null;
+    /* 競合LPの行は analysis_reports に書く。どの行に書くか、
+       前に書いた中身は何かを覚えておき、変わったときだけ書く */
+    var rivalReportId = '';
+    var lastRivals = '';
+    var rivalDone = false;
     var refStructureHost = null;
     var refRunButton = null;
     var colorsHost = null;
@@ -842,10 +851,16 @@
         }
         var report = (results[2] || [])[0];
         var saved = (report && isArray(report.competitor_urls)) ? report.competitor_urls : [];
-        var rivals = saved.map(function (one) {
-          return (one && typeof one === 'object') ? String(one.url || '') : String(one || '');
-        }).filter(Boolean);
-        form.rivalUrls = rivals.length ? rivals : [''];
+        var outs = (report && isArray(report.source_outcomes)) ? report.source_outcomes : [];
+        var rivals = saved.map(function (one, i) {
+          var url = (one && typeof one === 'object') ? String(one.url || '') : String(one || '');
+          var outcome = (one && typeof one === 'object' && one.outcome) ? String(one.outcome) : String(outs[i] || '');
+          return { url: url, outcome: OUTCOMES.indexOf(outcome) === -1 ? 'unknown' : outcome };
+        }).filter(function (r) { return !!r.url; });
+        form.rivalUrls = rivals.length ? rivals : [{ url: '', outcome: 'unknown' }];
+        lastRivals = rivalKey();
+        rivalReportId = report && report.id ? String(report.id) : '';
+        rivalDone = !!(report && report.analysis_status === 'done');
         paint();
         /* まだ作られていないなら、まず名前だけ決めてもらう */
         if (!projectId) { askProjectName(); }
@@ -1348,24 +1363,72 @@
       });
     }
 
+    /* URLの形を確かめる。競合LP分析の画面と同じ道具を借りる
+       （同じ判定を2か所に書くと食い違う）。読み込み順の都合で、
+       使うときに取りに行く（screens-analysis.js は後から読まれる） */
+    function checkRivalUrl(raw) {
+      var text = String(raw || '').trim();
+      if (!text) { return { ok: true, empty: true }; }
+      if (typeof App.checkUrl !== 'function') { return { ok: true }; }
+      var got = App.checkUrl(text);
+      if (got && got.ok) { return { ok: true }; }
+      /* 理由の文言は競合LP分析の画面が自前で持っている（s10.*）。
+         この画面からは引けないので、共通の文言に寄せる */
+      var why = (got && got.reasonKey) || '';
+      return { ok: false, why: (!why || why.indexOf('s10.') === 0) ? 'validation.invalidUrl' : why };
+    }
+
     function paintRivalUrls() {
       if (!rivalHost) { return; }
       clear(rivalHost);
-      form.rivalUrls.forEach(function (url, index) {
+      var seen = {};
+      form.rivalUrls.forEach(function (entry, index) {
+        var line = el('div', 'stack stack--tight');
         var row = el('div', 'row--input-action');
         var input = el('input', 'input');
         input.type = 'url';
-        input.value = url;
+        input.value = entry.url;
         input.setAttribute('placeholder', 'https://');
         input.setAttribute('aria-label', t('product.rivalUrl') + ' ' + (index + 1));
-        input.addEventListener('input', function () { form.rivalUrls[index] = input.value; });
+        input.addEventListener('input', function () { entry.url = input.value; });
+        /* 形がおかしいURL・重複は、その場で言う。押してから言われても直しにくい */
+        input.addEventListener('blur', function () { paintRivalUrls(); });
         row.appendChild(input);
         row.appendChild(button('btn btn--text', t('common.delete'), function () {
           form.rivalUrls.splice(index, 1);
-          if (!form.rivalUrls.length) { form.rivalUrls.push(''); }
+          if (!form.rivalUrls.length) { form.rivalUrls.push({ url: '', outcome: 'unknown' }); }
           paintRivalUrls();
         }));
-        rivalHost.appendChild(row);
+        line.appendChild(row);
+
+        var key = String(entry.url || '').trim();
+        var checked = checkRivalUrl(entry.url);
+        var why = '';
+        if (!checked.ok) { why = t(checked.why); }
+        else if (key && seen[key]) { why = t('product.rivalDuplicate'); }
+        if (key) { seen[key] = true; }
+        if (why) {
+          input.classList.add('input--error');
+          line.appendChild(el('p', 'field__error', why));
+        }
+
+        /* 終了後に目標金額を隠す媒体だけ、結果を人に選んでもらう。
+           ほかは分析のときに自動判定する（調達額 ÷ 目標 が100%以上なら達成） */
+        if (key && checked.ok && typeof App.goalHidden === 'function' && App.goalHidden(key)) {
+          var pick = el('div', 'btn-row');
+          pick.appendChild(el('span', 'field__hint', t('product.rivalOutcomeAsk')));
+          [['success', 'product.rivalWon'], ['failure', 'product.rivalLost']].forEach(function (one) {
+            var on = entry.outcome === one[0];
+            var b = button('btn btn--sm ' + (on ? 'btn--primary' : 'btn--secondary'), t(one[1]), function () {
+              entry.outcome = on ? 'unknown' : one[0];
+              paintRivalUrls();
+            });
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            pick.appendChild(b);
+          });
+          line.appendChild(pick);
+        }
+        rivalHost.appendChild(line);
       });
       if (rivalAddButton) { rivalAddButton.disabled = form.rivalUrls.length >= MAX_RIVALS; }
       if (rivalNote) {
@@ -1374,20 +1437,50 @@
       }
     }
 
+    /* 入れた競合LP。空行・重複・形のおかしいURLは落とす */
     function filledRivalUrls() {
       var out = [];
-      form.rivalUrls.forEach(function (url) {
-        var one = String(url || '').trim();
-        if (one && out.indexOf(one) === -1) { out.push(one); }
+      var seen = {};
+      form.rivalUrls.forEach(function (entry) {
+        var one = String((entry && entry.url) || '').trim();
+        if (!one || seen[one]) { return; }
+        if (!checkRivalUrl(one).ok) { return; }
+        seen[one] = true;
+        out.push({ url: one, outcome: (entry && entry.outcome) || 'unknown' });
       });
       return out.slice(0, MAX_RIVALS);
+    }
+
+    /* 入力に直すところがあるか。あるなら、押しても進ませない */
+    function rivalProblem() {
+      var seen = {};
+      var bad = '';
+      form.rivalUrls.forEach(function (entry) {
+        if (bad) { return; }
+        var one = String((entry && entry.url) || '').trim();
+        if (!one) { return; }
+        var got = checkRivalUrl(one);
+        if (!got.ok) { bad = t(got.why); return; }
+        if (seen[one]) { bad = t('product.rivalDuplicate'); return; }
+        seen[one] = true;
+      });
+      return bad;
+    }
+
+    /* いまの競合LPの中身を1本の文字列に。変わったかどうかの判定に使う */
+    function rivalKey() {
+      return JSON.stringify(filledRivalUrls());
     }
 
     /* 競合分析を積む。商品の自動入力と同じボタンから呼ぶ。
        走る順番（商品 → 競合）はワーカーが守るので、ここでは積むだけでよい。
        プラットフォームの見分けは競合分析の画面と同じ道具を借りる
        （同じ判定を2か所に書くと、片方だけ新しいサイトに対応して食い違う） */
-    function queueRivalAnalysis() {
+    /* 競合LPの行を analysis_reports に書く。
+       status='draft' … ただ覚えるだけ（途中保存・完了のとき）
+       status='pending' … これから分析する（AI自動分析のとき）
+       終わった分析（done）の行は上書きしない。新しい行を作る */
+    function saveRivals(status) {
       var urls = filledRivalUrls();
       if (!urls.length) { return Promise.resolve(null); }
       if (!projectId || !apiReady() || !window.Api.analysisReports) { return Promise.resolve(null); }
@@ -1395,39 +1488,57 @@
         ? App.platformOfUrl : function () { return 'other'; };
       var payload = {
         projects_id: String(projectId),
-        competitor_urls: urls,
-        source_platforms: urls.map(platformOf),
-        source_outcomes: urls.map(function () { return 'unknown'; }),
+        competitor_urls: urls.map(function (one) { return one.url; }),
+        source_platforms: urls.map(function (one) { return platformOf(one.url); }),
+        source_outcomes: urls.map(function (one) { return one.outcome || 'unknown'; }),
         /* status と analysis_status は同じ意味の列が二重にある。
-           旧側だけに入れると NOT NULL で必ず落ちる（S10 と同じ書き方） */
-        status: 'pending',
-        analysis_status: 'pending'
+           旧側だけに入れると NOT NULL で必ず落ちる */
+        status: status,
+        analysis_status: status
       };
-      /* 書きかけの行があれば使い回す。押すたびに行が増えると、
-         どれが今の分析か分からなくなる */
       return window.Api.analysisReports.list({
         eq: { projects_id: String(projectId) }, order: 'created_at.desc', limit: 10
       }).then(function (rows) {
         var mine = null;
-        var sameDone = false;
-        var want = urls.slice().sort().join('\n');
         (rows || []).forEach(function (row) {
-          var had = (isArray(row.competitor_urls) ? row.competitor_urls : []).map(function (one) {
-            return (one && typeof one === 'object') ? String(one.url || '') : String(one || '');
-          }).sort().join('\n');
-          /* 同じURLの分析がもう終わっているなら、積まない。
-             このボタンは商品の読み取りのために何度も押される。
-             毎回ポイントを引いて同じ分析をやり直すのは、押した人の意図ではない */
-          if (row.analysis_status === 'done' && had === want) { sameDone = true; }
           if (mine) { return; }
           if (row.analysis_status === 'draft' || row.analysis_status === 'pending') { mine = row; }
         });
-        if (sameDone && !mine) { return { skipped: true }; }
         return mine
           ? window.Api.analysisReports.update(mine.id, payload)
           : window.Api.analysisReports.insert(payload);
       }).then(function (row) {
-        if (row && row.skipped) { return row; }
+        if (row && row.id) {
+          rivalReportId = String(row.id);
+          rivalDone = false;
+          lastRivals = rivalKey();
+        }
+        return row;
+      });
+    }
+
+    /* 途中保存・完了のときに呼ぶ。変わっていなければ何もしない
+       （押すたびに行が増えると、どれが今の分析か分からなくなる）。
+       以前はここが無く、AI自動分析を押さずに画面を離れると
+       貼ったURLが消えていた（2026-10-07 利用者の指摘） */
+    function keepRivals() {
+      if (!filledRivalUrls().length) { return Promise.resolve(null); }
+      if (rivalKey() === lastRivals) { return Promise.resolve(null); }
+      return saveRivals('draft').catch(function (err) {
+        console.warn('[screens-home] 競合LPを保存できませんでした', err);
+        return null;
+      });
+    }
+
+    /* 分析を積む。同じURLの分析がもう終わっていれば、積まない。
+       このボタンは商品の読み取りのために何度も押されるので、
+       毎回ポイントを引いて同じ分析をやり直すのは、押した人の意図ではない */
+    function queueRivalAnalysis() {
+      var urls = filledRivalUrls();
+      if (!urls.length) { return Promise.resolve(null); }
+      if (!projectId || !apiReady() || !window.Api.analysisReports) { return Promise.resolve(null); }
+      if (rivalDone && rivalKey() === lastRivals) { return Promise.resolve({ skipped: true }); }
+      return saveRivals('pending').then(function (row) {
         if (!row || !row.id) { return null; }
         return window.Api.analysis.run({
           report_id: String(row.id),
@@ -1996,11 +2107,29 @@
     function runAutofill() {
       if (analyzing) { return; }
       var urls = filledRefUrls();
-      if (!urls.length) {
+      var rivals = filledRivalUrls();
+      if (!urls.length && !rivals.length) {
         toast(t('product.refNoUrl'), 'danger');
         return;
       }
+      /* 直すところがあるなら、押しても進ませない。
+         形のおかしいURLはサーバーで落ちるだけで、理由が画面に出ない */
+      var bad = rivalProblem();
+      if (bad) { toast(bad, 'danger'); paintRivalUrls(); return; }
       if (!analysisApiReady()) { toast(t('common.error'), 'danger'); return; }
+
+      /* 競合LPだけ貼ったときは、商品の読み取りを飛ばして分析だけ走らせる。
+         以前はここで「参考ページを入れてください」と止まっていた（2026-10-07） */
+      if (!urls.length) {
+        setAnalyzing(true, refRunButton, 'product.refRun');
+        queueRivalAnalysis().then(function (row) {
+          setAnalyzing(false, refRunButton, 'product.refRun');
+          if (!row) { return; }
+          toast(row.skipped ? t('product.rivalSame')
+            : t('product.rivalQueued', { n: rivals.length }), 'success');
+        }, function () { setAnalyzing(false, refRunButton, 'product.refRun'); });
+        return;
+      }
 
       setAnalyzing(true, refRunButton, 'product.refRun');
       window.Api.analysis.run({
@@ -2805,6 +2934,7 @@
         paintSaveState();
         toast(t('project.saved'), 'success');
         refreshCutouts();
+        keepRivals();
       }, function (err) {
         setSaving(false);
         console.error('[screens-home] 途中保存に失敗しました', err);
@@ -2846,7 +2976,9 @@
         selectProject(row);
         toast(t('common.saved'), 'success');
         refreshCutouts();
-        go('S8', { id: projectId });
+        /* 競合LPはプロジェクトではなく analysis_reports にある。
+           ここで一緒に残さないと、貼ったURLが画面を離れた時点で消える */
+        keepRivals().then(function () { go('S8', { id: projectId }); });
       }, function (err) {
         setBusy(false);
         validate();

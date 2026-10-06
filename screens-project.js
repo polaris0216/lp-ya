@@ -527,7 +527,7 @@
         toast(t('projectDetail.selectProductFirst'), 'danger');
         return;
       }
-      go('S10', { id: projectId });
+      go('S4', { id: projectId });
     }
 
     function openReport() {
