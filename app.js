@@ -152,6 +152,7 @@
       'common.reload': '再読み込み',
       'common.adminOnly': 'この画面は管理者のみが利用できます。',
       'common.loginRequired': 'この画面を使うにはログインが必要です。',
+      'common.sessionExpired': 'ログインの有効期限が切れました。もう一度ログインしてください。',
       'tab.home': 'ホーム',
       'tab.create': '作成',
       'tab.credit': 'ポイント',
@@ -235,6 +236,7 @@
       'common.reload': 'Reload',
       'common.adminOnly': 'This screen is for administrators only.',
       'common.loginRequired': 'Please sign in to use this screen.',
+      'common.sessionExpired': 'Your session has expired. Please sign in again.',
       'tab.home': 'Home',
       'tab.create': 'Create',
       'tab.credit': 'Points',
@@ -318,6 +320,7 @@
       'common.reload': '새로고침',
       'common.adminOnly': '이 화면은 관리자만 사용할 수 있습니다.',
       'common.loginRequired': '이 화면을 사용하려면 로그인이 필요합니다.',
+      'common.sessionExpired': '로그인 유효 기간이 지났습니다. 다시 로그인해 주세요.',
       'tab.home': '홈',
       'tab.create': '작성',
       'tab.credit': '포인트',
@@ -2609,6 +2612,17 @@
     wireChrome();
     global.addEventListener('hashchange', onHashChange);
     global.addEventListener('unhandledrejection', onUnhandledRejection);
+    /* ログインの期限が切れて取り直せなかったとき。api.js がセッションを捨てて
+       この合図を出す。受けないと、開いている画面はエラー文を出したまま固まり、
+       押しても何も起きない（実測 2026-10-06: 総合分析の画面で
+       「データへのアクセスが許可されませんでした」のまま動かなくなった） */
+    global.addEventListener('elpiya:login-required', function () {
+      if (!state.user && current.id === 'S1') { return; }
+      state.user = null;
+      updateAdminTab();
+      toast(t('common.sessionExpired'), 'danger');
+      replace('S1');
+    });
 
     restoreUser().then(function () {
       updateAdminTab();

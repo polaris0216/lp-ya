@@ -378,7 +378,11 @@
         if (err.code === 'unauthorized' && refreshLeft > 0 && session && session.refresh_token) {
           refreshLeft -= 1;
           console.warn('[Api] アクセストークンを取り直して ' + method + ' ' + path + ' をやり直します');
-          return refreshSession().then(run, function () { return Promise.reject(err); });
+          /* 取り直せなかったら、元の「権限なし」ではなく「ログインが切れた」を返す。
+             ここで元のエラーを投げ直していたため、ログインが切れているのに
+             「データへのアクセスが許可されませんでした」とだけ出て、
+             ログイン画面にも戻らず画面が死んでいた（実測 2026-10-06 23:10） */
+          return refreshSession().then(run, function (bad) { return Promise.reject(bad); });
         }
         logError(method, path, err);
         err.retry = function () { return request(method, path, body, options); };
@@ -429,10 +433,15 @@
     return session;
   }
 
-  function forgetSession() {
+  function forgetSession(expired) {
     session = null;
     storage.remove('session');
     storage.remove('userId');
+    /* ログインが切れて捨てたときは画面に知らせる。知らせないと、
+       開いている画面はエラー文だけ出して、そのまま固まる */
+    if (expired && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try { window.dispatchEvent(new CustomEvent('elpiya:login-required')); } catch (e) { /* 古い環境 */ }
+    }
   }
 
   function loadSession() {
@@ -459,7 +468,7 @@
     }, function (err) {
       // 取り直せない = ログインし直すしかない。古いトークンを残すと失敗し続ける。
       console.error('[Api] セッションを取り直せませんでした。ログアウトします。', err);
-      forgetSession();
+      forgetSession(true);
       return Promise.reject(new ApiError('loginRequired', err.status || 401, err.detail || ''));
     });
   }
