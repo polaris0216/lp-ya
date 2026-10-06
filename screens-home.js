@@ -840,6 +840,15 @@
           (wanted && window.Api.analysisReports)
             ? window.Api.analysisReports.list({ eq: { projects_id: wanted },
                 order: 'created_at.desc', limit: 1 }).catch(function () { return []; })
+            : Promise.resolve([]),
+          /* 配色案（5案）は projects に列が無く、仕事の結果にだけ残る。
+             これを読み直さないと、開き直した時点で候補が消え、
+             選ばれた色だけになる。自動分析は10分以上かかるので、
+             待っている間に画面を離れると二度と見られなかった（2026-10-07） */
+          (wanted && window.Api.generationJobs)
+            ? window.Api.generationJobs.list({
+                eq: { projects_id: wanted, feature_key: 'product_autofill', status: 'done' },
+                order: 'created_at.desc', limit: 1 }).catch(function () { return []; })
             : Promise.resolve([])
         ]);
       }).then(function (results) {
@@ -858,6 +867,20 @@
           return { url: url, outcome: OUTCOMES.indexOf(outcome) === -1 ? 'unknown' : outcome };
         }).filter(function (r) { return !!r.url; });
         form.rivalUrls = rivals.length ? rivals : [{ url: '', outcome: 'unknown' }];
+        /* 配色案だけ戻す。ほかの項目はフォームに保存ずみの値が入っているので、
+           ここで上書きすると、人が直したものが元に戻ってしまう */
+        var lastAuto = (results[3] || [])[0];
+        var palettes = (lastAuto && lastAuto.result && isArray(lastAuto.result.brand_palettes))
+          ? lastAuto.result.brand_palettes : [];
+        if (palettes.length) {
+          form.brandPalettes = palettes
+            .filter(function (one) { return one && isArray(one.colors) && one.colors.length; })
+            .slice(0, 5)
+            .map(function (one) {
+              return { name: String(one.name || ''), note: String(one.note || ''),
+                colors: one.colors.slice(0, MAX_BRAND_COLORS).map(normalizeHex) };
+            });
+        }
         lastRivals = rivalKey();
         rivalReportId = report && report.id ? String(report.id) : '';
         rivalDone = !!(report && report.analysis_status === 'done');
