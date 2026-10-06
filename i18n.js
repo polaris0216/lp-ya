@@ -325,6 +325,7 @@
     'product.rivalUrl': ['競合LPのURL', 'Competitor LP URL', '경쟁 LP URL'],
     'product.rivalAdd': ['競合LPを追加', 'Add competitor LP', '경쟁 LP 추가'],
     'product.rivalCount': ['{n} / {max} 件', '{n} / {max}', '{n} / {max}건'],
+    's4.shotsAiAgain': ['AIに☆を付け直させる', 'Let AI re-pick the stars', 'AI에게 ☆를 다시 고르게 하기'],
     's4.shotsAiPicking': ['写真から商品の見本になるものをAIが選んでいます（☆が自動で付きます）',
       'AI is picking which photos to use as product references (stars appear automatically)',
       'AI가 상품 견본으로 쓸 사진을 고르는 중입니다(☆가 자동으로 붙습니다)'],

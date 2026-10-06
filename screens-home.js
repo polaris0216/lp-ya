@@ -1033,6 +1033,22 @@
       registerBtn = button('btn btn--secondary', t('s4.registerShots'), registerShots);
       registerBtn.title = t('s4.registerShotsHint');
       registerRow.appendChild(registerBtn);
+      /* 手で☆を付けたあとでも、AIに付け直させられる口。
+         一度でも手で触ると shots_by='human' が立ち、AIは触らなくなるので、
+         これが無いと自動で付け直せない（2026-10-06） */
+      registerRow.appendChild(button('btn btn--text', t('s4.shotsAiAgain'), function (e) {
+        var node = e && e.currentTarget;
+        if (node) { node.disabled = true; }
+        window.Api.projects.update(projectId, { shots_by: 'ai' }).then(function () {
+          askedAiShots = false;
+          form.productShots = [];
+          lastShots = '';
+          refreshCutouts();
+        }).catch(function (err) {
+          if (node) { node.disabled = false; }
+          toast(errorMessage(err), 'danger');
+        });
+      }));
       registerRow.hidden = true;
       photoPanel.appendChild(registerRow);
       photoPanel.appendChild(buildDropzone('home-create-images'));
@@ -2374,7 +2390,8 @@
         });
         productShotNote.hidden = form.images.length === 0;
       }
-      if (registerRow) { registerRow.hidden = form.productShots.length === 0 || !projectId; }
+      if (registerRow) { registerRow.hidden = !projectId || form.images.length === 0; }
+      if (registerBtn) { registerBtn.hidden = form.productShots.length === 0; }
 
       imagesHost.hidden = form.images.length === 0;
       if (dropzone) { dropzone.hidden = form.images.length >= MAX_IMAGES; }
