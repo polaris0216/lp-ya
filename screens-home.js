@@ -2739,15 +2739,19 @@
         target_audience: primaryTargetName(),
         image_urls: form.images.slice(),
         /* 素材生成で AI に渡す見本。GIF も可（最初のコマを切り抜いて使う） */
-        product_shot_urls: form.productShots.filter(function (url) {
+        /* ☆は、この画面で変えたときだけ書く。変えていなければ列ごと送らない
+           （undefined は cleanPayload が外す）。
+           AI は裏で☆を付けるので、開いたままの画面が持っている古い一覧
+           （たいてい空）を送ると、付いたばかりの☆を消してしまう。
+           実測 2026-10-07: AIが22枚付けたのに、そのあとの保存で0枚に戻り、
+           「自動で星が付かない」と見えていた */
+        product_shot_urls: shotsTouched() ? form.productShots.filter(function (url) {
           return form.images.indexOf(url) !== -1;
-        }),
-        /* ☆をこの画面で変えたときだけ「人が選んだ」と印を付ける（041）。
+        }) : undefined,
+        /* 変えたときは「人が選んだ」と印を付ける（041）。
            印が付くと、AI は見本の写真を選び直して上書きしない。
-           変えていないときは undefined で、cleanPayload が外す
-           （AI の選択をただ開いただけで凍らせないため）。
-           LP案の画面の「AIに選び直させる」で 'ai' に戻せる */
-        shots_by: JSON.stringify(form.productShots.slice().sort()) === lastShots ? undefined : 'human',
+           LP案の画面や、商品写真の下のボタンで 'ai' に戻せる */
+        shots_by: shotsTouched() ? 'human' : undefined,
         video_urls: form.videos.slice(),
         rewards: rewardsValue(),
         category: form.category || null,
@@ -2882,6 +2886,11 @@
           onDone: function () { reloadShots(); }
         });
       }).catch(function (err) { console.warn('[screens-home] 切り抜きの仕事を積めませんでした', err); });
+    }
+
+    /* この画面で☆を触ったか。触っていなければ、保存のときに送らない */
+    function shotsTouched() {
+      return JSON.stringify(form.productShots.slice().sort()) !== lastShots;
     }
 
     /* AIが選んだ☆を画面に戻す */
