@@ -1012,7 +1012,7 @@
       refPanel.appendChild(rivalHost);
       rivalAddButton = button('btn btn--secondary', '＋ ' + t('product.rivalAdd'), function () {
         if (form.rivalUrls.length >= MAX_RIVALS) { return; }
-        form.rivalUrls.push('');
+        form.rivalUrls.push({ url: '', outcome: 'unknown' });
         paintRivalUrls();
       });
       var rivalActions = el('div', 'btn-row');
@@ -1363,6 +1363,17 @@
       });
     }
 
+    /* 1件ぶんを { url, outcome } の形にそろえる */
+    function normalizeRival(one) {
+      if (one && typeof one === 'object') {
+        return {
+          url: String(one.url === undefined || one.url === null ? '' : one.url),
+          outcome: OUTCOMES.indexOf(one.outcome) === -1 ? 'unknown' : one.outcome
+        };
+      }
+      return { url: String(one === undefined || one === null ? '' : one), outcome: 'unknown' };
+    }
+
     /* URLの形を確かめる。競合LP分析の画面と同じ道具を借りる
        （同じ判定を2か所に書くと食い違う）。読み込み順の都合で、
        使うときに取りに行く（screens-analysis.js は後から読まれる） */
@@ -1381,6 +1392,10 @@
     function paintRivalUrls() {
       if (!rivalHost) { return; }
       clear(rivalHost);
+      /* 1件 = { url, outcome }。古い形（ただの文字列）が混ざっていても直して使う。
+         実測 2026-10-07: 行を足すボタンだけ文字列を足していたため、
+         2件目以降の入力欄に "undefined" と出ていた */
+      form.rivalUrls = form.rivalUrls.map(normalizeRival);
       var seen = {};
       form.rivalUrls.forEach(function (entry, index) {
         var line = el('div', 'stack stack--tight');
@@ -1441,12 +1456,12 @@
     function filledRivalUrls() {
       var out = [];
       var seen = {};
-      form.rivalUrls.forEach(function (entry) {
-        var one = String((entry && entry.url) || '').trim();
+      form.rivalUrls.map(normalizeRival).forEach(function (entry) {
+        var one = entry.url.trim();
         if (!one || seen[one]) { return; }
         if (!checkRivalUrl(one).ok) { return; }
         seen[one] = true;
-        out.push({ url: one, outcome: (entry && entry.outcome) || 'unknown' });
+        out.push({ url: one, outcome: entry.outcome });
       });
       return out.slice(0, MAX_RIVALS);
     }
@@ -1455,9 +1470,9 @@
     function rivalProblem() {
       var seen = {};
       var bad = '';
-      form.rivalUrls.forEach(function (entry) {
+      form.rivalUrls.map(normalizeRival).forEach(function (entry) {
         if (bad) { return; }
-        var one = String((entry && entry.url) || '').trim();
+        var one = entry.url.trim();
         if (!one) { return; }
         var got = checkRivalUrl(one);
         if (!got.ok) { bad = t(got.why); return; }
