@@ -64,6 +64,12 @@
     'lp.genOneHint': ['いま開いている層・種類の、まだ絵が無い区画だけを作ります',
       'Generates the missing sections of the audience and kind you have open.',
       '지금 열어둔 타깃·종류의 미생성 구획만 만듭니다'],
+    'lp.genOneRedoHint': ['いま開いている層・種類の全区画を、いまのプロンプトで作り直します',
+      'Redo every section of the open audience and kind with the current prompts',
+      '열려 있는 층·종류의 모든 구획을 지금의 프롬프트로 다시 만듭니다'],
+    'lp.genAllRedoHint': ['全ターゲット層の LP・KV・メタ広告を、まとめて作り直します',
+      'Redo the LP, KV and ads for every audience',
+      '모든 타깃층의 LP·KV·메타 광고를 한꺼번에 다시 만듭니다'],
     'lp.makeAssets': ['動く絵を生成する', 'Generate motion visuals', '움직이는 소재 생성'],
     'lp.makeAssetsRunning': ['生成しています…', 'Generating…', '생성 중…'],
     'lp.makeAssetsQueued': ['動く絵の生成を積みました', 'Queued the motion generation', '움직이는 소재 생성을 예약했습니다'],
@@ -748,31 +754,45 @@
            「何を作るか」であって「残り何枚か」ではない（枚数は下の層・種類に出ている）
              生成する     … いま開いている層・種類だけ
              全部生成する … 全ターゲット層の LP・KV・メタ広告 */
+        /* 「生成する」と「作り直す」は別のボタンにして、両方いつも出す。
+           前は1つのボタンが切り替わる作りで、残りが1区画でもあると
+           「作り直す」が消えていた。25/27 の層で、気に入らない絵を
+           作り直す方法が画面から無くなっていた（2026-10-07 利用者の指摘）。
+             生成する   … まだ絵が無い区画だけ（残りが無ければ押せない）
+             作り直す   … その層・種類の全区画（いつでも押せる。確認を出す） */
         var mineLeft = missingOf(view.gen).length;
-        var one = button('btn btn--secondary', mineLeft ? t('lp.genOne') : t('lp.genOneRedo'), function () {
-          if (mineLeft) { generate(null); return; }
+        var one = button('btn btn--secondary', t('lp.genOne'), function () { generate(null); });
+        one.title = t('lp.genOneHint');
+        one.disabled = !mineLeft || anyBusy;
+        add(toolbar, one);
+
+        var oneRedo = button('btn btn--secondary', t('lp.genOneRedo'), function () {
           var n1 = (view.gen.sections || []).length;
           if (window.confirm(t('lp.genAllRedoConfirm', { n: n1 }))) { generate('all'); }
         });
-        one.title = t('lp.genOneHint');
-        one.disabled = anyBusy && !mineLeft;
-        add(toolbar, one);
+        oneRedo.title = t('lp.genOneRedoHint');
+        oneRedo.disabled = anyBusy;
+        add(toolbar, oneRedo);
 
-        var label = remaining
-          ? t('lp.genAll')
-          : (anyBusy ? t('lp.genAllRunning') : t('lp.genAllRedo'));
-        var all = button('btn btn--primary lp-bulk__btn', label, function () {
-          if (remaining) { generateEverything(false); return; }
-          var n = batchPlan.reduce(function (x, y) { return x + y.all; }, 0);
-          if (window.confirm(t('lp.genAllRedoConfirm', { n: n }))) { generateEverything(true); }
-        });
+        var all = button('btn btn--primary lp-bulk__btn',
+          anyBusy && !remaining ? t('lp.genAllRunning') : t('lp.genAll'), function () {
+            generateEverything(false);
+          });
         /* 走っている最中でも押せる。区画ごとのボタンと同じく、押したぶんは
            別の仕事として積まれ、ワーカーが空いた順に取る。
            押せなくしていたため、見張りを1件でも取りこぼすと「まとめて生成」が
            二度と押せなくなっていた（実測: 区画ごとのボタンを続けて押したあと、
            画面を開き直すまで押せないままだった）。
            残りが0なら作り直しなので、そこだけは走行中に押させない */
-        all.disabled = anyBusy && !remaining;
+        all.disabled = !remaining || anyBusy;
+
+        /* 全部作り直す。こちらもいつでも押せるようにする（下の bulkBar に並べる） */
+        var allRedo = button('btn btn--secondary lp-bulk__btn', t('lp.genAllRedo'), function () {
+          var n = batchPlan.reduce(function (x, y) { return x + y.all; }, 0);
+          if (window.confirm(t('lp.genAllRedoConfirm', { n: n }))) { generateEverything(true); }
+        });
+        allRedo.disabled = anyBusy;
+        allRedo.title = t('lp.genAllRedoHint');
         /* 静止画は lp_section（OpenAI の画面）、動く絵は lp_assets（Replicate の
            seedance-2.5）と作る先が別なので、ボタンも分ける。
            押したときの案を指すので、層を切り替えてから押せばその層ぶんが作られる */
@@ -781,6 +801,7 @@
         }));
         all.title = t('lp.genAllHint');
         add(bulkBar, all);
+        add(bulkBar, allRedo);
         /* できあがりを持ち出す口。生成の隣に置く（別の画面を探させない） */
         var zipBtn = button('btn btn--secondary lp-bulk__zip', t('lp.zip'), function (e) {
           downloadZip(e.currentTarget);
