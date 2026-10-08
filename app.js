@@ -182,6 +182,16 @@
       'screen.S20': '総合分析',
       'screen.settings': '設定',
       'settings.language': '表示言語',
+      'settings.openAiKey': 'OpenAI の API キー',
+      'settings.openAiKeyHint': '入れておくと、LP案の画面で絵の作り先を「OpenAI API」に切り替えられます。回数制限がなく速いかわりに、1枚およそ $0.06〜0.08 の料金がご自身の OpenAI アカウントに発生します。',
+      'settings.keyChecking': '確かめています…',
+      'settings.keySet': '登録ずみ（末尾 …{tail}）',
+      'settings.keyNone': 'まだ登録されていません',
+      'settings.keySaved': 'API キーを保存しました',
+      'settings.keyRemoved': 'API キーを消しました',
+      'settings.keyRemove': '消す',
+      'settings.keyEmpty': 'API キーを入れてください',
+      'settings.keySafety': '一度入れた鍵は、この画面からも読み出せません（末尾4文字だけ表示します）。入れ替えるときは、新しい鍵をそのまま入れて保存してください。',
       'settings.languageHint': '選んだ言語はこの端末に保存され、すぐにすべての画面へ反映されます。',
       'settings.account': 'アカウント情報',
       'settings.displayName': '表示名',
@@ -266,6 +276,16 @@
       'screen.S20': 'Overall analysis',
       'screen.settings': 'Settings',
       'settings.language': 'Language',
+      'settings.openAiKey': 'OpenAI API key',
+      'settings.openAiKeyHint': 'With a key saved, you can switch image generation to the OpenAI API on the LP screen. No usage limit and faster, but roughly $0.06–0.08 per image is billed to your own OpenAI account.',
+      'settings.keyChecking': 'Checking…',
+      'settings.keySet': 'Saved (ends in …{tail})',
+      'settings.keyNone': 'Not saved yet',
+      'settings.keySaved': 'API key saved',
+      'settings.keyRemoved': 'API key removed',
+      'settings.keyRemove': 'Remove',
+      'settings.keyEmpty': 'Please enter an API key',
+      'settings.keySafety': 'Once saved, the key cannot be read back — not even here (only the last 4 characters are shown). To replace it, just save a new key.',
       'settings.languageHint': 'Your choice is stored on this device and applied to every screen right away.',
       'settings.account': 'Account',
       'settings.displayName': 'Display name',
@@ -350,6 +370,16 @@
       'screen.S20': '종합 분석',
       'screen.settings': '설정',
       'settings.language': '표시 언어',
+      'settings.openAiKey': 'OpenAI API 키',
+      'settings.openAiKeyHint': '키를 넣어 두면 LP안 화면에서 그림 생성처를 「OpenAI API」로 바꿀 수 있습니다. 횟수 제한이 없고 빠른 대신, 1장당 약 $0.06~0.08이 본인의 OpenAI 계정에 청구됩니다.',
+      'settings.keyChecking': '확인 중…',
+      'settings.keySet': '등록됨(끝 …{tail})',
+      'settings.keyNone': '아직 등록되지 않았습니다',
+      'settings.keySaved': 'API 키를 저장했습니다',
+      'settings.keyRemoved': 'API 키를 삭제했습니다',
+      'settings.keyRemove': '삭제',
+      'settings.keyEmpty': 'API 키를 입력해 주세요',
+      'settings.keySafety': '한 번 넣은 키는 이 화면에서도 다시 읽을 수 없습니다(끝 4자리만 표시). 바꾸려면 새 키를 그대로 저장하세요.',
       'settings.languageHint': '선택한 언어는 이 기기에 저장되며 모든 화면에 즉시 반영됩니다.',
       'settings.account': '계정 정보',
       'settings.displayName': '표시 이름',
@@ -2254,6 +2284,66 @@
     ]);
   }
 
+  /* OpenAI の API キー。画面からは入れるだけで、二度と読み出せない（043）。
+     見せるのは「入っているか」と末尾4文字だけ。
+     鍵を画面に出すと、肩越しに見られる・控えが残る・記録に写る。
+     末尾4文字なら鍵は復元できないが、入れ違いには気づける */
+  function openAiKeySection() {
+    var state2 = el('p', { class: 'section__desc', text: t('settings.keyChecking') });
+    var input = el('input', {
+      class: 'input', id: 'openai-key', type: 'password', autocomplete: 'off',
+      placeholder: 'sk-…', 'aria-label': t('settings.openAiKey')
+    });
+    var save = el('button', { class: 'btn btn--primary', type: 'button', text: t('common.save') });
+    var drop = el('button', { class: 'btn btn--text', type: 'button', text: t('settings.keyRemove') });
+    drop.hidden = true;
+
+    var show = function () {
+      if (!global.Api || !Api.secrets) { state2.textContent = t('common.error'); return; }
+      Api.secrets.openAiKeyState().then(function (got) {
+        var has = !!(got && got.has_key);
+        state2.textContent = has
+          ? t('settings.keySet', { tail: String((got && got.tail) || '') })
+          : t('settings.keyNone');
+        drop.hidden = !has;
+      }, function () { state2.textContent = t('settings.keyNone'); drop.hidden = true; });
+    };
+
+    var put = function (value) {
+      save.disabled = true; drop.disabled = true;
+      Api.secrets.setOpenAiKey(value).then(function () {
+        input.value = '';
+        save.disabled = false; drop.disabled = false;
+        toast(value ? t('settings.keySaved') : t('settings.keyRemoved'), 'success');
+        show();
+      }, function (err) {
+        save.disabled = false; drop.disabled = false;
+        toast(errorMessage(err), 'danger');
+      });
+    };
+    save.addEventListener('click', function () {
+      var v = String(input.value || '').trim();
+      if (!v) { toast(t('settings.keyEmpty'), 'danger'); return; }
+      put(v);
+    });
+    drop.addEventListener('click', function () { put(''); });
+    show();
+
+    return el('section', { class: 'section' }, [
+      el('div', { class: 'section__head' }, [
+        el('h2', { class: 'section__title', text: t('settings.openAiKey') })
+      ]),
+      el('p', { class: 'section__desc', text: t('settings.openAiKeyHint') }),
+      state2,
+      el('div', { class: 'field' }, [
+        el('label', { class: 'field__label', for: 'openai-key', text: t('settings.openAiKey') }),
+        input
+      ]),
+      el('div', { class: 'btn-row' }, [save, drop]),
+      el('p', { class: 'field__hint', text: t('settings.keySafety') })
+    ]);
+  }
+
   function providerLabel(user) {
     return user && user.auth_provider === 'google' ? t('settings.providerGoogle') : t('settings.providerEmail');
   }
@@ -2529,6 +2619,7 @@
       firstAdminSection(),
       historySection(),
       languageSection(),
+      openAiKeySection(),
       inquirySection(),
       appInfoSection()
     ]));

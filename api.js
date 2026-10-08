@@ -947,6 +947,21 @@
     }
   };
 
+  /* OpenAI の API キー。入れるだけで、読み出す口は作らない（043）。
+     鍵を画面に返す関数を足さないこと。足した瞬間に、画面から鍵が抜ける */
+  api.secrets = {
+    setOpenAiKey: function (keyText) {
+      return rpc('elpiya_set_openai_key', { p_key: String(keyText === undefined || keyText === null ? '' : keyText) });
+    },
+    /* 返るのは「入っているか」と末尾4文字だけ。鍵そのものは返らない */
+    openAiKeyState: function () {
+      return rpc('elpiya_openai_key_state', {}).then(function (rows) {
+        var row = Array.isArray(rows) ? rows[0] : rows;
+        return row || { has_key: false, tail: '' };
+      });
+    }
+  };
+
   api.credits = {
     balance: balance,
     consume: consume,
