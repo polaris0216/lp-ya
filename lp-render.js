@@ -438,23 +438,32 @@
     var raw = String((sec && (sec.body || sec.text)) || '');
     if (!raw) { return []; }
     /* 「Q1 …」で切る。1行に続いていても、改行で並んでいても拾える */
-    var parts = raw.split(/Q\s*\d+[.．、:：]?\s*/).map(function (x) { return x.trim(); });
+    /* 「Q1 …」で切る。1行に続いていても、改行で並んでいても拾える。
+       前置き（「Q1〜Q6の全文は下記のとおりです。」）の "Q1〜" まで
+       区切りとして拾っていたので、空の質問が2つ混ざっていた
+       （実測 2026-10-09）。番号の直後が範囲の記号なら、区切りとみなさない */
+    var parts = raw.split(/Q\s*\d+(?![\s]*[-–—~〜])[.．、:：]?\s*/).map(function (x) { return x.trim(); });
     parts.shift();                               /* 1つめは見出しの残り */
     var out = [];
     parts.forEach(function (one) {
       if (!one) { return; }
       /* 質問と回答の切れ目。「→」「A.」「答:」のどれか。無ければ最初の句点 */
-      var at = one.search(/\s*(?:→|⇒|A[.．:：]|答[.．:：])\s*/);
+      /* 「A1 …」のように番号が付く形も拾う。番号なしの A. / A: だけを見ていたので、
+         質問と回答が1つながりのまま出ていた（実測 2026-10-09） */
+      var at = one.search(/\s*(?:→|⇒|A\s*\d*\s*[.．:：]?\s|答\s*\d*\s*[.．:：])/);
       var q, a;
       if (at >= 0) {
         q = one.slice(0, at).trim();
-        a = one.slice(at).replace(/^\s*(?:→|⇒|A[.．:：]|答[.．:：])\s*/, '').trim();
+        a = one.slice(at).replace(/^\s*(?:→|⇒|A\s*\d*\s*[.．:：]?\s*|答\s*\d*\s*[.．:：]\s*)/, '').trim();
       } else {
         var dot = one.indexOf('。');
         q = dot > 0 ? one.slice(0, dot + 1).trim() : one.trim();
         a = dot > 0 ? one.slice(dot + 1).trim() : '';
       }
-      if (q) { out.push({ q: q, a: a }); }
+      /* 回答の無いものは捨てる。前置き（「Q1〜Q6の全文は下記のとおりです。」）の
+         切れ端が、回答の無い質問として1件目に並んでいた（実測 2026-10-09）。
+         質問だけで回答が無い行は、出しても読み手の役に立たない */
+      if (q && q.length > 1 && a) { out.push({ q: q, a: a }); }
     });
     return out.slice(0, 8);
   }
