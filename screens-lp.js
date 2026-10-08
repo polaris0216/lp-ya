@@ -52,6 +52,12 @@
     'lp.section': ['区画 {n}', 'Section {n}', '구획 {n}'],
     'lp.prompt': ['生成プロンプト', 'Prompt', '생성 프롬프트'],
     'lp.gen': ['この区画を生成', 'Generate this section', '이 구획 생성'],
+    'lp.faqBody': ['質問と回答（この文字がそのまま出ます）',
+      'Questions and answers (this text is what appears)',
+      '질문과 답변(이 글자가 그대로 나옵니다)'],
+    'lp.faqBodyHint': ['「Q1 …。A1 …。Q2 …。A2 …」の形で書きます。最大8問まで出ます',
+      'Write as "Q1 …. A1 …. Q2 …. A2 …". Up to 8 questions are shown.',
+      '「Q1 …. A1 …. Q2 …. A2 …」 형식으로 씁니다. 최대 8문항까지 나옵니다'],
     'lp.faqNoImage': ['よくある質問は、絵ではなく文字で組むので生成しません（回答まで出ます）',
       'FAQ is laid out as text, not an image, so nothing is generated (answers included)',
       '자주 묻는 질문은 그림이 아니라 글자로 구성하므로 생성하지 않습니다(답변까지 나옵니다)'],
@@ -1202,17 +1208,24 @@
           add(li, shotPrompt);
         }
 
+        /* よくある質問は絵を作らない。見せるのも直させるのも、写真の指示ではなく
+           質問と回答そのもの（これを画面側が SVG に組んで出す）。
+           写真の指示を出していたので、作られもしない「湯気の立つマグカップ」を
+           直す画面になっていた（2026-10-08 利用者の指摘） */
+        var faq = /よくある質問|FAQ|Q&A|Q＆A/i.test(String(sec.title || ''));
         var field = el('label', 'field');
-        add(field, el('span', 'field__label', t('lp.prompt')));
+        add(field, el('span', 'field__label', t(faq ? 'lp.faqBody' : 'lp.prompt')));
         promptTa = el('textarea', 'textarea lp-prompt');
-        promptTa.value = String(sec.prompt || '');
-        promptTa.rows = 6;
+        promptTa.value = String((faq ? (sec.body || sec.text) : sec.prompt) || '');
+        promptTa.rows = faq ? 10 : 6;
         promptTa.addEventListener('input', function () {
-          sec.prompt = promptTa.value; view.dirty = true;
+          if (faq) { sec.body = promptTa.value; } else { sec.prompt = promptTa.value; }
+          view.dirty = true;
           var s = document.getElementById('lp-save'); if (s) { s.disabled = false; }
         });
         add(field, promptTa);
         add(li, field);
+        if (faq) { add(li, el('p', 'field__hint', t('lp.faqBodyHint'))); }
 
         var row = el('div', 'lp-toolbar');
         var busy = !!view.busy[slot];
@@ -1221,7 +1234,6 @@
            （lp-render の faqPanel）。ボタンを出すと押せてしまい、
            「指定の区画がありません」とだけ返っていた（2026-10-08 利用者の指摘）。
            押せないようにして、理由をその場に出す */
-        var faq = /よくある質問|FAQ|Q&A|Q＆A/i.test(String(sec.title || ''));
         if (faq) {
           /* ボタンは出さない。押せないだけにすると、見た目が生成中のときと
              同じ（薄い色＋押せない）なので、走っていないのに走っていると見える
