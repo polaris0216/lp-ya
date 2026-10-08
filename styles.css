@@ -4636,3 +4636,14 @@ input[type='radio'] {
   margin-top: 8px;
 }
 .lp-via .field__hint { margin: 0; flex: 1 1 240px; }
+
+/* よくある質問の出来上がり（LP案の画面）。絵が出ない区画なので、
+   このまま出ることをその場で見せる（2026-10-09） */
+.lp-faq-preview { margin-top: 10px; }
+.lp-faq-preview__svg {
+  border: 1px solid var(--color-border, #E5E3EF);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+.lp-faq-preview__svg svg { display: block; width: 100%; height: auto; }

@@ -70,6 +70,10 @@
     'lp.faqBody': ['質問と回答（この文字がそのまま出ます）',
       'Questions and answers (this text is what appears)',
       '질문과 답변(이 글자가 그대로 나옵니다)'],
+    'lp.faqPreview': ['LPにはこう出ます（{n}問）', 'This is how it appears ({n} questions)', 'LP에는 이렇게 나옵니다({n}문항)'],
+    'lp.faqNone': ['「Q1 …。A1 …」の形で書くと、ここに出来上がりが出ます',
+      'Write as "Q1 …. A1 …" and the result appears here',
+      '「Q1 …. A1 …」 형식으로 쓰면 여기에 결과가 나옵니다'],
     'lp.faqBodyHint': ['「Q1 …。A1 …。Q2 …。A2 …」の形で書きます。最大8問まで出ます',
       'Write as "Q1 …. A1 …. Q2 …. A2 …". Up to 8 questions are shown.',
       '「Q1 …. A1 …. Q2 …. A2 …」 형식으로 씁니다. 최대 8문항까지 나옵니다'],
@@ -1271,7 +1275,35 @@
         });
         add(field, promptTa);
         add(li, field);
-        if (faq) { add(li, el('p', 'field__hint', t('lp.faqBodyHint'))); }
+        if (faq) {
+          add(li, el('p', 'field__hint', t('lp.faqBodyHint')));
+          /* 出来上がりをその場で見せる。絵が出ないので「作られていない」と
+             見えていた（2026-10-09 利用者の指摘: 「まだまだFAQのところが
+             生成されずです」）。実際は中身も描画もできていて、
+             画面に出していなかっただけ */
+          var faqBox = el('div', 'lp-faq-preview');
+          var drawFaq = function () {
+            clear(faqBox);
+            if (!window.LpRender || typeof LpRender.faqPanel !== 'function') { return; }
+            var items = LpRender.faqItems({ body: promptTa.value });
+            if (!items.length) {
+              add(faqBox, el('p', 'field__hint', t('lp.faqNone')));
+              return;
+            }
+            add(faqBox, el('p', 'field__label', t('lp.faqPreview', { n: items.length })));
+            var hold = el('div', 'lp-faq-preview__svg');
+            hold.innerHTML = LpRender.faqPanel(items, {
+              titleColor: (view.gen.content && view.gen.content.design
+                && view.gen.content.design.titleColor) || '#2B2B2B',
+              accentColor: (view.gen.content && view.gen.content.design
+                && view.gen.content.design.accentColor) || '#8A6A4B'
+            }, 1000, String(sec.title || ''));
+            add(faqBox, hold);
+          };
+          promptTa.addEventListener('input', drawFaq);
+          drawFaq();
+          add(li, faqBox);
+        }
 
         var row = el('div', 'lp-toolbar');
         var busy = !!view.busy[slot];
