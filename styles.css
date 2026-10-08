@@ -4624,3 +4624,15 @@ input[type='radio'] {
 .lpr-modes__box[open] .lpr-modes__sum::before { transform: rotate(90deg); }
 .lpr-modes__box .lpr-modes__title { margin: 0; font-size: 15px; font-weight: 700; }
 .lpr-view { display: inline-flex; gap: 4px; }
+
+/* 絵の作り先の切り替え（LP案の画面）。
+   並べるのはラベル・2つのボタン・説明の4つ。狭い画面では折り返す */
+.lp-via {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+.lp-via .field__hint { margin: 0; flex: 1 1 240px; }

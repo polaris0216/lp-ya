@@ -52,6 +52,21 @@
     'lp.section': ['区画 {n}', 'Section {n}', '구획 {n}'],
     'lp.prompt': ['生成プロンプト', 'Prompt', '생성 프롬프트'],
     'lp.gen': ['この区画を生成', 'Generate this section', '이 구획 생성'],
+    'lp.via': ['絵の作り先', 'Where images are made', '그림 생성처'],
+    'lp.viaBrowser': ['ChatGPTの画面', 'ChatGPT (browser)', 'ChatGPT 화면'],
+    'lp.viaApi': ['OpenAI API', 'OpenAI API', 'OpenAI API'],
+    'lp.viaBrowserHint': ['追加の料金はかかりません。ただし回数制限があり、当たると数時間止まります',
+      'No extra charge, but there is a usage limit; hitting it stops generation for hours.',
+      '추가 요금은 없습니다. 다만 횟수 제한이 있어 걸리면 몇 시간 멈춥니다'],
+    'lp.viaApiHint': ['1枚およそ $0.06〜0.08 かかります。回数制限は無く、速く作れます',
+      'About $0.06–0.08 per image. No usage limit, and faster.',
+      '1장당 약 $0.06~0.08. 횟수 제한이 없고 빠릅니다'],
+    'lp.viaApiOn': ['これからは OpenAI API で作ります（1枚 $0.06〜0.08）',
+      'Now generating with the OpenAI API ($0.06–0.08 per image)',
+      '이제 OpenAI API로 만듭니다($0.06~0.08/장)'],
+    'lp.viaBrowserOn': ['これからは ChatGPT の画面で作ります（追加の料金なし）',
+      'Now generating in the ChatGPT browser (no extra charge)',
+      '이제 ChatGPT 화면에서 만듭니다(추가 요금 없음)'],
     'lp.faqBody': ['質問と回答（この文字がそのまま出ます）',
       'Questions and answers (this text is what appears)',
       '질문과 답변(이 글자가 그대로 나옵니다)'],
@@ -818,6 +833,7 @@
         zipBtn.title = t('lp.zipHint');
         add(bulkBar, zipBtn);
         add(bulkBar, el('p', 'lp-bulk__note', t('lp.genAllHint')));
+        add(bulkBar, viaSwitch());
         var done = doneCount();
         var total = (view.gen.sections || []).length;
         var toCanvas = button('btn btn--secondary', t('lp.canvas'), function () {
@@ -1061,6 +1077,36 @@
         drawGroup('shape', 'lp.refsShape', 'lp.refsShapeHint');
         drawGroup('context', 'lp.refsContext', 'lp.refsContextHint');
         add(body, box);
+      }
+
+      /* 絵をどこで作るか。案件ごとに覚える（projects.image_via）。
+           ChatGPT の画面 … 追加課金なし。ただし回数制限があり、当たると数時間止まる
+           OpenAI API     … 従量課金（1枚 $0.06〜0.08）。回数制限が無く、速い
+         どちらで作っても、絵のできたあとの検査は同じものを通る（2026-10-09） */
+      function viaSwitch() {
+        var box = el('div', 'lp-via');
+        var now = String((view.project && view.project.image_via) || '') || 'chatgpt';
+        add(box, el('span', 'field__label', t('lp.via')));
+        [['chatgpt', 'lp.viaBrowser'], ['api', 'lp.viaApi']].forEach(function (one) {
+          var on = now === one[0];
+          var b = button('btn btn--sm ' + (on ? 'btn--primary' : 'btn--secondary'), t(one[1]), function (e) {
+            if (on) { return; }
+            var node = e && e.currentTarget;
+            if (node) { node.disabled = true; }
+            Api.projects.update(projectId, { image_via: one[0] }).then(function (row) {
+              view.project = row;
+              toast(t(one[0] === 'api' ? 'lp.viaApiOn' : 'lp.viaBrowserOn'), 'success');
+              paint();
+            }).catch(function (err) {
+              if (node) { node.disabled = false; }
+              toast(errorMessage(err), 'danger');
+            });
+          });
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          add(box, b);
+        });
+        add(box, el('span', 'field__hint', t(now === 'api' ? 'lp.viaApiHint' : 'lp.viaBrowserHint')));
+        return box;
       }
 
       /* 区画ごとのカード: プロンプト（編集可）＋生成ボタン＋できた絵 */
