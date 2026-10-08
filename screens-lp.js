@@ -1222,13 +1222,19 @@
            「指定の区画がありません」とだけ返っていた（2026-10-08 利用者の指摘）。
            押せないようにして、理由をその場に出す */
         var faq = /よくある質問|FAQ|Q&A|Q＆A/i.test(String(sec.title || ''));
-        var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
-          generate(sec.index);
-        });
-        b.disabled = busy || faq;
-        if (faq) { b.title = t('lp.faqNoImage'); }
-        add(row, b);
-        if (faq) { add(row, el('span', 'field__hint', t('lp.faqNoImage'))); }
+        if (faq) {
+          /* ボタンは出さない。押せないだけにすると、見た目が生成中のときと
+             同じ（薄い色＋押せない）なので、走っていないのに走っていると見える
+             （実測 2026-10-08: 利用者が「リロードしたら生成中と表示される」と指摘）。
+             作らないものは、はじめから置かない */
+          add(row, el('span', 'field__hint', t('lp.faqNoImage')));
+        } else {
+          var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
+            generate(sec.index);
+          });
+          b.disabled = busy;
+          add(row, b);
+        }
         add(row, button('btn btn--secondary btn--sm', t('lp.copy'), function () { copyText(String(sec.prompt || '')); }));
         add(li, row);
 
