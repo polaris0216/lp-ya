@@ -52,6 +52,9 @@
     'lp.section': ['区画 {n}', 'Section {n}', '구획 {n}'],
     'lp.prompt': ['生成プロンプト', 'Prompt', '생성 프롬프트'],
     'lp.gen': ['この区画を生成', 'Generate this section', '이 구획 생성'],
+    'lp.faqNoImage': ['よくある質問は、絵ではなく文字で組むので生成しません（回答まで出ます）',
+      'FAQ is laid out as text, not an image, so nothing is generated (answers included)',
+      '자주 묻는 질문은 그림이 아니라 글자로 구성하므로 생성하지 않습니다(답변까지 나옵니다)'],
     'lp.regen': ['作り直す', 'Regenerate', '다시 생성'],
     'lp.genWithEdited': ['直した生成文を保存しました。この文で作ります',
       'Saved your edited prompt. Generating with it.', '수정한 프롬프트로 생성합니다'],
@@ -1213,11 +1216,19 @@
 
         var row = el('div', 'lp-toolbar');
         var busy = !!view.busy[slot];
+        /* よくある質問は絵を作らない。回答まで入れると文字が多く、
+           画像生成に長い日本語を描かせると字形が崩れるので、画面側が SVG で組む
+           （lp-render の faqPanel）。ボタンを出すと押せてしまい、
+           「指定の区画がありません」とだけ返っていた（2026-10-08 利用者の指摘）。
+           押せないようにして、理由をその場に出す */
+        var faq = /よくある質問|FAQ|Q&A|Q＆A/i.test(String(sec.title || ''));
         var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
           generate(sec.index);
         });
-        b.disabled = busy;
+        b.disabled = busy || faq;
+        if (faq) { b.title = t('lp.faqNoImage'); }
         add(row, b);
+        if (faq) { add(row, el('span', 'field__hint', t('lp.faqNoImage'))); }
         add(row, button('btn btn--secondary btn--sm', t('lp.copy'), function () { copyText(String(sec.prompt || '')); }));
         add(li, row);
 
