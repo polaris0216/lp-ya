@@ -49,6 +49,15 @@
       '판매 페이지는 공개 시 보이는 형태입니다.'],
     'lpr.noSales': ['販売ページの文章がまだありません。生成プロンプトの画面で「販売ページの文章をAIに書かせる」を押してください',
       'No sales copy yet. Write it on the prompts screen.', '판매 문구가 없습니다'],
+    'lpr.edit': ['文字を直す', 'Edit text', '텍스트 수정'],
+    'lpr.editOn': ['直しています', 'Editing', '수정 중'],
+    'lpr.editSave': ['文字を保存', 'Save text', '텍스트 저장'],
+    'lpr.editHint': ['下見の中の文字をそのまま直せます。直したら「文字を保存」を押してください。',
+      'Edit the text right in the preview, then press “Save text”.',
+      '미리보기 안의 글을 그대로 고칠 수 있습니다. 고친 뒤 “텍스트 저장”을 누르세요.'],
+    'lpr.editSaved': ['文字を保存しました', 'Text saved', '텍스트를 저장했습니다'],
+    'lpr.editOnlyCanvas': ['文字を直せるのは「区画そのまま」のときだけです',
+      'Text editing works in “Sections only”.', '“구획 그대로”에서만 수정할 수 있습니다'],
     'lpr.modeAll': ['すべての区画を', 'All sections', '모든 구획을'],
     'lpr.modeNoText': ['文字版なし', 'No text version', '텍스트 버전 없음'],
     'lpr.modeNoImage': ['絵は未生成', 'Visual not generated', '이미지 미생성'],
@@ -441,6 +450,66 @@
         });
       }
 
+      /* 枠の中で動く、小さな編集係。
+         contenteditable の中身を、入力が止まったら親へ送るだけ。
+         HTML は送らない（innerText だけ）。親は受けた文字を escapeHtml して
+         組み直すので、ここから印付けが入り込むことはない */
+      function editorJs() {
+        return [
+          '(function(){',
+          '  var timer = null;',
+          '  function send(el){',
+          '    parent.postMessage({ t: "lpr-edit", key: el.getAttribute("data-edit"),',
+          '      value: String(el.innerText == null ? "" : el.innerText) }, "*");',
+          '  }',
+          '  document.addEventListener("input", function(e){',
+          '    var el = e.target.closest ? e.target.closest("[data-edit]") : null;',
+          '    if (!el) { return; }',
+          '    clearTimeout(timer);',
+          '    timer = setTimeout(function(){ send(el); }, 400);',
+          '  });',
+          '  document.addEventListener("blur", function(e){',
+          '    var el = e.target.closest ? e.target.closest("[data-edit]") : null;',
+          '    if (el) { clearTimeout(timer); send(el); }',
+          '  }, true);',
+          '}());'
+        ].join('\n');
+      }
+
+      /* 枠からの知らせを受ける。画面を作るときに1回だけ繋ぐ。
+         枠を組み直すと caret（入力の位置）が飛ぶので、受けても描き直さない */
+      window.addEventListener('message', function (e) {
+        if (!frame.contentWindow || e.source !== frame.contentWindow) { return; }
+        var d = e.data;
+        if (!d || d.t !== 'lpr-edit' || typeof d.key !== 'string') { return; }
+        var at = d.key.split(':');
+        var sec = (view.gen && Array.isArray(view.gen.sections) ? view.gen.sections : [])
+          .filter(function (x) { return String(x.index) === at[0]; })[0];
+        if (!sec) { return; }
+        var next = String(d.value == null ? '' : d.value);
+        if (String(sec[at[1]] || '') === next) { return; }
+        sec[at[1]] = next;
+        view.textDirty = true;
+        var b = document.getElementById('lpr-text-save');
+        if (b) { b.disabled = false; }
+      });
+
+      /* 直した文字を記録に書く。書いたら枠も組み直して、
+         公開するものと見えているものを揃える */
+      function saveText() {
+        var b = document.getElementById('lpr-text-save');
+        if (b) { b.disabled = true; }
+        Api.generations.update(view.gen.id, { sections: view.gen.sections }).then(function () {
+          view.textDirty = false;
+          build(true);
+          paint();
+          if (window.App && App.toast) { App.toast(t('lpr.editSaved')); }
+        }).catch(function (err) {
+          console.error('[screens-lp-result] 文字の保存に失敗:', err);
+          if (b) { b.disabled = false; }
+        });
+      }
+
       function build(save) {
         if (!window.LpRender || typeof LpRender.buildDraftHtml !== 'function') {
           console.error('[screens-lp-result] LpRender.buildDraftHtml がありません。lp-render.js を確認してください。');
@@ -497,9 +566,21 @@
             }
             var url = visualOf(sec);
             var mode = modeOf(sec, url);
-            var cap = sec.body ? '<p class="cap">' + escapeHtml(String(sec.body)) + '</p>' : '';
+            /* 直せるようにする印。枠の中で contenteditable にして、
+               直った中身を postMessage で親へ返す（2026-10-10 要望:
+               「このページでテキストも直接修正できるようにして」）。
+               枠は allow-scripts だけの別の生い立ちなので、
+               親から中の document には触れない。だから中から知らせてもらう */
+            var edit = function (what) {
+              return view.editing
+                ? ' data-edit="' + sec.index + ':' + what + '" contenteditable="plaintext-only"'
+                : '';
+            };
+            var cap = sec.body
+              ? '<p class="cap"' + edit('body') + '>' + escapeHtml(String(sec.body)) + '</p>' : '';
             var img = url ? mediaTag(url, String(sec.index) + '-1') : '';
-            var txt = sec.text ? textBlock(sec) : '';
+            var txt = sec.text
+              ? '<div class="txt__in"' + edit('text') + '>' + textBlock(sec) + '</div>' : '';
             /* 選んだとおりに出す。
                「絵」を選んだのに本文（cap）を足していたので、絵だけにしたはずの
                区画に文字が残っていた（2026-10-04 指摘）。
@@ -551,20 +632,54 @@
             + '.todo{padding:28px 24px;border:1px dashed #D9CFE0;color:#6B6270;font:14px/1.6 system-ui;text-align:center}'
             /* 文字の段。見出し・小見出し・本文・箇条書き・言葉と説明で、
                大きさと色を変える。全部同じ見た目だと目で追えない */
-            + '.txt{padding:34px 24px 30px;font-family:-apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif}'
-            + '.txt h2{margin:0 0 14px;font:700 26px/1.45;color:#171018;letter-spacing:.01em}'
-            + '.txt h3{margin:22px 0 8px;font:700 18px/1.6;color:#171018;padding-left:12px;border-left:4px solid ' + accent + '}'
-            + '.txt p{margin:0 0 12px;font:16px/1.95;color:#3A323E}'
-            + '.txt ul{margin:0 0 14px;padding-left:1.2em}'
-            + '.txt li{margin:4px 0;font:16px/1.9;color:#3A323E}'
-            + '.txt dl{display:flex;gap:10px;margin:0 0 8px;font:15px/1.8}'
-            + '.txt dt{flex:0 0 7.5em;font-weight:700;color:#171018}'
-            + '.txt dd{flex:1 1 auto;margin:0;color:#3A323E}'
+            /* 字の組み方。前は見出しも本文も素のままで、幅いっぱいに
+               ぎっしり詰まっていた（2026-10-10 指摘「テキストのデザインも
+               オシャレにして」）。読み物として整えるために:
+                 ・1行の長さを 32em までに抑える（日本語は1行40字前後が限度）
+                 ・行間を 2.0、字間を .04em。詰まって見えるのは字間が0だから
+                 ・見出しの上に短い色の線を1本。区画の始まりが分かる
+                 ・箇条書きの点は丸を自前で描く（既定の黒丸は重い）
+                 ・添え書き（cap）は囲みにして、本文と役割を分ける */
+            + '.txt{padding:44px 24px 38px;font-family:-apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif}'
+            + '@media (min-width:768px){.txt{padding:64px 56px 56px}}'
+            + '.txt__in{max-width:32em;margin:0 auto}'
+            + '.txt h2{margin:0 0 20px;font-weight:700;font-size:clamp(22px,4.6vw,29px);line-height:1.6;'
+              + 'color:#171018;letter-spacing:.04em}'
+            + '.txt h2::before{content:"";display:block;width:36px;height:3px;border-radius:2px;'
+              + 'background:' + accent + ';margin:0 0 18px}'
+            /* 見出しのすぐ下の1段落は、導入として少しだけ大きく濃く */
+            + '.txt h2+p{font-size:17px;color:#2A2430}'
+            + '.txt h3{margin:34px 0 10px;font:700 17px/1.7;color:#171018;letter-spacing:.04em;'
+              + 'padding-left:12px;border-left:3px solid ' + accent + '}'
+            /* 両端ぞろえ（justify）は使わない。日本語に英数字が混ざると
+               「shlebru コールドブリュー・システム 2.0 が」のところで
+               語間が大きく空いて、白い筋ができる（2026-10-10 実測） */
+            + '.txt p{margin:0 0 1.15em;font-size:16px;line-height:2;color:#3A323E;letter-spacing:.04em;'
+              + 'word-break:normal;overflow-wrap:anywhere}'
+            + '.txt ul{margin:0 0 1.2em;padding:0;list-style:none}'
+            + '.txt li{position:relative;margin:.5em 0;padding-left:1.15em;font-size:16px;'
+              + 'line-height:1.95;color:#3A323E;letter-spacing:.04em}'
+            + '.txt li::before{content:"";position:absolute;left:0;top:.78em;width:6px;height:6px;'
+              + 'border-radius:50%;background:' + accent + '}'
+            + '.txt dl{display:grid;grid-template-columns:7.5em 1fr;gap:4px 14px;margin:0 0 .4em;'
+              + 'padding:.5em 0;border-bottom:1px solid #EFEAF2;font-size:15px;line-height:1.85}'
+            + '.txt dl:last-of-type{border-bottom:0}'
+            + '.txt dt{font-weight:700;color:#171018;letter-spacing:.04em}'
+            + '.txt dd{margin:0;color:#3A323E;letter-spacing:.03em}'
             + '.txt strong{font-weight:700;color:#171018}'
             + '.txt u{text-decoration:none;background:linear-gradient(transparent 62%,' + weak + ' 62%)}'
-            + '.txt mark{background:' + weak + ';color:inherit;padding:0 2px;border-radius:2px}'
+            + '.txt mark{background:' + weak + ';color:inherit;padding:0 3px;border-radius:3px}'
             + '.txt .accent{font-style:normal;font-weight:700;color:' + accent + '}'
-            + '.cap{margin:0;padding:14px 24px 22px;font:15px/1.85 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;color:#3A323E;white-space:pre-wrap}'
+            + '.cap{max-width:32em;margin:0 auto;padding:18px 20px;border-radius:12px;'
+              + 'background:#FAF8FB;border-left:3px solid ' + weak + ';'
+              + 'font:15px/1.95 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;'
+              + 'color:#5A5260;letter-spacing:.03em;white-space:pre-wrap}'
+            + 'section:has(>.cap){padding:0 24px 30px}'
+            + '@media (min-width:768px){section:has(>.cap){padding:0 56px 38px}}'
+            /* 直せるところを目で分かるようにする。押すまで邪魔にならない薄さ */
+            + '[data-edit]{outline:1px dashed ' + weak + ';outline-offset:8px;border-radius:4px;cursor:text}'
+            + '[data-edit]:hover{outline-color:' + accent + '}'
+            + '[data-edit]:focus{outline:2px solid ' + accent + ';outline-offset:8px}'
             /* 「ページの最初をKVから始める」を入れていたら、ここでも同じように出す。
                これまで公開ページだけに効いていて、生成結果で確かめられなかった
                （2026-10-04 指摘）。見えているものと公開するものを揃える */
@@ -589,6 +704,9 @@
             /* 高さは中から知らせてもらう（枠の中で JS を動かすため、
                親からは中の document に触れない） */
             + (LpRender.frameReportJs ? '<script>' + LpRender.frameReportJs() + '<\/script>' : '')
+            /* 直した中身を親へ返す。枠は別の生い立ちなので、親からは中の
+               document に触れない。中から postMessage で知らせる */
+            + (view.editing ? '<script>' + editorJs() + '<\/script>' : '')
             + '</body></html>';
           if (save) { saveHtml(); }
           return;
@@ -883,6 +1001,32 @@
           add(sw, b);
         });
         add(toolbar, sw);
+
+        /* 文字を直す。区画を縦に並べた形（区画そのまま）のときだけ。
+           販売ページは文章の出どころが別（content.sales）なので、ここでは触らない
+           （2026-10-10 要望:「このページでテキストも直接修正できるようにして」）*/
+        if (view.gen.feature_key === 'lp_brief') {
+          if (kind !== 'canvas') {
+            add(toolbar, el('span', 't-note', t('lpr.editOnlyCanvas')));
+          } else {
+            var eb = button('btn btn--sm ' + (view.editing ? 'btn--primary' : 'btn--secondary'),
+              view.editing ? t('lpr.editOn') : t('lpr.edit'), function () {
+                view.editing = !view.editing;
+                build(false);
+                paint();
+              });
+            eb.setAttribute('aria-pressed', view.editing ? 'true' : 'false');
+            add(toolbar, eb);
+            if (view.editing) {
+              var sb = button('btn btn--sm btn--primary', t('lpr.editSave'), saveText);
+              sb.id = 'lpr-text-save';
+              sb.disabled = !view.textDirty;
+              add(toolbar, sb);
+              add(toolbar, el('span', 't-note', t('lpr.editHint')));
+            }
+          }
+        }
+
         if (!hasSales()) { add(toolbar, el('span', 't-note', t('lpr.noSales'))); }
         else { add(toolbar, el('span', 't-note', t('lpr.viewHint'))); }
         if (window.Api && Api.lp) {
