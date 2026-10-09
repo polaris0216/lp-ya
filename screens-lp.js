@@ -1310,6 +1310,29 @@
             if (b2) { b2.disabled = false; }
           });
           drawFaq();
+          /* 絵を作るボタンは出さない。押せないだけにすると、見た目が生成中のときと
+             同じ（薄い色＋押せない）なので、走っていないのに走っていると見える
+             （実測 2026-10-08: 利用者が「リロードしたら生成中と表示される」と指摘）。
+             作らないものは、はじめから置かない。
+             代わりに「保存して反映」を置く。直した質問と回答をLPへ出すには
+             保存が要るが、上の「プロンプトを保存」は離れていて気づけない
+             （2026-10-09 利用者の求め:「質問と回答に修正したら新しく
+             生成できるようにしたいから、生成ボタン追加してほしい」）。
+             AI で作り直すものは無いので「生成」ではなく「保存して反映」。
+             置き場所は、直す場所（質問と回答）と結果（LPにはこう出ます）の
+             あいだ。下の並びに混ぜると、直してから押すまでに
+             プレビューをまたぐ（2026-10-10 利用者の求め） */
+          var faqRow = el('div', 'lp-toolbar');
+          var faqSave = button('btn btn--primary', t('lp.faqSave'), function (e) {
+            var node = e && e.currentTarget;
+            if (node) { node.disabled = true; }
+            saveEdits();
+          });
+          faqSave.disabled = !view.dirty;
+          faqSave.id = 'lp-faq-save-' + sec.index;
+          add(faqRow, faqSave);
+          add(faqRow, el('span', 'field__hint', t('lp.faqNoImage')));
+          add(li, faqRow);
           add(li, faqBox);
         }
 
@@ -1319,27 +1342,9 @@
            画像生成に長い日本語を描かせると字形が崩れるので、画面側が SVG で組む
            （lp-render の faqPanel）。ボタンを出すと押せてしまい、
            「指定の区画がありません」とだけ返っていた（2026-10-08 利用者の指摘）。
-           押せないようにして、理由をその場に出す */
-        if (faq) {
-          /* 絵を作るボタンは出さない。押せないだけにすると、見た目が生成中のときと
-             同じ（薄い色＋押せない）なので、走っていないのに走っていると見える
-             （実測 2026-10-08: 利用者が「リロードしたら生成中と表示される」と指摘）。
-             作らないものは、はじめから置かない。
-             代わりに「保存して反映」を置く。直した質問と回答をLPへ出すには
-             保存が要るが、上の「プロンプトを保存」は離れていて気づけない
-             （2026-10-09 利用者の求め:「質問と回答に修正したら新しく
-             生成できるようにしたいから、生成ボタン追加してほしい」）。
-             AI で作り直すものは無いので「生成」ではなく「保存して反映」 */
-          var faqSave = button('btn btn--primary', t('lp.faqSave'), function (e) {
-            var node = e && e.currentTarget;
-            if (node) { node.disabled = true; }
-            saveEdits();
-          });
-          faqSave.disabled = !view.dirty;
-          faqSave.id = 'lp-faq-save-' + sec.index;
-          add(row, faqSave);
-          add(row, el('span', 'field__hint', t('lp.faqNoImage')));
-        } else {
+           よくある質問のときは絵のボタンを置かない。代わりの
+           「保存して反映」は、上の質問と回答のすぐ下にある */
+        if (!faq) {
           var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
             generate(sec.index);
           });
