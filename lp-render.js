@@ -536,6 +536,111 @@
     return out.join('');
   }
 
+  /* ---- ポイントの区画は「上に帯、下に写真」 ----
+     見本は利用者が選んだ ~/Downloads/POINT見本-横線つき.png
+     （2026-10-10 の求め:「POINTの見出しは見本のように写真の上に
+     タイトルと一緒に大きく入れて欲しい」）。
+     これまでは burnedPanel で、写真の下のほうに明朝の小さな見出しを
+     焼いていた。見本は「黒い帯＋特大の見出し」で、別物だった。
+
+     文字を絵の中に描かせる手もあるが、札の形も寄せも毎回変わる
+     （実測 2026-10-09: 同じ指示で3回とも箱・色・位置が別物。
+     「横線つきの細字」は4回否定しても出なかった）。
+     ここで組めば毎回同じになるし、すでにある写真でもすぐ効く。 */
+  var POINT_BODY_LINES = 3;
+  var POINT_RE = /^\s*(POINT\s*\d+|ポイント\s*\d+)\s*[:：.．、・\-－—]?\s*/i;
+
+  function pointParts(title) {
+    var s = String(title || '');
+    var m = s.match(POINT_RE);
+    if (!m) { return null; }
+    var rest = s.slice(m[0].length).trim();
+    if (!rest) { return null; }
+    return { label: m[1].replace(/\s+/g, ' ').toUpperCase(), title: rest };
+  }
+
+  function textUnits(text) {
+    var n = 0;
+    String(text || '').split('').forEach(function (c) { n += charUnits(c); });
+    return n;
+  }
+
+  /* 全角1字 = 1em とみなす。charUnits は全角を2で数えるので半分にする。
+     太字は少し太るので 0.55 を掛けて、はみ出す側に倒さない */
+  var UNIT = 0.55;
+
+  function pointPanel(src, label, title, body, design, width) {
+    var W = width;
+    var pad = Math.round(W * 0.06);
+    var avail = W - pad * 2;
+    var labelSize = Math.round(W * 0.026);
+    var descSize = Math.round(W * 0.030);
+    var descStep = Math.round(descSize * 1.55);
+
+    /* 見出しは帯の幅いっぱいまで大きくする。短ければ1行で特大、
+       長ければ行を足して収める（見本は1行で幅の75%を使っていた） */
+    var units = Math.max(1, textUnits(title));
+    var maxSize = Math.round(W * 0.115);
+    var titleSize = maxSize;
+    var titleLines = [title];
+    for (var n = 1; n <= 3; n += 1) {
+      titleSize = Math.max(Math.round(W * 0.05), Math.min(maxSize, Math.round(avail / (units * UNIT / n))));
+      titleLines = wrapLines(title, avail / (titleSize * UNIT));
+      if (titleLines.length <= n) { break; }
+    }
+    titleLines = titleLines.slice(0, 3);
+    var titleStep = Math.round(titleSize * 1.2);
+    var descLines = body ? wrapLines(body, avail / (descSize * UNIT)).slice(0, POINT_BODY_LINES) : [];
+
+    var labelH = Math.round(labelSize * 2.2);
+    var labelW = Math.round(textUnits(label) * labelSize * UNIT) + labelSize * 2;
+    var bandH = pad + labelH + Math.round(pad * 0.8)
+      + titleLines.length * titleStep
+      + (descLines.length ? Math.round(pad * 0.45) + descLines.length * descStep : 0)
+      + pad;
+    var photoH = Math.round(W * 1.25);
+    var H = bandH + photoH;
+    var accent = (design && design.accentColor) || '#8A6A4B';
+
+    var out = [];
+    out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
+      + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
+    out.push('<rect width="' + W + '" height="' + H + '" fill="#1E1A18"/>');
+    if (src) {
+      out.push('<image href="' + escapeHtml(src) + '" x="0" y="' + bandH + '" width="' + W
+        + '" height="' + photoH + '" preserveAspectRatio="xMidYMid slice"/>');
+    }
+
+    /* 札は帯の左上。見本どおり。見出しと説明は帯の中央にそろえる */
+    out.push('<rect x="' + pad + '" y="' + pad + '" width="' + labelW + '" height="' + labelH
+      + '" rx="' + Math.round(labelH * 0.22) + '" fill="' + escapeHtml(accent) + '"/>');
+    out.push('<text x="' + (pad + labelW / 2) + '" y="' + (pad + labelH / 2) + '" font-size="' + labelSize
+      + '" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central"'
+      + ' letter-spacing="0.08em" font-family="\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif">'
+      + escapeHtml(label) + '</text>');
+
+    var y = pad + labelH + Math.round(pad * 0.8);
+    titleLines.forEach(function (line) {
+      y += Math.round(titleSize * 0.82);
+      out.push('<text x="' + (W / 2) + '" y="' + y + '" font-size="' + titleSize
+        + '" font-weight="800" fill="#FFFFFF" text-anchor="middle"'
+        + ' font-family="\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif">'
+        + escapeHtml(line) + '</text>');
+      y += titleStep - Math.round(titleSize * 0.82);
+    });
+    if (descLines.length) { y += Math.round(pad * 0.45); }
+    descLines.forEach(function (line) {
+      y += Math.round(descSize * 0.82);
+      out.push('<text x="' + (W / 2) + '" y="' + y + '" font-size="' + descSize
+        + '" fill="#FFFFFF" fill-opacity="0.9" text-anchor="middle"'
+        + ' font-family="\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif">'
+        + escapeHtml(line) + '</text>');
+      y += descStep - Math.round(descSize * 0.82);
+    });
+    out.push('</svg>');
+    return out.join('');
+  }
+
   function burnedPanel(src, title, body, design, width, options) {
     var o = options || {};
     var W = width;
@@ -629,7 +734,10 @@
     out.push('<section id="sec-' + (index + 1) + '" data-key="' + escapeHtml(section.key) + '">');
     out.push('<div class="wrap">');
     var split = splitDirectives(section);
-    out.push(burnedPanel(takeAsset(pool, 'photo'), section.title, split.prose, design, 712));
+    var pt = pointParts(section.title);
+    out.push(pt
+      ? pointPanel(takeAsset(pool, 'photo'), pt.label, pt.title, split.prose, design, 712)
+      : burnedPanel(takeAsset(pool, 'photo'), section.title, split.prose, design, 712));
     /* 動きで見せる区画は GIF と動画を先に置く。実物も画像列の途中に挟んでいた */
     split.directives.forEach(function (one) {
       if (one.kind === 'gif') { out.push(flushMedia(takeAsset(pool, 'gif'))); }
@@ -1762,6 +1870,8 @@
   }
   window.LpRender = {
     TYPE: TYPE,
+    pointParts: pointParts,
+    pointPanel: pointPanel,
     buildDraftHtml: buildDraftHtml,
     buildDraftFiles: buildDraftFiles,
     draftCss: draftCss,
