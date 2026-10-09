@@ -70,6 +70,10 @@
     'lp.faqBody': ['質問と回答（この文字がそのまま出ます）',
       'Questions and answers (this text is what appears)',
       '질문과 답변(이 글자가 그대로 나옵니다)'],
+    'lp.faqSave': ['保存して反映', 'Save and apply', '저장하고 반영'],
+    'lp.faqSaved': ['保存しました。LPにこの質問と回答が出ます',
+      'Saved. These questions and answers now appear in the LP.',
+      '저장했습니다. LP에 이 질문과 답변이 나옵니다'],
     'lp.faqPreview': ['LPにはこう出ます（{n}問）', 'This is how it appears ({n} questions)', 'LP에는 이렇게 나옵니다({n}문항)'],
     'lp.faqNone': ['「Q1 …。A1 …」の形で書くと、ここに出来上がりが出ます',
       'Write as "Q1 …. A1 …" and the result appears here',
@@ -1300,7 +1304,11 @@
             }, 1000, String(sec.title || ''));
             add(faqBox, hold);
           };
-          promptTa.addEventListener('input', drawFaq);
+          promptTa.addEventListener('input', function () {
+            drawFaq();
+            var b2 = document.getElementById('lp-faq-save-' + sec.index);
+            if (b2) { b2.disabled = false; }
+          });
           drawFaq();
           add(li, faqBox);
         }
@@ -1313,10 +1321,23 @@
            「指定の区画がありません」とだけ返っていた（2026-10-08 利用者の指摘）。
            押せないようにして、理由をその場に出す */
         if (faq) {
-          /* ボタンは出さない。押せないだけにすると、見た目が生成中のときと
+          /* 絵を作るボタンは出さない。押せないだけにすると、見た目が生成中のときと
              同じ（薄い色＋押せない）なので、走っていないのに走っていると見える
              （実測 2026-10-08: 利用者が「リロードしたら生成中と表示される」と指摘）。
-             作らないものは、はじめから置かない */
+             作らないものは、はじめから置かない。
+             代わりに「保存して反映」を置く。直した質問と回答をLPへ出すには
+             保存が要るが、上の「プロンプトを保存」は離れていて気づけない
+             （2026-10-09 利用者の求め:「質問と回答に修正したら新しく
+             生成できるようにしたいから、生成ボタン追加してほしい」）。
+             AI で作り直すものは無いので「生成」ではなく「保存して反映」 */
+          var faqSave = button('btn btn--primary', t('lp.faqSave'), function (e) {
+            var node = e && e.currentTarget;
+            if (node) { node.disabled = true; }
+            saveEdits();
+          });
+          faqSave.disabled = !view.dirty;
+          faqSave.id = 'lp-faq-save-' + sec.index;
+          add(row, faqSave);
           add(row, el('span', 'field__hint', t('lp.faqNoImage')));
         } else {
           var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
