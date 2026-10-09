@@ -345,6 +345,12 @@
         out = out.replace(/__([^_]+)__/g, '<u>$1</u>');
         out = out.replace(/==([^=]+)==/g, '<mark>$1</mark>');
         out = out.replace(/\[\[([^\]]+)\]\]/g, '<em class="accent">$1</em>');
+        /* 斜体。** を先に片づけてあるので、残った * だけを拾う。
+           日本語の書体に本物の斜体は無く、機械的に傾けると字形が崩れるので、
+           英数字と記号のときだけ斜体にする（2026-10-10）*/
+        out = out.replace(/\*([^*\n]+)\*/g, function (all, inner) {
+          return /^[\x20-\x7E]+$/.test(inner) ? '<i>' + inner + '</i>' : inner;
+        });
         return out;
       }
 
@@ -666,10 +672,23 @@
             + '.txt dl:last-of-type{border-bottom:0}'
             + '.txt dt{font-weight:700;color:#171018;letter-spacing:.04em}'
             + '.txt dd{margin:0;color:#3A323E;letter-spacing:.03em}'
-            + '.txt strong{font-weight:700;color:#171018}'
-            + '.txt u{text-decoration:none;background:linear-gradient(transparent 62%,' + weak + ' 62%)}'
-            + '.txt mark{background:' + weak + ';color:inherit;padding:0 3px;border-radius:3px}'
-            + '.txt .accent{font-style:normal;font-weight:700;color:' + accent + '}'
+            /* 強調は5つ。見た目が似ていると、使い分けた意味が消える
+               （2026-10-10 実測: 下線とマーカーがどちらも同じ灰色の帯に見えた）。
+               太字=言い切り / マーカー=得 / 下線=条件 / 色=数値 / 斜体=英数字
+               ※ 添え書き（.cap）にも同じ印が来るので、両方に当てる。
+                 当てていなかったので、.cap の中の [[…]] が
+                 ただの斜体になっていた（2026-10-10 実測） */
+            + '.txt strong,.cap strong{font-weight:700;color:#171018}'
+            /* 下線は本物の下線。字から離して引く（日本語は下に出る字が多い） */
+            + '.txt u,.cap u{text-decoration:underline;text-decoration-thickness:2px;'
+              + 'text-underline-offset:6px;text-decoration-color:' + accent + '}'
+            /* マーカーは蛍光ペン。字の下半分だけを塗る（囲みにしない） */
+            + '.txt mark,.cap mark{background:linear-gradient(transparent 58%,' + weak + ' 58%);'
+              + 'color:inherit;padding:0 1px}'
+            + '.txt .accent,.cap .accent{font-style:normal;font-weight:700;color:' + accent + '}'
+            /* 斜体は英数字だけ（inline が日本語には付けない）。
+               字が細って沈むので、少しだけ濃くする */
+            + '.txt i,.cap i{font-style:italic;color:#2A2430}'
             + '.cap{max-width:32em;margin:0 auto;padding:18px 20px;border-radius:12px;'
               + 'background:#FAF8FB;border-left:3px solid ' + weak + ';'
               + 'font:15px/1.95 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;'
