@@ -550,13 +550,34 @@
   var POINT_BODY_LINES = 3;
   var POINT_RE = /^\s*(POINT\s*\d+|ポイント\s*\d+)\s*[:：.．、・\-－—]?\s*/i;
 
-  function pointParts(title) {
-    var s = String(title || '');
-    var m = s.match(POINT_RE);
+  /* 札も見出しも、区画の指示文の中にある。見出しだけ取り出す仕組みは
+     絵を作る側（make-section の headlineOf）にもあるが、ここは画面なので別に持つ。
+     指示文はこの形で書かれている:
+       札（…）:「POINT 2」 見出し（…）:「1回で12杯分の原液」
+       補足（…）:「紙フィルターは使わない」 説明（…）:「粉100gと水700mlを…」
+     区画の名前（sections[].title）は「ブリュワーの抽出力」のような内部の呼び名で、
+     ページに出す見出しではない（実測 2026-10-10: 29区画すべて札が付いていなかった） */
+  function quoted(text, word) {
+    var m = String(text || '').match(new RegExp(word + '(?:（[^）]*）)?\\s*[:：]\\s*「([^」]+)」'));
+    return m ? m[1].trim() : '';
+  }
+
+  function pointParts(section) {
+    var sec = (section && typeof section === 'object') ? section : { title: String(section || '') };
+    var ask = String(sec.prompt || '');
+    var label = (ask.match(/「\s*(POINT\s*\d+|ポイント\s*\d+)\s*」/i) || [])[1];
+    var title = quoted(ask, '見出し');
+    if (label && title) {
+      var sub = [quoted(ask, '補足'), quoted(ask, '説明')].filter(Boolean).join('　');
+      return { label: label.replace(/\s+/g, ' ').toUpperCase(), title: title, body: sub };
+    }
+    /* 区画の名前の頭に札が付いている書き方にも備える */
+    var name = String(sec.title || '');
+    var m = name.match(POINT_RE);
     if (!m) { return null; }
-    var rest = s.slice(m[0].length).trim();
+    var rest = name.slice(m[0].length).trim();
     if (!rest) { return null; }
-    return { label: m[1].replace(/\s+/g, ' ').toUpperCase(), title: rest };
+    return { label: m[1].replace(/\s+/g, ' ').toUpperCase(), title: rest, body: '' };
   }
 
   function textUnits(text) {
@@ -734,9 +755,9 @@
     out.push('<section id="sec-' + (index + 1) + '" data-key="' + escapeHtml(section.key) + '">');
     out.push('<div class="wrap">');
     var split = splitDirectives(section);
-    var pt = pointParts(section.title);
+    var pt = pointParts(section);
     out.push(pt
-      ? pointPanel(takeAsset(pool, 'photo'), pt.label, pt.title, split.prose, design, 712)
+      ? pointPanel(takeAsset(pool, 'photo'), pt.label, pt.title, pt.body || split.prose, design, 712)
       : burnedPanel(takeAsset(pool, 'photo'), section.title, split.prose, design, 712));
     /* 動きで見せる区画は GIF と動画を先に置く。実物も画像列の途中に挟んでいた */
     split.directives.forEach(function (one) {
