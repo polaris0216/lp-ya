@@ -1289,6 +1289,19 @@
         return pick;
       }
 
+      /* 「すべての区画を◯◯に」。区画ごとの選び手と同じ並び。
+         折りたたみの一覧の中ではなく、右の棚の頭に出す
+         （2026-10-11 要望:「このボタンならびをここら辺に移して」）。
+         区画ごとの選び手も棚にあるので、まとめて変えるのも同じ場所がよい */
+      function allModesRow() {
+        var all = el('div', 'lpr-modes__all');
+        add(all, el('span', 't-note', t('lpr.modeAll')));
+        MODES.forEach(function (pair) {
+          add(all, button('btn btn--secondary btn--sm', t(pair[1]), function () { setMode('*', pair[0]); }));
+        });
+        return all;
+      }
+
       function paintModes() {
         clear(modes);
         if (view.gen.feature_key !== 'lp_brief') { return; }
@@ -1312,13 +1325,6 @@
         var modes0 = modes;
         modes = open;
         add(modes, el('p', 't-note', t('lpr.modeHint')));
-
-        var all = el('div', 'lpr-modes__all');
-        add(all, el('span', 't-note', t('lpr.modeAll')));
-        MODES.forEach(function (pair) {
-          add(all, button('btn btn--secondary btn--sm', t(pair[1]), function () { setMode('*', pair[0]); }));
-        });
-        add(modes, all);
 
         var list = el('div', 'lpr-modes__list');
         sections.forEach(function (sec) {
@@ -1368,6 +1374,7 @@
           ? t('lpr.shelfHint', { n: pickable })
           : t('lpr.shelfNone')));
         if (one) { add(shelf, el('p', 't-note', t('lpr.shelfOne', { n: one }))); }
+        add(shelf, allModesRow());
         var now = currentShots();
         many.forEach(function (pair) {
           var g = el('div', 'lpr-pick');

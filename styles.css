@@ -4358,7 +4358,12 @@ input[type='radio'] {
   border: 1px solid var(--c-line); border-radius: var(--r-card);
 }
 .lpr-modes__title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: 700; }
-.lpr-modes__all { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 12px; }
+/* 「すべての区画を◯◯に」。右の棚の頭に置く（幅が狭いので折り返す） */
+.lpr-modes__all {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 10px 0 4px; padding: 0 0 12px; border-bottom: 1px solid var(--c-line);
+}
+.lpr-modes__all .btn { flex: 0 0 auto; }
 .lpr-modes__list { display: grid; gap: 6px; }
 .lpr-modes__row { display: flex; align-items: center; gap: 10px; }
 /* 区画ごとに選べる絵。作り直すと履歴がたまるので、その中から選ぶ
