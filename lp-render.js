@@ -2095,7 +2095,7 @@
         var w = charUnits(ch);
         /* 行頭に来てはいけない字（句読点・閉じ括弧・長音）は前の行に付ける。
            1文字はみ出すぶんは、右の余白（pad=36px）で吸収できる */
-        var noHead = /[、。，．・）」』】〕〉》］｝!?！？ー〜…]/.test(ch);
+        var noHead = /[、。，．・）」』】〕〉》］｝!?！？ー〜…ゝゞ々ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ]/.test(ch);
         /* 数字の直後の単位（130日・25dB・40坪）は前の行に付ける。
            数字で終わっているのに次が全角1〜2字なら、そこは切らない */
         var afterNumber = /[0-9０-９]$/.test(line) && /[日坪本枚個台人円%％]/.test(ch);
@@ -2107,7 +2107,18 @@
           if (/[A-Za-z0-9]/.test(ch)) {
             while (cut > 0 && /[A-Za-z0-9]/.test(line.charAt(cut - 1))) { cut -= 1; }
             if (cut === 0) { cut = line.length; }
+          } else {
+            /* 語の途中で終わるより、文の切れ目で終わったほうが読みやすい
+               （2026-10-10 利用者の指摘:「改行は自然に文章を区切ってやって」）。
+               読点・句点・中黒・閉じ括弧のうしろまで戻す。
+               戻すのは行の1/4までにして、行が短くなりすぎないようにする */
+            var most = Math.max(2, Math.floor(limit / 4));
+            for (var j = cut; j > cut - most && j > 1; j -= 1) {
+              if (/[、。，．・）」』】！？]/.test(line.charAt(j - 1))) { cut = j; break; }
+            }
           }
+          /* 行の終わりに開き括弧を残さない（行末禁則）。次の行へ送る */
+          while (cut > 1 && /[（「『【〔〈《［｛(\[]/.test(line.charAt(cut - 1))) { cut -= 1; }
           out.push(line.slice(0, cut).replace(/\s+$/, ''));
           var carry = line.slice(cut);
           line = carry;

@@ -374,6 +374,16 @@
         out = out.replace(/\*([^*\n]+)\*/g, function (all, inner) {
           return /^[\x20-\x7E]+$/.test(inner) ? '<i>' + inner + '</i>' : inner;
         });
+        /* 数値の範囲と、数値＋単位のあいだでは折らせない。
+           文節で折らせる（word-break:auto-phrase）と、ここが切れることがある
+           （実測 2026-10-10:「12〜／24時間」と割れた）。
+           見えない継ぎ目（U+2060）を挟むと、そこでは折れなくなる */
+        out = out.replace(/([0-9０-９])\s*([〜～~-])\s*([0-9０-９])/g, '$1\u2060$2\u2060$3');
+        out = out.replace(/([0-9０-９])(\s*)(mm|cm|ml|L|g|kg|dB|mAh|µm|μm|時間|分|日|杯|点|枚|台|回|名|人|円|%|％)/g,
+          '$1\u2060$3');
+        /* 「最大 12杯分」のような、数にかかる語も離さない */
+        out = out.replace(/(最大|最小|最短|最長|最速|約|およそ|計|全|各|1回で)(\s*)([0-9０-９])/g,
+          '$1\u2060$3');
         return out;
       }
 
@@ -744,6 +754,16 @@
                  ・箇条書きの点は丸を自前で描く（既定の黒丸は重い）
                  ・添え書き（cap）は囲みにして、本文と役割を分ける */
             + '.txt{padding:44px 24px 38px;font-family:-apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif}'
+            /* 折り返しを文の切れ目に寄せる（2026-10-10 利用者の指摘:
+               「改行が不自然に改行されることがある。改行は自然に文章を
+               区切ってやって」）。
+                 auto-phrase … ブラウザが文節で折る。これがいちばん効く。
+                               効かない画面では normal のまま（害は無い）
+                 strict      … 小書きかな・長音を行頭に送らない
+               overflow-wrap:anywhere は外した。どこでも折ってよい指定なので、
+               語の途中で切れる元になっていた */
+            + '.txt,.cap{word-break:normal;word-break:auto-phrase;line-break:strict;'
+              + 'overflow-wrap:break-word}'
             + '@media (min-width:768px){.txt{padding:64px 56px 56px}}'
             + '.txt__in{max-width:32em;margin:0 auto}'
             + '.txt h2{margin:0 0 20px;font-weight:700;font-size:clamp(22px,4.6vw,29px);line-height:1.6;'
@@ -757,8 +777,7 @@
             /* 両端ぞろえ（justify）は使わない。日本語に英数字が混ざると
                「shlebru コールドブリュー・システム 2.0 が」のところで
                語間が大きく空いて、白い筋ができる（2026-10-10 実測） */
-            + '.txt p{margin:0 0 1.15em;font-size:16px;line-height:2;color:#3A323E;letter-spacing:.04em;'
-              + 'word-break:normal;overflow-wrap:anywhere}'
+            + '.txt p{margin:0 0 1.15em;font-size:16px;line-height:2;color:#3A323E;letter-spacing:.04em}'
             + '.txt ul{margin:0 0 1.2em;padding:0;list-style:none}'
             + '.txt li{position:relative;margin:.5em 0;padding-left:1.15em;font-size:16px;'
               + 'line-height:1.95;color:#3A323E;letter-spacing:.04em}'
@@ -790,6 +809,7 @@
               + 'background:#FAF8FB;border-left:3px solid ' + weak + ';'
               + 'font:15px/1.95 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;'
               + 'color:#5A5260;letter-spacing:.03em;white-space:pre-wrap}'
+            + '.txt li,.txt dd,.txt h2,.txt h3{word-break:inherit;line-break:inherit}'
             /* 文字を写真の上に重ねる板。
                写真を敷き、幕をかけて白い文字を置く。絵が無ければブランド色の地。
                高さは文字の量で決まるが、板として見えるように下限を置く */
