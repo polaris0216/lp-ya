@@ -772,7 +772,7 @@
                  ・見出しの上に短い色の線を1本。区画の始まりが分かる
                  ・箇条書きの点は丸を自前で描く（既定の黒丸は重い）
                  ・添え書き（cap）は囲みにして、本文と役割を分ける */
-            + '.txt{padding:44px 24px 38px;font-family:-apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif}'
+            + '.txt{padding:30px 24px 26px;font-family:-apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif}'
             /* 折り返しを文の切れ目に寄せる（2026-10-10 利用者の指摘:
                「改行が不自然に改行されることがある。改行は自然に文章を
                区切ってやって」）。
@@ -783,27 +783,27 @@
                語の途中で切れる元になっていた */
             + '.txt,.cap{word-break:normal;word-break:auto-phrase;line-break:strict;'
               + 'overflow-wrap:break-word}'
-            + '@media (min-width:768px){.txt{padding:64px 56px 56px}}'
+            + '@media (min-width:768px){.txt{padding:42px 56px 36px}}'
             + '.txt__in{max-width:32em;margin:0 auto}'
-            + '.txt h2{margin:0 0 20px;font-weight:700;font-size:clamp(22px,4.6vw,29px);line-height:1.6;'
+            + '.txt h2{margin:0 0 14px;font-weight:700;font-size:clamp(22px,4.6vw,29px);line-height:1.45;'
               + 'color:#171018;letter-spacing:.04em}'
             + '.txt h2::before{content:"";display:block;width:36px;height:3px;border-radius:2px;'
-              + 'background:' + accent + ';margin:0 0 18px}'
+              + 'background:' + accent + ';margin:0 0 12px}'
             /* 見出しのすぐ下の1段落は、導入として少しだけ大きく濃く */
             + '.txt h2+p{font-size:17px;color:#2A2430}'
-            + '.txt h3{margin:34px 0 10px;font:700 17px/1.7;color:#171018;letter-spacing:.04em;'
+            + '.txt h3{margin:24px 0 8px;font:700 17px/1.55;color:#171018;letter-spacing:.04em;'
               + 'padding-left:12px;border-left:3px solid ' + accent + '}'
             /* 両端ぞろえ（justify）は使わない。日本語に英数字が混ざると
                「shlebru コールドブリュー・システム 2.0 が」のところで
                語間が大きく空いて、白い筋ができる（2026-10-10 実測） */
-            + '.txt p{margin:0 0 1.15em;font-size:16px;line-height:2;color:#3A323E;letter-spacing:.04em}'
-            + '.txt ul{margin:0 0 1.2em;padding:0;list-style:none}'
-            + '.txt li{position:relative;margin:.5em 0;padding-left:1.15em;font-size:16px;'
-              + 'line-height:1.95;color:#3A323E;letter-spacing:.04em}'
-            + '.txt li::before{content:"";position:absolute;left:0;top:.78em;width:6px;height:6px;'
+            + '.txt p{margin:0 0 .85em;font-size:16px;line-height:1.8;color:#3A323E;letter-spacing:.04em}'
+            + '.txt ul{margin:0 0 .85em;padding:0;list-style:none}'
+            + '.txt li{position:relative;margin:.28em 0;padding-left:1.15em;font-size:16px;'
+              + 'line-height:1.75;color:#3A323E;letter-spacing:.04em}'
+            + '.txt li::before{content:"";position:absolute;left:0;top:.68em;width:6px;height:6px;'
               + 'border-radius:50%;background:' + accent + '}'
             + '.txt dl{display:grid;grid-template-columns:7.5em 1fr;gap:4px 14px;margin:0 0 .4em;'
-              + 'padding:.5em 0;border-bottom:1px solid #EFEAF2;font-size:15px;line-height:1.85}'
+              + 'padding:.35em 0;border-bottom:1px solid #EFEAF2;font-size:15px;line-height:1.7}'
             + '.txt dl:last-of-type{border-bottom:0}'
             + '.txt dt{font-weight:700;color:#171018;letter-spacing:.04em}'
             + '.txt dd{margin:0;color:#3A323E;letter-spacing:.03em}'
@@ -824,9 +824,9 @@
             /* 斜体は英数字だけ（inline が日本語には付けない）。
                字が細って沈むので、少しだけ濃くする */
             + '.txt i,.cap i{font-style:italic;color:#2A2430}'
-            + '.cap{width:calc(100% - 48px);max-width:32em;margin:0 auto 30px;padding:18px 20px;border-radius:12px;'
+            + '.cap{width:calc(100% - 48px);max-width:32em;margin:0 auto 22px;padding:14px 18px;border-radius:12px;'
               + 'background:#FAF8FB;border-left:3px solid ' + weak + ';'
-              + 'font:15px/1.95 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;'
+              + 'font:15px/1.8 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;'
               + 'color:#5A5260;letter-spacing:.03em;white-space:pre-wrap}'
             + '.txt li,.txt dd,.txt h2,.txt h3{word-break:inherit;line-break:inherit}'
             /* 文字を写真の上に重ねる板。
