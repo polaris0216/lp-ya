@@ -326,6 +326,11 @@
     'lp.leadsNone': ['まだありません', 'None yet', '아직 없습니다'],
     'lp.leadsCount': ['{n}件', '{n}', '{n}건'],
     'lp.leadsCsv': ['CSVで落とす', 'Download CSV', 'CSV 내려받기'],
+    'lp.leadsCsvWait': ['集めています…', 'Collecting…', '모으는 중…'],
+    'lp.leadsCsvDone': ['{n}件を落としました', 'Downloaded {n}', '{n}건을 내려받았습니다'],
+    'lp.leadsAll': ['新しい200件を出しています。CSVは全件が入ります',
+      'Showing the newest 200. The CSV contains every address.',
+      '최신 200건을 보여줍니다. CSV에는 전부 들어갑니다'],
     'lp.leadsDel': ['消す', 'Delete', '삭제'],
     'lp.pubSave': ['保存する', 'Save', '저장'],
     'lp.pubSaved': ['保存しました', 'Saved', '저장했습니다'],
@@ -1940,6 +1945,24 @@
          出すのは最新200件まで（全部を一度に出すと画面が重い）。
          CSV はブラウザの中で作る（送り先を増やさない） */
       function paintLeads(box) {
+        /* 集まったメールを全部取る。PostgREST は1回に返す数に上限があるので、
+           1000件ずつ区切って最後まで読む。50回（5万件）で打ち切る */
+        var allLeads = function () {
+          var out = [];
+          var STEP = 1000;
+          var step = function (at) {
+            return Api.leads.list({ eq: { projects_id: projectId },
+              order: 'created_at.desc', limit: STEP, offset: at })
+              .then(function (rows) {
+                var got = isArray(rows) ? rows : [];
+                out = out.concat(got);
+                if (got.length < STEP || at >= STEP * 50) { return out; }
+                return step(at + STEP);
+              });
+          };
+          return step(0);
+        };
+
         if (!window.Api || !Api.leads || typeof Api.leads.list !== 'function') { return; }
         var hold = el('p', 'field__hint', '…');
         add(box, hold);
@@ -1949,24 +1972,42 @@
             var list = isArray(rows) ? rows : [];
             if (!list.length) { add(box, el('p', 'field__hint', t('lp.leadsNone'))); return; }
             add(box, el('p', 'field__hint', t('lp.leadsCount', { n: list.length })));
+            /* 画面は新しい200件まで。CSVは全件なので、その違いを書いておく */
+            if (list.length >= 200) { add(box, el('p', 'field__hint', t('lp.leadsAll'))); }
             var row = el('div', 'lp-pub__row');
-            add(row, button('btn btn--secondary btn--sm', t('lp.leadsCsv'), function () {
-              /* Excel が文字化けしないよう BOM を付ける */
-              var head = '\ufeff日時,メール,層,ページ\n';
-              var body = list.map(function (x) {
-                return [String(x.created_at || '').slice(0, 19).replace('T', ' '),
-                  String(x.email || ''), String(x.variant || ''), String(x.slug || '')]
-                  .map(function (c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(',');
-              }).join('\n');
-              var blob = new Blob([head + body], { type: 'text/csv;charset=utf-8' });
-              var a = document.createElement('a');
-              a.href = URL.createObjectURL(blob);
-              a.download = (slugify((view.project && view.project.shop_slug) || 'leads') || 'leads') + '.csv';
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              setTimeout(function () { URL.revokeObjectURL(a.href); }, 20000);
-            }));
+            /* CSV は画面に出している200件ではなく、**全件**を取り直して出す。
+               画面は新しい200件だけを見せているので、そのまま書き出すと
+               201件目から先が黙って落ちる（2026-10-11 利用者の問い:
+               「メールリスト登録されたらそのリストをもらうことは可能？」）*/
+            var csvBtn = button('btn btn--secondary btn--sm', t('lp.leadsCsv'), function () {
+              csvBtn.disabled = true;
+              csvBtn.textContent = t('lp.leadsCsvWait');
+              allLeads().then(function (all) {
+                /* Excel が文字化けしないよう BOM を付ける */
+                var head = '\ufeff日時,メール,層,ページ\n';
+                var body = all.map(function (x) {
+                  return [String(x.created_at || '').slice(0, 19).replace('T', ' '),
+                    String(x.email || ''), String(x.variant || ''), String(x.slug || '')]
+                    .map(function (c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(',');
+                }).join('\n');
+                var blob = new Blob([head + body], { type: 'text/csv;charset=utf-8' });
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = (slugify((view.project && view.project.shop_slug) || 'leads') || 'leads') + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function () { URL.revokeObjectURL(a.href); }, 20000);
+                toast(t('lp.leadsCsvDone', { n: all.length }), 'success');
+              }).catch(function (err) {
+                console.error('[screens-lp] メールを書き出せませんでした:', err);
+                toast(String(err && err.message || err), 'danger');
+              }).then(function () {
+                csvBtn.disabled = false;
+                csvBtn.textContent = t('lp.leadsCsv');
+              });
+            });
+            add(row, csvBtn);
             add(box, row);
             var ul = el('ul', 'lp-pub__leadlist');
             list.slice(0, 50).forEach(function (x) {
