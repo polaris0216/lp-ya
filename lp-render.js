@@ -718,24 +718,46 @@
     }).filter(function (r) { return r.b; });
   }
 
-  /* 1文ずつの行に割る。2文以上あれば箇条書きにしたほうが読める
-     （実物のリスク＆チャレンジは1段落に7文が詰まっていた） */
-  function splitBySentence(line) {
-    var parts = String(line).split(/(?<=。)/).map(function (x) { return x.trim(); })
-      .filter(function (x) { return x; });
-    if (parts.length < 2) { return null; }
-    return parts.map(function (x) { return { k: 'li', a: x }; });
+
+  /* 1行に詰め込まれた文章を、読める行に割る。
+     ブリーフは「説明」の行の切れ目を「／」で書く決まりなので、書き手が
+     見出しと本文のあいだにも「／」を使ってくる。そのまま出すと、
+     150字の1行が丸ごと大見出しになる
+     （実測 2026-10-10:「アジア系の家族経営として／shlebruはアジア系の
+     家族が営むブランドです。2021年に…」が9行の特大文字で出た）。 */
+  function textLines(raw) {
+    var out = [];
+    String(raw == null ? '' : raw).split('\n').forEach(function (line) {
+      var one = line.trim();
+      if (!one) { return; }
+      /* 「見出し／本文」の形。／の前が短くて句点が無ければ、そこで切る。
+         「内側600メッシュ／外側500µm」のような並びを割らないよう、
+         行が長いときだけ当てる */
+      var m = /^([^／。\n]{1,24})／\s*(.+)$/.exec(one);
+      if (m && one.length > 30) { out.push(m[1].trim()); one = m[2].trim(); }
+      /* 2文以上が1行に続いていたら、文ごとに割る */
+      var parts = one.split(/(?<=。)/).map(function (x) { return x.trim(); })
+        .filter(function (x) { return x; });
+      if (parts.length > 1) { out.push.apply(out, parts); } else { out.push(one); }
+    });
+    return out;
+  }
+
+  /* 見出しにしてよい行か。長い行や句点で終わる行を見出しにすると、
+     本文が丸ごと特大の文字になる（上の実測）*/
+  function looksLikeHead(line) {
+    var one = String(line || '').trim();
+    return !!one && one.length <= 24 && !/[。．!！?？]$/.test(one);
   }
 
   function readRows(section) {
     var src = String((section && (section.text || section.body)) || '');
-    var lines = src.split('\n').map(function (x) { return x.trim(); })
-      .filter(function (x) { return x; });
+    var lines = textLines(src);
     if (!lines.length) { return { title: '', rows: [] }; }
     /* 1行目が短くて句点が無ければ見出し。無ければ区画の名前を使う */
     var title = String((section && section.title) || '');
     var from = 0;
-    if (lines[0].length <= 24 && !/[。．!！?？]$/.test(lines[0])) { title = lines[0]; from = 1; }
+    if (looksLikeHead(lines[0])) { title = lines[0]; from = 1; }
     var rows = [];
     lines.slice(from).forEach(function (raw) {
       var bullet = /^[・\-—–●○]\s*(.+)$/.exec(raw);
@@ -743,18 +765,21 @@
       var pair = /^(.{1,16})[：:]\s*(.+)$/.exec(raw);
       if (pair) { rows.push({ k: 'pair', a: pair[1], b: pair[2] }); return; }
       if (raw.length <= 24 && !/[。．!！?？]$/.test(raw)) { rows.push({ k: 'h', a: raw }); return; }
-      /* 先に文で割ってから、文ごとに年表かどうかを見る。
-         段落まるごとを年月で割ると、文をまたいで切れる
+      /* 文はすでに textLines が1行ずつに割ってある。
+         年月が3つ以上ある文だけ、年表の2列にする。
+         段落まるごとを年月で割ると文をまたいで切れるので、文ごとに見る
          （実測 2026-10-10:「12月／発送開始の見込みです。お届けは」
          「2023年12月／中に完了いたします」と割れた）*/
-      var sentences = splitBySentence(raw) || [{ k: 'li', a: raw }];
-      var one = sentences.length === 1;
-      sentences.forEach(function (x) {
-        var dated = splitByDate(x.a);
-        if (dated) { rows.push.apply(rows, dated); return; }
-        rows.push({ k: one ? 'p' : 'li', a: x.a });
-      });
+      var dated = splitByDate(raw);
+      if (dated) { rows.push.apply(rows, dated); return; }
+      /* 箇条書きにするか、ふつうの段落にするかは、数がそろってから決める */
+      rows.push({ k: 'text', a: raw });
     });
+    /* 1文しか無いなら段落、2文以上あるなら箇条書き。
+       1段落に何文も詰まっているのが実物なので、割ったほうが読める
+       （実測: リスク＆チャレンジは1段落に7文）*/
+    var plain = rows.filter(function (r) { return r.k === 'text'; }).length;
+    rows.forEach(function (r) { if (r.k === 'text') { r.k = plain > 1 ? 'li' : 'p'; } });
     return { title: title, rows: rows };
   }
 
@@ -2098,6 +2123,8 @@
   }
   window.LpRender = {
     TYPE: TYPE,
+    textLines: textLines,
+    looksLikeHead: looksLikeHead,
     isReadPanel: isReadPanel,
     textPanel: textPanel,
     readRows: readRows,

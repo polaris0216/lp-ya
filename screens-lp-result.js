@@ -378,17 +378,27 @@
       }
 
       function textBlock(sec) {
-        var lines = String(sec.text || '').split('\n').map(function (s) { return s.trim(); })
-          .filter(function (s) { return s; });
+        /* 1行に詰め込まれた文章を、読める行に割る。割り方は板（SVG）と同じ
+           ものを使う。2つに持つと、同じ文が画面によって違う形で出る */
+        var lines = (window.LpRender && LpRender.textLines)
+          ? LpRender.textLines(sec.text)
+          : String(sec.text || '').split('\n').map(function (s) { return s.trim(); })
+            .filter(function (s) { return s; });
         if (!lines.length) { return ''; }
-        var out = ['<h2>' + inline(lines[0]) + '</h2>'];
+        var out = [];
+        /* 1行目を必ず大見出しにしていたので、150字の本文が丸ごと特大の文字で
+           出ていた（実測 2026-10-10: 9行の大見出し）。短くて句点が無い行だけ
+           を見出しにする */
+        var headOk = window.LpRender && LpRender.looksLikeHead
+          ? LpRender.looksLikeHead(lines[0]) : lines[0].length <= 24;
+        if (headOk) { out.push('<h2>' + inline(lines[0]) + '</h2>'); }
         var list = [];
         function flush() {
           if (!list.length) { return; }
           out.push('<ul>' + list.map(function (x) { return '<li>' + inline(x) + '</li>'; }).join('') + '</ul>');
           list = [];
         }
-        lines.slice(1).forEach(function (raw) {
+        lines.slice(headOk ? 1 : 0).forEach(function (raw) {
           var bullet = /^[・\-—–]\s*(.+)$/.exec(raw);
           if (bullet) { list.push(bullet[1]); return; }
           flush();
