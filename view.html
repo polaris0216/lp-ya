@@ -62,7 +62,14 @@
        クリックは中から知らせてもらう（lp-render の frameReportJs）。
        実測 2026-10-04: allow-scripts が無く、矢印を押しても動かなかった */
     frame.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
-    frame.srcdoc = data.html;
+    /* メール登録の宛先を、いま開いているページの名前にそろえる。
+       HTMLを組むのは公開より前なので、その時点では公開URLの名前がまだ
+       決まっていない。組んだときの名前（shop_slug/層）のまま焼かれていて、
+       公開で別の名前が付くと、登録が「登録できませんでした」で弾かれる
+       （実測 2026-10-11: ページは shlebru/a を送るのに、公開された名前は
+       d0456cd4… だった）。ここで差し替えれば、公開済みのページも直る */
+    frame.srcdoc = String(data.html || '')
+      .replace(/p_slug:"[^"]*"/g, 'p_slug:' + JSON.stringify(slug));
     stateNode.remove();
     document.body.appendChild(frame);
 

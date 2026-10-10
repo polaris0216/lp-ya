@@ -479,8 +479,7 @@
         var mode = String(project.lead_mode || 'line');
         var prompts = (view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object')
           ? view.gen.asset_prompts : {};
-        var slug = String(view.gen.public_url_slug
-          || ((project.shop_slug || '') + '/' + String(view.gen.variant_label || '-').toLowerCase()));
+        var slug = wantSlug();
         return LpRender.buildSalesHtml({
           sales: view.gen.content.sales,
           /* LP案で作った区画ぜんぶ。順番どおりに並べるのに使う */
@@ -1574,10 +1573,24 @@
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
       }
 
+      /* 公開したときのURLの名前。メールの登録もこの名前で受けるので、
+         組むときと公開するときで同じものを使う。
+         店の名前（shop_slug）が無いときは渡さない（「/a」になってしまう）。
+         渡さなければ記録側がランダムな名前を付ける */
+      function wantSlug() {
+        var project = view.project || {};
+        if (view.gen.public_url_slug) { return String(view.gen.public_url_slug); }
+        var shop = String(project.shop_slug || '').trim();
+        if (!shop) { return ''; }
+        return shop + '/' + String(view.gen.variant_label || '-').toLowerCase();
+      }
+
       function setPublish(on) {
         if (view.busy) { return; }
         view.busy = true;
-        var call = on ? Api.lp.publish(view.gen.id, view.html) : Api.lp.unpublish(view.gen.id);
+        var call = on
+          ? Api.lp.publish(view.gen.id, view.html, wantSlug() || null)
+          : Api.lp.unpublish(view.gen.id);
         call.then(function () {
           return Api.generations.get(view.gen.id);
         }).then(function (row) {
