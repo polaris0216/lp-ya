@@ -677,6 +677,171 @@
     return out.join('');
   }
 
+  /* ---- 「見る」のではなく「読む」区画は、絵ではなく SVG の板にする ----
+     よくある質問だけ SVG にしていたが、年表・リスク・商品概要も同じ性質だった。
+     これらを絵にすると、長い日本語が小さく焼かれて読めない
+     （2026-10-10 利用者の指摘:「開発・発送の年表に書かれてるテキストが
+     小さくて読みずらい」「リスクチャレンジや、商品の詳細説明を…
+     セクション28のように生成して欲しい」）。
+     SVG なら字は崩れず、大きさもこちらで決められる。 */
+  var READ_RE = /よくある質問|FAQ|Q&A|Q＆A|年表|スケジュール|タイムライン|リスク|商品概要|仕様|スペック|保証|サポート|付属しない|同梱されない/i;
+
+  function isReadPanel(section) {
+    if (!section) { return false; }
+    if (isFaq(section)) { return true; }
+    return READ_RE.test(String(section.title || ''));
+  }
+
+  /* 年月が3つ以上ある1文は、年表として「日付 → 出来事」に割る。
+     実物の文は「2020年10月の設立から、2021年9月にIndiegogoで1.0を発表、…」の
+     ように1文で続いていて、そのままだと読めない（2026-10-10 実測） */
+  function splitByDate(line) {
+    var re = /(\d{4}年\s?\d{1,2}月|\d{4}年|同年\s?\d{1,2}月|\d{1,2}月)/g;
+    var hits = [];
+    var m;
+    while ((m = re.exec(line)) !== null) { hits.push({ at: m.index, word: m[1] }); }
+    if (hits.length < 3) { return null; }
+    return hits.map(function (h, i) {
+      var to = (i + 1 < hits.length) ? hits[i + 1].at : line.length;
+      var rest = line.slice(h.at + h.word.length, to)
+        .replace(/^[のにはでよりから、]+/, '')
+        .replace(/[、。]\s*$/, '')
+        /* 文の途中で切るので、つなぎの語尾が残る（「設立から」「開始し」）。
+           1つだけ落とす（2026-10-10 実測）*/
+        .replace(/(?:から|して|し|て|で)$/, '')
+        .trim();
+      return { k: 'pair', a: h.word, b: rest };
+    }).filter(function (r) { return r.b; });
+  }
+
+  /* 1文ずつの行に割る。2文以上あれば箇条書きにしたほうが読める
+     （実物のリスク＆チャレンジは1段落に7文が詰まっていた） */
+  function splitBySentence(line) {
+    var parts = String(line).split(/(?<=。)/).map(function (x) { return x.trim(); })
+      .filter(function (x) { return x; });
+    if (parts.length < 2) { return null; }
+    return parts.map(function (x) { return { k: 'li', a: x }; });
+  }
+
+  function readRows(section) {
+    var src = String((section && (section.text || section.body)) || '');
+    var lines = src.split('\n').map(function (x) { return x.trim(); })
+      .filter(function (x) { return x; });
+    if (!lines.length) { return { title: '', rows: [] }; }
+    /* 1行目が短くて句点が無ければ見出し。無ければ区画の名前を使う */
+    var title = String((section && section.title) || '');
+    var from = 0;
+    if (lines[0].length <= 24 && !/[。．!！?？]$/.test(lines[0])) { title = lines[0]; from = 1; }
+    var rows = [];
+    lines.slice(from).forEach(function (raw) {
+      var bullet = /^[・\-—–●○]\s*(.+)$/.exec(raw);
+      if (bullet) { rows.push({ k: 'li', a: bullet[1] }); return; }
+      var pair = /^(.{1,16})[：:]\s*(.+)$/.exec(raw);
+      if (pair) { rows.push({ k: 'pair', a: pair[1], b: pair[2] }); return; }
+      if (raw.length <= 24 && !/[。．!！?？]$/.test(raw)) { rows.push({ k: 'h', a: raw }); return; }
+      /* 先に文で割ってから、文ごとに年表かどうかを見る。
+         段落まるごとを年月で割ると、文をまたいで切れる
+         （実測 2026-10-10:「12月／発送開始の見込みです。お届けは」
+         「2023年12月／中に完了いたします」と割れた）*/
+      var sentences = splitBySentence(raw) || [{ k: 'li', a: raw }];
+      var one = sentences.length === 1;
+      sentences.forEach(function (x) {
+        var dated = splitByDate(x.a);
+        if (dated) { rows.push.apply(rows, dated); return; }
+        rows.push({ k: one ? 'p' : 'li', a: x.a });
+      });
+    });
+    return { title: title, rows: rows };
+  }
+
+  function textPanel(section, design, width) {
+    var got = readRows(section);
+    if (!got.rows.length) { return ''; }
+    var d = design || DEFAULT_DESIGN;
+    var W = width || 1000;
+    var pad = Math.round(W * 0.07);
+    var inner = W - pad * 2;
+    /* よくある質問の板と同じ大きさにそろえる。絵に焼いていたときより大きい */
+    var headSize = Math.round(W * 0.045);
+    var hSize = Math.round(W * 0.030);
+    var bodySize = Math.round(W * 0.027);
+    var step = Math.round(bodySize * 1.75);
+    var ink = d.titleColor;
+    var hot = d.accentColor;
+    var body = d.bodyColor;
+    var fam = 'Hiragino Sans, Yu Gothic UI, Noto Sans JP, system-ui, sans-serif';
+    var dotX = pad + Math.round(bodySize * 0.45);
+    var liX = pad + Math.round(bodySize * 1.3);
+    var keyW = Math.round(inner * 0.28);
+    var wrap = function (text, size, avail) { return wrapLines(text, avail / (size * 0.6)); };
+
+    /* 先に高さを数える */
+    var laid = got.rows.map(function (r) {
+      if (r.k === 'h') { return { r: r, lines: [r.a], h: Math.round(hSize * 2.3) }; }
+      if (r.k === 'pair') {
+        var bl = wrap(r.b, bodySize, inner - keyW - 16);
+        return { r: r, lines: bl, h: Math.max(step, bl.length * step) + Math.round(bodySize * 0.6) };
+      }
+      var w = wrap(r.a, bodySize, inner - (r.k === 'li' ? (liX - pad) : 0));
+      return { r: r, lines: w, h: w.length * step + Math.round(bodySize * 0.5) };
+    });
+    var H = pad + headSize + Math.round(headSize * 1.5)
+      + laid.reduce(function (n, x) { return n + x.h; }, 0) + pad;
+
+    var out = [];
+    out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
+      + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
+    out.push('<rect width="' + W + '" height="' + H + '" fill="' + escapeHtml(d.bgColor || '#FFFFFF') + '"/>');
+    var y = pad + headSize;
+    out.push('<text x="' + pad + '" y="' + y + '" font-family="' + fam + '" font-size="' + headSize
+      + '" font-weight="800" fill="' + ink + '">' + escapeHtml(got.title) + '</text>');
+    out.push('<rect x="' + pad + '" y="' + (y + Math.round(headSize * 0.45)) + '" width="'
+      + Math.round(W * 0.056) + '" height="3" rx="2" fill="' + hot + '"/>');
+    y += Math.round(headSize * 1.5);
+
+    laid.forEach(function (x) {
+      var r = x.r;
+      if (r.k === 'h') {
+        out.push('<rect x="' + pad + '" y="' + (y - Math.round(hSize * 0.82)) + '" width="4" height="'
+          + Math.round(hSize * 1.1) + '" rx="2" fill="' + hot + '"/>');
+        out.push('<text x="' + (pad + 14) + '" y="' + y + '" font-family="' + fam + '" font-size="'
+          + hSize + '" font-weight="700" fill="' + ink + '">' + escapeHtml(r.a) + '</text>');
+        y += Math.round(hSize * 2.3) - Math.round(hSize * 0.82) + Math.round(hSize * 0.82);
+        return;
+      }
+      if (r.k === 'pair') {
+        out.push('<text x="' + pad + '" y="' + y + '" font-family="' + fam + '" font-size="' + bodySize
+          + '" font-weight="700" fill="' + ink + '">' + escapeHtml(r.a) + '</text>');
+        x.lines.forEach(function (line, i) {
+          out.push('<text x="' + (pad + keyW) + '" y="' + (y + i * step) + '" font-family="' + fam
+            + '" font-size="' + bodySize + '" fill="' + body + '">' + escapeHtml(line) + '</text>');
+        });
+        y += Math.max(step, x.lines.length * step);
+        out.push('<rect x="' + pad + '" y="' + (y - Math.round(bodySize * 0.8)) + '" width="' + inner
+          + '" height="1" fill="#ECE6EE"/>');
+        y += Math.round(bodySize * 0.6);
+        return;
+      }
+      if (r.k === 'li') {
+        out.push('<circle cx="' + dotX + '" cy="' + (y - Math.round(bodySize * 0.3)) + '" r="'
+          + Math.round(bodySize * 0.22) + '" fill="' + hot + '"/>');
+        x.lines.forEach(function (line, i) {
+          out.push('<text x="' + liX + '" y="' + (y + i * step) + '" font-family="' + fam
+            + '" font-size="' + bodySize + '" fill="' + body + '">' + escapeHtml(line) + '</text>');
+        });
+        y += x.lines.length * step + Math.round(bodySize * 0.5);
+        return;
+      }
+      x.lines.forEach(function (line, i) {
+        out.push('<text x="' + pad + '" y="' + (y + i * step) + '" font-family="' + fam
+          + '" font-size="' + bodySize + '" fill="' + body + '">' + escapeHtml(line) + '</text>');
+      });
+      y += x.lines.length * step + Math.round(bodySize * 0.5);
+    });
+    out.push('</svg>');
+    return out.join('');
+  }
+
   function burnedPanel(src, title, body, design, width, options) {
     var o = options || {};
     var W = width;
@@ -1906,6 +2071,9 @@
   }
   window.LpRender = {
     TYPE: TYPE,
+    isReadPanel: isReadPanel,
+    textPanel: textPanel,
+    readRows: readRows,
     pointParts: pointParts,
     pointPanel: pointPanel,
     buildDraftHtml: buildDraftHtml,

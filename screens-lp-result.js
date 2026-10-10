@@ -571,6 +571,18 @@
                   + LpRender.faqPanel(qa, dez, 1000, String(sec.title || '')) + '</section>';
               }
             }
+            /* 年表・リスク・商品概要・保証・付属しないものも、読む区画。
+               絵にすると長い日本語が小さく焼かれて読めない
+               （2026-10-10 指摘:「年表のテキストが小さくて読みずらい」
+               「リスクチャレンジや商品の詳細説明をセクション28のように」）。
+               よくある質問と同じ SVG の板にする */
+            if (LpRender.isReadPanel && LpRender.isReadPanel(sec)) {
+              var board = LpRender.textPanel(sec, dez, 1000);
+              if (board) {
+                return '<section data-slot="' + escapeHtml(String(sec.index) + '-1') + '">'
+                  + board + '</section>';
+              }
+            }
             var url = visualOf(sec);
             var mode = modeOf(sec, url);
             /* 直せるようにする印。枠の中で contenteditable にして、
