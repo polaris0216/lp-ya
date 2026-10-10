@@ -4386,6 +4386,11 @@ input[type='radio'] {
 }
 .lpr-shot--on .lpr-shot__tick { background: var(--c-brand, #7A3FA6); }
 /* 何回目の案を選ぶ帯 */
+/* 「使う案」は層の耳とは別の行。耳の列（.lp-tabs）は横スクロールする帯なので、
+   そこに入れると右の見えない所へ押し出され、幅が潰れて3行に折り返す。
+   その高さが帯の高さになり、見出しの下に大きな空白ができていた
+   （実測 2026-10-11: 耳は44pxなのに帯が162pxあった）*/
+.lpr-takes-bar:empty { display: none; }
 .lpr-takes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; }
 .lpr-modes__no {
   flex: 0 0 auto; min-width: 26px; padding: 2px 6px;

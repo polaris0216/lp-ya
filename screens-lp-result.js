@@ -172,6 +172,12 @@
       /* 層の耳。生成プロンプトの画面と同じ並びにして、行き来しても迷わない */
       var tabsBar = el('div', 'lp-tabs');
       add(screen, tabsBar);
+      /* 「使う案」は層の耳とは別の行に出す。耳の列は横スクロールする帯で、
+         そこに入れると右の見えない所へ押し出され、幅147pxに潰れて
+         3行に折り返す。その高さ（153px）が帯の高さになって、
+         見出しの下に大きな空白ができていた（実測 2026-10-11 利用者の指摘）*/
+      var takesBar = el('div', 'lpr-takes-bar');
+      add(screen, takesBar);
       var toolbar = el('div', 'lp-toolbar');
       add(screen, toolbar);
       var stats = el('p', 't-note lpr-stats');
@@ -1063,6 +1069,7 @@
          同じ層を作り直すたびに生成物の行が増えるが、これまでは
          いちばん新しいものしか開けなかった（2026-10-05 要望） */
       function paintTakes() {
+        clear(takesBar);
         var label = String(view.gen.variant_label || '-');
         var takes = (view.takes && view.takes[label]) || [];
         if (takes.length < 2) { return; }
@@ -1084,7 +1091,7 @@
         });
         add(row, pick);
         add(row, el('span', 't-note', t('lpr.takeHint', { n: takes.length })));
-        add(tabsBar, row);
+        add(takesBar, row);
       }
 
       /* 「10/4 21:15」。年は出さない（同じ案を並べるので月日で足りる） */
