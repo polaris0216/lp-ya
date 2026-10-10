@@ -577,6 +577,26 @@
                「リスクチャレンジや商品の詳細説明をセクション28のように」）。
                よくある質問と同じ SVG の板にする */
             if (LpRender.isReadPanel && LpRender.isReadPanel(sec)) {
+              /* 「文字を直す」のあいだは、板ではなく素の文字で出す。
+                 SVG の中の字は直せないので、直すときだけ形を変える
+                 （2026-10-10 要望:「HTML作成も28セクションのように
+                 テキストで修正できるようにもしてほしい」）。
+                 保存すると組み直して、また板に戻る */
+              if (view.editing) {
+                var isFaqSec = LpRender.isFaq && LpRender.isFaq(sec);
+                var key = isFaqSec ? 'body' : 'text';
+                var raw = String(sec[key] || sec[isFaqSec ? 'text' : 'body'] || '');
+                /* 直せる箱に入れるのは、記録にある文字だけ。区画の名前を
+                   中に入れると、innerText で一緒に拾って中身に混ざる。
+                   名前は箱の外に、直せない札として出す */
+                return '<section class="txt"><div class="txt__in">'
+                  + '<p class="lpr-edit__name">' + escapeHtml(String(sec.title || '')) + '</p>'
+                  + '<div data-edit="' + sec.index + ':' + key + '" contenteditable="plaintext-only">'
+                  + (raw.split('\n').map(function (line) {
+                    return '<p>' + escapeHtml(line) + '</p>';
+                  }).join('') || '<p></p>')
+                  + '</div></div></section>';
+              }
               var board = LpRender.textPanel(sec, dez, 1000);
               if (board) {
                 return '<section data-slot="' + escapeHtml(String(sec.index) + '-1') + '">'
@@ -753,6 +773,9 @@
             + '.shot u{text-decoration-color:#fff}'
             + '.shot mark{background:linear-gradient(transparent 58%,rgba(255,255,255,.3) 58%);color:#fff}'
             + '.shot i{color:#EDE9F0}'
+            /* 直しているあいだだけ出す、区画の名前の札（直せない） */
+            + '.lpr-edit__name{margin:0 0 10px;font:600 13px/1.6 -apple-system,sans-serif;'
+              + 'letter-spacing:.08em;color:#8A8192}'
             /* 直せるところを目で分かるようにする。押すまで邪魔にならない薄さ */
             + '[data-edit]{outline:1px dashed ' + weak + ';outline-offset:8px;border-radius:4px;cursor:text}'
             + '[data-edit]:hover{outline-color:' + accent + '}'

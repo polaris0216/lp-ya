@@ -81,9 +81,18 @@
     'lp.faqBodyHint': ['「Q1 …。A1 …。Q2 …。A2 …」の形で書きます。最大8問まで出ます',
       'Write as "Q1 …. A1 …. Q2 …. A2 …". Up to 8 questions are shown.',
       '「Q1 …. A1 …. Q2 …. A2 …」 형식으로 씁니다. 최대 8문항까지 나옵니다'],
-    'lp.faqNoImage': ['よくある質問は、絵ではなく文字で組むので生成しません（回答まで出ます）',
-      'FAQ is laid out as text, not an image, so nothing is generated (answers included)',
-      '자주 묻는 질문은 그림이 아니라 글자로 구성하므로 생성하지 않습니다(답변까지 나옵니다)'],
+    'lp.faqNoImage': ['この区画は、絵ではなく文字で組むので生成しません（そのままLPに出ます）',
+      'This section is laid out as text, not an image, so nothing is generated.',
+      '이 구획은 그림이 아니라 글자로 구성하므로 생성하지 않습니다'],
+    'lp.readBodyHint': ['ここに書いた文字が、そのままLPに出ます。行を分けると読みやすく組まれます'
+      + '（「・」で箇条書き、「語：説明」で2列、「2026年12月：発送」で年表）',
+      'What you write here goes straight to the LP. Split into lines: "・" for bullets, '
+      + '"term: text" for two columns, "2026-12: ship" for a timeline.',
+      '여기에 쓴 글이 그대로 LP에 나옵니다. 줄을 나누면 읽기 좋게 구성됩니다'],
+    'lp.readPreview': ['LPにはこう出ます（{n}行）', 'This is how it appears ({n} rows)',
+      'LP에는 이렇게 나옵니다({n}행)'],
+    'lp.readNone': ['ここに文字を書くと、出来上がりが出ます',
+      'Write text here and the result appears', '여기에 글을 쓰면 결과가 나옵니다'],
     'lp.regen': ['作り直す', 'Regenerate', '다시 생성'],
     'lp.genWithEdited': ['直した生成文を保存しました。この文で作ります',
       'Saved your edited prompt. Generating with it.', '수정한 프롬프트로 생성합니다'],
@@ -1158,7 +1167,13 @@
            sec.prompt に GIF の文が書き込まれていた（実測 2026-09-29:
            写真の生成プロンプトが【場面】【動き】【質感】に化けた） */
         var promptTa = null;
-        if (url) {
+        /* 「読む」区画（よくある質問・年表・リスク・商品概要・保証・付属しないもの）は
+           絵を作らない。画面側が SVG の板に組む（lp-render の faqPanel / textPanel）。
+           絵の並びを出すと、LPに出ないAI写真を直す画面になってしまう
+           （2026-10-10 利用者の指摘:「LP案ページではAI写真のままだけど」）。
+           昔の生成物には絵が残っているが、LPでは使わないので出さない */
+        var read = !!(window.LpRender && LpRender.isReadPanel && LpRender.isReadPanel(sec));
+        if (url && !read) {
           var madeP = (view.gen.asset_prompts && view.gen.asset_prompts.madePrompt) || {};
           var shots = [{ url: url, at: '', prompt: madeP[slot] || '' }].concat(hist);
           /* 何番目を見ているかは描き直しをまたいで覚える。作り直しのあとに
@@ -1267,28 +1282,62 @@
            写真の指示を出していたので、作られもしない「湯気の立つマグカップ」を
            直す画面になっていた（2026-10-08 利用者の指摘） */
         var faq = /よくある質問|FAQ|Q&A|Q＆A/i.test(String(sec.title || ''));
+        /* どこを直すか。よくある質問は質問と回答（body）、ほかの読む区画は
+           文字版（text）。板を組むときに読む場所と同じにする */
+        var slotKey = faq ? 'body' : 'text';
         var field = el('label', 'field');
-        add(field, el('span', 'field__label', t(faq ? 'lp.faqBody' : 'lp.prompt')));
+        add(field, el('span', 'field__label', t(read ? 'lp.faqBody' : 'lp.prompt')));
         promptTa = el('textarea', 'textarea lp-prompt');
-        promptTa.value = String((faq ? (sec.body || sec.text) : sec.prompt) || '');
-        promptTa.rows = faq ? 10 : 6;
+        promptTa.value = String((read
+          ? (faq ? (sec.body || sec.text) : (sec.text || sec.body))
+          : sec.prompt) || '');
+        promptTa.rows = read ? 10 : 6;
         promptTa.addEventListener('input', function () {
-          if (faq) { sec.body = promptTa.value; } else { sec.prompt = promptTa.value; }
+          if (read) { sec[slotKey] = promptTa.value; } else { sec.prompt = promptTa.value; }
           view.dirty = true;
           var s = document.getElementById('lp-save'); if (s) { s.disabled = false; }
         });
         add(field, promptTa);
         add(li, field);
-        if (faq) {
-          add(li, el('p', 'field__hint', t('lp.faqBodyHint')));
+        if (read) {
+          add(li, el('p', 'field__hint', t(faq ? 'lp.faqBodyHint' : 'lp.readBodyHint')));
           /* 出来上がりをその場で見せる。絵が出ないので「作られていない」と
              見えていた（2026-10-09 利用者の指摘: 「まだまだFAQのところが
              生成されずです」）。実際は中身も描画もできていて、
              画面に出していなかっただけ */
           var faqBox = el('div', 'lp-faq-preview');
+          var design = {
+            titleColor: (view.gen.content && view.gen.content.design
+              && view.gen.content.design.titleColor) || '#2B2B2B',
+            bodyColor: (view.gen.content && view.gen.content.design
+              && view.gen.content.design.bodyColor) || '#3A323E',
+            accentColor: (view.gen.content && view.gen.content.design
+              && view.gen.content.design.accentColor) || '#8A6A4B',
+            bgColor: '#FFFFFF'
+          };
           var drawFaq = function () {
             clear(faqBox);
-            if (!window.LpRender || typeof LpRender.faqPanel !== 'function') { return; }
+            if (!window.LpRender) { return; }
+            /* よくある質問は Q&A の板、ほかの読む区画は文字の板。
+               LPに出るものと同じ道具で組む（見えているものと出るものを揃える） */
+            if (!faq) {
+              if (typeof LpRender.textPanel !== 'function') { return; }
+              var one = {};
+              one.title = String(sec.title || '');
+              one[slotKey] = promptTa.value;
+              var made = LpRender.textPanel(one, design, 1000);
+              if (!made) {
+                add(faqBox, el('p', 'field__hint', t('lp.readNone')));
+                return;
+              }
+              var rows = (LpRender.readRows(one).rows || []).length;
+              add(faqBox, el('p', 'field__label', t('lp.readPreview', { n: rows })));
+              var box = el('div', 'lp-faq-preview__svg');
+              box.innerHTML = made;
+              add(faqBox, box);
+              return;
+            }
+            if (typeof LpRender.faqPanel !== 'function') { return; }
             var items = LpRender.faqItems({ body: promptTa.value });
             if (!items.length) {
               add(faqBox, el('p', 'field__hint', t('lp.faqNone')));
@@ -1296,12 +1345,7 @@
             }
             add(faqBox, el('p', 'field__label', t('lp.faqPreview', { n: items.length })));
             var hold = el('div', 'lp-faq-preview__svg');
-            hold.innerHTML = LpRender.faqPanel(items, {
-              titleColor: (view.gen.content && view.gen.content.design
-                && view.gen.content.design.titleColor) || '#2B2B2B',
-              accentColor: (view.gen.content && view.gen.content.design
-                && view.gen.content.design.accentColor) || '#8A6A4B'
-            }, 1000, String(sec.title || ''));
+            hold.innerHTML = LpRender.faqPanel(items, design, 1000, String(sec.title || ''));
             add(faqBox, hold);
           };
           promptTa.addEventListener('input', function () {
@@ -1338,13 +1382,14 @@
 
         var row = el('div', 'lp-toolbar');
         var busy = !!view.busy[slot];
-        /* よくある質問は絵を作らない。回答まで入れると文字が多く、
-           画像生成に長い日本語を描かせると字形が崩れるので、画面側が SVG で組む
-           （lp-render の faqPanel）。ボタンを出すと押せてしまい、
+        /* 「読む」区画は絵を作らない。文字が多く、画像生成に長い日本語を
+           描かせると字形が崩れるので、画面側が SVG で組む
+           （lp-render の faqPanel / textPanel）。ボタンを出すと押せてしまい、
            「指定の区画がありません」とだけ返っていた（2026-10-08 利用者の指摘）。
-           よくある質問のときは絵のボタンを置かない。代わりの
-           「保存して反映」は、上の質問と回答のすぐ下にある */
-        if (!faq) {
+           よくある質問だけだったのを、年表・リスク・商品概要・保証・
+           付属しないものにも広げた（2026-10-10）。代わりの
+           「保存して反映」は、上の中身のすぐ下にある */
+        if (!read) {
           var b = button('btn ' + (url ? 'btn--secondary' : 'btn--primary'), busy ? t('lp.generating') : t(url ? 'lp.regen' : 'lp.gen'), function () {
             generate(sec.index);
           });
