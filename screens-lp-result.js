@@ -40,6 +40,7 @@
     'lpr.modeImage': ['絵', 'Visual', '이미지'],
     'lpr.modeText': ['文字', 'Text', '텍스트'],
     'lpr.modeBoth': ['絵＋文字', 'Visual + text', '이미지＋텍스트'],
+    'lpr.modeShot': ['文字（写真の上）', 'Text on photo', '사진 위 텍스트'],
     'lpr.modeCount': ['{n}区画', '{n} sections', '{n}개 구획'],
     'lpr.viewSales': ['販売ページ', 'Sales page', '판매 페이지'],
     'lpr.viewCanvas': ['区画そのまま', 'Sections only', '구획 그대로'],
@@ -603,6 +604,20 @@
                 ? '<section class="txt">' + txt + cap + '</section>'
                 : '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（文字がありません）</p></section>';
             }
+            /* 文字を写真の上に重ねる板。写真は背景として敷き、
+               その上に幕をかけて白い文字を置く。絵が無ければブランド色の地。
+               写真は CSS の background ではなく img で敷く。URL を style に
+               差し込むと、引用符や ) で囲いを抜けられる */
+            if (mode === 'shot') {
+              if (!txt) {
+                return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（文字がありません）</p></section>';
+              }
+              return '<section class="shot">'
+                + (url ? '<img class="shot__bg" src="' + escapeHtml(url) + '" alt="">' : '')
+                + '<div class="shot__body txt">' + txt + '</div>'
+                + '</section>'
+                + (cap ? '<section>' + cap + '</section>' : '');
+            }
             if (mode === 'both' && (img || txt || cap)) { return '<section>' + img + txt + cap + '</section>'; }
             return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（未生成）</p></section>';
           });
@@ -695,6 +710,37 @@
               + 'color:#5A5260;letter-spacing:.03em;white-space:pre-wrap}'
             + 'section:has(>.cap){padding:0 24px 30px}'
             + '@media (min-width:768px){section:has(>.cap){padding:0 56px 38px}}'
+            /* 文字を写真の上に重ねる板。
+               写真を敷き、幕をかけて白い文字を置く。絵が無ければブランド色の地。
+               高さは文字の量で決まるが、板として見えるように下限を置く */
+            + '.shot{position:relative;display:flex;align-items:center;overflow:hidden;'
+              + 'min-height:min(78vw,520px);background:linear-gradient(135deg,' + accent + ',#17121A)}'
+            /* 写真はごくわずかにぼかす。ピントが合ったままだと、
+               粉や織り目の細かい模様に文字が食われる（2026-10-10 実測:
+               白い器具の写真で、本文の1行目が豆の粒に重なって読みにくかった）*/
+            + '.shot__bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;'
+              + 'filter:saturate(.92) blur(1.5px);transform:scale(1.03)}'
+            /* 幕。6行の文字が乗っても読める濃さにする（薄いと字が沈む）。
+               文字がある左ほど濃くする */
+            + '.shot::after{content:"";position:absolute;inset:0;background:'
+              + 'linear-gradient(100deg,rgba(10,8,12,.88) 0%,rgba(10,8,12,.74) 58%,rgba(10,8,12,.6) 100%)}'
+            + '.shot__body{position:relative;z-index:1;width:100%}'
+            + '.shot h2,.shot h3,.shot strong,.shot dt{color:#fff}'
+            + '.shot p,.shot li,.shot dd{color:#EDE9F0}'
+            + '.shot h2+p{color:#fff}'
+            + '.shot dl{border-bottom-color:rgba(255,255,255,.2)}'
+            /* 暗い地ではブランド色が沈むので、白を混ぜて明るくする。
+               color-mix が使えない古い画面では、前の行の色がそのまま残る */
+            + '.shot .accent{color:#F2E4D6;color:color-mix(in srgb,' + accent + ' 30%,#fff)}'
+            /* 見出しの線・小見出しの線・箇条書きの点も、ブランド色のままだと
+               暗い地に沈んで見えない（2026-10-10 実測）。同じだけ明るくする */
+            + '.shot h2::before,.shot li::before{background:#F2E4D6;'
+              + 'background:color-mix(in srgb,' + accent + ' 30%,#fff)}'
+            + '.shot h3{border-left-color:#F2E4D6;'
+              + 'border-left-color:color-mix(in srgb,' + accent + ' 30%,#fff)}'
+            + '.shot u{text-decoration-color:#fff}'
+            + '.shot mark{background:linear-gradient(transparent 58%,rgba(255,255,255,.3) 58%);color:#fff}'
+            + '.shot i{color:#EDE9F0}'
             /* 直せるところを目で分かるようにする。押すまで邪魔にならない薄さ */
             + '[data-edit]{outline:1px dashed ' + weak + ';outline-offset:8px;border-radius:4px;cursor:text}'
             + '[data-edit]:hover{outline-color:' + accent + '}'
@@ -1090,6 +1136,15 @@
 
       /* 区画ごとの見せ方。生成プロンプト（lp_brief）のときだけ出す。
          LP案（lp_draft）は文章と絵が1つのHTMLに組まれるので、選ぶ余地がない */
+      /* 区画の見せ方。「文字（写真の上）」は、文字を絵にせず、写真の上に
+         そのまま重ねる板として出す（2026-10-10 要望:「テキストで表現してるのも
+         写真風にできないかな？」）。
+         長い日本語を画像生成に描かせると字形が崩れるので（この作りの大もとの
+         決まり）、絵は作らない。見た目だけ写真の板にして、文字は文字のまま置く。
+         こうすると、さっき入れた「文字を直す」もそのまま効く */
+      var MODES = [['image', 'lpr.modeImage'], ['text', 'lpr.modeText'],
+        ['both', 'lpr.modeBoth'], ['shot', 'lpr.modeShot']];
+
       function paintModes() {
         clear(modes);
         if (view.gen.feature_key !== 'lp_brief') { return; }
@@ -1116,7 +1171,7 @@
 
         var all = el('div', 'lpr-modes__all');
         add(all, el('span', 't-note', t('lpr.modeAll')));
-        [['image', 'lpr.modeImage'], ['text', 'lpr.modeText'], ['both', 'lpr.modeBoth']].forEach(function (pair) {
+        MODES.forEach(function (pair) {
           add(all, button('btn btn--secondary btn--sm', t(pair[1]), function () { setMode('*', pair[0]); }));
         });
         add(modes, all);
@@ -1128,11 +1183,12 @@
           add(row, el('span', 'lpr-modes__no', String(sec.index)));
           add(row, el('span', 'lpr-modes__name', String(sec.title || t('lpr.mode'))));
           var pick = el('select', 'select select--sm');
-          [['image', 'lpr.modeImage'], ['text', 'lpr.modeText'], ['both', 'lpr.modeBoth']].forEach(function (pair) {
+          MODES.forEach(function (pair) {
             var o = el('option', null, t(pair[1]));
             o.value = pair[0];
-            /* 中身が無い選択肢は選ばせない。選べても空の区画が出るだけ */
-            if (pair[0] === 'text' && !sec.text) { o.disabled = true; }
+            /* 中身が無い選択肢は選ばせない。選べても空の区画が出るだけ。
+               写真の上は、絵が無くてもブランド色の地で出せるので文字だけあればよい */
+            if ((pair[0] === 'text' || pair[0] === 'shot') && !sec.text) { o.disabled = true; }
             if (pair[0] === 'image' && !url) { o.disabled = true; }
             add(pick, o);
           });
