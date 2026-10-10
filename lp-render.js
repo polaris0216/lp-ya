@@ -2058,9 +2058,19 @@
            数字で終わっているのに次が全角1〜2字なら、そこは切らない */
         var afterNumber = /[0-9０-９]$/.test(line) && /[日坪本枚個台人円%％]/.test(ch);
         if (units + w > limit && line && !noHead && !afterNumber) {
-          out.push(line);
-          line = '';
+          /* 英数字の途中では折らない（実測 2026-10-10:「USER MAN／UAL」と
+             割れた）。折る位置を、いまの語の頭まで戻す。
+             行の頭まで戻ってしまう（1語で1行を超える）なら、そこで折る */
+          var cut = line.length;
+          if (/[A-Za-z0-9]/.test(ch)) {
+            while (cut > 0 && /[A-Za-z0-9]/.test(line.charAt(cut - 1))) { cut -= 1; }
+            if (cut === 0) { cut = line.length; }
+          }
+          out.push(line.slice(0, cut).replace(/\s+$/, ''));
+          var carry = line.slice(cut);
+          line = carry;
           units = 0;
+          for (var k = 0; k < carry.length; k += 1) { units += charUnits(carry.charAt(k)); }
         }
         line += ch;
         units += w;
