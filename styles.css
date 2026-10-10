@@ -4390,6 +4390,10 @@ input[type='radio'] {
    そこに入れると右の見えない所へ押し出され、幅が潰れて3行に折り返す。
    その高さが帯の高さになり、見出しの下に大きな空白ができていた
    （実測 2026-10-11: 耳は44pxなのに帯が162pxあった）*/
+/* 棚の区画ごとに置く「見せ方」。写真の帯のすぐ下 */
+.lpr-pick__mode { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; }
+.lpr-pick__mode .select--sm { flex: 1 1 auto; min-width: 0; }
+
 .lpr-takes-bar:empty { display: none; }
 .lpr-takes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; }
 .lpr-modes__no {

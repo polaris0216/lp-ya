@@ -1268,6 +1268,27 @@
       var MODES = [['image', 'lpr.modeImage'], ['text', 'lpr.modeText'],
         ['both', 'lpr.modeBoth'], ['shot', 'lpr.modeShot']];
 
+      /* 区画の見せ方を選ぶ。一覧（区画の見せ方）と、右の棚の区画ごとの
+         両方で使う（2026-10-11 要望:「区画の見せ方のトグルにある機能を
+         区画ごとの写真に各セクションに写して」）。
+         2つに書くと、選べる中身がいつか食い違う */
+      function modePicker(sec, url) {
+        var pick = el('select', 'select select--sm');
+        MODES.forEach(function (pair) {
+          var o = el('option', null, t(pair[1]));
+          o.value = pair[0];
+          /* 中身が無い選択肢は選ばせない。選べても空の区画が出るだけ。
+             写真の上は、絵が無くてもブランド色の地で出せるので文字だけあればよい */
+          if ((pair[0] === 'text' || pair[0] === 'shot') && !sec.text) { o.disabled = true; }
+          if (pair[0] === 'image' && !url) { o.disabled = true; }
+          add(pick, o);
+        });
+        pick.value = modeOf(sec, url);
+        pick.setAttribute('aria-label', t('lpr.mode'));
+        pick.addEventListener('change', function () { setMode(sec.index, pick.value); });
+        return pick;
+      }
+
       function paintModes() {
         clear(modes);
         if (view.gen.feature_key !== 'lp_brief') { return; }
@@ -1305,19 +1326,7 @@
           var row = el('div', 'lpr-modes__row');
           add(row, el('span', 'lpr-modes__no', String(sec.index)));
           add(row, el('span', 'lpr-modes__name', String(sec.title || t('lpr.mode'))));
-          var pick = el('select', 'select select--sm');
-          MODES.forEach(function (pair) {
-            var o = el('option', null, t(pair[1]));
-            o.value = pair[0];
-            /* 中身が無い選択肢は選ばせない。選べても空の区画が出るだけ。
-               写真の上は、絵が無くてもブランド色の地で出せるので文字だけあればよい */
-            if ((pair[0] === 'text' || pair[0] === 'shot') && !sec.text) { o.disabled = true; }
-            if (pair[0] === 'image' && !url) { o.disabled = true; }
-            add(pick, o);
-          });
-          pick.value = modeOf(sec, url);
-          pick.addEventListener('change', function () { setMode(sec.index, pick.value); });
-          add(row, pick);
+          add(row, modePicker(sec, url));
           if (!sec.text) { add(row, el('span', 't-note', t('lpr.modeNoText'))); }
           else if (!url) { add(row, el('span', 't-note', t('lpr.modeNoImage'))); }
           add(list, row);
@@ -1396,6 +1405,11 @@
             add(band, b);
           });
           add(g, band);
+          /* 区画ごとの見せ方。写真を選ぶところと同じ場所で切り替えられる */
+          var mrow = el('div', 'lpr-pick__mode');
+          add(mrow, el('span', 't-note', t('lpr.mode')));
+          add(mrow, modePicker(pair.sec, visualOf(pair.sec)));
+          add(g, mrow);
           add(shelf, g);
         });
       }
