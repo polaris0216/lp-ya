@@ -86,6 +86,20 @@
     'lpr.shotOne': ['作り直していないので、選べる絵は1枚だけです',
       'Only one visual so far', '아직 1장뿐입니다'],
     'lpr.publicUrl': ['公開URL', 'Public URL', '공개 URL'],
+    'lpr.checkTitle': ['このページで確定しますか？', 'Go live with this page?', '이 페이지로 확정할까요?'],
+    'lpr.checkBody': ['公開ページを別のタブで開きました。メールとLINEの登録も、'
+      + 'そのページで試せます。確かめてから選んでください。',
+      'The public page opened in a new tab. You can try the email and LINE signup there.',
+      '공개 페이지를 새 탭에서 열었습니다. 확인한 뒤 선택해 주세요.'],
+    'lpr.checkYes': ['はい、このまま公開する', 'Yes, keep it live', '네, 이대로 공개'],
+    'lpr.checkNo': ['いいえ、公開を取り消す', 'No, take it down', '아니요, 취소'],
+    'lpr.checkKept': ['公開しました。このURLで受け付けます', 'Live. Signups are open at this URL.',
+      '공개했습니다'],
+    'lpr.checkUndone': ['公開を取り消しました。登録は受け付けません',
+      'Taken down. Signups are closed.', '공개를 취소했습니다'],
+    'lpr.popupBlocked': ['別のタブを開けませんでした。下の公開URLから確かめてください',
+      'Could not open a new tab. Check the public URL below.',
+      '새 탭을 열지 못했습니다. 아래 공개 URL로 확인해 주세요'],
     'lpr.history': ['過去の版', 'Past versions', '이전 버전'],
     'lpr.latest': ['最新', 'Latest', '최신'],
     'lpr.viewing': ['過去の版を見ています（{at}）。最新に戻すには「最新」を選んでください。',
@@ -1204,15 +1218,15 @@
         if (!hasSales()) { add(toolbar, el('span', 't-note', t('lpr.noSales'))); }
         else { add(toolbar, el('span', 't-note', t('lpr.viewHint'))); }
         if (window.Api && Api.lp) {
-          if (view.gen.published_at && view.gen.public_url) {
+          if (view.gen.published_at && publicUrl()) {
             add(toolbar, button('btn btn--secondary', t('lpr.unpublish'), function () { setPublish(false); }));
           } else {
             add(toolbar, button('btn btn--secondary', t('lpr.publish'), function () { setPublish(true); }));
           }
         }
-        if (view.gen.published_at && view.gen.public_url) {
-          var a = el('a', 't-note', t('lpr.publicUrl') + ': ' + view.gen.public_url);
-          a.href = view.gen.public_url; a.target = '_blank'; a.rel = 'noopener';
+        if (view.gen.published_at && publicUrl()) {
+          var a = el('a', 't-note', t('lpr.publicUrl') + ': ' + publicUrl());
+          a.href = publicUrl(); a.target = '_blank'; a.rel = 'noopener';
           add(toolbar, a);
         }
         /* 過去の版。新しい順に並べ、選ぶとその版を見る（保存はしない） */
@@ -1573,6 +1587,19 @@
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
       }
 
+      /* 公開ページのURL。記録には名前（public_url_slug）しか持っていない。
+         見せ場は、このアプリと同じ置き場の view.html
+         （localhost でも GitHub Pages でも、同じ組み方で合う）。
+         これまで view.gen.public_url を見ていたが、そんな列は無いので
+         いつも空だった。そのため公開しても「公開URL」も「公開をやめる」も
+         出ていなかった（実測 2026-10-11）*/
+      function publicUrl() {
+        var slug = String(view.gen.public_url_slug || '');
+        if (!slug) { return ''; }
+        var base = location.href.split('#')[0].replace(/[^/]*$/, '');
+        return base + 'view.html?lp=' + encodeURIComponent(slug);
+      }
+
       /* 公開したときのURLの名前。メールの登録もこの名前で受けるので、
          組むときと公開するときで同じものを使う。
          店の名前（shop_slug）が無いときは渡さない（「/a」になってしまう）。
@@ -1596,8 +1623,41 @@
         }).then(function (row) {
           view.gen = row || view.gen;
           view.busy = false;
-          toast(t(on ? 'lpr.published' : 'lpr.unpublished'), 'success');
           paint();
+          if (!on) { toast(t('lpr.unpublished'), 'success'); return; }
+          /* 公開したら、実際の登録ページを開いて見てもらう。
+             そのうえで「このページで確定しますか？」と聞き、
+             いいえなら公開を取り消して元に戻す
+             （2026-10-11 要望:「公開ボタン押すと実際登録ページに映る
+             ようにして。そのページ確認して確定しますか？と質問して
+             はいといいえの選択権を与えるように」）*/
+          var url = publicUrl();
+          var opened = url ? window.open(url, '_blank', 'noopener') : null;
+          if (!opened) { toast(t('lpr.popupBlocked'), 'danger'); }
+          if (!App || typeof App.confirm !== 'function') {
+            toast(t('lpr.published'), 'success');
+            return;
+          }
+          App.confirm({
+            title: t('lpr.checkTitle'),
+            message: t('lpr.checkBody'),
+            note: url,
+            confirmLabel: t('lpr.checkYes'),
+            cancelLabel: t('lpr.checkNo')
+          }).then(function (yes) {
+            if (yes) { toast(t('lpr.checkKept'), 'success'); return; }
+            /* いいえ。公開を取り消して、元の状態へ戻す */
+            return Api.lp.unpublish(view.gen.id)
+              .then(function () { return Api.generations.get(view.gen.id); })
+              .then(function (row2) {
+                view.gen = row2 || view.gen;
+                paint();
+                toast(t('lpr.checkUndone'), 'success');
+              });
+          }).catch(function (err) {
+            console.error('[screens-lp-result] 公開の取り消しに失敗:', err);
+            toast(String(err && err.message || err), 'danger');
+          });
         }).catch(function (err) {
           view.busy = false;
           console.error('[screens-lp-result] 公開の切り替えに失敗:', err);
