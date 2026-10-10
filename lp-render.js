@@ -1251,6 +1251,14 @@
       'marks[k].addEventListener("loadeddata",soon);}',
       'window.addEventListener("load",tell);',
       'window.addEventListener("resize",tell);',
+      /* 枠は画面の高さに収めてあり、中だけがスクロールする。
+         外からは中のスクロール位置が見えないので、中から知らせる
+         （2026-10-10 利用者の指摘: ページと枠の二重スクロールが使いにくい）*/
+      'var tick=0;function at(){if(tick){return;}tick=requestAnimationFrame(function(){tick=0;',
+      'send({kind:"at",y:window.scrollY,h:window.innerHeight,',
+      'doc:document.documentElement.scrollHeight});});}',
+      'window.addEventListener("scroll",at,{passive:true});',
+      'window.addEventListener("load",at);setTimeout(at,400);',
       /* 絵が後から入ると高さが変わる。少し置いてもう一度測る */
       'setTimeout(tell,400);setTimeout(tell,1500);setTimeout(tell,4000);',
       /* 外から「この区画の絵を差し替えて」と言われたら、その1枚だけ替える。
@@ -1258,6 +1266,11 @@
          別の区画へ飛んでしまう（2026-10-05 指摘）。
          受けるのは差し替えの合図だけで、ページの中身は触らせない */
       'window.addEventListener("message",function(e){var m=e&&e.data;',
+      /* 棚の見出しを押されたら、中をその区画まで運ぶ。
+         枠は中だけがスクロールするので、外からは動かせない */
+      'if(m&&m.lpya===1&&m.kind==="goto"){var y=Number(m.top);',
+      'if(isFinite(y)){try{window.scrollTo({top:Math.max(0,y),behavior:"smooth"});}',
+      'catch(err){window.scrollTo(0,Math.max(0,y));}}return;}',
       'if(!m||m.lpya!==1||m.kind!=="swap")return;',
       'var slot=String(m.slot||"").replace(/[^0-9A-Za-z_-]/g,"");',
       'if(!slot)return;var n=document.querySelector("[data-slot=\\""+slot+"\\"]");',

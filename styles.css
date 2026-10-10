@@ -4288,8 +4288,17 @@ input[type='radio'] {
 .lpr-stage { display: grid; gap: 12px; align-items: start; }
 @media (min-width: 1100px) {
   .lpr-stage { grid-template-columns: minmax(0, 1fr) 300px; }
-  /* 棚は画面に貼り付けて、長いページを見ながら選べるようにする */
-  .lpr-shelf { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+  /* 下見と棚を、まとめて画面に貼り付ける。
+     前は中身の高さぶん（実測 18,216px）に伸ばしていたので、ページ全体の
+     スクロールと枠の中のスクロールが二重になって使いにくかった
+     （2026-10-10 利用者の指摘）。
+     貼り付けるのは枠ではなく、枠と棚をまとめた入れ物のほう。
+     枠そのものを貼り付けても、入れ物が枠と同じ高さしか無いので動けない
+     （実測: top:12 を指定しても -12 のまま＝上が12px切れていた）。
+     高さは 100vh - 48px。24px だと、入れ物の下端に収まらず12px切れる */
+  .lpr-stage { position: sticky; top: 12px; height: calc(100vh - 48px); }
+  .lpr-frame { position: static; height: 100%; }
+  .lpr-shelf { position: static; height: 100%; max-height: none; overflow-y: auto; }
 }
 .lpr-shelf:empty { display: none; }
 .lpr-shelf {
@@ -4327,8 +4336,20 @@ input[type='radio'] {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .lpr-pick__band { display: flex; flex-wrap: wrap; gap: 6px; }
-.lpr-frame { border: 1px solid var(--c-line); border-radius: var(--r-card); overflow: hidden; background: #fff; }
-.lpr-frame__iframe { display: block; width: 100%; min-height: 600px; border: 0; }
+/* 下見は画面の高さに収める。前は中身の高さぶん（1万8千pxなど）に
+   伸ばしていたので、ページ全体のスクロールと枠の中のスクロールが
+   二重になって使いにくかった（2026-10-10 利用者の指摘）。
+   枠は貼り付けて、中だけをスクロールさせる */
+.lpr-frame {
+  border: 1px solid var(--c-line); border-radius: var(--r-card);
+  overflow: hidden; background: #fff;
+  height: calc(100vh - 24px);
+}
+.lpr-frame__iframe { display: block; width: 100%; height: 100%; border: 0; }
+@media (max-width: 1099px) {
+  /* 狭い画面は棚が下に回るので、貼り付けない。高さだけ抑える */
+  .lpr-frame { height: calc(100vh - 160px); min-height: 420px; }
+}
 
 /* ---------- S13 キャンバス: 区画ごとに絵か文字かを選ぶ ---------- */
 .lpr-modes:empty { display: none; }

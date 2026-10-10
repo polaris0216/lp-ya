@@ -203,7 +203,8 @@
       /* 指定が無ければ、生成プロンプト（lp_brief）の最新を出す。無ければ従来の LP案 */
       /* スクロールを見張る。描き直しのたびに付け外しすると漏れるので、
          画面を作るときに1回だけ繋ぐ */
-      window.addEventListener('scroll', followScroll, { passive: true });
+      /* 外のページのスクロールは、もう見張らない。枠は画面の高さに
+         収めてあり、中だけがスクロールするので、位置は中から届く */
       window.addEventListener('resize', followScroll, { passive: true });
 
       var genQuery = params.gen
@@ -1409,15 +1410,20 @@
           followScroll();
           return;
         }
+        if (m.kind === 'at') {
+          /* 枠は画面の高さに収めてあり、中だけがスクロールする。
+             外からは中の位置が見えないので、中から教えてもらう */
+          view.frameY = Number(m.y) || 0;
+          view.frameH = Number(m.h) || 0;
+          view.frameDoc = Number(m.doc) || 0;
+          followScroll();
+          return;
+        }
         if (m.kind === 'size') {
-          /* 枠は中身の高さぶん伸ばす。足りないと枠の中にスクロールが出て、
-             外のページと二重にスクロールすることになる
-             （実測 2026-10-05: 区画をぜんぶ出して中身が12475pxになり、
-             上限12000pxを超えて枠の中がスクロールしていた）。
-             上限はおかしな値が来たときの歯止めとしてだけ残す */
-          var tall = Number(m.height);
-          if (!isFinite(tall) || tall < 0) { tall = 0; }
-          frame.style.height = Math.min(tall, 200000) + 'px';
+          /* 高さは CSS が決める（画面の高さに収める）。ここでは伸ばさない。
+             前は中身の高さぶん伸ばしていたので、1万8千pxの枠になり、
+             ページ全体のスクロールと枠の中のスクロールが二重になっていた
+             （2026-10-10 利用者の指摘）*/
           stats.textContent = t('lpr.stats', {
             sections: Number(m.sections) || 0, images: Number(m.images) || 0,
             height: Number(m.height) || 0
@@ -1426,26 +1432,26 @@
       });
 
       /* 下見をスクロールすると、棚もいま見ている区画に合わせる
-         （2026-10-05 要望）。枠は中身の高さぶん伸ばしてあって自分では
-         スクロールしないので、外のページのスクロール位置から決める。
+         （2026-10-05 要望）。枠は画面の高さに収めてあり、中だけが
+         スクロールするので、中から届く位置で決める（2026-10-10）。
          目で追っているのは画面の真ん中あたりなので、そこに来た区画を選ぶ */
       /* 目を置く高さ。追従と、棚から飛ぶときの着地点を同じにする。
-         ずれていると、押した区画と光る区画が食い違う */
-      function eyeLine() { return window.scrollY + window.innerHeight * 0.4; }
+         ずれていると、押した区画と光る区画が食い違う。
+         ここも枠の中の座標 */
+      function eyeLine() { return (view.frameY || 0) + (view.frameH || frame.clientHeight) * 0.4; }
 
       /* i 番目の区画が、ページのどこからどこまでか。
          絵がまだ読めていないと、どれも高さ0で同じ位置に重なる。
          そのときは並び順から等間隔とみなす。読めたら本当の位置に入れ替わる
          （実測 2026-10-05: 30区画ぜんぶ top:289 h:0 で、棚が動かなかった） */
+      /* 枠の中の座標で返す（中だけがスクロールするため） */
       function spotRange(i) {
         var spots = view.spots || [];
-        var box = frame.getBoundingClientRect();
-        var base = box.top + window.scrollY;
         if (spots.every(function (one) { return !Number(one.h); })) {
-          return { top: base + box.height * (i / spots.length),
-            bottom: base + box.height * ((i + 1) / spots.length) };
+          var doc = view.frameDoc || frame.clientHeight || 1;
+          return { top: doc * (i / spots.length), bottom: doc * ((i + 1) / spots.length) };
         }
-        var top = base + Number(spots[i].top || 0);
+        var top = Number(spots[i].top || 0);
         return { top: top, bottom: top + Number(spots[i].h || 0) };
       }
 
@@ -1497,15 +1503,11 @@
         spots.forEach(function (one, i) { if (at < 0 && String(one.slot) === slot) { at = i; } });
         if (at < 0) { return; }
         var r = spotRange(at);
-        var want = Math.max(0, Math.round(r.top - (eyeLine() - window.scrollY) + 1));
-        var from = window.scrollY;
-        window.scrollTo({ top: want, behavior: 'smooth' });
-        /* なめらかな移動が効かない場面がある（動きを減らす設定、
-           裏に回ったタブなど）。少し待って1ミリも動いていなければ、そのまま飛ばす。
-           動き出していれば触らない（途中で引ったくると見失う） */
-        setTimeout(function () {
-          if (window.scrollY === from && Math.abs(want - from) > 8) { window.scrollTo(0, want); }
-        }, 350);
+        /* 着地点は追従と同じ目の高さ。枠の中を動かすので、外へは触らない */
+        var want = Math.max(0, Math.round(r.top - (view.frameH || frame.clientHeight) * 0.4 + 1));
+        var win = frame.contentWindow;
+        if (!win) { return; }
+        try { win.postMessage({ lpya: 1, kind: 'goto', top: want }, '*'); } catch (err) { /* 動かせなくても困らない */ }
       }
 
       /* 棚のうち、いま見ている区画を目立たせて、見える所まで寄せる */
