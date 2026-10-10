@@ -1010,7 +1010,7 @@
          そのまま出していたので、画面が指示文の羅列になっていた */
       var split = splitDirectives(section);
       if (split.prose) {
-        out.push('<p style="font-family:' + fontStack(design.bodyFont) + ';font-size:' + design.bodySize + 'px;line-height:1.9;color:' + escapeHtml(bodyColor) + ';margin:0;white-space:pre-wrap;">' + escapeHtml(split.prose) + '</p>');
+        out.push('<p style="font-family:' + fontStack(design.bodyFont) + ';font-size:' + design.bodySize + 'px;line-height:1.75;color:' + escapeHtml(bodyColor) + ';margin:0;white-space:pre-wrap;">' + escapeHtml(split.prose) + '</p>');
       }
       if (pool) {
         split.directives.forEach(function (one) {
@@ -1096,7 +1096,7 @@
     return [
       '*{box-sizing:border-box}',
       'body{margin:0;background:' + d.bgColor + ';color:' + d.bodyColor + ';font-family:' + fontStack(d.bodyFont)
-        + ';line-height:1.8;-webkit-text-size-adjust:100%;overflow-wrap:break-word}',
+        + ';line-height:1.7;-webkit-text-size-adjust:100%;overflow-wrap:break-word}',
       /* スマホでは画面いっぱい。横に余白を作ると、小さい画面で本文が細くなる。
          絵は端から端まで見せる（2026-10-04 要望: 画面に満ちるように） */
       '.wrap{max-width:100%;margin:0 auto;padding:0 18px}',
@@ -1164,7 +1164,7 @@
       '.kv__cell img,.hero img{max-height:78vh;object-fit:cover}',
       /* 画面が広いぶん、文字も一段上げる。スマホの大きさのままPCで見ると
          1000pxの列に16pxの字が流れて、小さく頼りなく見える（2026-10-05 指摘） */
-      'body{font-size:' + (d.bodySize + 2) + 'px;line-height:1.9}',
+      'body{font-size:' + (d.bodySize + 2) + 'px;line-height:1.75}',
       'h1{font-size:' + Math.round(d.titleSize * 1.6) + 'px;margin-bottom:14px}',
       '.hero__copy{padding-top:44px;padding-bottom:12px}',
       '.hero__sub{font-size:' + (d.bodySize + 3) + 'px}',
@@ -1910,13 +1910,13 @@
       'section{padding:0;}',
       'section[data-text="1"]{padding:40px 0;}',
       'section[data-text="1"] .wrap{padding:0 24px;}',
-      '.lead{font-size:' + d.bodySize + 'px;line-height:1.9;color:' + escapeHtml(d.bodyColor)
+      '.lead{font-size:' + d.bodySize + 'px;line-height:1.75;color:' + escapeHtml(d.bodyColor)
         + ';margin:0;white-space:pre-wrap;}',
       'h2{font-family:' + fontStack(d.titleFont) + ';font-size:' + d.titleSize
         + 'px;line-height:1.35;font-weight:600;color:' + escapeHtml(d.titleColor) + ';margin:0 0 16px;}',
       '.sub{font-size:' + Math.round(d.bodySize * 1.05) + 'px;color:' + escapeHtml(d.bodyColor)
         + ';margin:-8px 0 16px;opacity:.85;}',
-      'ul.bul{margin:12px 0 0;padding-left:1.3em;line-height:1.9;font-size:' + d.bodySize
+      'ul.bul{margin:12px 0 0;padding-left:1.3em;line-height:1.75;font-size:' + d.bodySize
         + 'px;color:' + escapeHtml(d.bodyColor) + ';}',
       '.cta{margin-top:24px;}',
       '.cta a{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 36px;'
@@ -1925,7 +1925,7 @@
       /* 絵に載せきれなかった本文の添え書き。makuake の一行キャプションと同じ役目。
          絵と絵の間に置くので、上下の余白は詰める（間が空くと並びが切れて見える） */
       '.cap{margin:0;padding:14px 24px 22px;font-size:' + Math.round(d.bodySize * 0.94)
-        + 'px;line-height:1.85;color:' + escapeHtml(d.bodyColor) + ';}',
+        + 'px;line-height:1.7;color:' + escapeHtml(d.bodyColor) + ';}',
       '.cap:empty{display:none;}',
       '.visual{margin:20px 0 0;padding:14px 16px;border:1px dashed #D9CFE0;border-radius:10px;'
         + 'color:#6B6270;font-size:13px;background:#FBF9FC;}',
