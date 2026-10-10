@@ -323,10 +323,27 @@
         return '<img src="' + escapeHtml(u) + '" alt="" loading="lazy"' + tag + '>';
       }
 
+      /* 悩みと商品の特徴は、絵だけにせず文字も出す。
+         既定が「絵」だったので、書いた説明がどこにも出ていなかった
+         （2026-10-10 指摘:「悩みと商品の特徴のところも写真の下に
+         セクション28のようにHTMLで書かれるようにしてほしい」）。
+         ほかの区画（ヒーロー・実績・場面など）は絵だけのままにする。
+         1区画ずつの指定（view.mode）があれば、そちらが優先 */
+      var TELL_RE = /悩み|困りごと|課題|POINT\s*\d|ポイント\s*\d|特長|特徴|機能|解決/i;
+      function tellsText(sec) {
+        return TELL_RE.test(String((sec && sec.title) || ''));
+      }
+
       function modeOf(sec, url) {
         var picked = view.mode[String(sec.index)];
-        if (picked === 'text' || picked === 'both' || picked === 'image') { return picked; }
-        return (!url && sec.text) ? 'text' : 'image';
+        /* 'shot' を数えていなかったので、選んでも「絵」に戻っていた
+           （2026-10-10 実測）*/
+        if (picked === 'text' || picked === 'both' || picked === 'image' || picked === 'shot') {
+          return picked;
+        }
+        if (!url && sec.text) { return 'text'; }
+        if (url && sec.text && tellsText(sec)) { return 'both'; }
+        return 'image';
       }
 
       /* 文字版の組み方。
@@ -618,8 +635,12 @@
             var cap = sec.body
               ? '<p class="cap"' + edit('body') + '>' + escapeHtml(String(sec.body)) + '</p>' : '';
             var img = url ? mediaTag(url, String(sec.index) + '-1') : '';
-            var txt = sec.text
+            /* 字の組み方（.txt …）は囲いに当たる。囲いを「文字だけ」のときにしか
+               付けていなかったので、絵＋文字のときは素のままで出ていた
+               （2026-10-10 実測）。囲いを塊そのものに持たせる */
+            var inner = sec.text
               ? '<div class="txt__in"' + edit('text') + '>' + textBlock(sec) + '</div>' : '';
+            var txt = inner ? '<div class="txt">' + inner + '</div>' : '';
             /* 選んだとおりに出す。
                「絵」を選んだのに本文（cap）を足していたので、絵だけにしたはずの
                区画に文字が残っていた（2026-10-04 指摘）。
@@ -633,7 +654,7 @@
             }
             if (mode === 'text') {
               return (txt || cap)
-                ? '<section class="txt">' + txt + cap + '</section>'
+                ? '<section>' + txt + cap + '</section>'
                 : '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（文字がありません）</p></section>';
             }
             /* 文字を写真の上に重ねる板。写真は背景として敷き、
@@ -641,12 +662,12 @@
                写真は CSS の background ではなく img で敷く。URL を style に
                差し込むと、引用符や ) で囲いを抜けられる */
             if (mode === 'shot') {
-              if (!txt) {
+              if (!inner) {
                 return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（文字がありません）</p></section>';
               }
               return '<section class="shot">'
                 + (url ? '<img class="shot__bg" src="' + escapeHtml(url) + '" alt="">' : '')
-                + '<div class="shot__body txt">' + txt + '</div>'
+                + '<div class="shot__body txt">' + inner + '</div>'
                 + '</section>'
                 + (cap ? '<section>' + cap + '</section>' : '');
             }
@@ -736,12 +757,10 @@
             /* 斜体は英数字だけ（inline が日本語には付けない）。
                字が細って沈むので、少しだけ濃くする */
             + '.txt i,.cap i{font-style:italic;color:#2A2430}'
-            + '.cap{max-width:32em;margin:0 auto;padding:18px 20px;border-radius:12px;'
+            + '.cap{width:calc(100% - 48px);max-width:32em;margin:0 auto 30px;padding:18px 20px;border-radius:12px;'
               + 'background:#FAF8FB;border-left:3px solid ' + weak + ';'
               + 'font:15px/1.95 -apple-system,\'Hiragino Sans\',\'Yu Gothic UI\',sans-serif;'
               + 'color:#5A5260;letter-spacing:.03em;white-space:pre-wrap}'
-            + 'section:has(>.cap){padding:0 24px 30px}'
-            + '@media (min-width:768px){section:has(>.cap){padding:0 56px 38px}}'
             /* 文字を写真の上に重ねる板。
                写真を敷き、幕をかけて白い文字を置く。絵が無ければブランド色の地。
                高さは文字の量で決まるが、板として見えるように下限を置く */
