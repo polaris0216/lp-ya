@@ -1646,7 +1646,14 @@
              ようにして。そのページ確認して確定しますか？と質問して
              はいといいえの選択権を与えるように」）*/
           var url = publicUrl();
-          var opened = url ? window.open(url, '_blank', 'noopener') : null;
+          /* window.open の3つ目に 'noopener' を書くと、仕様上いつも null が
+             返る。開けていても「開けませんでした」と言ってしまう
+             （実測 2026-10-11）。開いてから opener を切る */
+          var opened = null;
+          if (url) {
+            opened = window.open(url, '_blank');
+            if (opened) { try { opened.opener = null; } catch (err2) { /* 切れなくても困らない */ } }
+          }
           if (!opened) { toast(t('lpr.popupBlocked'), 'danger'); }
           if (!App || typeof App.confirm !== 'function') {
             toast(t('lpr.published'), 'success');
