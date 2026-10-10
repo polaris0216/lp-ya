@@ -4402,7 +4402,18 @@ input[type='radio'] {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: var(--fs-note);
 }
-.select--sm { min-height: 0; padding: 6px 10px; font-size: var(--fs-note); width: auto; }
+/* 小さい選び手。padding をまとめて書き直すと、もとの .select が空けていた
+   右側（padding-right:44px）が消えて、文字が矢印に重なる
+   （実測 2026-10-11 利用者の指摘:「矢印と数字が被ってる」）。
+   右は矢印と仕切り線のぶんだけ空ける。矢印も小さくして収まりをそろえる */
+.select--sm {
+  min-height: 0;
+  padding: 6px 34px 6px 10px;
+  font-size: var(--fs-note);
+  width: auto;
+  background-position: right 9px center, right 28px center;
+  background-size: 16px 16px, 1px 60%;
+}
 
 /* ---------- S12 LP案: ターゲット層の切り替えと絵の指示 ---------- */
 /* 成果物の種類（LP / KV / 広告）。層タブより上に置く。
