@@ -331,6 +331,10 @@
          1区画ずつの指定（view.mode）があれば、そちらが優先 */
       var TELL_RE = /悩み|困りごと|課題|POINT\s*\d|ポイント\s*\d|特長|特徴|機能|解決/i;
       function tellsText(sec) {
+        /* POINT の札は区画の名前ではなく指示文の中にある。
+           名前だけを見ていたので、B層の「ブリュワーの抽出力」のような
+           具体的な名前の特徴に文字が出なかった（実測 2026-10-10）*/
+        if (window.LpRender && LpRender.pointParts && LpRender.pointParts(sec)) { return true; }
         return TELL_RE.test(String((sec && sec.title) || ''));
       }
 
@@ -634,7 +638,21 @@
             };
             var cap = sec.body
               ? '<p class="cap"' + edit('body') + '>' + escapeHtml(String(sec.body)) + '</p>' : '';
-            var img = url ? mediaTag(url, String(sec.index) + '-1') : '';
+            /* POINT の区画は「帯＋写真」。帯は販売ページの組み立て
+               （lp-render の cfPanelHtml）にしか入れていなかったので、
+               「区画そのまま」で見ると帯が出なかった（実測 2026-10-10:
+               B層で「POINTの見出しとその下に写真があるコンテンツが全然ない」）。
+               動く絵（GIF・動画）は帯に敷けないので、そのときは今までどおり */
+            var pt = (url && LpRender.pointParts) ? LpRender.pointParts(sec) : null;
+            var moving = /\.(mp4|webm|mov|gif)(\?|$)/i.test(String(url || ''));
+            var img = url
+              ? ((pt && !moving && LpRender.pointPanel)
+                /* 外側の <section> に入るので、ここは div で包む。
+                   section を入れ子にすると、棚の位置合わせが二重に当たる */
+                ? '<div data-slot="' + escapeHtml(String(sec.index) + '-1') + '">'
+                  + LpRender.pointPanel(url, pt.label, pt.title, pt.body, dez, 1000) + '</div>'
+                : mediaTag(url, String(sec.index) + '-1'))
+              : '';
             /* 字の組み方（.txt …）は囲いに当たる。囲いを「文字だけ」のときにしか
                付けていなかったので、絵＋文字のときは素のままで出ていた
                （2026-10-10 実測）。囲いを塊そのものに持たせる */

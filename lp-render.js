@@ -579,6 +579,10 @@
     var ask = String(sec.prompt || '');
     var label = (ask.match(/「\s*(POINT\s*\d+|ポイント\s*\d+)\s*」/i) || [])[1];
     var title = quoted(ask, '見出し');
+    /* 見出しの頭に札がそのまま入っていることがある（実測 2026-10-10:
+       B層は 見出し:「POINT 1 2年で届いた声」と書かれていて、
+       帯に「POINT 1」が2回出た）。札と同じ分は落とす */
+    if (label && title) { title = title.replace(POINT_RE, '').trim(); }
     if (label && title) {
       /* 補足と説明は帯の下段。ブリーフは行の切れ目を「／」で書くので、
          そこで折る（実測:「沈殿が出ないので／最後の一杯まで同じ味」） */
