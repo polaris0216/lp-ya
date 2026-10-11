@@ -4484,7 +4484,12 @@ input[type='radio'] {
 .lp-deliv:hover { background: #F7F5FC; color: var(--c-text); }
 .lp-deliv--empty { color: var(--c-text-sub); opacity: .65; }
 /* 耳の中に出す枚数（12/34）。耳そのものの文字より小さく、控えめに */
-.lp-deliv__count { margin-left: 6px; font-size: 11px; font-weight: 700; opacity: .75; }
+/* 「公開中」が2行に折れていた（実測 2026-10-12 利用者の指摘）。
+   耳の幅に収まらないと、短い語でも「公開／中」と割れる。折らない */
+.lp-deliv__count {
+  margin-left: 6px; font-size: 11px; font-weight: 700; opacity: .75;
+  white-space: nowrap; flex: 0 0 auto;
+}
 .lp-deliv__count.is-none { opacity: .45; }
 
 /* 耳が「ターゲット層」のとき。層の名前は長いので、記号＋名前を並べる。
