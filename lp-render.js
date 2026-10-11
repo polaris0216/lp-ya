@@ -1643,6 +1643,9 @@
       var how = modes[String(sec.index)];
       if (how === 'image') { one = { slot: slot, title: '', body: '' }; }
       else if (how === 'text') { one = { slot: '', title: one.title, body: one.body }; }
+      /* 「文字（写真の上）」。見ていなかったので、選んでも絵＋文字と同じに
+         なっていた（2026-10-12 実測）。写真に文字を焼いた板にする */
+      else if (how === 'shot') { one = Object.assign({}, one, { over: true }); }
       out.push(one);
     });
     /* AI がどの区画にも結びつけずに書いた塊は、落とさず後ろへ */
@@ -1738,6 +1741,14 @@
       if (b.faq) {
         /* よくある質問は、絵ではなく SVG の板。回答まで字が崩れずに出る */
         out.push('<div class="faq-panel">' + faqPanel(b.faq, d, 1000, b.title) + '</div>');
+        out.push('</section>');
+        if ((href || wantMail) && (i + 1) % EVERY === 0 && i < blocks.length - 1) { out.push(callOut()); }
+        return;
+      }
+      /* 「文字（写真の上）」を選んだ区画は、写真に文字を焼いた板にする */
+      if (b.over && pic(b.slot)) {
+        out.push('<div' + slotAttr(b.slot) + '>'
+          + burnedPanel(pic(b.slot), b.title, b.body, d, 1000) + '</div>');
         out.push('</section>');
         if ((href || wantMail) && (i + 1) % EVERY === 0 && i < blocks.length - 1) { out.push(callOut()); }
         return;

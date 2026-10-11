@@ -60,6 +60,10 @@
     'lpr.editOnlyCanvas': ['文字を直せるのは「区画そのまま」のときだけです',
       'Text editing works in “Sections only”.', '“구획 그대로”에서만 수정할 수 있습니다'],
     'lpr.modeAll': ['すべての区画を', 'All sections', '모든 구획을'],
+    'lpr.modeReset': ['既定にもどす', 'Reset to default', '기본값으로'],
+    'lpr.modeResetDone': ['区画ごとの選択を捨てて、既定に戻しました',
+      'Cleared per-section choices; back to the default.',
+      '구획별 선택을 지우고 기본값으로 되돌렸습니다'],
     'lpr.modeNoText': ['文字版なし', 'No text version', '텍스트 버전 없음'],
     'lpr.modeNoImage': ['絵は未生成', 'Visual not generated', '이미지 미생성'],
     'lpr.live': ['公開中', 'Live', '공개 중'],
@@ -476,11 +480,11 @@
           ? view.gen.asset_prompts : {};
         bag.mode = view.mode;
         view.gen.asset_prompts = bag;
-        /* 販売ページは AI の文章で組むので、区画の見せ方を使わない。
-           そのまま組み直しても見た目が変わらず「反映されていない」に見える
-           （2026-10-05 指摘）。変えた結果がその場で見えるよう、
-           区画そのままへ切り替える */
-        if (previewKind() === 'sales') { view.preview = 'canvas'; }
+        /* 見ている形は変えない。販売ページも区画の見せ方を読むようになった
+           ので、切り替える必要がない。勝手に切り替わると、販売ページを見て
+           いた人が別のページへ飛ばされ、戻ると「反映されていない」に見える
+           （2026-10-12 利用者の指摘:「絵を選んだのに全然LPに反映されてない」。
+           実測: 販売ページで見せ方を変えると、区画そのままへ飛んでいた）*/
         build(false);
         paint();
         /* 保存は待たない。見た目はもう変わっているし、失敗しても選び直せる */
@@ -1386,7 +1390,27 @@
         MODES.forEach(function (pair) {
           add(all, button('btn btn--secondary btn--sm', t(pair[1]), function () { setMode('*', pair[0]); }));
         });
+        /* 一度選ぶと、その区画は選んだとおりに固定される。あとから既定を
+           変えても、古い選択が残って「最初から既定どおりにならない」
+           （2026-10-12 利用者の指摘）。選択を捨てて既定に戻す道を置く */
+        add(all, button('btn btn--text btn--sm', t('lpr.modeReset'), function () { resetModes(); }));
         return all;
+      }
+
+      /* 区画ごとの選択を全部捨てて、既定（悩みと特徴は絵＋文字、ほかは絵）に戻す */
+      function resetModes() {
+        view.mode = {};
+        var bag = (view.gen.asset_prompts && typeof view.gen.asset_prompts === 'object')
+          ? view.gen.asset_prompts : {};
+        delete bag.mode;
+        view.gen.asset_prompts = bag;
+        build(false);
+        paint();
+        Api.generations.update(view.gen.id, { asset_prompts: bag }).then(function () {
+          toast(t('lpr.modeResetDone'), 'success');
+        }).catch(function (err) {
+          console.error('[screens-lp-result] 見せ方を戻せませんでした:', err);
+        });
       }
 
       function paintModes() {
