@@ -86,6 +86,19 @@
     'lpr.shotOne': ['作り直していないので、選べる絵は1枚だけです',
       'Only one visual so far', '아직 1장뿐입니다'],
     'lpr.publicUrl': ['公開URL', 'Public URL', '공개 URL'],
+    'lpr.urlTitle': ['公開URLの名前', 'Public URL name', '공개 URL 이름'],
+    'lpr.urlBrand': ['会社・ブランド', 'Company or brand', '회사・브랜드'],
+    'lpr.urlProduct': ['商品名', 'Product', '상품명'],
+    'lpr.urlLayer': ['層（自動）', 'Audience (auto)', '층(자동)'],
+    'lpr.urlSave': ['URLを保存', 'Save URL', 'URL 저장'],
+    'lpr.urlSaved': ['URLを保存しました', 'URL saved', 'URL을 저장했습니다'],
+    'lpr.urlHint': ['英数字とハイフンだけ使えます。日本語は使えません',
+      'Letters, numbers and hyphens only.', '영숫자와 하이픈만 쓸 수 있습니다'],
+    'lpr.urlLive': ['公開中です。保存すると、いまのURLは開けなくなります',
+      'Live now. Saving changes the URL; the old one stops working.',
+      '공개 중입니다. 저장하면 지금 URL은 열리지 않습니다'],
+    'lpr.urlEmpty': ['会社・ブランドを入れてください', 'Enter a company or brand.',
+      '회사・브랜드를 입력해 주세요'],
     'lpr.checkTitle': ['このページで確定しますか？', 'Go live with this page?', '이 페이지로 확정할까요?'],
     'lpr.checkBody': ['公開ページを別のタブで開きました。メールとLINEの登録も、'
       + 'そのページで試せます。確かめてから選んでください。',
@@ -192,6 +205,11 @@
          見出しの下に大きな空白ができていた（実測 2026-10-11 利用者の指摘）*/
       var takesBar = el('div', 'lpr-takes-bar');
       add(screen, takesBar);
+      /* 公開URLの名前。会社・ブランド／商品名を人が決める
+         （2026-10-11 要望:「URLもユーザーが直接設定できればいいな。
+         …/会社名orブランド名/商品名/A層」）。層は自動で後ろに付く */
+      var urlBar = el('div', 'lpr-urlbar');
+      add(screen, urlBar);
       var toolbar = el('div', 'lp-toolbar');
       add(screen, toolbar);
       var stats = el('p', 't-note lpr-stats');
@@ -1081,6 +1099,74 @@
       /* いま見ている層の「何回目の案」を選ぶ。
          同じ層を作り直すたびに生成物の行が増えるが、これまでは
          いちばん新しいものしか開けなかった（2026-10-05 要望） */
+      /* 公開URLの名前を、この画面で決められるようにする。
+         層は自動で後ろに付くので、人が決めるのは会社・ブランドと商品名だけ */
+      function paintUrlBar() {
+        clear(urlBar);
+        if (view.gen.feature_key !== 'lp_brief') { return; }
+        var now = urlParts();
+        var box = el('div', 'lpr-url');
+        add(box, el('span', 'lpr-url__title', t('lpr.urlTitle')));
+
+        var brand = el('input', 'input input--sm');
+        brand.type = 'text';
+        brand.value = now.brand;
+        brand.placeholder = t('lpr.urlBrand');
+        brand.setAttribute('aria-label', t('lpr.urlBrand'));
+        var product = el('input', 'input input--sm');
+        product.type = 'text';
+        product.value = now.product;
+        product.placeholder = t('lpr.urlProduct');
+        product.setAttribute('aria-label', t('lpr.urlProduct'));
+
+        add(box, brand);
+        add(box, el('span', 'lpr-url__sep', '/'));
+        add(box, product);
+        add(box, el('span', 'lpr-url__sep', '/'));
+        add(box, el('span', 'lpr-url__layer',
+          String(view.gen.variant_label || '-').toLowerCase()));
+
+        var preview = el('p', 't-note lpr-url__preview', '');
+        var base = location.href.split('#')[0].replace(/[^/]*$/, '');
+        var show = function () {
+          var slug = [slugify(brand.value), slugify(product.value),
+            String(view.gen.variant_label || '-').toLowerCase()].filter(Boolean).join('/');
+          preview.textContent = base + 'view.html?lp=' + slug;
+        };
+        brand.addEventListener('input', show);
+        product.addEventListener('input', show);
+        show();
+
+        var save = button('btn btn--secondary btn--sm', t('lpr.urlSave'), function (e) {
+          var b = slugify(brand.value);
+          if (!b) { toast(t('lpr.urlEmpty'), 'danger'); return; }
+          var node = e && e.currentTarget;
+          if (node) { node.disabled = true; }
+          var shop = [b, slugify(product.value)].filter(Boolean).join('/');
+          Api.projects.update(projectId, { shop_slug: shop }).then(function () {
+            view.project.shop_slug = shop;
+            /* 公開中なら、新しい名前で公開し直す。でないと画面の表示と
+               実際に開けるURLが食い違う */
+            if (!view.gen.published_at) { return null; }
+            return Api.lp.publish(view.gen.id, view.html, wantSlug())
+              .then(function () { return Api.generations.get(view.gen.id); })
+              .then(function (row) { view.gen = row || view.gen; });
+          }).then(function () {
+            toast(t('lpr.urlSaved'), 'success');
+            paint();
+          }).catch(function (err) {
+            console.error('[screens-lp-result] URLを保存できませんでした:', err);
+            toast(String(err && err.message || err), 'danger');
+            if (node) { node.disabled = false; }
+          });
+        });
+        add(box, save);
+        add(urlBar, box);
+        add(urlBar, preview);
+        add(urlBar, el('p', 't-note',
+          view.gen.published_at ? t('lpr.urlLive') : t('lpr.urlHint')));
+      }
+
       function paintTakes() {
         clear(takesBar);
         var label = String(view.gen.variant_label || '-');
@@ -1250,6 +1336,7 @@
           }
         }
 
+        paintUrlBar();
         paintModes();
         paintShelf();
         markShelf();
@@ -1608,6 +1695,23 @@
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
       }
 
+      /* URLに使える形へ。英数字とハイフンだけ。日本語は落ちるので、
+         空になったら人に決めてもらう（勝手にIDを使うと意味の無いURLになる） */
+      function slugify(raw) {
+        return String(raw || '').toLowerCase()
+          .replace(/[^a-z0-9-]+/g, '-')
+          .replace(/-{2,}/g, '-')
+          .replace(/^-+|-+$/g, '');
+      }
+
+      /* 公開URLの名前。記録は projects.shop_slug に
+         「会社・ブランド／商品名」をまとめて1本で持つ。
+         層は層で分かるので足さない（公開のときに後ろへ付ける） */
+      function urlParts() {
+        var raw = String((view.project && view.project.shop_slug) || '').split('/');
+        return { brand: slugify(raw[0] || ''), product: slugify(raw[1] || '') };
+      }
+
       /* 公開ページのURL。記録には名前（public_url_slug）しか持っていない。
          見せ場は、このアプリと同じ置き場の view.html
          （localhost でも GitHub Pages でも、同じ組み方で合う）。
@@ -1626,11 +1730,13 @@
          店の名前（shop_slug）が無いときは渡さない（「/a」になってしまう）。
          渡さなければ記録側がランダムな名前を付ける */
       function wantSlug() {
-        var project = view.project || {};
-        if (view.gen.public_url_slug) { return String(view.gen.public_url_slug); }
-        var shop = String(project.shop_slug || '').trim();
-        if (!shop) { return ''; }
-        return shop + '/' + String(view.gen.variant_label || '-').toLowerCase();
+        var p = urlParts();
+        if (!p.brand) {
+          /* 名前が決まっていないときだけ、いまの名前を使い回す */
+          return String(view.gen.public_url_slug || '');
+        }
+        return [p.brand, p.product, String(view.gen.variant_label || '-').toLowerCase()]
+          .filter(Boolean).join('/');
       }
 
       function setPublish(on) {

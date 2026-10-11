@@ -4399,6 +4399,18 @@ input[type='radio'] {
 .lpr-pick__mode { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; }
 .lpr-pick__mode .select--sm { flex: 1 1 auto; min-width: 0; }
 
+/* 公開URLの名前。会社・ブランド／商品名／層（層は自動） */
+.lpr-urlbar:empty { display: none; }
+.lpr-url { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; }
+.lpr-url__title { font-size: var(--fs-note); color: var(--c-muted, #6B6270); }
+.lpr-url .input--sm { width: 11em; min-width: 0; padding: 6px 10px; font-size: var(--fs-note); }
+.lpr-url__sep { color: var(--c-muted, #6B6270); }
+.lpr-url__layer {
+  padding: 6px 10px; border: 1px dashed var(--c-line); border-radius: 8px;
+  font-size: var(--fs-note); color: var(--c-muted, #6B6270);
+}
+.lpr-url__preview { margin: 6px 0 0; word-break: break-all; }
+
 .lpr-takes-bar:empty { display: none; }
 .lpr-takes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; }
 .lpr-modes__no {
