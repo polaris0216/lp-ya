@@ -1866,9 +1866,17 @@
 
     /* 条件の但し書き */
     if (Array.isArray(sales.notes) && sales.notes.length) {
-      out.push('<ul class="notes">');
-      sales.notes.forEach(function (n) { out.push('<li>' + escapeHtml(n) + '</li>'); });
-      out.push('</ul>');
+      /* 但し書きも AI が書くので、出していない窓口を名指しすることがある
+         （実測 2026-10-12: メールだけのページに
+         「条件はLINEにてご案内します」が残っていた）。
+         言い換えて直そうとすると日本語が壊れるので、その行は落とす。
+         窓口を名指ししない但し書き（価格・送料・仕様）はそのまま残る */
+      var notes = sales.notes.filter(fitsWay);
+      if (notes.length) {
+        out.push('<ul class="notes">');
+        notes.forEach(function (n) { out.push('<li>' + escapeHtml(n) + '</li>'); });
+        out.push('</ul>');
+      }
     }
     out.push('</div>');
 
