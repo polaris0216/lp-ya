@@ -46,12 +46,6 @@
     'sales.mailOk': '登録しました。お知らせをお送りします。',
     'sales.mailNg': '登録できませんでした。メールアドレスをご確認ください。',
     'sales.mailNote': 'いつでも解除できます。お知らせ以外には使いません。',
-    'sales.unsubLink': '解除する',
-    'sales.unsubLabel': '解除したいアドレス',
-    'sales.unsubBtn': '解除する',
-    /* 入っていたかどうかを見せない。言い分けると、総当たりで
-       アドレスがリストにあるかを調べられる */
-    'sales.unsubDone': 'このアドレスは、今後お知らせを受け取りません。',
     /* 誘いの塊の決まり文句。見本（2026-10-05 支給）の組みに合わせてある */
     'sales.ctaLimited': '数量限定割引',
     'sales.ctaUpTo': '最大',
@@ -1246,22 +1240,11 @@
       + '</div>'
       + (note ? '<p class="sub__note">' + escapeHtml(note) + '</p>' : '')
       + '<p class="sub__say" data-sub-say role="status"></p>'
-      + '</form>'
-      /* 解除。ページに「いつでも解除できます」と書いてあるのに、
-         外す手段が無かった（2026-10-11 指摘）。
-         ふだんは折りたたんでおく（登録より目立たせない） */
-      + '<details class="unsub" data-unsub>'
-      + '<summary class="unsub__sum">' + escapeHtml(t('sales.unsubLink')) + '</summary>'
-      + '<div class="unsub__row">'
-      + '<label class="unsub__label" for="unsub-email">'
-      + escapeHtml(t('sales.unsubLabel')) + '</label>'
-      + '<input class="sub__input" id="unsub-email" type="email" '
-      + 'autocomplete="email" inputmode="email" placeholder="you@example.com">'
-      + '<button class="unsub__btn" type="button" data-unsub-go>'
-      + escapeHtml(t('sales.unsubBtn')) + '</button>'
-      + '</div>'
-      + '<p class="sub__say" data-unsub-say role="status"></p>'
-      + '</details>';
+      + '</form>';
+      /* 解除欄はページに出さない（2026-10-13 指示「解除するボタンは消して」）。
+         仕掛け（RPC elpiya_unsubscribe_email・migration 044）はそのまま残して
+         あるので、戻すときはここに markup を足すだけでよい。
+         お知らせを送る側（配信ツール）の解除導線は別に要る */
   }
 
   function mailFormCss(d) {
@@ -1278,16 +1261,7 @@
       '.sub__say:empty{display:none}',
       '.sub__say.is-ok{color:#1b7f3b}',
       '.sub__say.is-ng{color:#b3261e}',
-      '@media (max-width:420px){.sub__btn{flex:1 1 100%}}',
-      /* 解除。登録より目立たせない。小さく、色も落とす */
-      '.unsub{margin:10px 0 0;text-align:left}',
-      '.unsub__sum{display:inline-block;font-size:12px;opacity:.7;cursor:pointer}',
-      '.unsub__sum:hover{opacity:1;text-decoration:underline}',
-      '.unsub__row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 0}',
-      '.unsub__label{flex:1 1 100%;font-size:12px;opacity:.75}',
-      '.unsub__btn{padding:10px 14px;border-radius:10px;border:1px solid currentColor;'
-        + 'background:transparent;color:inherit;font-size:13px;cursor:pointer;opacity:.8}',
-      '.unsub__btn:disabled{opacity:.4;cursor:default}'
+      '@media (max-width:420px){.sub__btn{flex:1 1 100%}}'
     ].join('');
   }
 
@@ -1311,25 +1285,6 @@
       'if(ok){f.querySelector("input[type=email]").value="";}})',
       '.catch(function(){say.textContent=' + JSON.stringify(t('sales.mailNg')) + ';say.className="sub__say is-ng";})',
       '.then(function(){btn.disabled=false;});});',
-      /* 解除。アドレスを打つと、その案件の中の登録を全部外す。
-         層ごとに別の行で入っているので、1つだけ消すと残りに届き続ける。
-         結果はいつも同じ文言にする。「入っていました／いません」と
-         言い分けると、総当たりでアドレスの有無を調べられる */
-      'var u=document.querySelector("[data-unsub]");',
-      'if(u){var ub=u.querySelector("[data-unsub-go]");',
-      'var usay=u.querySelector("[data-unsub-say]");',
-      'var uin=u.querySelector("#unsub-email");',
-      'ub.addEventListener("click",function(){',
-      'var m=uin.value.trim();if(!m){return;}ub.disabled=true;',
-      'fetch(' + JSON.stringify(url + '/rest/v1/rpc/elpiya_unsubscribe_email') + ',{method:"POST",',
-      'headers:{apikey:' + JSON.stringify(key) + ',Authorization:"Bearer "+' + JSON.stringify(key) + ',',
-      '"Content-Type":"application/json"},',
-      'body:JSON.stringify({p_slug:' + JSON.stringify(slug) + ',p_email:m})})',
-      '.then(function(){usay.textContent=' + JSON.stringify(t('sales.unsubDone')) + ';',
-      'usay.className="sub__say is-ok";uin.value="";})',
-      '.catch(function(){usay.textContent=' + JSON.stringify(t('sales.mailNg')) + ';',
-      'usay.className="sub__say is-ng";})',
-      '.then(function(){ub.disabled=false;});});}',
       '}());'
     ].join('');
   }
