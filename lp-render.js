@@ -1119,6 +1119,11 @@
          （2026-10-05 指摘「なぜ写真の両端に余白があり角が丸いのか」） */
       '.block img{display:block;height:auto;margin:0 0 16px;border-radius:0;'
         + 'width:calc(100% + 36px);margin-left:-18px;margin-right:-18px}',
+      /* 写真に文字を焼いた板（SVG）も、写真と同じく列の端まで。
+         板は burnedPanel が width:100% を直に書いているので指定が勝てない。
+         だから包んでいる箱のほうを余白のぶん広げる。
+         前は板だけ18px内側に入り、上下の写真と左端がそろっていなかった */
+      '.block .bg--full{width:calc(100% + 36px);margin:0 -18px 16px}',
       /* 特長の番号。見出しの上に小さく、差し色で。
          ページ内で1種類だけにする（参照ページもどれも1種類だった） */
       '.pt{display:block;margin:0 0 6px;font-size:13px;font-weight:800;'
@@ -1152,15 +1157,17 @@
       /* 画面が広いときは、読みやすい幅に収める。
          広いまま1行を伸ばすと、目が行を追えなくなる */
       '@media (min-width:768px){',
-      /* 本文の幅は1000px。実物の販売ページ（nowgoav.jp/lavaclip-lp）を測ると
-         本文の絵がすべて width=1000 で、列もその幅だった。
-         こちらが作る絵も1024幅なので、等倍で出せてぼやけない */
-      '.wrap{max-width:1000px;padding:0 28px}',
+      /* 本文の幅は880px。実物の販売ページ（nowgoav.jp/lavaclip-lp）は
+         1000pxだったが、PCで見ると1行が長すぎた（2026-10-12 指摘）。
+         絵は1024幅で作っているので、880に縮めるぶんは縮小表示になる
+         （拡大ではないのでぼやけない） */
+      '.wrap{max-width:880px;padding:0 28px}',
       /* 広い画面では列が1000px。絵もその幅（944+28+28）で端までそろう */
       '.block img{width:calc(100% + 56px);margin-left:-28px;margin-right:-28px}',
+      '.block .bg--full{width:calc(100% + 56px);margin-left:-28px;margin-right:-28px}',
       /* 冒頭の絵と KV も同じ幅に収める。ここだけ画面いっぱいだと、
          下に続く絵と左右がそろわない */
-      '.hero img,.kv{max-width:1000px;margin-left:auto;margin-right:auto}',
+      '.hero img,.kv{max-width:880px;margin-left:auto;margin-right:auto}',
       '.kv__cell img,.hero img{max-height:78vh;object-fit:cover}',
       /* 画面が広いぶん、文字も一段上げる。スマホの大きさのままPCで見ると
          1000pxの列に16pxの字が流れて、小さく頼りなく見える（2026-10-05 指摘） */
@@ -1184,9 +1191,33 @@
          1枚の中に左端が2つできる。だから幅を詰めるだけにして、
          左端は絵とそろえる */
       '.hero__copy>*,.block>h2,.block>h3,.block>p,.block>ul,.block>ol,'
-        + '.faq,table.spec,.notes{max-width:760px}',
+        + '.faq,table.spec,.notes{max-width:720px}',
+      /* 列を880pxに縮めたぶん、広い画面では左右に地色が残る。
+         そこをその絵自身で埋める。絵を画面幅まで拡大して強くぼかし、
+         絵の高さだけ後ろに敷く（高さは包んだ div が絵と同じになる）。
+         1枚ごとに敷くので、絵が変わると背景も変わる。
+         ponytail: 本当のモザイク（ピクセル化）は元の絵を小さく描き直す
+         必要があり、別ドメインの絵は canvas から読み出せない。
+         強いぼかしで同じ見え方を作る。足りなければ blur の値を上げる */
+      '.bg{position:relative}',
+      '.bg::before{content:"";position:absolute;top:0;bottom:0;left:calc(50% - 50vw);'
+        + 'width:100vw;z-index:-1;background-image:var(--bg);background-size:cover;'
+        + 'background-position:center;filter:blur(48px) saturate(1.15) brightness(.9);'
+        + 'transform:scale(1.15)}',
       '}'
     ].join('');
+  }
+
+  /* 絵を div.bg で包み、--bg にその絵のURLを入れる。
+     左右に残る余白へ同じ絵を敷くのに使う（敷くのは salesCss の .bg::before で、
+     広い画面のときだけ効く）。組み立てのときに包むので、JSは要らない。
+     KVは入れ替えの仕掛け（kvSliderJs）が並びを触るので包まない */
+  function bgBox(url, inner, attr, full) {
+    var extra = attr || '';
+    var cls = full ? 'bg bg--full' : 'bg';
+    if (!url) { return '<div' + (full ? ' class="bg--full"' : '') + extra + '>' + inner + '</div>'; }
+    return '<div class="' + cls + '" style="--bg:url(&quot;' + escapeHtml(url) + '&quot;)"' + extra + '>'
+      + inner + '</div>';
   }
 
   /* ---- メールの登録欄 ----
@@ -1688,8 +1719,9 @@
     /* KVを出したなら、冒頭の1枚は重ねない（同じ絵が続く） */
     var heroShown = !(o.kv && o.kv.length) && !!pic(sales.hero.slot);
     if (heroShown) {
-      out.push('<img src="' + escapeHtml(pic(sales.hero.slot)) + '" alt="' + escapeHtml(o.title || '')
-        + '"' + slotAttr(sales.hero.slot) + '>');
+      out.push(bgBox(pic(sales.hero.slot),
+        '<img src="' + escapeHtml(pic(sales.hero.slot)) + '" alt="' + escapeHtml(o.title || '')
+          + '"' + slotAttr(sales.hero.slot) + '>'));
     }
     out.push('<div class="wrap hero__copy">');
     out.push('<h1>' + escapeHtml(sales.hero.catch || o.title || '') + '</h1>');
@@ -1747,15 +1779,16 @@
       }
       /* 「文字（写真の上）」を選んだ区画は、写真に文字を焼いた板にする */
       if (b.over && pic(b.slot)) {
-        out.push('<div' + slotAttr(b.slot) + '>'
-          + burnedPanel(pic(b.slot), b.title, b.body, d, 1000) + '</div>');
+        out.push(bgBox(pic(b.slot),
+          burnedPanel(pic(b.slot), b.title, b.body, d, 1000), slotAttr(b.slot), true));
         out.push('</section>');
         if ((href || wantMail) && (i + 1) % EVERY === 0 && i < blocks.length - 1) { out.push(callOut()); }
         return;
       }
       if (pic(b.slot)) {
-        out.push('<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '')
-          + '" loading="lazy"' + slotAttr(b.slot) + '>');
+        out.push(bgBox(pic(b.slot),
+          '<img src="' + escapeHtml(pic(b.slot)) + '" alt="' + escapeHtml(b.title || '')
+            + '" loading="lazy"' + slotAttr(b.slot) + '>'));
       }
       if (b.title) {
         /* 特長の見出しには通し番号を添える。参照した5ページのうち
