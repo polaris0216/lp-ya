@@ -57,6 +57,11 @@
     'sales.ctaUpTo': '最大',
     'sales.ctaNote': '開始をいち早くお届け！！',
     'sales.ctaButton': 'LINE友だち追加',
+    /* 2行目の受け皿。販売時期が入っていないときに出る。
+       どの導線を名乗るかは、そのページに実際に出している窓口で決める */
+    'sales.ctaWaysLine': 'LINE友だち追加で案内',
+    'sales.ctaWaysMail': 'メール登録で案内',
+    'sales.ctaWaysBoth': 'LINEかメールの登録で案内',
     'gen.ctaButton': '詳しく見る',
     'gen.imagePlaceholder': '（画像をここに入れます）'
   };
@@ -1753,11 +1758,30 @@
        （実測 2026-10-05: AI の長い1文が3行目に46pxで流れて3行に折れた） */
     var when = String(o.saleStart || '').trim();
     var off = String(o.discount || '').trim();
-    var line2 = when ? (when + '販売[[' + t('sales.ctaLimited') + ']]') : (cta.title || '');
-    var line3 = off ? (t('sales.ctaUpTo') + '[[' + off + ']]OFF') : (cta.lead || cta.body || '');
+    /* AI が書いた誘い文句は、ページに出していない窓口を名乗ることがある。
+       実測 2026-10-12: メール登録しか置いていないページに
+       「LINE友だち追加で案内」と出ていた（利用者の指摘）。
+       窓口を名指しした文章は、その窓口を実際に出しているときだけ使う。
+       どちらの窓口も出していないページ（掲載先へ送るだけ）では、
+       窓口を名乗る文章はすべて落ちる */
+    var fitsWay = function (text) {
+      var s = String(text || '');
+      if (!s) { return false; }
+      if (/LINE|ライン|友だち|友達/i.test(s) && !href) { return false; }
+      if (/メール|e-?mail|アドレス/i.test(s) && !wantMail) { return false; }
+      return true;
+    };
+    var waysLine = (href && wantMail) ? t('sales.ctaWaysBoth')
+      : href ? t('sales.ctaWaysLine')
+        : wantMail ? t('sales.ctaWaysMail') : '';
+    var line2 = when ? (when + '販売[[' + t('sales.ctaLimited') + ']]')
+      : (fitsWay(cta.title) ? cta.title : waysLine);
+    var line3 = off ? (t('sales.ctaUpTo') + '[[' + off + ']]OFF')
+      : (fitsWay(cta.lead) ? cta.lead : (fitsWay(cta.body) ? cta.body : ''));
     var callOut = function () {
       return ctaBlockMarkup(
-        { title: line2, lead: line3, note: cta.note || t('sales.ctaNote'),
+        { title: line2, lead: line3,
+          note: fitsWay(cta.note) ? cta.note : t('sales.ctaNote'),
           /* 掲載先。日本のクラウドファンディングなら、その名前かロゴを出す */
           platform: o.platform || '', logo: o.platformLogo || '' },
         /* ボタンの字は固定。ここは文章ではなく「押す所」で、
