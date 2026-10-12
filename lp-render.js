@@ -1266,15 +1266,16 @@
 
   function mailFormCss(d) {
     return [
-      '.sub{margin:16px 0 0;text-align:left}',
+      '.sub{margin:10px 0 0;text-align:left}',
       '.sub__label{display:block;margin:0 0 6px;font-weight:600;color:' + d.titleColor + '}',
       '.sub__row{display:flex;gap:8px;flex-wrap:wrap}',
       '.sub__input{flex:1 1 200px;min-height:48px;padding:0 14px;border:1px solid rgba(0,0,0,.2);'
         + 'border-radius:10px;font-size:16px;background:#fff;color:#222}',
       '.sub__btn{flex:0 0 auto;min-height:48px;padding:0 22px;border:0;border-radius:10px;'
         + 'background:' + d.accentColor + ';color:#fff;font-size:16px;font-weight:600;cursor:pointer}',
-      '.sub__note{margin:8px 0 0;font-size:12px;opacity:.75}',
-      '.sub__say{margin:8px 0 0;font-size:14px;min-height:1.4em}',
+      '.sub__note{margin:6px 0 0;font-size:12px;opacity:.75}',
+      '.sub__say{margin:6px 0 0;font-size:14px}',
+      '.sub__say:empty{display:none}',
       '.sub__say.is-ok{color:#1b7f3b}',
       '.sub__say.is-ng{color:#b3261e}',
       '@media (max-width:420px){.sub__btn{flex:1 1 100%}}',
@@ -1503,7 +1504,7 @@
     var ink = d.titleColor;
     var hot = d.accentColor;
     return [
-      '.cta-block{margin:36px 0;padding:4px 0;text-align:center}',
+      '.cta-block{margin:22px 0;padding:0;text-align:center}',
       /* 1行目。見本ではロゴが本文の幅の半分ほどを占めている。
          幅で決めるのは、掲載先ごとに縦横比が違うため（高さで止めると
          横長のロゴが細い帯になる）。高さは自分からついてくる */
@@ -1513,32 +1514,32 @@
          PC（列1000px）はこの比率をそのまま使う。
          スマホは画面が狭いぶん、同じ比率だと字が小さくなりすぎるので、
          ロゴだけ少し広げて、字はスマホで読める下限に合わせる */
-      '.cta-block__brand{margin:0 0 10px;line-height:1}',
-      '.cta-block__logo{display:block;width:52%;height:auto;margin:0 auto}',
+      '.cta-block__brand{margin:0 0 7px;line-height:1}',
+      '.cta-block__logo{display:block;width:42%;height:auto;margin:0 auto}',
       /* ロゴを持っていない掲載先のための文字組み。大きさはロゴに合わせる */
       '.cta-block__name{display:block;font-size:40px;font-weight:800;letter-spacing:.04em;color:' + ink + '}',
       '.cta-block__sub{display:block;margin-top:4px;font-size:12px;letter-spacing:.18em;color:' + ink + '99}',
       /* 2行目 */
-      '.cta-block__t{margin:0 0 6px;font-weight:700;font-size:20px;line-height:1.4;color:' + ink + '}',
+      '.cta-block__t{margin:0 0 4px;font-weight:700;font-size:20px;line-height:1.35;color:' + ink + '}',
       /* 3行目。数字だけさらに大きく。見本は「最大」「OFF」より「30%」が一回り大きい */
-      '.cta-block__l{margin:0 0 8px;font-weight:700;font-size:30px;line-height:1.2;color:' + ink + '}',
+      '.cta-block__l{margin:0 0 6px;font-weight:700;font-size:30px;line-height:1.15;color:' + ink + '}',
       '.cta-block__l .accent{font-size:1.5em;font-style:normal;letter-spacing:-.01em}',
       '.cta-block__l--long{font-size:20px;line-height:1.5}',
       '.cta-block__l--long .accent{font-size:1em}',
       '.cta-block__t .accent,.cta-block__l .accent,.cta-block__n .accent{color:' + hot + ';font-style:normal}',
       /* 4行目 */
-      '.cta-block__n{margin:0 0 14px;font-weight:500;font-size:15px;line-height:1.5;color:' + ink + '}',
+      '.cta-block__n{margin:0 0 10px;font-weight:500;font-size:15px;line-height:1.4;color:' + ink + '}',
       /* 5行目 */
       '.cta-block__b{margin:0}',
       '@media (min-width:768px){',
-      '.cta-block{margin:60px 0;padding:8px 0}',
-      '.cta-block__brand{margin-bottom:16px}',
-      '.cta-block__logo{width:50%}',
+      '.cta-block{margin:30px 0;padding:0}',
+      '.cta-block__brand{margin-bottom:10px}',
+      '.cta-block__logo{width:36%}',
       '.cta-block__name{font-size:56px}',
-      '.cta-block__t{font-size:34px;margin-bottom:8px}',
-      '.cta-block__l{font-size:48px;margin-bottom:12px}',
+      '.cta-block__t{font-size:34px;margin-bottom:5px}',
+      '.cta-block__l{font-size:48px;margin-bottom:8px}',
       '.cta-block__l--long{font-size:26px}',
-      '.cta-block__n{font-size:28px;margin-bottom:20px}',
+      '.cta-block__n{font-size:28px;margin-bottom:12px}',
       '}'
     ].join('');
   }
