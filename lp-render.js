@@ -1157,17 +1157,19 @@
       /* 画面が広いときは、読みやすい幅に収める。
          広いまま1行を伸ばすと、目が行を追えなくなる */
       '@media (min-width:768px){',
-      /* 本文の幅は880px。実物の販売ページ（nowgoav.jp/lavaclip-lp）は
-         1000pxだったが、PCで見ると1行が長すぎた（2026-10-12 指摘）。
-         絵は1024幅で作っているので、880に縮めるぶんは縮小表示になる
-         （拡大ではないのでぼやけない） */
-      '.wrap{max-width:880px;padding:0 28px}',
+      /* 本文の幅は680px。実物の販売ページ（nowgoav.jp/lavaclip-lp）は
+         1000pxだったが、PCで見ると1行が長すぎた（2026-10-12 指摘で
+         1000→880→680）。絵は1024幅で作っているので、680は縮小表示
+         （拡大ではないのでぼやけない）。
+         内側で読む所をさらに詰める指定は、ここが680になって
+         中身（680-28*2=624）より広くなり意味が無くなったので外した */
+      '.wrap{max-width:680px;padding:0 28px}',
       /* 広い画面では列が1000px。絵もその幅（944+28+28）で端までそろう */
       '.block img{width:calc(100% + 56px);margin-left:-28px;margin-right:-28px}',
       '.block .bg--full{width:calc(100% + 56px);margin-left:-28px;margin-right:-28px}',
       /* 冒頭の絵と KV も同じ幅に収める。ここだけ画面いっぱいだと、
          下に続く絵と左右がそろわない */
-      '.hero img,.kv{max-width:880px;margin-left:auto;margin-right:auto}',
+      '.hero img,.kv{max-width:680px;margin-left:auto;margin-right:auto}',
       '.kv__cell img,.hero img{max-height:78vh;object-fit:cover}',
       /* 画面が広いぶん、文字も一段上げる。スマホの大きさのままPCで見ると
          1000pxの列に16pxの字が流れて、小さく頼りなく見える（2026-10-05 指摘） */
@@ -1190,8 +1192,6 @@
          塊ごと真ん中に寄せると、文字の左端が絵の左端とずれて、
          1枚の中に左端が2つできる。だから幅を詰めるだけにして、
          左端は絵とそろえる */
-      '.hero__copy>*,.block>h2,.block>h3,.block>p,.block>ul,.block>ol,'
-        + '.faq,table.spec,.notes{max-width:720px}',
       /* 列を880pxに縮めたぶん、広い画面では左右に地色が残る。
          そこをその絵自身で埋める。絵を画面幅まで拡大して強くぼかし、
          絵の高さだけ後ろに敷く（高さは包んだ div が絵と同じになる）。
