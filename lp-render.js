@@ -1101,6 +1101,12 @@
          絵は端から端まで見せる（2026-10-04 要望: 画面に満ちるように） */
       '.wrap{max-width:100%;margin:0 auto;padding:0 18px}',
       '.hero{padding:0 0 8px}',
+      /* KVがあるときの冒頭。中身は読み上げと検索のために残し、画面からは消す。
+         .hero--quiet .hero__copy の重みは広い画面の指定より強いので、
+         下の @media で padding が戻ることはない */
+      '.hero--quiet{padding:0}',
+      '.hero--quiet .hero__copy{position:absolute;width:1px;height:1px;padding:0;'
+        + 'margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}',
       '.hero img{display:block;width:100%;height:auto}',
       'html,body{width:100%;overflow-x:hidden}',
       /* 上下だけ足す。padding をまとめて書くと .wrap の横余白が消えて、
@@ -1715,9 +1721,15 @@
     if (o.kv && o.kv.length) {
       out.push(kvSliderMarkup(o.kv, o.title || ''));
     }
-    out.push('<div class="hero">');
+    /* KVを出したときは、冒頭の文字を画面から隠す（DOMには残す）。
+       KVの絵には同じ訴求が焼き込んであり、その真下に言い換えただけの
+       見出しがもう一度出ていた（2026-10-12 指摘「なぜ最初に出てくる？」）。
+       消さないのは、h1 がページに1個しかないから。消すと見出しの無い
+       ページになり、検索にも読み上げにも「何のページか」が伝わらない */
+    var kvShown = !!(o.kv && o.kv.length);
+    out.push('<div class="hero' + (kvShown ? ' hero--quiet' : '') + '">');
     /* KVを出したなら、冒頭の1枚は重ねない（同じ絵が続く） */
-    var heroShown = !(o.kv && o.kv.length) && !!pic(sales.hero.slot);
+    var heroShown = !kvShown && !!pic(sales.hero.slot);
     if (heroShown) {
       out.push(bgBox(pic(sales.hero.slot),
         '<img src="' + escapeHtml(pic(sales.hero.slot)) + '" alt="' + escapeHtml(o.title || '')
