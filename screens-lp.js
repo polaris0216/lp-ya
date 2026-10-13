@@ -286,6 +286,19 @@
       + '実際に出す割引だけを入れてください（景品表示法）。',
       'Shown as the biggest line of the LINE block. Only enter a discount you will actually offer.',
       'LINE 등록 블록에서 가장 크게 표시됩니다.'],
+    'lp.pubLineMenu': ['LINEリッチメニューの形', 'LINE rich menu layout', 'LINE 리치메뉴 형식'],
+    'lp.pubLineMenuHint': ['トーク画面の下に出しっぱなしになる台です。選んだ形の寸法で絵を作ります。'
+      + '大は2500×1686、小は2500×843（LINEが受け取る寸法）。',
+      'The bar pinned under the chat. Images are made at the chosen size '
+      + '(large 2500×1686, compact 2500×843).',
+      '톡 화면 하단에 고정되는 메뉴입니다.'],
+    'lp.pubLineMsg': ['LINEリッチメッセージの形', 'LINE rich message layout', 'LINE 리치메시지 형식'],
+    'lp.pubLineMsgHint': ['トークに流す1枚です。幅は1040pxで固定、高さは形で決まります。'
+      + 'カスタムだけ高さを520〜2080pxで選べます。',
+      'A single image sent into the chat. Width is fixed at 1040px; height follows the layout.',
+      '톡에 보내는 이미지입니다. 가로 1040px 고정입니다.'],
+    'lp.pubLineMsgH': ['カスタムの高さ（px）', 'Custom height (px)', '커스텀 높이(px)'],
+    'lp.pubLineNone': ['作らない', 'Do not create', '만들지 않음'],
     'lp.pubBrandLogo': ['ブランドロゴの画像', 'Brand logo image', '브랜드 로고 이미지'],
     'lp.pubBrandLogoHint': ['KVの文字の板（仕様・セット内容）の左上に出ます。'
       + '入れなければ、いままでどおり商品名を文字で出します。'
@@ -1934,6 +1947,69 @@
         add(lf, el('p', 'field__hint', t('lp.pubBrandLogoHint')));
         add(box2, lf);
         paintLogo();
+
+        /* LINEの台（リッチメニュー・リッチメッセージ）。
+           寸法はLINEが受け取るものしか無いので、人が選ぶのは「形」だけにして、
+           実寸は line-assets.mjs の表から引く（2026-10-14 要望:
+           「寸法はアプリ内で選んで、その寸法に合わせて生成」）*/
+        var LINE_MENU = [
+          ['', t('lp.pubLineNone')],
+          ['大-1', '大・全面1枠（2500×1686）'],
+          ['大-2x', '大・左右2枠（2500×1686）'],
+          ['大-3L', '大・左に商品＋右に2枠（2500×1686）'],
+          ['大-3y', '大・上1枠＋下2枠（2500×1686）'],
+          ['大-4', '大・4枠（2500×1686）'],
+          ['大-6', '大・2段3列（2500×1686）'],
+          ['小-1', '小・全面1枠（2500×843）'],
+          ['小-2x', '小・左右2枠（2500×843）'],
+          ['小-3x', '小・横3枠（2500×843）']
+        ];
+        var LINE_MSG = [
+          ['', t('lp.pubLineNone')],
+          ['正方形A', '正方形・1枠（1040×1040）'],
+          ['正方形B', '正方形・左右2枠（1040×1040）'],
+          ['正方形C', '正方形・上下2枠（1040×1040）'],
+          ['正方形E', '正方形・4枠（1040×1040）'],
+          ['正方形H', '正方形・2段3列（1040×1040）'],
+          ['正方形K', '正方形・左大＋右2枠（1040×1040）'],
+          ['横長A', '横長・細1枠（1040×350）'],
+          ['横長B', '横長・1枠（1040×700）'],
+          ['横長D', '横長・1枠（1040×585）'],
+          ['縦長A', '縦長・1枠（1040×1300）'],
+          ['縦長E', '縦長・長い1枠（1040×1850）'],
+          ['カスタム', 'カスタム（1040×高さ自由）']
+        ];
+        function picker(key, labelKey, hintKey, list) {
+          var f = el('div', 'field');
+          add(f, el('label', 'field__label', t(labelKey)));
+          var sel = el('select', 'input select');
+          list.forEach(function (one) {
+            var op = el('option', '', one[1]);
+            op.value = one[0];
+            if (String(info[key] || '') === one[0]) { op.selected = true; }
+            add(sel, op);
+          });
+          add(f, sel);
+          add(f, el('p', 'field__hint', t(hintKey)));
+          add(box2, f);
+          return sel;
+        }
+        var menuSel = picker('line_menu', 'lp.pubLineMenu', 'lp.pubLineMenuHint', LINE_MENU);
+        var msgSel = picker('line_msg', 'lp.pubLineMsg', 'lp.pubLineMsgHint', LINE_MSG);
+        /* カスタムを選んだときだけ、高さを聞く */
+        var hf = el('div', 'field');
+        add(hf, el('label', 'field__label', t('lp.pubLineMsgH')));
+        var hIn = el('input', 'input');
+        hIn.type = 'number';
+        hIn.min = '520';
+        hIn.max = '2080';
+        hIn.step = '10';
+        hIn.value = String(info.line_msg_h || 1040);
+        add(hf, hIn);
+        add(box2, hf);
+        function paintH() { hf.style.display = msgSel.value === 'カスタム' ? '' : 'none'; }
+        msgSel.addEventListener('change', paintH);
+        paintH();
         add(box, box2);
         function termsValue() {
           var v = {};
@@ -1944,6 +2020,14 @@
           /* KVから始めるかは、販売の条件と同じ入れ物に持つ（列を増やさない） */
           if (kvBox.checked) { v.kv_first = true; }
           if (brandLogo) { v.brand_logo = brandLogo; }
+          if (menuSel.value) { v.line_menu = menuSel.value; }
+          if (msgSel.value) {
+            v.line_msg = msgSel.value;
+            /* 高さはカスタムのときだけ持つ。他の形は表の寸法で決まる */
+            if (msgSel.value === 'カスタム') {
+              v.line_msg_h = Math.min(2080, Math.max(520, Number(hIn.value) || 1040));
+            }
+          }
           return v;
         }
         function leadMode() { return mode; }
