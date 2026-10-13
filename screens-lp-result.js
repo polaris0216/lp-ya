@@ -198,7 +198,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '', goTo: '', lastPick: '', shots: {} };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '', goTo: '', lastPick: '', shots: {}, swapped: false };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -253,11 +253,17 @@
          収めてあり、中だけがスクロールするので、位置は中から届く */
       window.addEventListener('resize', followScroll, { passive: true });
 
+      /* どの層から見せるか。いちばん新しい生成物にしていたので、
+         作られた順で最後になった層（E層）が開いていた
+         （2026-10-14 指摘「一番最初に見せるのはA層か、ABCDE順で
+         一番最初の層にして」）。層の名前の順で先頭を取り、
+         その層の中ではいちばん新しい案を取る */
+      var FIRST_ORDER = 'variant_label.asc,created_at.desc';
       var genQuery = params.gen
         ? Api.generations.get(params.gen)
-        : Api.generations.first({ eq: { projects_id: projectId, feature_key: 'lp_brief' }, order: 'created_at.desc' })
+        : Api.generations.first({ eq: { projects_id: projectId, feature_key: 'lp_brief' }, order: FIRST_ORDER })
           .then(function (row) {
-            return row || Api.generations.first({ eq: { projects_id: projectId, feature_key: FEATURE }, order: 'created_at.desc' });
+            return row || Api.generations.first({ eq: { projects_id: projectId, feature_key: FEATURE }, order: FIRST_ORDER });
           });
       Promise.all([Api.projects.get(projectId), genQuery]).then(function (got) {
         view.project = got[0];
@@ -998,7 +1004,23 @@
           /* 取れなくても画面は出す。既定が「いちばん新しい案」に戻るだけ */
           console.error('[screens-lp-result] 案ごとの絵の数を読めませんでした:', err);
           view.shots = {};
-        }).then(done);
+        }).then(function () {
+          /* 開いた案に絵が1枚も無いなら、絵のある案へ移る。
+             画面を開いた直後の1回だけ（人が自分で選んだあとは動かさない）。
+             絵の数が分かるのはここなので、最初の読み込みではここで判断する */
+          if (!view.swapped) {
+            view.swapped = true;
+            var made = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
+            if (!Object.keys(made).length) {
+              var takes = (view.takes && view.takes[String(view.gen.variant_label || '-')]) || [];
+              var other = takes.filter(function (g) {
+                return g.id !== view.gen.id && (view.shots || {})[g.id] > 0;
+              });
+              if (other.length) { switchVariant(bestTake(other).id); return; }
+            }
+          }
+          done();
+        });
       }
 
       function loadSiblings() {

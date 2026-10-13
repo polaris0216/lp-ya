@@ -1116,6 +1116,8 @@
       '.hero__sub{margin:0;color:' + d.bodyColor + ';opacity:.85}',
       '.block{padding:36px 0;border-top:1px solid rgba(0,0,0,.08)}',
       '.block:first-of-type{border-top:0}',
+      /* 絵で始まる1つ目の区画。KVのすぐ下なので、上の余白を取らない */
+      '.block--flush{padding-top:0}',
       /* 絵は列の端から端まで。角も丸めない。
          実測した実物（Makuake・nowgoav.jp/lavaclip-lp）はどちらも
          絵が列いっぱいで、左右の余白も角丸も無かった。
@@ -1774,7 +1776,13 @@
     out.push('<div class="wrap">');
     blocks = blocks.filter(function (b) { return pic(b.slot) || b.title || b.body || b.faq; });
     blocks.forEach(function (b, i) {
-      out.push('<section class="block">');
+      /* 1つ目の区画が絵で始まるなら、上の余白を取らない。
+         KV（全幅の絵）のすぐ下に区画の余白（PC 60px）が入り、
+         絵と絵のあいだに白い帯ができていた
+         （2026-10-14 指摘「KVと第一セクションの間に空白が生じてる」）。
+         文章で始まる区画は、くっつくと読みにくいので余白を残す */
+      var flush = i === 0 && !b.faq && !!pic(b.slot);
+      out.push('<section class="block' + (flush ? ' block--flush' : '') + '">');
       if (b.faq) {
         /* よくある質問は、絵ではなく SVG の板。回答まで字が崩れずに出る */
         out.push('<div class="faq-panel">' + faqPanel(b.faq, d, 1000, b.title) + '</div>');
