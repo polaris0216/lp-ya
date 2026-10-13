@@ -970,12 +970,19 @@
          2026-10-14 の不具合:「写真が全然表示されない」。
          C・D・E層は、いちばん新しい案の絵が0枚で、絵は1つ前の案に入っていた。
          既定が「いちばん新しい案」だったので、開くと絵の無いページが出ていた */
-      var SHOT_PROBE = 4;   /* 層ごとに、新しいほうから何案ぶん調べるか */
+      /* ほかの層は、耳を押したときにどの案を開くかを決めるだけなので、
+         新しいほうから数案で足りる。**いま開いている層だけは全案を調べる**——
+         絵のある案がずっと古いことがあり（実測 2026-10-14: E層は9案のうち
+         いちばん古い案にしか絵が無かった）、窓を狭くすると
+         「絵のある案に切り替える」が出せない */
+      var SHOT_PROBE = 4;   /* ほかの層を、新しいほうから何案ぶん調べるか */
       function loadShotCounts(done) {
         var ids = [];
+        var here = String(view.gen.variant_label || '-');
         Object.keys(view.takes || {}).forEach(function (L) {
           var takes = view.takes[L] || [];
-          takes.slice(-SHOT_PROBE).forEach(function (g) { if (g && g.id) { ids.push(g.id); } });
+          var pick = L === here ? takes : takes.slice(-SHOT_PROBE);
+          pick.forEach(function (g) { if (g && g.id) { ids.push(g.id); } });
         });
         if (!ids.length || !Api.generations || typeof Api.generations.list !== 'function') { done(); return; }
         Api.generations.list({
