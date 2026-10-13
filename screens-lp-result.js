@@ -970,19 +970,21 @@
          2026-10-14 の不具合:「写真が全然表示されない」。
          C・D・E層は、いちばん新しい案の絵が0枚で、絵は1つ前の案に入っていた。
          既定が「いちばん新しい案」だったので、開くと絵の無いページが出ていた */
-      /* ほかの層は、耳を押したときにどの案を開くかを決めるだけなので、
-         新しいほうから数案で足りる。**いま開いている層だけは全案を調べる**——
-         絵のある案がずっと古いことがあり（実測 2026-10-14: E層は9案のうち
-         いちばん古い案にしか絵が無かった）、窓を狭くすると
-         「絵のある案に切り替える」が出せない */
-      var SHOT_PROBE = 4;   /* ほかの層を、新しいほうから何案ぶん調べるか */
+      /* どの層も全案を調べる。層ごとに窓を狭めていたら、耳を押した層で
+         また絵の無い案が開いた（実測 2026-10-14: C層の絵のある案は
+         9案のうちいちばん古いもので、新しいほう4案には無かった）。
+         件数は上限で止める。1案あたり最大30本のURLなので、
+         80案で200KB前後。いま見ている層から先に詰める */
+      var SHOT_MAX = 80;
       function loadShotCounts(done) {
         var ids = [];
         var here = String(view.gen.variant_label || '-');
-        Object.keys(view.takes || {}).forEach(function (L) {
-          var takes = view.takes[L] || [];
-          var pick = L === here ? takes : takes.slice(-SHOT_PROBE);
-          pick.forEach(function (g) { if (g && g.id) { ids.push(g.id); } });
+        var labels = Object.keys(view.takes || {});
+        labels.sort(function (a, b) { return (a === here ? -1 : 0) - (b === here ? -1 : 0); });
+        labels.forEach(function (L) {
+          (view.takes[L] || []).slice().reverse().forEach(function (g) {
+            if (g && g.id && ids.length < SHOT_MAX) { ids.push(g.id); }
+          });
         });
         if (!ids.length || !Api.generations || typeof Api.generations.list !== 'function') { done(); return; }
         Api.generations.list({
