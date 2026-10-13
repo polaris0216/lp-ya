@@ -78,6 +78,10 @@
       '{n} sections have more than one photo. Pick one and the page updates right away.',
       '사진이 여러 장인 구획은 {n}건입니다.'],
     'lpr.shelfNone': ['作り直した写真がまだありません。', 'No regenerated photos yet.', '아직 다시 만든 사진이 없습니다.'],
+    'lpr.noShots': ['この案にはまだ絵が1枚もありません。文章だけのページになります。',
+      'This take has no images yet, so the page shows text only.',
+      '이 안에는 아직 이미지가 없습니다.'],
+    'lpr.goShots': ['絵のある案に切り替える', 'Switch to a take with images', '이미지가 있는 안으로'],
     'lpr.pickGo': ['この区画まで移動', 'Jump to this section', '이 구획으로 이동'],
     'lpr.pickUnused': ['価格やリスクの話はMakuake本体に任せるので、販売ページには出しません（区画そのままには出ます）',
       'Left to the Makuake page itself, so not shown here (still in the plain lineup)',
@@ -194,7 +198,7 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '', goTo: '', lastPick: '' };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '', goTo: '', lastPick: '', shots: {} };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -960,6 +964,34 @@
         return g.batch ? String(g.batch) : '';
       }
 
+      /* 案に絵があるかどうか。一覧（LIGHT_COLS）には入れていない——
+         1案あたり最大30本のURLが入っていて、200案ぶん取ると1MB近くなる。
+         要るのは「層ごとの新しいほうの数案」だけなので、そこだけ後から取る。
+         2026-10-14 の不具合:「写真が全然表示されない」。
+         C・D・E層は、いちばん新しい案の絵が0枚で、絵は1つ前の案に入っていた。
+         既定が「いちばん新しい案」だったので、開くと絵の無いページが出ていた */
+      var SHOT_PROBE = 4;   /* 層ごとに、新しいほうから何案ぶん調べるか */
+      function loadShotCounts(done) {
+        var ids = [];
+        Object.keys(view.takes || {}).forEach(function (L) {
+          var takes = view.takes[L] || [];
+          takes.slice(-SHOT_PROBE).forEach(function (g) { if (g && g.id) { ids.push(g.id); } });
+        });
+        if (!ids.length || !Api.generations || typeof Api.generations.list !== 'function') { done(); return; }
+        Api.generations.list({
+          in: { id: ids }, select: 'id,made:asset_prompts->made', order: false, limit: ids.length
+        }).then(function (rows) {
+          view.shots = {};
+          (Array.isArray(rows) ? rows : []).forEach(function (r) {
+            view.shots[r.id] = r.made && typeof r.made === 'object' ? Object.keys(r.made).length : 0;
+          });
+        }).catch(function (err) {
+          /* 取れなくても画面は出す。既定が「いちばん新しい案」に戻るだけ */
+          console.error('[screens-lp-result] 案ごとの絵の数を読めませんでした:', err);
+          view.shots = {};
+        }).then(done);
+      }
+
       function loadSiblings() {
         if (!Api.generations || typeof Api.generations.list !== 'function') { return; }
         Api.generations.list({
@@ -987,7 +1019,7 @@
           view.siblings = use.sort(function (a, b) {
             return String(a.variant_label || '').localeCompare(String(b.variant_label || ''));
           });
-          paint();
+          loadShotCounts(paint);
         }).catch(function (err) {
           console.error('[screens-lp-result] 他の層を読めませんでした:', err);
           view.siblings = [];
@@ -1100,7 +1132,16 @@
         var L = String(g.variant_label || '-');
         if (view.takePick && view.takePick[L]) { return view.takePick[L]; }
         var takes = (view.takes && view.takes[L]) || [];
-        return takes.length ? takes[takes.length - 1].id : g.id;
+        if (!takes.length) { return g.id; }
+        /* 絵のある、いちばん新しい案を選ぶ。絵の数が分からない案は
+           「ある」とみなす（調べていないだけで、空とは限らない）。
+           どれも0枚なら、いままでどおりいちばん新しい案を返す */
+        var shots = view.shots || {};
+        for (var i = takes.length - 1; i >= 0; i -= 1) {
+          var id = takes[i].id;
+          if (!(id in shots) || shots[id] > 0) { return id; }
+        }
+        return takes[takes.length - 1].id;
       }
 
       /* いま見ている層の「何回目の案」を選ぶ。
@@ -1463,6 +1504,25 @@
         if (view.gen.feature_key !== 'lp_brief') { return; }
         var sections = view.gen.sections || [];
         if (!sections.length) { return; }
+        /* この案に絵が1枚も無いなら、空の棚を出さずに理由を言う。
+           黙って空にすると「バグで写真が出ない」に見える（2026-10-14 指摘） */
+        var made = (view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
+        if (!Object.keys(made).length) {
+          add(shelf, el('h3', 'lpr-shelf__title', t('lpr.shelf')));
+          add(shelf, el('p', 't-note', t('lpr.noShots')));
+          var takes = (view.takes && view.takes[String(view.gen.variant_label || '-')]) || [];
+          var withShots = takes.filter(function (g) {
+            return g.id !== view.gen.id && (view.shots || {})[g.id] > 0;
+          });
+          if (withShots.length) {
+            var pick = withShots[withShots.length - 1];
+            add(shelf, button('btn btn--secondary btn--sm', t('lpr.goShots'), function () {
+              view.takePick[String(view.gen.variant_label || '-')] = pick.id;
+              switchVariant(pick.id);
+            }));
+          }
+          return;
+        }
         /* 写真がある区画はぜんぶ並べる。1枚だけの区画も出す——
            スクロールに合わせて棚を動かすので、抜けがあると追えない
            （実測 2026-10-05: 複数ある区画だけ出していたら、
