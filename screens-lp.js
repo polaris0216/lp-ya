@@ -286,6 +286,16 @@
       + '実際に出す割引だけを入れてください（景品表示法）。',
       'Shown as the biggest line of the LINE block. Only enter a discount you will actually offer.',
       'LINE 등록 블록에서 가장 크게 표시됩니다.'],
+    'lp.pubBrandLogo': ['ブランドロゴの画像', 'Brand logo image', '브랜드 로고 이미지'],
+    'lp.pubBrandLogoHint': ['KVの文字の板（仕様・セット内容）の左上に出ます。'
+      + '入れなければ、いままでどおり商品名を文字で出します。'
+      + '背景が透けるPNGがいちばんきれいに出ます（JPGでも使えますが、白い四角が付きます）。',
+      'Shown at the top-left of the text panels (specs, box contents). '
+      + 'Without it the product name is typeset as before. PNG with transparency looks best.',
+      'KV 텍스트 패널 좌측 상단에 표시됩니다. 없으면 제품명을 글자로 표시합니다.'],
+    'lp.pubBrandLogoPick': ['ロゴの画像を選ぶ', 'Choose logo image', '로고 이미지 선택'],
+    'lp.pubBrandLogoDrop': ['ロゴを外す', 'Remove logo', '로고 제거'],
+    'lp.pubBrandLogoUp': ['アップロードしています…', 'Uploading…', '업로드 중…'],
     'lp.pubLogo': ['掲載先ロゴの画像URL', 'Platform logo URL', '게재처 로고 URL'],
     'lp.pubLogoPh': ['https://… （ふつうは空のままで大丈夫です）', 'https://… (usually leave empty)', 'https://…'],
     'lp.pubLogoHint': ['LINEの誘いの上に出す、クラウドファンディングの掲載先です。'
@@ -1868,6 +1878,62 @@
           add(box2, f);
           ins[one[0]] = i;
         });
+        /* ブランドロゴ。文字ではなく画像で出したい人向け
+           （2026-10-13 要望:「独自のブランドロゴ写真ファイルを添付したら
+           それを用いて演出できるように」）。
+           URLではなくファイルを選ばせる。持っているのは手元のファイルなので */
+        var brandLogo = String(info.brand_logo || '');
+        var lf = el('div', 'field');
+        add(lf, el('label', 'field__label', t('lp.pubBrandLogo')));
+        var lrow = el('div', 'lp-brandlogo');
+        var lprev = el('img', 'lp-brandlogo__img');
+        lprev.alt = '';
+        var lpick = el('button', 'btn btn--secondary btn--sm');
+        lpick.type = 'button';
+        var ldrop = el('button', 'btn btn--text btn--sm');
+        ldrop.type = 'button';
+        ldrop.textContent = t('lp.pubBrandLogoDrop');
+        var lfile = el('input', 'is-hidden');
+        lfile.type = 'file';
+        lfile.accept = 'image/png,image/jpeg,image/webp,image/svg+xml';
+        function paintLogo() {
+          lprev.src = brandLogo;
+          lprev.style.display = brandLogo ? '' : 'none';
+          ldrop.style.display = brandLogo ? '' : 'none';
+          lpick.textContent = t('lp.pubBrandLogoPick');
+        }
+        lpick.addEventListener('click', function () { lfile.click(); });
+        ldrop.addEventListener('click', function () { brandLogo = ''; paintLogo(); });
+        lfile.addEventListener('change', function () {
+          var file = lfile.files && lfile.files[0];
+          if (!file) { return; }
+          lpick.disabled = true;
+          lpick.textContent = t('lp.pubBrandLogoUp');
+          /* 商品写真と違い、縮小してJPGにしない。ロゴは透過を残す必要がある
+             （JPGにすると、透けていたところが白い四角になる） */
+          var ext = (String(file.type).split('/')[1] || 'png').replace('svg+xml', 'svg');
+          window.Api.files.upload(file, {
+            folder: 'brand/' + String(projectId || 'draft'),
+            ext: ext, contentType: file.type || 'image/png'
+          }).then(function (url) {
+            brandLogo = url;
+            paintLogo();
+          }).catch(function (err) {
+            console.error('[screens-lp] ロゴを上げられませんでした:', err);
+            toast(t('common.error'), 'error');
+          }).then(function () {
+            lpick.disabled = false;
+            paintLogo();
+          });
+        });
+        add(lrow, lprev);
+        add(lrow, lpick);
+        add(lrow, ldrop);
+        add(lrow, lfile);
+        add(lf, lrow);
+        add(lf, el('p', 'field__hint', t('lp.pubBrandLogoHint')));
+        add(box2, lf);
+        paintLogo();
         add(box, box2);
         function termsValue() {
           var v = {};
@@ -1877,6 +1943,7 @@
           });
           /* KVから始めるかは、販売の条件と同じ入れ物に持つ（列を増やさない） */
           if (kvBox.checked) { v.kv_first = true; }
+          if (brandLogo) { v.brand_logo = brandLogo; }
           return v;
         }
         function leadMode() { return mode; }

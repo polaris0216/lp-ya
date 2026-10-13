@@ -4710,3 +4710,14 @@ input[type='radio'] {
   background: #fff;
 }
 .lp-faq-preview__svg svg { display: block; width: 100%; height: auto; }
+
+/* ブランドロゴの選択（販売の条件の欄）。
+   2026-10-13 要望: 自前のロゴ画像を添付して、文字の板に使えるようにする */
+.lp-brandlogo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lp-brandlogo__img {
+  max-height: 40px; max-width: 160px; height: auto; width: auto;
+  /* 透過のロゴが見えるように、market の地を薄く敷く */
+  background: repeating-conic-gradient(#f3f0f6 0 25%, #fff 0 50%) 0 0 / 14px 14px;
+  border: 1px solid var(--line, #E3E0E8); border-radius: 6px; padding: 3px;
+}
+.is-hidden { display: none; }
