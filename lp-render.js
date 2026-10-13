@@ -1116,8 +1116,11 @@
       '.hero__sub{margin:0;color:' + d.bodyColor + ';opacity:.85}',
       '.block{padding:36px 0;border-top:1px solid rgba(0,0,0,.08)}',
       '.block:first-of-type{border-top:0}',
-      /* 絵で始まる1つ目の区画。KVのすぐ下なので、上の余白を取らない */
-      '.block--flush{padding-top:0}',
+      /* 絵で始まる1つ目の区画。KVのすぐ下なので、上の余白を取らない。
+         .block.block--flush と2つ重ねるのは、下の @media にある
+         .block{padding:60px 0} が後に来て勝ってしまうため
+         （実測 2026-10-14: 印は付いているのに60pxのままだった） */
+      '.block.block--flush{padding-top:0}',
       /* 絵は列の端から端まで。角も丸めない。
          実測した実物（Makuake・nowgoav.jp/lavaclip-lp）はどちらも
          絵が列いっぱいで、左右の余白も角丸も無かった。
