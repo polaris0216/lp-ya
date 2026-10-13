@@ -1257,6 +1257,7 @@
       '.sub__btn{flex:0 0 auto;min-height:48px;padding:0 22px;border:0;border-radius:10px;'
         + 'background:' + d.accentColor + ';color:#fff;font-size:16px;font-weight:600;cursor:pointer}',
       '.sub__note{margin:6px 0 0;font-size:12px;opacity:.75}',
+      '.sub__note:empty{display:none}',
       '.sub__say{margin:6px 0 0;font-size:14px}',
       '.sub__say:empty{display:none}',
       '.sub__say.is-ok{color:#1b7f3b}',
@@ -1459,7 +1460,7 @@
     var ink = d.titleColor;
     var hot = d.accentColor;
     return [
-      '.cta-block{margin:22px 0;padding:0;text-align:center}',
+      '.cta-block{margin:22px 0 16px;padding:0;text-align:center}',
       /* 1行目。見本ではロゴが本文の幅の半分ほどを占めている。
          幅で決めるのは、掲載先ごとに縦横比が違うため（高さで止めると
          横長のロゴが細い帯になる）。高さは自分からついてくる */
@@ -1487,7 +1488,7 @@
       /* 5行目 */
       '.cta-block__b{margin:0}',
       '@media (min-width:768px){',
-      '.cta-block{margin:30px 0;padding:0}',
+      '.cta-block{margin:30px 0 22px;padding:0}',
       '.cta-block__brand{margin-bottom:10px}',
       '.cta-block__logo{width:36%}',
       '.cta-block__name{font-size:56px}',
@@ -1745,15 +1746,27 @@
         { variant: style.variant, label: t('sales.ctaButton'), height: 52, radius: style.radius },
         href, wantMail, o.mail || {});
     };
-    if (href || wantMail) {
-      out.push('<div class="wrap">' + callOut() + '</div>');
-    }
 
     /* 特長。何枚かごとに誘いを挟む。
        実測した実物（nowgoav.jp/lavaclip-lp）は絵29枚に対して誘い5回、
        およそ6枚おきだった。区画をぜんぶ出すようになったので、
        4枚おきのままだと9回出て多すぎる（2026-10-05） */
     var EVERY = 6;
+    /* 1つ目の誘いをどこに置くか。
+       2026-10-13 の指摘「ライン登録やメールリスト登録はセクション1の後がいいのでは？」。
+       前は冒頭の絵（KV）の直後、**特長を1つも見せる前**に置いていた。
+       実測した参照ページ（nowgoav.jp/lavaclip-lp）は「冒頭の絵の直後」だったが、
+       そのページは上に1枚絵があるだけで、KVの送り（8枚）は無かった。
+       KVから始める作りだと、1枚目を見てスクロールした人がいきなり入力欄に当たる。
+       理由を1つ見せてから誘うほうが素直なので、最初の特長の**あと**にする。
+       以降は EVERY 枚おき（実物は絵29枚に誘い5回＝およそ6枚おきだった） */
+    var FIRST_AFTER = 1;
+    var wantCall = function (i) {
+      if (!(href || wantMail)) { return false; }
+      if (i >= blocks.length - 1) { return false; }   /* 最後の塊の直前には出さない（下にもう1回出る） */
+      if (i + 1 === FIRST_AFTER) { return true; }
+      return (i + 1 - FIRST_AFTER) % EVERY === 0;
+    };
     /* 冒頭に絵を出したときだけ、その区画を本文から外す。
        KV から始めるときは冒頭の絵を出さないので、外すと
        その区画の絵がどこにも出なくなる（実測 2026-10-05: 区画1が消えていた） */
@@ -1766,7 +1779,7 @@
         /* よくある質問は、絵ではなく SVG の板。回答まで字が崩れずに出る */
         out.push('<div class="faq-panel">' + faqPanel(b.faq, d, 1000, b.title) + '</div>');
         out.push('</section>');
-        if ((href || wantMail) && (i + 1) % EVERY === 0 && i < blocks.length - 1) { out.push(callOut()); }
+        if (wantCall(i)) { out.push(callOut()); }
         return;
       }
       /* 「文字（写真の上）」を選んだ区画は、写真に文字を焼いた板にする */
@@ -1774,7 +1787,7 @@
         out.push(bgBox(pic(b.slot),
           burnedPanel(pic(b.slot), b.title, b.body, d, 1000), slotAttr(b.slot), true));
         out.push('</section>');
-        if ((href || wantMail) && (i + 1) % EVERY === 0 && i < blocks.length - 1) { out.push(callOut()); }
+        if (wantCall(i)) { out.push(callOut()); }
         return;
       }
       if (pic(b.slot)) {
@@ -1790,10 +1803,9 @@
       }
       paras(b.body).forEach(function (line) { out.push('<p>' + salesInline(line) + '</p>'); });
       out.push('</section>');
-      /* 4枚ごとに誘う。最後の1枚の直後は置かない（すぐ下に締めの塊が来る） */
-      if ((href || wantMail) && (i + 1) % EVERY === 0 && i < blocks.length - 1) {
-        out.push(callOut());
-      }
+      /* 誘いを挟む所は wantCall が1か所で決める（最後の1枚の直後は置かない。
+         すぐ下に締めの塊が来る） */
+      if (wantCall(i)) { out.push(callOut()); }
     });
 
     /* 仕様 */

@@ -535,7 +535,10 @@
           kv: info.kv_first ? (view.kvUrls || []) : [],
           mail: (mode === 'mail' || mode === 'both') ? {
             url: Api.URL, key: Api.ANON_KEY, slug: slug,
-            note: (window.LpRender && LpRender.mailNote) || ''
+            /* 但し書きは出さない（2026-10-13 指示「文字削除して」）。
+               文言は LpRender.mailNote に残してあるので、戻すときはここを
+               元に戻すだけでよい */
+            note: ''
           } : null
         });
       }
