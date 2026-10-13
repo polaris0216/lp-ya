@@ -1140,15 +1140,24 @@
         if (view.takePick && view.takePick[L]) { return view.takePick[L]; }
         var takes = (view.takes && view.takes[L]) || [];
         if (!takes.length) { return g.id; }
-        /* 絵のある、いちばん新しい案を選ぶ。絵の数が分からない案は
-           「ある」とみなす（調べていないだけで、空とは限らない）。
-           どれも0枚なら、いままでどおりいちばん新しい案を返す */
+        return bestTake(takes).id;
+      }
+
+      /* 絵がいちばん多い案。同じ枚数なら新しいほう。
+         「絵のある、いちばん新しい案」にしていたら、28区画のうち3枚しか
+         できていない案を選んでしまった（実測 2026-10-14: E層）。
+         作りかけの案より、絵が揃っている案を見せたい。
+         絵の数が分からない案（調べていない）は「ある」とみなして最優先
+         ——空と決めつけない */
+      function bestTake(takes) {
         var shots = view.shots || {};
-        for (var i = takes.length - 1; i >= 0; i -= 1) {
-          var id = takes[i].id;
-          if (!(id in shots) || shots[id] > 0) { return id; }
-        }
-        return takes[takes.length - 1].id;
+        var best = takes[takes.length - 1];
+        var bestN = -1;
+        takes.forEach(function (g) {
+          var n = (g.id in shots) ? shots[g.id] : Infinity;
+          if (n >= bestN) { bestN = n; best = g; }   /* >= で、同じ枚数なら新しいほう */
+        });
+        return best;
       }
 
       /* いま見ている層の「何回目の案」を選ぶ。
@@ -1522,7 +1531,7 @@
             return g.id !== view.gen.id && (view.shots || {})[g.id] > 0;
           });
           if (withShots.length) {
-            var pick = withShots[withShots.length - 1];
+            var pick = bestTake(withShots);
             add(shelf, button('btn btn--secondary btn--sm', t('lpr.goShots'), function () {
               view.takePick[String(view.gen.variant_label || '-')] = pick.id;
               switchVariant(pick.id);
