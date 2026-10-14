@@ -57,7 +57,27 @@
     'line.imagesHint': ['先に「区画を作る」で何を描くかを決め、それから1枚ずつ絵にします。',
       'Write the briefs first, then generate image by image.',
       '먼저 구획을 만들고, 그 다음 한 장씩 생성합니다.'],
-    'line.makeBrief': ['区画を作る', 'Write the briefs', '구획 만들기'],
+    'line.makeBrief': ['区画を作る（何を描くか決める）', 'Write the briefs', '구획 만들기'],
+    'line.makeAll': ['絵をまとめて作る', 'Generate all', '이미지 일괄 생성'],
+    'line.briefOnly': ['このボタンは「何を描くか」を決めるだけで、絵はまだできません。'
+      + '下の「絵を作る」か「絵をまとめて作る」を押すと作り始めます。',
+      'This only decides what to draw. Press Generate below to make the images.',
+      '이 버튼은 무엇을 그릴지 정할 뿐입니다.'],
+    /* 絵の作り先。LP案の画面（S12）と同じ鍵（projects.image_via）を使う。
+       文言は lp.* で、あちらのファイルの中だけの辞書なので、ここにも持つ */
+    'line.via': ['絵の作り先', 'Where images are made', '그림 생성처'],
+    'line.viaBrowser': ['ChatGPTの画面', 'ChatGPT (browser)', 'ChatGPT 화면'],
+    'line.viaApi': ['OpenAI API', 'OpenAI API', 'OpenAI API'],
+    'line.viaBrowserHint': ['追加の料金はかかりません。ただし回数制限があり、当たると数時間止まります',
+      'No extra cost, but rate limits can stall it for hours',
+      '추가 요금은 없지만 횟수 제한이 있습니다'],
+    'line.viaApiHint': ['1枚およそ $0.06〜0.08 かかります。回数制限は無く、速く作れます',
+      'About $0.06–0.08 per image, no rate limit',
+      '장당 약 $0.06〜0.08, 횟수 제한 없음'],
+    'line.viaApiOn': ['これからは OpenAI API で作ります（1枚 $0.06〜0.08）',
+      'Images will be made with the OpenAI API', '이제 OpenAI API로 만듭니다'],
+    'line.viaBrowserOn': ['これからは ChatGPT の画面で作ります（追加の料金なし）',
+      'Images will be made in the ChatGPT browser', '이제 ChatGPT 화면에서 만듭니다'],
     'line.briefDone': ['区画を作りました', 'Briefs written', '구획을 만들었습니다'],
     'line.needSize': ['先に形を選んで保存してください。', 'Pick and save the sizes first.', '먼저 형식을 선택해 저장하세요.'],
     'line.noBrief': ['まだ区画がありません。「区画を作る」を押してください。',
@@ -312,6 +332,37 @@
       });
     }
 
+    /* 絵をどこで作るか。LP案の画面（S12）と同じ設定（projects.image_via）を見る。
+       ここに置いたのは、この画面からも絵を作るから——別の画面まで戻って
+       切り替えるのでは、どちらで作っているのか分からないまま押すことになる
+       （2026-10-15 要望） */
+    function viaSwitch() {
+      var box = el('div', 'lp-via');
+      var now = String((view.project && view.project.image_via) || '') || 'chatgpt';
+      add(box, el('span', 'field__label', tl('line.via')));
+      [['chatgpt', 'line.viaBrowser'], ['api', 'line.viaApi']].forEach(function (one) {
+        var on = now === one[0];
+        var b = button('btn btn--sm ' + (on ? 'btn--primary' : 'btn--secondary'), tl(one[1]), function (e) {
+          if (on) { return; }
+          var node = e && e.currentTarget;
+          if (node) { node.disabled = true; }
+          Api.projects.update(projectId, { image_via: one[0] }).then(function (row) {
+            view.project = row;
+            toast(tl(one[0] === 'api' ? 'line.viaApiOn' : 'line.viaBrowserOn'), 'success');
+            paint();
+          }).catch(function (err) {
+            if (node) { node.disabled = false; }
+            console.error('[screens-line] 作り先を変えられませんでした:', err);
+            toast(t('common.error'), 'danger');
+          });
+        });
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        add(box, b);
+      });
+      add(box, el('span', 'field__hint', tl(now === 'api' ? 'line.viaApiHint' : 'line.viaBrowserHint')));
+      return box;
+    }
+
     /* ---------- 2. 絵 ---------- */
     function paintImages(box) {
       clear(box);
@@ -327,11 +378,23 @@
         queue('line_brief', { generation_id: (view.brief && view.brief.id) || '' }, 'line.briefDone', mk);
       });
       add(box, mk);
+      /* 押しても絵が出ない、と受け取られた（2026-10-15）。
+         このボタンが何をするボタンなのかを、すぐ下に書く */
+      add(box, el('p', 'field__hint', tl('line.briefOnly')));
       if (!view.brief || !isArray(view.brief.sections) || !view.brief.sections.length) {
         add(box, el('p', 'empty', tl('line.noBrief')));
         return;
       }
       var made = (view.brief.asset_prompts && view.brief.asset_prompts.made) || {};
+      /* 1枚ずつ押させない。枚数は2枚までなので、まとめて1回の仕事で積む */
+      var all = button('btn btn--primary', tl('line.makeAll'), function () {
+        queue('lp_section',
+          { generation_id: view.brief.id,
+            sections: view.brief.sections.map(function (x) { return x.index; }),
+            force: true },
+          'line.briefDone', all);
+      });
+      add(box, all);
       var grid = el('div', 'line-grid');
       view.brief.sections.forEach(function (sec) {
         var slot = String(sec.index) + '-1';
@@ -395,11 +458,14 @@
       add(box, list);
     }
 
+    var viaBox = add(body, el('div', 'line-via'));
     var sizeBox = add(body, el('section', 'section'));
     var imgBox = add(body, el('section', 'section'));
     var textBox = add(body, el('section', 'section'));
 
     function paint() {
+      clear(viaBox);
+      add(viaBox, viaSwitch());
       paintSizes(sizeBox);
       paintImages(imgBox);
       paintTexts(textBox);
