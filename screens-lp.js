@@ -25,7 +25,10 @@
   var KINDS = [
     { key: 'lp_brief', label: 'lp.kindLp' },
     { key: 'kv_brief', label: 'lp.kindKv' },
-    { key: 'ads_brief', label: 'lp.kindAds' }
+    { key: 'ads_brief', label: 'lp.kindAds' },
+    /* LINEの台。販売の条件で形を選んだ案件にだけ中身がある。
+       選んでいなければ束が空になるだけで、耳は出ない */
+    { key: 'line_brief', label: 'lp.kindLine' }
   ];
 
   /* 種類の呼び名。KINDS を引くのはここだけ */
@@ -192,6 +195,14 @@
     'lp.kindLp': ['LP', 'LP', 'LP'],
     'lp.kindKv': ['KV', 'KV', 'KV'],
     'lp.kindAds': ['メタ広告', 'Meta ads', '메타 광고'],
+    'lp.kindLine': ['LINEの台', 'LINE assets', 'LINE 소재'],
+    'lp.lineMake': ['LINEの台を作る', 'Create LINE assets', 'LINE 소재 만들기'],
+    'lp.lineMade': ['LINEの台を作りました。区画ごとに生成できます。',
+      'LINE assets created. Generate them section by section.',
+      'LINE 소재를 만들었습니다.'],
+    'lp.lineNeedPick': ['先に「販売の条件」でリッチメニュー・リッチメッセージの形を選んでください。',
+      'Pick a rich menu / rich message layout under the sale terms first.',
+      '먼저 판매 조건에서 리치메뉴·리치메시지 형식을 선택하세요.'],
     'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
     'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
     'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
@@ -668,6 +679,10 @@
             add(body, el('p', 'field__hint', t('lp.emptyHint')));
           }
           if (view.missingLabel) { add(body, el('p', 'field__hint', t('lp.kindEmptyHint'))); }
+          /* LINEの台だけは、ここから足せる。寸法も組み方も決まっていて
+             AIに書かせる所が無いので、LPを作り直さずに付けられる
+             （2026-10-14 要望:「アプリ内の作る機能を追加し、それを経由して作成」） */
+          if (view.kind === 'line_brief') { add(body, makeLineBtn()); }
           /* 種類は、いつもと同じ「耳の下の行」に出す。
              戻れないと行き止まりになるので、何も無いときも出す
              （耳の帯に入れると、層と種類の並びが入れ替わって見える） */
@@ -1585,6 +1600,47 @@
       /* 区画を1つだけ動かす。全部まとめる方（startAssets）と同じ仕事だが、
          payload に slot を入れて1点に絞る。作り直しのときは force を付ける
          （付けないと、もうあるものとして飛ばされる） */
+      /* LINEの台を、いま開いている回に足す。
+         販売の条件（リッチメニュー・リッチメッセージの形）を選んでいないと
+         ワーカーが断るので、押す前にここでも言う */
+      function makeLineBtn() {
+        var pr = view.project || {};
+        var info = (pr.sales_info && typeof pr.sales_info === 'object') ? pr.sales_info : {};
+        if (!info.line_menu && !info.line_msg) {
+          return el('p', 'field__hint', t('lp.lineNeedPick'));
+        }
+        var b = button('btn btn--primary', t('lp.lineMake'), function () {
+          if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
+          var any = view.gens[0] || (view.byKind.lp_brief || [])[0];
+          if (!any) { toast(t('lp.empty'), 'danger'); return; }
+          b.disabled = true;
+          Api.generationJobs.insert({
+            feature_key: 'line_brief',
+            status: 'pending',
+            projects_id: projectId,
+            users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
+            payload: { generation_id: any.id },
+            lang: currentLocale()
+          }).then(function (job) {
+            if (!App.watchJob) { b.disabled = false; return; }
+            App.watchJob({
+              jobId: job.id,
+              titleKey: 'lp.kindLine',
+              urls: [],
+              onDone: function () {
+                reloadAll().then(function () { b.disabled = false; toast(t('lp.lineMade'), 'success'); paint(); });
+              },
+              onFail: function () { b.disabled = false; paint(); }
+            });
+          }).catch(function (err) {
+            b.disabled = false;
+            console.error('[screens-lp] LINEの台を積めませんでした:', err);
+            toast(t('common.error'), 'danger');
+          });
+        });
+        return b;
+      }
+
       function generateMotion(index, redo) {
         if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
         var slot = String(index) + '-1';
@@ -2430,7 +2486,10 @@
          （Finder は正しく開くが、受け取った人の道具を選ばない形にする）。
          層の名前は中の一覧（README.txt）に書く */
       function zipName(kind) {
-        return kind === 'kv_brief' ? 'KV' : (kind === 'ads_brief' ? 'ADS' : 'LP');
+        if (kind === 'kv_brief') { return 'KV'; }
+        if (kind === 'ads_brief') { return 'ADS'; }
+        if (kind === 'line_brief') { return 'LINE'; }
+        return 'LP';
       }
 
       function downloadZip(node) {
