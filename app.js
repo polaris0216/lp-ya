@@ -89,6 +89,8 @@
     /* LP案とその生成結果。S20（総合分析）から作って S12 で直し、S13 で組む */
     S12: { tab: null, back: 'S20', auth: true, admin: false },
     S13: { tab: null, back: 'S12', auth: true, admin: false },
+    /* LINEコンテンツ。生成結果（S13）の次の工程 */
+    S21: { tab: null, back: 'S13', auth: true, admin: false },
     S17: { tab: 'S17', back: 'S3', auth: true, admin: false },
     S18: { tab: 'S18', back: 'S3', auth: true, admin: true },
     S19: { tab: null, back: 'S18', auth: true, admin: true },
@@ -96,7 +98,7 @@
   };
 
   /* プロジェクトに紐づく画面は、戻り先を作るときに選択中のプロジェクトIDを付ける */
-  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S20', 'S12', 'S13'];
+  var PROJECT_SCOPED = ['S5', 'S6', 'S7', 'S8', 'S10', 'S11', 'S20', 'S12', 'S13', 'S21'];
 
   /* プロジェクトを作ってから仕上げるまでの工程。この並びで上にタブを出し、
      どの工程からでも他の工程へ直接行けるようにする。
@@ -111,7 +113,10 @@
     { id: 'S11', labelKey: 'wf.report' },
     { id: 'S20', labelKey: 'wf.overall' },
     { id: 'S12', labelKey: 'wf.prompt' },
-    { id: 'S13', labelKey: 'wf.result' }
+    { id: 'S13', labelKey: 'wf.result' },
+    /* 生成結果の次。LINE公式アカウントで使う絵と文章を作る工程
+       （2026-10-15 要望）。LPが出来てからでないと口調がそろわないので、最後 */
+    { id: 'S21', labelKey: 'wf.line' }
   ];
 
   /* 下層の画面にいるときも、どの工程の中にいるのかを示す。
@@ -135,6 +140,7 @@
       'wf.report': '分析レポート',
       'wf.prompt': '生成プロンプト',
       'wf.result': '生成結果',
+      'wf.line': 'LINEコンテンツ',
       'common.mainNav': 'メインナビゲーション',
       'common.loading': '読み込み中…',
       'common.retry': '再試行',
@@ -180,6 +186,7 @@
       'screen.S18': '管理者ダッシュボード',
       'screen.S19': '機能別価格設定',
       'screen.S20': '総合分析',
+      'screen.S21': 'LINEコンテンツ',
       'screen.settings': '設定',
       'settings.language': '表示言語',
       'settings.openAiKey': 'OpenAI の API キー',
@@ -274,6 +281,7 @@
       'screen.S18': 'Admin dashboard',
       'screen.S19': 'Feature pricing',
       'screen.S20': 'Overall analysis',
+      'screen.S21': 'LINE content',
       'screen.settings': 'Settings',
       'settings.language': 'Language',
       'settings.openAiKey': 'OpenAI API key',
@@ -368,6 +376,7 @@
       'screen.S18': '관리자 대시보드',
       'screen.S19': '기능별 가격 설정',
       'screen.S20': '종합 분석',
+      'screen.S21': 'LINE 콘텐츠',
       'screen.settings': '설정',
       'settings.language': '표시 언어',
       'settings.openAiKey': 'OpenAI API 키',

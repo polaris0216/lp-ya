@@ -4721,3 +4721,60 @@ input[type='radio'] {
   border: 1px solid var(--line, #E3E0E8); border-radius: 6px; padding: 3px;
 }
 .is-hidden { display: none; }
+
+/* ---- S21 LINEコンテンツ ----
+   絵は実寸がばらばら（2500×1686 も 1040×1850 もある）ので、
+   幅だけそろえて高さは中身に任せる。切ると形が分からなくなる */
+.line-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-group);
+}
+
+.line-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+}
+
+.line-card__title {
+  font-family: var(--font-sub);
+  font-size: var(--fs-note);
+  margin: 0;
+}
+
+.line-card__img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-control);
+  background: var(--c-bg);
+}
+
+.line-texts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-group);
+}
+
+.line-text {
+  padding: 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+}
+
+.line-text__when {
+  font-family: var(--font-sub);
+  font-size: var(--fs-note);
+  margin: 0 0 6px;
+}
+
+/* 送る文章は改行がそのまま意味になる（LINEは書いたとおりに出る） */
+.line-text__body {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
