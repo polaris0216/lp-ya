@@ -286,6 +286,12 @@
       + '実際に出す割引だけを入れてください（景品表示法）。',
       'Shown as the biggest line of the LINE block. Only enter a discount you will actually offer.',
       'LINE 등록 블록에서 가장 크게 표시됩니다.'],
+    'lp.pubFunded': ['いまの達成金額・達成率', 'Amount raised so far', '현재 달성 금액'],
+    'lp.pubFundedPh': ['300万円', '3,000,000 yen', '300만엔'],
+    'lp.pubFundedHint': ['LINEのリッチメッセージ・リッチメニューで、いちばん大きく出ます。'
+      + '実際の数字だけを入れてください（空ならAIは数字を出しません）。',
+      'Shown as the biggest element of LINE rich messages and menus. Enter the real figure only.',
+      'LINE 리치메시지·리치메뉴에서 가장 크게 표시됩니다.'],
     'lp.pubLineMenu': ['LINEリッチメニューの形', 'LINE rich menu layout', 'LINE 리치메뉴 형식'],
     'lp.pubLineMenuHint': ['トーク画面の下に出しっぱなしになる台です。選んだ形の寸法で絵を作ります。'
       + '大は2500×1686、小は2500×843（LINEが受け取る寸法）。',
@@ -1873,6 +1879,7 @@
         /* 上の2つは LINE登録の塊の2行目・3行目になる。事実なので AI には書かせない */
         [['sale_start', 'lp.pubStart', 'lp.pubStartPh', 'lp.pubStartHint'],
           ['discount', 'lp.pubOff', 'lp.pubOffPh', 'lp.pubOffHint'],
+          ['funded', 'lp.pubFunded', 'lp.pubFundedPh', 'lp.pubFundedHint'],
           ['shipping', 'lp.pubShipping', 'lp.pubShippingPh', ''],
           ['delivery', 'lp.pubDelivery', 'lp.pubDeliveryPh', ''],
           ['warranty', 'lp.pubWarranty', 'lp.pubWarrantyPh', ''],
@@ -1958,6 +1965,7 @@
           ['大-2x', '大・左右2枠（2500×1686）'],
           ['大-3L', '大・左に商品＋右に2枠（2500×1686）'],
           ['大-3y', '大・上1枠＋下2枠（2500×1686）'],
+          ['大-1+3', '大・上1枠＋下3枠（2500×1686）'],
           ['大-4', '大・4枠（2500×1686）'],
           ['大-6', '大・2段3列（2500×1686）'],
           ['小-1', '小・全面1枠（2500×843）'],
