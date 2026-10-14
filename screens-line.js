@@ -23,37 +23,16 @@
   var App = window.App = window.App || {};
   var LOCALES = ['ja', 'en', 'ko'];
 
-  /* 形の一覧。S12 の販売の条件と同じ並びにする（別物に見えると迷う）。
-     寸法の決まりそのものは tools/line-assets.mjs が持っていて、
-     ここは選ばせるだけ。鍵も sales_info.line_menu / line_msg で同じ */
-  var MENU_SIZES = [
-    ['', 'lp.pubLineNone'],
-    ['大-1', '大・全面1枠（2500×1686）'],
-    ['大-2x', '大・左右2枠（2500×1686）'],
-    ['大-3L', '大・左に商品＋右に2枠（2500×1686）'],
-    ['大-3y', '大・上1枠＋下2枠（2500×1686）'],
-    ['大-1+3', '大・上1枠＋下3枠（2500×1686）'],
-    ['大-4', '大・4枠（2500×1686）'],
-    ['大-6', '大・2段3列（2500×1686）'],
-    ['小-1', '小・全面1枠（2500×843）'],
-    ['小-2x', '小・左右2枠（2500×843）'],
-    ['小-3x', '小・横3枠（2500×843）']
-  ];
-  var MSG_SIZES = [
-    ['', 'lp.pubLineNone'],
-    ['正方形A', '正方形・1枠（1040×1040）'],
-    ['正方形B', '正方形・左右2枠（1040×1040）'],
-    ['正方形C', '正方形・上下2枠（1040×1040）'],
-    ['正方形E', '正方形・4枠（1040×1040）'],
-    ['正方形H', '正方形・2段3列（1040×1040）'],
-    ['正方形K', '正方形・左大＋右2枠（1040×1040）'],
-    ['横長A', '横長・細1枠（1040×350）'],
-    ['横長B', '横長・1枠（1040×700）'],
-    ['横長D', '横長・1枠（1040×585）'],
-    ['縦長A', '縦長・1枠（1040×1300）'],
-    ['縦長E', '縦長・長い1枠（1040×1850）'],
-    ['カスタム', 'カスタム（1040×高さ自由）']
-  ];
+  /* 形の一覧は line-layouts.js（tools/make-line-layouts.mjs が焼く）から読む。
+     ここに書き写すと、寸法を足したときに必ずずれる */
+  function layouts(kind) {
+    var all = window.LPYA_LINE_LAYOUTS || null;
+    if (!all) {
+      console.error('[screens-line] line-layouts.js が読み込まれていません');
+      return [];
+    }
+    return all[kind] || [];
+  }
 
   var LOCAL = {
     'line.title': ['LINEコンテンツ', 'LINE content', 'LINE 콘텐츠'],
@@ -114,12 +93,6 @@
     return row[localeIndex()] || row[0];
   }
 
-  /* 形の名札。LOCAL の鍵（lp.pubLineNone）ならそれを引き、
-     そうでなければ寸法つきの文字列をそのまま出す */
-  function sizeLabel(label) {
-    return /^[a-z]+\./.test(label) ? t(label) : label;
-  }
-
   function el(tag, className, textContent) {
     var node = document.createElement(tag);
     if (className) { node.className = className; }
@@ -171,17 +144,30 @@
 
     var view = { project: null, brief: null, images: null, texts: null, busy: {} };
 
+    /* 絵のある束を選ぶ。いちばん新しい1本にすると、区画を作り直した直後に
+       「絵が1枚も無い」画面になる（実測 2026-10-15: 作った絵は1つ前の束にあった）。
+       生成結果（S13）の bestTake と同じ決め方: 絵の多い順 → 新しい順 */
+    function bestOf(rows) {
+      var list = isArray(rows) ? rows.slice() : [];
+      list.sort(function (a, b) {
+        var na = Object.keys((a.asset_prompts && a.asset_prompts.made) || {}).length;
+        var nb = Object.keys((b.asset_prompts && b.asset_prompts.made) || {}).length;
+        if (na !== nb) { return nb - na; }
+        return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+      });
+      return list[0] || null;
+    }
+
     function reload() {
       return Promise.all([
         Api.projects.get(projectId),
-        /* 絵の区画（line_brief）と文章（line_copy）。どちらも新しい順で1本だけ見る */
-        Api.generations.first({ eq: { projects_id: projectId, feature_key: 'line_brief' },
-          order: 'created_at.desc' }),
+        Api.generations.list({ eq: { projects_id: projectId, feature_key: 'line_brief' },
+          order: 'created_at.desc', limit: 20 }),
         Api.generations.first({ eq: { projects_id: projectId, feature_key: 'line_copy' },
           order: 'created_at.desc' })
       ]).then(function (got) {
         view.project = got[0];
-        view.brief = got[1];
+        view.brief = bestOf(got[1]);
         view.texts = got[2];
       });
     }
@@ -194,26 +180,63 @@
       add(box, el('h2', 'section__title', tl('line.sizes')));
       add(box, el('p', 'field__hint', tl('line.sizesHint')));
 
-      function pick(list, value) {
-        var sel = el('select', 'input');
-        list.forEach(function (one) {
-          var op = el('option', '', sizeLabel(one[1]));
-          op.value = one[0];
-          if (one[0] === value) { op.selected = true; }
-          add(sel, op);
+      /* 形は文字で並べても分からない（2026-10-15 指摘）。
+         実際の縦横比と枠の割り方を、小さな見本で描く。
+         押して選ぶ形にして、選んだものに印を付ける */
+      function pick(kind, value, onPick) {
+        var wrap = el('div', 'line-pick');
+        var state = { value: value };
+        var none = button('line-pick__one' + (value ? '' : ' is-on'), '', function () {
+          state.value = '';
+          paintPick();
+          onPick('');
         });
-        return sel;
+        add(none, el('span', 'line-pick__none', '—'));
+        add(none, el('span', 'line-pick__name', t('lp.pubLineNone')));
+        add(wrap, none);
+        layouts(kind).forEach(function (L) {
+          var b = button('line-pick__one' + (L.id === value ? ' is-on' : ''), '', function () {
+            state.value = L.id;
+            paintPick();
+            onPick(L.id);
+          });
+          b.setAttribute('data-id', L.id);
+          /* 見本。高さは幅から縦横比で出す。カスタム（高さ未定）は
+             いちばん短い高さで描く——「高さは自由」と名前に出ている */
+          var h = L.h || L.hMin || 1040;
+          var shape = el('div', 'line-pick__shape');
+          shape.style.aspectRatio = String(L.w) + ' / ' + String(h);
+          L.cells.forEach(function (c) {
+            var cell = el('span', 'line-pick__cell');
+            cell.style.left = (c.x * 100) + '%';
+            cell.style.top = (c.y * 100) + '%';
+            cell.style.width = (c.w * 100) + '%';
+            cell.style.height = (c.h * 100) + '%';
+            add(shape, cell);
+          });
+          add(b, shape);
+          add(b, el('span', 'line-pick__name', L.name));
+          add(b, el('span', 'line-pick__size', L.h ? (L.w + '×' + L.h) : (L.w + '×高さ自由')));
+          add(wrap, b);
+        });
+        function paintPick() {
+          [].slice.call(wrap.children).forEach(function (node) {
+            var id = node.getAttribute('data-id') || '';
+            node.className = 'line-pick__one' + (id === state.value ? ' is-on' : '');
+          });
+        }
+        return wrap;
       }
+
+      var chosen = { menu: String(info.line_menu || ''), msg: String(info.line_msg || '') };
       var fm = el('div', 'field');
       add(fm, el('label', 'field__label', t('lp.pubLineMenu')));
-      var menuSel = pick(MENU_SIZES, String(info.line_menu || ''));
-      add(fm, menuSel);
+      add(fm, pick('menu', chosen.menu, function (id) { chosen.menu = id; }));
       add(box, fm);
 
       var fg = el('div', 'field');
       add(fg, el('label', 'field__label', t('lp.pubLineMsg')));
-      var msgSel = pick(MSG_SIZES, String(info.line_msg || ''));
-      add(fg, msgSel);
+      add(fg, pick('message', chosen.msg, function (id) { chosen.msg = id; showH(); }));
       add(box, fg);
 
       var fh = el('div', 'field');
@@ -225,18 +248,17 @@
       hIn.value = String(info.line_msg_h || '');
       add(fh, hIn);
       add(box, fh);
-      function showH() { fh.style.display = msgSel.value === 'カスタム' ? '' : 'none'; }
-      msgSel.addEventListener('change', showH);
+      function showH() { fh.style.display = chosen.msg === 'カスタム' ? '' : 'none'; }
       showH();
 
       add(box, button('btn btn--secondary', tl('line.save'), function () {
         var next = {};
         Object.keys(info).forEach(function (k) { next[k] = info[k]; });
-        next.line_menu = menuSel.value;
-        next.line_msg = msgSel.value;
+        next.line_menu = chosen.menu;
+        next.line_msg = chosen.msg;
         /* カスタムのときだけ高さを持つ。決まった形に高さを残すと、
            あとで形を替えたときに古い高さが効いてしまう */
-        next.line_msg_h = msgSel.value === 'カスタム'
+        next.line_msg_h = chosen.msg === 'カスタム'
           ? Math.min(2080, Math.max(520, Number(hIn.value) || 1040)) : '';
         Api.projects.update(projectId, { sales_info: next }).then(function () {
           view.project.sales_info = next;
