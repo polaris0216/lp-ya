@@ -231,6 +231,13 @@
             node.className = 'line-pick__one' + (id === state.value ? ' is-on' : '');
           });
         }
+        /* 箱の中だけを送るので、いま選んでいるものが隠れていることがある。
+           開いたときに、選んでいる所まで中を送っておく */
+        window.requestAnimationFrame(function () {
+          var on = wrap.querySelector('.is-on');
+          if (!on || on === wrap.firstChild) { return; }
+          wrap.scrollTop = Math.max(0, on.offsetTop - wrap.clientHeight / 2 + on.offsetHeight / 2);
+        });
         return wrap;
       }
 

@@ -4781,10 +4781,23 @@ input[type='radio'] {
 
 /* 形を選ぶところ。文字だけ並べても、どの寸法か分からない
    （2026-10-15 指摘）。縦横比と枠の割り方をそのまま小さく描く */
+/* 形は30種あり、全部並べると画面が縦に伸びすぎる（2026-10-15 指摘）。
+   高さを決めた箱に入れて、中だけスクロールさせる */
 .line-pick {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 10px;
+  max-height: 268px;
+  overflow-y: auto;
+  /* 中の位置を測る基準をこの箱にする。無いと offsetTop が外の要素からの
+     距離になり、選んでいる所まで送るつもりが見当違いの所へ飛ぶ */
+  position: relative;
+  padding: 10px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface-2);
+  /* 箱の中で止める。中を端まで送っても、外のページが動き出さない */
+  overscroll-behavior: contain;
 }
 
 .line-pick__one {
