@@ -36,6 +36,12 @@
 
   var LOCAL = {
     'line.title': ['LINEコンテンツ', 'LINE content', 'LINE 콘텐츠'],
+    /* lp.pubLine* は screens-lp.js の中だけの辞書なので、ここからは引けない。
+       引くと鍵の文字（lp.pubLineMenu）がそのまま画面に出る
+       （2026-10-15 指摘「このままの表記ではなんなのかわからない」） */
+    'line.menuLabel': ['LINEリッチメニューの形', 'LINE rich menu layout', 'LINE 리치메뉴 형식'],
+    'line.msgLabel': ['LINEリッチメッセージの形', 'LINE rich message layout', 'LINE 리치메시지 형식'],
+    'line.none': ['作らない', 'None', '만들지 않음'],
     'line.lead': ['LINE公式アカウントで使う、リッチメニュー・リッチメッセージの絵と、送る文章を作ります。'
       + '絵は商品写真を見本にして作り、掲載先の公式ロゴはあとから貼ります。',
       'Rich menu and rich message images, plus the copy you send. Images use your product photos; the platform logo is stamped in afterwards.',
@@ -192,7 +198,7 @@
           onPick('');
         });
         add(none, el('span', 'line-pick__none', '—'));
-        add(none, el('span', 'line-pick__name', t('lp.pubLineNone')));
+        add(none, el('span', 'line-pick__name', tl('line.none')));
         add(wrap, none);
         layouts(kind).forEach(function (L) {
           var b = button('line-pick__one' + (L.id === value ? ' is-on' : ''), '', function () {
@@ -230,12 +236,12 @@
 
       var chosen = { menu: String(info.line_menu || ''), msg: String(info.line_msg || '') };
       var fm = el('div', 'field');
-      add(fm, el('label', 'field__label', t('lp.pubLineMenu')));
+      add(fm, el('label', 'field__label', tl('line.menuLabel')));
       add(fm, pick('menu', chosen.menu, function (id) { chosen.menu = id; }));
       add(box, fm);
 
       var fg = el('div', 'field');
-      add(fg, el('label', 'field__label', t('lp.pubLineMsg')));
+      add(fg, el('label', 'field__label', tl('line.msgLabel')));
       add(fg, pick('message', chosen.msg, function (id) { chosen.msg = id; showH(); }));
       add(box, fg);
 
