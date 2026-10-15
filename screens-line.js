@@ -168,7 +168,7 @@
     add(screen, body);
     add(root, screen);
 
-    var view = { project: null, brief: null, images: null, texts: null, busy: {} };
+    var view = { project: null, brief: null, layers: {}, layer: '', texts: null, busy: {} };
 
     /* 絵のある束を選ぶ。いちばん新しい1本にすると、区画を作り直した直後に
        「絵が1枚も無い」画面になる（実測 2026-10-15: 作った絵は1つ前の束にあった）。
@@ -184,6 +184,19 @@
       return list[0] || null;
     }
 
+    /* 層ごとに1本ずつ選ぶ。LINEの台は層ぶん作るので、1層ぶんしか出さないと
+       「B〜E層のぶんが画面に出ない」ことになる（2026-10-15 指摘）。
+       層の中では bestOf と同じ決め方 */
+    function byLayer(rows) {
+      var out = {};
+      (isArray(rows) ? rows : []).forEach(function (g) {
+        var L = String(g.variant_label || '-');
+        (out[L] = out[L] || []).push(g);
+      });
+      Object.keys(out).forEach(function (L) { out[L] = bestOf(out[L]); });
+      return out;
+    }
+
     function reload() {
       return Promise.all([
         Api.projects.get(projectId),
@@ -193,7 +206,12 @@
           order: 'created_at.desc' })
       ]).then(function (got) {
         view.project = got[0];
-        view.brief = bestOf(got[1]);
+        view.layers = byLayer(got[1]);
+        /* 開いて見せる層。ABCDE順の先頭（生成結果の画面と同じ決め）。
+           いま見ている層が消えていなければ、そのまま残す */
+        var names = Object.keys(view.layers).sort();
+        if (!view.layer || names.indexOf(view.layer) === -1) { view.layer = names[0] || ''; }
+        view.brief = view.layers[view.layer] || null;
         view.texts = got[2];
       });
     }
@@ -384,6 +402,25 @@
       if (!view.brief || !isArray(view.brief.sections) || !view.brief.sections.length) {
         add(box, el('p', 'empty', tl('line.noBrief')));
         return;
+      }
+      /* 層の耳。どの層のぶんを見ているかが分からないと、作ったのに
+         「出ていない」と見える。何枚できているかも耳に出す */
+      var names = Object.keys(view.layers).sort();
+      if (names.length > 1) {
+        var tabs = el('div', 'lp-delivs lp-delivs--variants');
+        names.forEach(function (L) {
+          var g = view.layers[L];
+          var n = Object.keys((g && g.asset_prompts && g.asset_prompts.made) || {}).length;
+          var tot = (g && isArray(g.sections)) ? g.sections.length : 0;
+          var on = L === view.layer;
+          var b = button('lp-deliv' + (on ? ' lp-deliv--on' : '') + (n ? '' : ' lp-deliv--empty'), '',
+            function () { view.layer = L; view.brief = view.layers[L]; paint(); });
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          add(b, el('span', 'lp-variant__label', L));
+          add(b, el('span', 'lp-deliv__count' + (n ? '' : ' is-none'), ' ' + n + '/' + tot));
+          add(tabs, b);
+        });
+        add(box, tabs);
       }
       var made = (view.brief.asset_prompts && view.brief.asset_prompts.made) || {};
       /* 1枚ずつ押させない。枚数は2枚までなので、まとめて1回の仕事で積む */
