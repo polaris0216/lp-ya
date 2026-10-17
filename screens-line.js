@@ -59,6 +59,20 @@
       '먼저 구획을 만들고, 그 다음 한 장씩 생성합니다.'],
     'line.makeBrief': ['区画を作る（何を描くか決める）', 'Write the briefs', '구획 만들기'],
     'line.makeAll': ['絵をまとめて作る', 'Generate all', '이미지 일괄 생성'],
+    /* 枠ごとに別の商品を出す（2026-10-18 要望）。
+       商品は別のプロジェクトから呼び出す */
+    'line.ask': ['他のプロジェクトから商品を呼び出しますか？',
+      'Pull products from other projects?', '다른 프로젝트에서 상품을 불러올까요?'],
+    'line.askHint': ['リッチメニューは、枠ごとに別の商品を出せます。'
+      + '呼び出すと、その商品の名前・割引率・写真をそのまま使って枠に割り当てます。',
+      'A rich menu can show a different product per cell.',
+      '리치메뉴는 칸마다 다른 상품을 넣을 수 있습니다.'],
+    'line.askNo': ['いいえ（この商品だけ）', 'No (this product only)', '아니요'],
+    'line.askYes': ['はい、呼び出す', 'Yes, pull them in', '네, 불러오기'],
+    'line.pickProjects': ['出す商品を選ぶ（枠の順に割り当てます）',
+      'Pick the products (assigned to cells in order)', '상품 선택'],
+    'line.noOther': ['他のプロジェクトがありません。', 'No other projects.', '다른 프로젝트가 없습니다.'],
+    'line.saved2': ['呼び出す商品を保存しました', 'Saved', '저장했습니다'],
     'line.briefOnly': ['このボタンは「何を描くか」を決めるだけで、絵はまだできません。'
       + '下の「絵を作る」か「絵をまとめて作る」を押すと作り始めます。',
       'This only decides what to draw. Press Generate below to make the images.',
@@ -203,7 +217,10 @@
         Api.generations.list({ eq: { projects_id: projectId, feature_key: 'line_brief' },
           order: 'created_at.desc', limit: 20 }),
         Api.generations.first({ eq: { projects_id: projectId, feature_key: 'line_copy' },
-          order: 'created_at.desc' })
+          order: 'created_at.desc' }),
+        /* 枠に出す商品の選択肢。自分の案件だけが返る（RLS） */
+        Api.projects.list({ select: 'id,name,product_name', order: 'created_at.desc', limit: 50 })
+          .catch(function () { return []; })
       ]).then(function (got) {
         view.project = got[0];
         view.layers = byLayer(got[1]);
@@ -213,6 +230,7 @@
         if (!view.layer || names.indexOf(view.layer) === -1) { view.layer = names[0] || ''; }
         view.brief = view.layers[view.layer] || null;
         view.texts = got[2];
+        view.others = isArray(got[3]) ? got[3] : [];
       });
     }
 
@@ -381,6 +399,67 @@
       return box;
     }
 
+    /* 枠ごとに別の商品を出すか（2026-10-18 要望）。
+       「はい」を選んだら、同じ利用者のほかのプロジェクトを並べて選ばせる。
+       選んだ順がそのまま枠の順になる */
+    function paintPull(box) {
+      clear(box);
+      var pr = view.project || {};
+      var info = (pr.sales_info && typeof pr.sales_info === 'object') ? pr.sales_info : {};
+      var chosen = isArray(info.line_projects) ? info.line_projects.slice() : [];
+      add(box, el('h3', 'section__title', tl('line.ask')));
+      add(box, el('p', 'field__hint', tl('line.askHint')));
+
+      var row = el('div', 'line-ask');
+      var on = chosen.length > 0 || view.pullOpen;
+      [[false, 'line.askNo'], [true, 'line.askYes']].forEach(function (one) {
+        var b = button('btn btn--sm ' + (one[0] === on ? 'btn--primary' : 'btn--secondary'),
+          tl(one[1]), function () {
+            view.pullOpen = one[0];
+            if (!one[0] && chosen.length) { save([]); return; }
+            paint();
+          });
+        b.setAttribute('aria-pressed', one[0] === on ? 'true' : 'false');
+        add(row, b);
+      });
+      add(box, row);
+      if (!on) { return; }
+
+      var others = (view.others || []).filter(function (x) { return String(x.id) !== String(projectId); });
+      if (!others.length) { add(box, el('p', 'empty', tl('line.noOther'))); return; }
+      add(box, el('p', 'field__label', tl('line.pickProjects')));
+      var list = el('div', 'line-pull');
+      others.forEach(function (o) {
+        var at = chosen.indexOf(String(o.id));
+        var b = button('line-pull__one' + (at >= 0 ? ' is-on' : ''), '', function () {
+          var next = chosen.slice();
+          var i = next.indexOf(String(o.id));
+          if (i >= 0) { next.splice(i, 1); } else { next.push(String(o.id)); }
+          save(next);
+        });
+        /* 何番目の枠に入るかを出す。選んだ順がそのまま枠の順 */
+        add(b, el('span', 'line-pull__no', at >= 0 ? String(at + 2) : '＋'));
+        add(b, el('span', 'line-pull__name', String(o.product_name || o.name || '')));
+        add(list, b);
+      });
+      add(box, list);
+
+      function save(next) {
+        var patch = {};
+        Object.keys(info).forEach(function (k) { patch[k] = info[k]; });
+        patch.line_projects = next;
+        Api.projects.update(projectId, { sales_info: patch }).then(function (rowP) {
+          view.project = rowP;
+          view.pullOpen = next.length > 0;
+          toast(tl('line.saved2'), 'success');
+          paint();
+        }).catch(function (err) {
+          console.error('[screens-line] 呼び出す商品を保存できませんでした:', err);
+          toast(t('common.error'), 'danger');
+        });
+      }
+    }
+
     /* ---------- 2. 絵 ---------- */
     function paintImages(box) {
       clear(box);
@@ -501,6 +580,7 @@
 
     var viaBox = add(body, el('div', 'line-via'));
     var sizeBox = add(body, el('section', 'section'));
+    var pullBox = add(body, el('section', 'section'));
     var imgBox = add(body, el('section', 'section'));
     var textBox = add(body, el('section', 'section'));
 
@@ -508,6 +588,7 @@
       clear(viaBox);
       add(viaBox, viaSwitch());
       paintSizes(sizeBox);
+      paintPull(pullBox);
       paintImages(imgBox);
       paintTexts(textBox);
     }
