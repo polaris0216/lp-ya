@@ -360,6 +360,10 @@
 
     // 自動入力ジョブの進行状況ウィンドウ
     'job.title': ['参考ページを読み取り中', 'Reading the reference page', '참고 페이지를 읽는 중'],
+    /* LINEコンテンツ（S21）の進み具合に出す。watchJob は共通の辞書しか
+       引けないので、画面の中だけの辞書に置くと鍵がそのまま出る
+       （実測 2026-10-18: 進み具合の見出しが「line.title」になっていた） */
+    'job.lineAssets': ['LINEの素材を作成中', 'Making LINE assets', 'LINE 소재 생성 중'],
     'job.titleTargets': ['ターゲット案を作成中', 'Building target segments', '타깃 안 생성 중'],
     // ==== wf: プロジェクトの工程タブ（画面上部） ====
     'wf.input': ['商品入力', 'Product', '상품 입력'],

@@ -338,7 +338,7 @@
         if (!App.watchJob) { reload().then(paint); return; }
         App.watchJob({
           jobId: job.id,
-          titleKey: 'line.title',
+          titleKey: 'job.lineAssets',
           urls: [],
           onDone: function () { reload().then(function () { toast(tl(doneKey), 'success'); paint(); }); },
           onFail: function () { reload().then(paint); }
@@ -393,7 +393,11 @@
         return;
       }
       var mk = button('btn btn--secondary', tl('line.makeBrief'), function () {
-        queue('line_brief', { generation_id: (view.brief && view.brief.id) || '' }, 'line.briefDone', mk);
+        /* どの回に足すかはワーカーが決める（いちばん新しい回）。
+           ここで空の generation_id を渡していたため、初回は必ず
+           「どの回に足すかが指定されていません」で失敗していた
+           （実測 2026-10-18） */
+        queue('line_brief', view.brief ? { generation_id: view.brief.id } : {}, 'line.briefDone', mk);
       });
       add(box, mk);
       /* 押しても絵が出ない、と受け取られた（2026-10-15）。
