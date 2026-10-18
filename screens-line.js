@@ -619,7 +619,9 @@
             status: 'pending',
             projects_id: projectId,
             users_id: userId(),
-            payload: { generation_id: g.id,
+            /* feature_key も渡す。案が入れ替わっていたとき、ワーカーが
+               同じ種類のいちばん新しい案に回せる（2026-10-18） */
+            payload: { generation_id: g.id, feature_key: 'line_brief',
               sections: g.sections.map(function (x) { return x.index; }), force: true },
             lang: currentLocale()
           });
@@ -661,7 +663,8 @@
         }
         var b = button('btn btn--primary btn--sm', url ? tl('line.remake') : tl('line.make'), function () {
           queue('lp_section',
-            { generation_id: view.brief.id, sections: [sec.index], force: !!url },
+            { generation_id: view.brief.id, feature_key: 'line_brief',
+              sections: [sec.index], force: !!url },
             'line.briefDone', b);
         });
         add(card, b);
