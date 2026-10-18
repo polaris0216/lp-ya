@@ -762,6 +762,23 @@
           img.src = url;
           img.alt = String(sec.title || '');
           img.loading = 'lazy';
+          /* 押したらそのまま大きく見る（2026-10-18 要望）。
+             拡大の窓はアプリ共通のものを使う（左右で送れる）。
+             同じ層のできている絵を順に並べて渡す */
+          img.addEventListener('click', function (event) {
+            if (!App || typeof App.openViewer !== 'function') { return; }
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) { return; }
+            event.preventDefault();
+            var shots = [];
+            var at = 0;
+            (view.brief.sections || []).forEach(function (x) {
+              var u = made[String(x.index) + '-1'];
+              if (!u) { return; }
+              if (Number(x.index) === Number(sec.index)) { at = shots.length; }
+              shots.push({ type: 'image', src: u, label: String(x.title || '') });
+            });
+            App.openViewer(shots, at);
+          });
           add(card, img);
           var a = el('a', 'btn btn--text btn--sm', tl('line.open'));
           a.href = url;

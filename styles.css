@@ -4909,3 +4909,6 @@ input[type='radio'] {
 }
 
 .line-prompt__add { width: 100%; font-size: var(--fs-note); }
+
+/* 生成された絵は押したら大きく見える。押せると分かるようにする */
+.line-card__img { cursor: zoom-in; }
