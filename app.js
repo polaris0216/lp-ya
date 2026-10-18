@@ -1703,7 +1703,13 @@
   }
 
   function elapsedText() {
-    var sec = Math.max(0, Math.round((new Date().getTime() - watch.startedAt) / 1000));
+    /* 終わった仕事では時計を止める。止めないと、失敗の報せが出たあとも
+       経過だけ伸び続け、「いまも失敗し続けている」ように見える
+       （2026-10-18 指摘: 同じ失敗の窓が 8:23 → 14:36 と育っていた） */
+    var end = (watch.status === 'failed' || watch.status === 'cancelled' || watch.status === 'done')
+      ? (watch.endedAt || (watch.endedAt = new Date().getTime()))
+      : new Date().getTime();
+    var sec = Math.max(0, Math.round((end - watch.startedAt) / 1000));
     var m = Math.floor(sec / 60);
     var sr = sec % 60;
     return (m ? m + ':' : '') + (m ? (sr < 10 ? '0' + sr : String(sr)) : sr + 's');
@@ -1893,6 +1899,11 @@
 
   function tickWatch() {
     if (!watch || !watch.timeNode) { return; }
+    /* 終わっていたら、進み具合の作り直しもしない（止まった表示のままにする） */
+    if (watch.status === 'failed' || watch.status === 'cancelled' || watch.status === 'done') {
+      watch.timeNode.textContent = t('job.elapsed', { t: elapsedText() });
+      return;
+    }
     watch.timeNode.textContent = t('job.elapsed', { t: elapsedText() });
     var pct = progressValue();
     if (watch.pctNode) { watch.pctNode.textContent = pct === null ? '' : pct + '%'; }

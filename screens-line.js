@@ -370,11 +370,24 @@
        （2026-10-18 指摘「生成されても全く表示されない」）。
        画面を離れたら止める */
     var poll = null;
+    var pollUntil = 0;
     function startPoll() {
+      /* 40分で諦める。押しっぱなしで一日中たたき続けない */
+      pollUntil = new Date().getTime() + 40 * 60 * 1000;
       if (poll) { return; }
       poll = window.setInterval(function () {
-        if (!document.body.contains(root)) { stopPoll(); return; }
-        reload().then(paint).catch(function () { /* 次の回で拾う */ });
+        if (!document.body.contains(root) || new Date().getTime() > pollUntil) { stopPoll(); return; }
+        reload().then(function () {
+          paint();
+          /* 層ぜんぶの絵がそろったら、もう見に行かない */
+          var names2 = Object.keys(view.layers);
+          var all = names2.length && names2.every(function (L) {
+            var g = view.layers[L];
+            var n = Object.keys((g && g.asset_prompts && g.asset_prompts.made) || {}).length;
+            return g && isArray(g.sections) && n >= g.sections.length;
+          });
+          if (all) { stopPoll(); }
+        }).catch(function () { /* 次の回で拾う */ });
       }, 20000);
     }
     function stopPoll() {
@@ -626,15 +639,21 @@
             lang: currentLocale()
           });
         })).then(function (jobs) {
-          var last = jobs[jobs.length - 1];
-          if (!App.watchJob || !last) { reload().then(paint); return; }
+          /* 見張るのは**最初の1件**だけにする。層ごとに1件ずつ積むので、
+             どれか1件が失敗しただけで「ぜんぶ失敗した」ように見えていた
+             （2026-10-18: 5件のうち1件の失敗の窓が出たまま残った）。
+             残りは裏で進み、20秒ごとの読み直しで画面に出る */
+          var first = jobs[0];
+          if (!App.watchJob || !first) { reload().then(paint); return; }
           App.watchJob({
-            jobId: last.id,
+            jobId: first.id,
             titleKey: 'job.lineAssets',
             urls: [],
-            onDone: function () { stopPoll(); reload().then(function () { paint(); }); },
-            onFail: function () { stopPoll(); reload().then(paint); }
+            onDone: function () { reload().then(function () { paint(); }); },
+            /* 1件こけても、他の層は作り続ける。見張りだけ外して読み直す */
+            onFail: function () { reload().then(paint); }
           });
+
         }).catch(function (err) {
           stopPoll();
           console.error('[screens-line] まとめて積めませんでした:', err);
