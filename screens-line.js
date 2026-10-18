@@ -25,6 +25,13 @@
 
   /* 形の一覧は line-layouts.js（tools/make-line-layouts.mjs が焼く）から読む。
      ここに書き写すと、寸法を足したときに必ずずれる */
+  /* 掲載先の選択肢。公式ロゴを持っている4社と、ロゴの無い海外3社 */
+  var PLATFORMS = [
+    ['makuake', 'Makuake'], ['campfire', 'CAMPFIRE'],
+    ['greenfunding', 'GREENFUNDING'], ['machiya', 'machi-ya'],
+    ['kickstarter', 'Kickstarter'], ['indiegogo', 'Indiegogo'], ['wadiz', 'Wadiz']
+  ];
+
   function layouts(kind) {
     var all = window.LPYA_LINE_LAYOUTS || null;
     if (!all) {
@@ -73,6 +80,12 @@
       'Pick the products (assigned to cells in order)', '상품 선택'],
     'line.noOther': ['他のプロジェクトがありません。', 'No other projects.', '다른 프로젝트가 없습니다.'],
     'line.saved2': ['呼び出す商品を保存しました', 'Saved', '저장했습니다'],
+    /* 商品ごとに売る場所が違う（2026-10-18 要望） */
+    'line.cellPf': ['この商品の掲載先', 'Platform for this product', '이 상품의 게재처'],
+    'line.pfHint': ['商品ごとに売る場所が違う場合に変えてください。'
+      + 'ふだんはその案件に登録した掲載先がそのまま入ります。',
+      'Change this when a product sells on a different platform.',
+      '상품마다 판매처가 다를 때 바꿔 주세요.'],
     'line.briefOnly': ['このボタンは「何を描くか」を決めるだけで、絵はまだできません。'
       + '下の「絵を作る」か「絵をまとめて作る」を押すと作り始めます。',
       'This only decides what to draw. Press Generate below to make the images.',
@@ -219,7 +232,8 @@
         Api.generations.first({ eq: { projects_id: projectId, feature_key: 'line_copy' },
           order: 'created_at.desc' }),
         /* 枠に出す商品の選択肢。自分の案件だけが返る（RLS） */
-        Api.projects.list({ select: 'id,name,product_name', order: 'created_at.desc', limit: 50 })
+        Api.projects.list({ select: 'id,name,product_name,cf_platform',
+          order: 'created_at.desc', limit: 50 })
           .catch(function () { return []; })
       ]).then(function (got) {
         view.project = got[0];
@@ -440,9 +454,47 @@
         /* 何番目の枠に入るかを出す。選んだ順がそのまま枠の順 */
         add(b, el('span', 'line-pull__no', at >= 0 ? String(at + 2) : '＋'));
         add(b, el('span', 'line-pull__name', String(o.product_name || o.name || '')));
-        add(list, b);
+        var cell = el('div', 'line-pull__cell');
+        add(cell, b);
+        /* 商品ごとに売る場所が違うことがある（2026-10-18 要望）。
+           選んだ商品にだけ、掲載先の選び直しを出す */
+        if (at >= 0) {
+          var pfs = (info.line_project_platforms && typeof info.line_project_platforms === 'object')
+            ? info.line_project_platforms : {};
+          var now = String(pfs[String(o.id)] || o.cf_platform || '');
+          var sel = el('select', 'input input--sm');
+          PLATFORMS.forEach(function (one) {
+            var op = el('option', '', one[1]);
+            op.value = one[0];
+            if (one[0] === now) { op.selected = true; }
+            add(sel, op);
+          });
+          sel.addEventListener('change', function () {
+            var next = {};
+            Object.keys(pfs).forEach(function (k) { next[k] = pfs[k]; });
+            next[String(o.id)] = sel.value;
+            savePf(next);
+          });
+          add(cell, sel);
+        }
+        add(list, cell);
       });
       add(box, list);
+      if (chosen.length) { add(box, el('p', 'field__hint', tl('line.pfHint'))); }
+
+      function savePf(next) {
+        var patch = {};
+        Object.keys(info).forEach(function (k) { patch[k] = info[k]; });
+        patch.line_project_platforms = next;
+        Api.projects.update(projectId, { sales_info: patch }).then(function (rowP) {
+          view.project = rowP;
+          toast(tl('line.saved2'), 'success');
+          paint();
+        }).catch(function (err) {
+          console.error('[screens-line] 掲載先を保存できませんでした:', err);
+          toast(t('common.error'), 'danger');
+        });
+      }
 
       function save(next) {
         var patch = {};
