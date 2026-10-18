@@ -84,15 +84,19 @@
       '{v} 레이어에 이미지가 있습니다'],
     /* 生成文を見る・足す（2026-10-18 要望） */
     'line.prompt': ['生成プロンプトを見る・足す', 'View / extend the prompt', '생성 프롬프트 보기·추가'],
-    'line.promptBase': ['いまの生成プロンプト（自動で作られる部分）',
-      'Current prompt (generated)', '현재 생성 프롬프트'],
+    'line.promptBase': ['生成プロンプト（ここで直せます）',
+      'Prompt (editable here)', '생성 프롬프트（여기서 수정）'],
+    'line.promptEdited': ['手で直した文を使っています', 'Using your edited prompt', '직접 고친 문장을 사용 중'],
+    'line.promptReset': ['自動の文に戻す', 'Back to the generated text', '자동 문장으로 되돌리기'],
+    'line.promptResetDone': ['自動の文に戻しました', 'Restored', '되돌렸습니다'],
     'line.promptAdd': ['足したい指示', 'Your extra instruction', '추가 지시'],
     'line.promptAddPh': ['例: 背景は夜の台所にする／札は丸い形にする',
       'e.g. make the background a night kitchen', '예: 배경을 밤의 주방으로'],
-    'line.promptHint': ['足した指示は生成文のいちばん後ろに付きます（いちばん強く効きます）。'
-      + '「区画を作る」で作り直しても消えません。',
-      'Your text is appended last, and survives rebuilds.',
-      '추가한 지시는 맨 뒤에 붙고, 다시 만들어도 남습니다.'],
+    'line.promptHint': ['上の文は直接直せます。直すと、その区画は「区画を作る」で'
+      + '作り直しても上書きされません（自動の更新は入りません）。'
+      + '下の「足したい指示」はいちばん後ろに付き、どちらの場合も残ります。',
+      'You can edit the prompt above; edited sections are not overwritten by rebuilds.',
+      '위 문장은 직접 수정할 수 있습니다.'],
     'line.promptSave': ['指示を保存', 'Save', '저장'],
     'line.promptSaved': ['保存しました。次に作る絵から効きます。',
       'Saved. It applies to the next image.', '저장했습니다.'],
@@ -690,7 +694,12 @@
         var det = el('details', 'line-prompt');
         add(det, el('summary', 'line-prompt__sum', tl('line.prompt')));
         add(det, el('p', 'field__label', tl('line.promptBase')));
-        var base = el('pre', 'line-prompt__base', String(sec.prompt || ''));
+        if (sec.edited) { add(det, el('p', 'chip chip--sm', tl('line.promptEdited'))); }
+        /* 2026-10-18 要望:「この欄の中で修正できるようにして」。
+           読むだけの枠をやめ、そのまま直せる入力欄にする */
+        var base = el('textarea', 'input line-prompt__base');
+        base.rows = 10;
+        base.value = String(sec.prompt || '');
         add(det, base);
         add(det, el('p', 'field__label', tl('line.promptAdd')));
         var ta = el('textarea', 'input line-prompt__add');
@@ -706,6 +715,13 @@
             var copy = {};
             Object.keys(x).forEach(function (k) { copy[k] = x[k]; });
             copy.addon = ta.value.trim();
+            /* 本文に手が入っていたら、その印を付ける。
+               印があるものは、作り直しで上書きしない */
+            var body = base.value.trim();
+            if (body && body !== String(sec.prompt || '').trim()) {
+              copy.prompt = body;
+              copy.edited = true;
+            }
             return copy;
           });
           Api.generations.update(view.brief.id, { sections: next }).then(function () {
@@ -719,6 +735,26 @@
           });
         });
         add(det, sv);
+        /* 手で直したものを、自動の文に戻せるようにする。
+           戻せないと、直したあと自動の更新を受け取れなくなる */
+        if (sec.edited) {
+          add(det, button('btn btn--text btn--sm', tl('line.promptReset'), function () {
+            var next2 = (view.brief.sections || []).map(function (x) {
+              if (Number(x.index) !== Number(sec.index)) { return x; }
+              var copy2 = {};
+              Object.keys(x).forEach(function (k) { if (k !== 'edited') { copy2[k] = x[k]; } });
+              return copy2;
+            });
+            Api.generations.update(view.brief.id, { sections: next2 }).then(function () {
+              view.brief.sections = next2;
+              toast(tl('line.promptResetDone'), 'success');
+              paint();
+            }).catch(function (err) {
+              console.error('[screens-line] 戻せませんでした:', err);
+              toast(t('common.error'), 'danger');
+            });
+          }));
+        }
         add(card, det);
         /* 写真は生成文のあと */
         if (url) {

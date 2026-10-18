@@ -4896,19 +4896,16 @@ input[type='radio'] {
 .line-prompt { margin-top: 4px; }
 .line-prompt__sum { cursor: pointer; font-size: var(--fs-note); color: var(--c-sub); }
 
-/* 自動で作る部分は読むだけ。長いので中だけスクロールさせる */
+/* 生成文。その場で直せる入力欄。長いので中だけスクロールさせる */
 .line-prompt__base {
-  max-height: 160px;
+  width: 100%;
+  max-height: 220px;
   overflow: auto;
   margin: 4px 0 8px;
   padding: 8px;
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-control);
-  background: var(--c-surface-2);
   font-size: 11px;
   line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-all;
+  resize: vertical;
 }
 
 .line-prompt__add { width: 100%; font-size: var(--fs-note); }
