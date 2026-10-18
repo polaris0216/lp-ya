@@ -682,19 +682,9 @@
         var url = made[slot];
         var card = el('div', 'line-card');
         add(card, el('h3', 'line-card__title', String(sec.title || '')));
-        if (url) {
-          var img = el('img', 'line-card__img');
-          img.src = url;
-          img.alt = String(sec.title || '');
-          img.loading = 'lazy';
-          add(card, img);
-          var a = el('a', 'btn btn--text btn--sm', tl('line.open'));
-          a.href = url;
-          a.target = '_blank';
-          a.rel = 'noopener';
-          add(card, a);
-        }
         /* 生成文を見せ、足せるようにする（2026-10-18 要望）。
+           **題と写真のあいだ**に置く。絵を作る前に読みたいので、
+           写真の下だと、まだ絵が無いときに見つけにくい。
            自動で作る部分は読むだけ。足したい指示は別に持つので、
            作り直しても消えない */
         var det = el('details', 'line-prompt');
@@ -730,6 +720,19 @@
         });
         add(det, sv);
         add(card, det);
+        /* 写真は生成文のあと */
+        if (url) {
+          var img = el('img', 'line-card__img');
+          img.src = url;
+          img.alt = String(sec.title || '');
+          img.loading = 'lazy';
+          add(card, img);
+          var a = el('a', 'btn btn--text btn--sm', tl('line.open'));
+          a.href = url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          add(card, a);
+        }
         var b = button('btn btn--primary btn--sm', url ? tl('line.remake') : tl('line.make'), function () {
           queue('lp_section',
             { generation_id: view.brief.id, feature_key: 'line_brief',
