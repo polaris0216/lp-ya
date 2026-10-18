@@ -80,6 +80,8 @@
       'Pick the products (assigned to cells in order)', '상품 선택'],
     'line.noOther': ['他のプロジェクトがありません。', 'No other projects.', '다른 프로젝트가 없습니다.'],
     'line.saved2': ['呼び出す商品を保存しました', 'Saved', '저장했습니다'],
+    'line.goLayer': ['{v}層には絵があります。開く', 'Layer {v} has images. Open',
+      '{v} 레이어에 이미지가 있습니다'],
     /* 商品ごとに売る場所が違う（2026-10-18 要望） */
     'line.cellPf': ['この商品の掲載先', 'Platform for this product', '이 상품의 게재처'],
     'line.pfHint': ['商品ごとに売る場所が違う場合に変えてください。'
@@ -137,13 +139,20 @@
     return key;
   }
 
-  function tl(key) {
+  /* params を渡すと {v} のような穴を埋める。共通の t() と同じ使い勝手にする */
+  function tl(key, params) {
     var row = LOCAL[key];
     if (!row) {
       console.error('[screens-line] 辞書に ' + key + ' がありません');
       return key;
     }
-    return row[localeIndex()] || row[0];
+    var out = row[localeIndex()] || row[0];
+    if (params) {
+      Object.keys(params).forEach(function (name) {
+        out = out.split('{' + name + '}').join(String(params[name]));
+      });
+    }
+    return out;
   }
 
   function el(tag, className, textContent) {
@@ -355,6 +364,23 @@
     }
 
     /* 仕事を積んで、終わったら読み直す。3つのボタンで同じことをするので1つにまとめる */
+    /* 仕事が走っているあいだ、定期的に読み直して描き直す。
+       これが無いと、絵は出来ているのに画面が変わらない。
+       「まとめて作る」は10分以上かかるので、終わるまで何も起きないように見える
+       （2026-10-18 指摘「生成されても全く表示されない」）。
+       画面を離れたら止める */
+    var poll = null;
+    function startPoll() {
+      if (poll) { return; }
+      poll = window.setInterval(function () {
+        if (!document.body.contains(root)) { stopPoll(); return; }
+        reload().then(paint).catch(function () { /* 次の回で拾う */ });
+      }, 20000);
+    }
+    function stopPoll() {
+      if (poll) { window.clearInterval(poll); poll = null; }
+    }
+
     function queue(featureKey, payload, doneKey, btn) {
       if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
       btn.disabled = true;
@@ -367,13 +393,17 @@
         payload: payload,
         lang: currentLocale()
       }).then(function (job) {
+        startPoll();
         if (!App.watchJob) { reload().then(paint); return; }
         App.watchJob({
           jobId: job.id,
           titleKey: 'job.lineAssets',
           urls: [],
-          onDone: function () { reload().then(function () { toast(tl(doneKey), 'success'); paint(); }); },
-          onFail: function () { reload().then(paint); }
+          onDone: function () {
+            stopPoll();
+            reload().then(function () { toast(tl(doneKey), 'success'); paint(); });
+          },
+          onFail: function () { stopPoll(); reload().then(paint); }
         });
       }).catch(function (err) {
         console.error('[screens-line] 仕事を積めませんでした:', err);
@@ -558,13 +588,57 @@
         add(box, tabs);
       }
       var made = (view.brief.asset_prompts && view.brief.asset_prompts.made) || {};
-      /* 1枚ずつ押させない。枚数は2枚までなので、まとめて1回の仕事で積む */
+      /* いま見ている層が空で、絵のある層が他にあるなら、そこへ行けるようにする。
+         耳の数字だけでは見落とす */
+      if (!Object.keys(made).length) {
+        var hasOne = names.filter(function (L) {
+          var g = view.layers[L];
+          return L !== view.layer
+            && Object.keys((g && g.asset_prompts && g.asset_prompts.made) || {}).length;
+        })[0];
+        if (hasOne) {
+          var jump = button('btn btn--text btn--sm', tl('line.goLayer', { v: hasOne }), function () {
+            view.layer = hasOne; view.brief = view.layers[hasOne]; paint();
+          });
+          add(box, jump);
+        }
+      }
+      /* 1枚ずつ押させない。**層ぜんぶ**をまとめて積む。
+         開いている層だけだと、他の層が空のままなのに気づけない
+         （2026-10-18 指摘「生成されても全く表示されない」の一因） */
       var all = button('btn btn--primary', tl('line.makeAll'), function () {
-        queue('lp_section',
-          { generation_id: view.brief.id,
-            sections: view.brief.sections.map(function (x) { return x.index; }),
-            force: true },
-          'line.briefDone', all);
+        var targets = names.map(function (L) { return view.layers[L]; })
+          .filter(function (g) { return g && isArray(g.sections) && g.sections.length; });
+        if (!targets.length) { return; }
+        all.disabled = true;
+        all.textContent = tl('line.making');
+        startPoll();
+        Promise.all(targets.map(function (g) {
+          return Api.generationJobs.insert({
+            feature_key: 'lp_section',
+            status: 'pending',
+            projects_id: projectId,
+            users_id: userId(),
+            payload: { generation_id: g.id,
+              sections: g.sections.map(function (x) { return x.index; }), force: true },
+            lang: currentLocale()
+          });
+        })).then(function (jobs) {
+          var last = jobs[jobs.length - 1];
+          if (!App.watchJob || !last) { reload().then(paint); return; }
+          App.watchJob({
+            jobId: last.id,
+            titleKey: 'job.lineAssets',
+            urls: [],
+            onDone: function () { stopPoll(); reload().then(function () { paint(); }); },
+            onFail: function () { stopPoll(); reload().then(paint); }
+          });
+        }).catch(function (err) {
+          stopPoll();
+          console.error('[screens-line] まとめて積めませんでした:', err);
+          toast(t('common.error'), 'danger');
+          paint();
+        });
       });
       add(box, all);
       var grid = el('div', 'line-grid');
