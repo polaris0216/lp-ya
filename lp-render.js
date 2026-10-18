@@ -1602,6 +1602,16 @@
      見出しには使わない。文章の1行目が売り文句になっている */
   function fromSection(sec, slot) {
     var lines = paras(sec && sec.text);
+    /* 1行目を見出しにするのは、1行目が短い売り文句のときだけ。
+       改行が無く、見出しと本文が「／」で続けて書かれていることがあり、
+       そのまま見出しにすると**本文まるごとが太字の見出し**になる
+       （2026-10-19 指摘: 区画25 の文が全部太字で出ていた）。
+       長い1行は、「／」で切るか、見出し無しの本文として扱う */
+    if (lines.length === 1 && lines[0].length > 28) {
+      var one = lines[0];
+      var at = one.indexOf('／');
+      lines = (at > 0 && at <= 28) ? [one.slice(0, at), one.slice(at + 1)] : ['', one];
+    }
     return { slot: slot,
       title: lines[0] || String((sec && sec.title) || ''),
       body: lines.slice(1).join('\n') || String((sec && sec.body) || '') };
