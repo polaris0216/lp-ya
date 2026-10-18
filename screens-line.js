@@ -82,6 +82,20 @@
     'line.saved2': ['呼び出す商品を保存しました', 'Saved', '저장했습니다'],
     'line.goLayer': ['{v}層には絵があります。開く', 'Layer {v} has images. Open',
       '{v} 레이어에 이미지가 있습니다'],
+    /* 生成文を見る・足す（2026-10-18 要望） */
+    'line.prompt': ['生成プロンプトを見る・足す', 'View / extend the prompt', '생성 프롬프트 보기·추가'],
+    'line.promptBase': ['いまの生成プロンプト（自動で作られる部分）',
+      'Current prompt (generated)', '현재 생성 프롬프트'],
+    'line.promptAdd': ['足したい指示', 'Your extra instruction', '추가 지시'],
+    'line.promptAddPh': ['例: 背景は夜の台所にする／札は丸い形にする',
+      'e.g. make the background a night kitchen', '예: 배경을 밤의 주방으로'],
+    'line.promptHint': ['足した指示は生成文のいちばん後ろに付きます（いちばん強く効きます）。'
+      + '「区画を作る」で作り直しても消えません。',
+      'Your text is appended last, and survives rebuilds.',
+      '추가한 지시는 맨 뒤에 붙고, 다시 만들어도 남습니다.'],
+    'line.promptSave': ['指示を保存', 'Save', '저장'],
+    'line.promptSaved': ['保存しました。次に作る絵から効きます。',
+      'Saved. It applies to the next image.', '저장했습니다.'],
     /* 商品ごとに売る場所が違う（2026-10-18 要望） */
     'line.cellPf': ['この商品の掲載先', 'Platform for this product', '이 상품의 게재처'],
     'line.pfHint': ['商品ごとに売る場所が違う場合に変えてください。'
@@ -680,6 +694,42 @@
           a.rel = 'noopener';
           add(card, a);
         }
+        /* 生成文を見せ、足せるようにする（2026-10-18 要望）。
+           自動で作る部分は読むだけ。足したい指示は別に持つので、
+           作り直しても消えない */
+        var det = el('details', 'line-prompt');
+        add(det, el('summary', 'line-prompt__sum', tl('line.prompt')));
+        add(det, el('p', 'field__label', tl('line.promptBase')));
+        var base = el('pre', 'line-prompt__base', String(sec.prompt || ''));
+        add(det, base);
+        add(det, el('p', 'field__label', tl('line.promptAdd')));
+        var ta = el('textarea', 'input line-prompt__add');
+        ta.rows = 3;
+        ta.value = String(sec.addon || '');
+        ta.setAttribute('placeholder', tl('line.promptAddPh'));
+        add(det, ta);
+        add(det, el('p', 'field__hint', tl('line.promptHint')));
+        var sv = button('btn btn--secondary btn--sm', tl('line.promptSave'), function () {
+          sv.disabled = true;
+          var next = (view.brief.sections || []).map(function (x) {
+            if (Number(x.index) !== Number(sec.index)) { return x; }
+            var copy = {};
+            Object.keys(x).forEach(function (k) { copy[k] = x[k]; });
+            copy.addon = ta.value.trim();
+            return copy;
+          });
+          Api.generations.update(view.brief.id, { sections: next }).then(function () {
+            view.brief.sections = next;
+            toast(tl('line.promptSaved'), 'success');
+            paint();
+          }).catch(function (err) {
+            sv.disabled = false;
+            console.error('[screens-line] 指示を保存できませんでした:', err);
+            toast(t('common.error'), 'danger');
+          });
+        });
+        add(det, sv);
+        add(card, det);
         var b = button('btn btn--primary btn--sm', url ? tl('line.remake') : tl('line.make'), function () {
           queue('lp_section',
             { generation_id: view.brief.id, feature_key: 'line_brief',
