@@ -308,6 +308,10 @@
       ]).then(function (got) {
         view.project = got[0];
         view.layers = byLayer(got[1]);
+        /* byLayer は層ごとに1本しか選ばない。選ばれなかった束にも作った絵が
+           残っているので、「前に作った絵」を集めるために全部持っておく
+           （2026-10-20 要望「過去のものも見れるように」） */
+        view.rows = isArray(got[1]) ? got[1] : [];
         /* 開いて見せる層。ABCDE順の先頭（生成結果の画面と同じ決め）。
            いま見ている層が消えていなければ、そのまま残す */
         var names = Object.keys(view.layers).sort();
@@ -666,6 +670,34 @@
          これまで画面はいまの絵しか出しておらず、前の方がよかったときに
          見返せなかった（2026-10-20 要望「以前生成したものも見れるようにして」） */
       var hist = (view.brief.asset_prompts && view.brief.asset_prompts.history) || {};
+      /* その区画で前に作った絵をぜんぶ集める。出どころは2つ:
+         1. いまの束の history[区画]（同じ束で作り直した前の版）
+         2. 同じ層のほかの束（byLayer が選ばなかったもの）の made と history
+         新しい順に並べ、同じURLは1つにまとめる */
+      function pastOf(slot) {
+        var now = made[slot];
+        var out = [];
+        var seen = {};
+        function push(url, at, prompt) {
+          if (!url || url === now || seen[url]) { return; }
+          seen[url] = 1;
+          out.push({ url: url, at: at || '', prompt: prompt || '' });
+        }
+        (isArray(hist[slot]) ? hist[slot] : []).forEach(function (h) {
+          if (h) { push(h.url, h.at, h.prompt); }
+        });
+        (view.rows || []).forEach(function (g) {
+          if (!g || g.id === view.brief.id) { return; }
+          if (String(g.variant_label || '-') !== String(view.brief.variant_label || '-')) { return; }
+          var ap = g.asset_prompts || {};
+          push((ap.made || {})[slot], g.created_at, ((ap.madePrompt || {})[slot]) || '');
+          (isArray((ap.history || {})[slot]) ? ap.history[slot] : []).forEach(function (h) {
+            if (h) { push(h.url, h.at, h.prompt); }
+          });
+        });
+        out.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
+        return out;
+      }
       /* いま見ている層が空で、絵のある層が他にあるなら、そこへ行けるようにする。
          耳の数字だけでは見落とす */
       if (!Object.keys(made).length) {
@@ -834,9 +866,7 @@
           add(card, a);
         }
         /* 前に作った絵。小さく並べ、押すと共通の窓で大きく見る */
-        var past = (isArray(hist[slot]) ? hist[slot] : []).filter(function (h) {
-          return h && h.url;
-        });
+        var past = pastOf(slot);
         if (past.length) {
           var pd = el('details', 'line-prompt');
           add(pd, el('summary', 'line-prompt__sum', tl('line.past', { n: past.length })));
