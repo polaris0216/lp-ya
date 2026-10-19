@@ -172,6 +172,9 @@
     'line.make': ['絵を作る', 'Generate', '생성'],
     'line.remake': ['作り直す', 'Regenerate', '다시 생성'],
     'line.open': ['大きく見る', 'Open', '크게 보기'],
+    'line.past': ['前に作った絵 {n}枚', '{n} earlier versions', '이전에 만든 그림 {n}장'],
+    'line.pastNow': ['いまの絵', 'Current', '현재 그림'],
+    'line.pastNth': ['{n}つ前', '{n} back', '{n}번째 이전'],
     'line.making': ['作っています…', 'Working…', '만드는 중…'],
     'line.texts': ['3. 文章を作る', '3. Write the copy', '3. 문장 만들기'],
     'line.textsHint': ['友だち追加のあいさつから締切前のお知らせまで、送る場面ごとに1通ずつ書きます。'
@@ -659,6 +662,10 @@
         add(box, tabs);
       }
       var made = (view.brief.asset_prompts && view.brief.asset_prompts.made) || {};
+      /* 作り直すたびに前の版が history[区画] に積まれている（新しい順・最大10）。
+         これまで画面はいまの絵しか出しておらず、前の方がよかったときに
+         見返せなかった（2026-10-20 要望「以前生成したものも見れるようにして」） */
+      var hist = (view.brief.asset_prompts && view.brief.asset_prompts.history) || {};
       /* いま見ている層が空で、絵のある層が他にあるなら、そこへ行けるようにする。
          耳の数字だけでは見落とす */
       if (!Object.keys(made).length) {
@@ -825,6 +832,33 @@
           a.target = '_blank';
           a.rel = 'noopener';
           add(card, a);
+        }
+        /* 前に作った絵。小さく並べ、押すと共通の窓で大きく見る */
+        var past = (isArray(hist[slot]) ? hist[slot] : []).filter(function (h) {
+          return h && h.url;
+        });
+        if (past.length) {
+          var pd = el('details', 'line-prompt');
+          add(pd, el('summary', 'line-prompt__sum', tl('line.past', { n: past.length })));
+          var row = add(pd, el('div', 'line-past'));
+          past.forEach(function (h, i) {
+            var th = el('img', 'line-past__img');
+            th.src = h.url;
+            th.loading = 'lazy';
+            th.alt = tl('line.pastNth', { n: i + 1 });
+            th.title = String(h.at || '').slice(0, 10);
+            th.addEventListener('click', function () {
+              if (!App || typeof App.openViewer !== 'function') { return; }
+              var shots = (url ? [{ type: 'image', src: url, label: tl('line.pastNow') }] : [])
+                .concat(past.map(function (x, k) {
+                  return { type: 'image', src: x.url,
+                    label: tl('line.pastNth', { n: k + 1 }) + ' ' + String(x.at || '').slice(0, 10) };
+                }));
+              App.openViewer(shots, (url ? 1 : 0) + i);
+            });
+            add(row, th);
+          });
+          add(card, pd);
         }
         var b = button('btn btn--primary btn--sm', url ? tl('line.remake') : tl('line.make'), function () {
           queue('lp_section',
