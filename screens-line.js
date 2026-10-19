@@ -32,6 +32,32 @@
     ['kickstarter', 'Kickstarter'], ['indiegogo', 'Indiegogo'], ['wadiz', 'Wadiz']
   ];
 
+  /* LINE に登録する richmenu の本体を組む。
+     座標の出し方は tools/line-assets.mjs の menuAreas と同じにする
+     （端で1pxこぼれないよう、右端・下端は引き算で出す） */
+  function menuObject(L, links, name) {
+    return {
+      size: { width: L.w, height: L.h },
+      selected: true,
+      name: String(name || 'メニュー').slice(0, 300),
+      chatBarText: 'メニュー',
+      areas: L.cells.map(function (c, i) {
+        var one = links[i] || {};
+        var x = Math.round(c.x * L.w);
+        var y = Math.round(c.y * L.h);
+        return {
+          bounds: { x: x, y: y,
+            width: Math.round((c.x + c.w) * L.w) - x,
+            height: Math.round((c.y + c.h) * L.h) - y },
+          action: one.uri
+            ? { type: 'uri', label: String(one.label || ('枠' + (i + 1))).slice(0, 20), uri: one.uri }
+            : { type: 'postback', label: String(one.label || ('枠' + (i + 1))).slice(0, 20),
+              data: 'cell=' + (i + 1) }
+        };
+      })
+    };
+  }
+
   function layouts(kind) {
     var all = window.LPYA_LINE_LAYOUTS || null;
     if (!all) {
@@ -100,6 +126,20 @@
     'line.promptSave': ['指示を保存', 'Save', '저장'],
     'line.promptSaved': ['保存しました。次に作る絵から効きます。',
       'Saved. It applies to the next image.', '저장했습니다.'],
+    /* 押せる面（2026-10-19）。画像だけではLINEに登録できない */
+    'line.areas': ['押したときの行き先（LINEに登録する面）',
+      'Tap targets (areas for LINE)', '탭 영역'],
+    'line.areasHint': ['枠ごとの行き先を入れて、JSONを落としてください。'
+      + 'Messaging API の richmenu にそのまま使えます。'
+      + '空のままの枠は、押しても何も起きない形で書き出します。',
+      'Enter a link per cell and download the JSON for the Messaging API.',
+      '칸마다 링크를 넣고 JSON을 받으세요.'],
+    'line.areasCell': ['枠{n}', 'Cell {n}', '칸 {n}'],
+    'line.areasLabel': ['表示名', 'Label', '표시명'],
+    'line.areasUri': ['行き先のURL', 'Link', '링크'],
+    'line.areasSave': ['行き先を保存', 'Save links', '링크 저장'],
+    'line.areasGet': ['JSONを落とす', 'Download JSON', 'JSON 받기'],
+    'line.areasSaved': ['行き先を保存しました', 'Saved', '저장했습니다'],
     /* 商品ごとに売る場所が違う（2026-10-18 要望） */
     'line.cellPf': ['この商品の掲載先', 'Platform for this product', '이 상품의 게재처'],
     'line.pfHint': ['商品ごとに売る場所が違う場合に変えてください。'
@@ -798,6 +838,70 @@
       add(box, grid);
     }
 
+    /* 押せる面（areas）。画像だけではLINEに登録できないので、
+       枠ごとの行き先を入れて JSON で落とせるようにする（2026-10-19）。
+       枠の形は line-layouts.js が持っているので、座標はそこから出す */
+    function paintAreas(box) {
+      clear(box);
+      var pr = view.project || {};
+      var info = (pr.sales_info && typeof pr.sales_info === 'object') ? pr.sales_info : {};
+      var id = String(info.line_menu || '');
+      if (!id) { return; }
+      var L = layouts('menu').filter(function (x) { return x.id === id; })[0];
+      if (!L) { return; }
+      add(box, el('h2', 'section__title', tl('line.areas')));
+      add(box, el('p', 'field__hint', tl('line.areasHint')));
+      var links = isArray(info.line_links) ? info.line_links.slice() : [];
+      var rows = [];
+      L.cells.forEach(function (c, i) {
+        var one = links[i] || {};
+        var f = el('div', 'line-area');
+        add(f, el('span', 'line-area__no', tl('line.areasCell', { n: i + 1 })));
+        var lb = el('input', 'input input--sm');
+        lb.type = 'text';
+        lb.value = String(one.label || '');
+        lb.setAttribute('placeholder', tl('line.areasLabel'));
+        var ur = el('input', 'input input--sm');
+        ur.type = 'url';
+        ur.value = String(one.uri || '');
+        ur.setAttribute('placeholder', tl('line.areasUri'));
+        add(f, lb);
+        add(f, ur);
+        add(box, f);
+        rows.push({ lb: lb, ur: ur });
+      });
+      var save = button('btn btn--secondary btn--sm', tl('line.areasSave'), function () {
+        var next = rows.map(function (r) {
+          return { label: r.lb.value.trim(), uri: r.ur.value.trim() };
+        });
+        var patch = {};
+        Object.keys(info).forEach(function (k) { patch[k] = info[k]; });
+        patch.line_links = next;
+        Api.projects.update(projectId, { sales_info: patch }).then(function (rowP) {
+          view.project = rowP;
+          toast(tl('line.areasSaved'), 'success');
+          paint();
+        }).catch(function (err) {
+          console.error('[screens-line] 行き先を保存できませんでした:', err);
+          toast(t('common.error'), 'danger');
+        });
+      });
+      add(box, save);
+      add(box, button('btn btn--primary btn--sm', tl('line.areasGet'), function () {
+        var obj = menuObject(L, rows.map(function (r) {
+          return { label: r.lb.value.trim(), uri: r.ur.value.trim() };
+        }), String(pr.product_name || pr.name || ''));
+        var blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+        var a = el('a', '');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'richmenu-' + id.replace(/[^\w+-]/g, '') + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      }));
+    }
+
     /* ---------- 3. 文章 ---------- */
     function paintTexts(box) {
       clear(box);
@@ -836,6 +940,7 @@
     var sizeBox = add(body, el('section', 'section'));
     var pullBox = add(body, el('section', 'section'));
     var imgBox = add(body, el('section', 'section'));
+    var areaBox = add(body, el('section', 'section'));
     var textBox = add(body, el('section', 'section'));
 
     function paint() {
@@ -844,6 +949,7 @@
       paintSizes(sizeBox);
       paintPull(pullBox);
       paintImages(imgBox);
+      paintAreas(areaBox);
       paintTexts(textBox);
     }
 

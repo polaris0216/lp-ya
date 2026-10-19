@@ -4912,3 +4912,8 @@ input[type='radio'] {
 
 /* 生成された絵は押したら大きく見える。押せると分かるようにする */
 .line-card__img { cursor: zoom-in; }
+
+/* 押せる面（LINEに登録する行き先） */
+.line-area { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.line-area__no { flex: 0 0 56px; font-size: var(--fs-note); color: var(--c-text-sub); }
+.line-area .input { flex: 1 1 0; min-width: 0; }
