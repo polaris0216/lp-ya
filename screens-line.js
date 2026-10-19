@@ -177,8 +177,9 @@
     'line.pastNth': ['{n}つ前', '{n} back', '{n}번째 이전'],
     'line.useThis': ['これを使う', 'Use this', '이걸로 설정'],
     'line.useThisDone': ['この絵をいまの絵にしました', 'Now the current image', '현재 그림으로 바꿨습니다'],
-    'line.save': ['落とす', 'Download', '내려받기'],
-    'line.saveFail': ['落とせませんでした', 'Could not download', '내려받지 못했습니다'],
+    'line.prev': ['前へ', 'Previous', '이전'],
+    'line.next': ['次へ', 'Next', '다음'],
+    'line.saveFail': ['ダウンロードできませんでした', 'Could not download', '내려받지 못했습니다'],
     'line.making': ['作っています…', 'Working…', '만드는 중…'],
     'line.texts': ['3. 文章を作る', '3. Write the copy', '3. 문장 만들기'],
     'line.textsHint': ['友だち追加のあいさつから締切前のお知らせまで、送る場面ごとに1通ずつ書きます。'
@@ -934,7 +935,7 @@
           a.target = '_blank';
           a.rel = 'noopener';
           add(card, a);
-          var dl = button('btn btn--text btn--sm', tl('line.save'), function () {
+          var dl = button('btn btn--text btn--sm', t('common.download'), function () {
             saveImage(url, nameFor(slot, '', url), dl);
           });
           add(card, dl);
@@ -944,7 +945,29 @@
         if (past.length) {
           var pd = el('details', 'line-prompt');
           add(pd, el('summary', 'line-prompt__sum', tl('line.past', { n: past.length })));
-          var row = add(pd, el('div', 'line-past'));
+          /* 横に流すだけだと、指でこすらないと次が見えない（2026-10-20 要望）。
+             左右の矢印で1枚ずつ送れるようにする。端まで来たら矢印を止める */
+          var wrap = add(pd, el('div', 'line-past__wrap'));
+          var prev = button('btn btn--text line-past__arrow', '◀', function () { step(-1); });
+          prev.setAttribute('aria-label', tl('line.prev'));
+          add(wrap, prev);
+          var row = add(wrap, el('div', 'line-past'));
+          var next = button('btn btn--text line-past__arrow', '▶', function () { step(1); });
+          next.setAttribute('aria-label', tl('line.next'));
+          add(wrap, next);
+          function step(dir) {
+            var one = row.querySelector('.line-past__one');
+            var w = one ? one.getBoundingClientRect().width + 12 : 132;
+            row.scrollBy({ left: dir * w, behavior: 'smooth' });
+          }
+          /* 端では押せなくする。送れる先があるかどうかで決める */
+          function arrows() {
+            var max = row.scrollWidth - row.clientWidth;
+            prev.disabled = row.scrollLeft <= 1;
+            next.disabled = row.scrollLeft >= max - 1;
+          }
+          row.addEventListener('scroll', arrows);
+          setTimeout(arrows, 0);
           past.forEach(function (h, i) {
             var one = add(row, el('div', 'line-past__one'));
             var th = add(one, el('img', 'line-past__img'));
@@ -957,7 +980,7 @@
               useVersion(slot, h, use);
             });
             add(one, use);
-            var sv2 = button('btn btn--text btn--sm', tl('line.save'), function () {
+            var sv2 = button('btn btn--text btn--sm', t('common.download'), function () {
               saveImage(h.url, nameFor(slot, h.at, h.url), sv2);
             });
             add(one, sv2);
