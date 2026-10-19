@@ -175,6 +175,10 @@
     'line.past': ['前に作った絵 {n}枚', '{n} earlier versions', '이전에 만든 그림 {n}장'],
     'line.pastNow': ['いまの絵', 'Current', '현재 그림'],
     'line.pastNth': ['{n}つ前', '{n} back', '{n}번째 이전'],
+    'line.useThis': ['これを使う', 'Use this', '이걸로 설정'],
+    'line.useThisDone': ['この絵をいまの絵にしました', 'Now the current image', '현재 그림으로 바꿨습니다'],
+    'line.save': ['落とす', 'Download', '내려받기'],
+    'line.saveFail': ['落とせませんでした', 'Could not download', '내려받지 못했습니다'],
     'line.making': ['作っています…', 'Working…', '만드는 중…'],
     'line.texts': ['3. 文章を作る', '3. Write the copy', '3. 문장 만들기'],
     'line.textsHint': ['友だち追加のあいさつから締切前のお知らせまで、送る場面ごとに1通ずつ書きます。'
@@ -698,6 +702,72 @@
         out.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
         return out;
       }
+
+      /* 絵を手元に落とす。置き場は別の出どころなので、<a download> だけでは
+         ただ開くだけになる。いったん取ってきてから落とす（ZIPと同じやり方） */
+      function saveImage(url, name, node) {
+        if (node) { node.disabled = true; }
+        return fetch(url).then(function (r) {
+          if (!r.ok) { throw new Error(String(r.status)); }
+          return r.blob();
+        }).then(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+        }).catch(function (err) {
+          console.error('[screens-line] 落とせませんでした:', err);
+          toast(tl('line.saveFail'), 'danger');
+        }).then(function () {
+          if (node) { node.disabled = false; }
+        });
+      }
+
+      function nameFor(slot, at, url) {
+        var ext = (String(url).match(/\.(png|jpe?g|webp|gif)(\?|$)/i) || [])[1] || 'png';
+        var day = String(at || '').slice(0, 10).replace(/-/g, '') || 'now';
+        var who = (view.project && (view.project.product_name || view.project.name)) || 'line';
+        return String(who).replace(/[^\w-]/g, '') + '-' + slot + '-' + day + '.' + ext;
+      }
+
+      /* 前の版を「いまの絵」に戻す。いま置いてある絵は捨てずに history へ送る
+         （戻したあと、やっぱり元が良かったときに行き来できる）。
+         その版を作った文も一緒に戻す。文が戻らないと同じものを作り直せない */
+      function useVersion(slot, h, node) {
+        var ap = view.brief.asset_prompts || {};
+        var copy = function (o) {
+          var out = {};
+          Object.keys(o || {}).forEach(function (k) { out[k] = o[k]; });
+          return out;
+        };
+        var made2 = copy(ap.made);
+        var hist2 = copy(ap.history);
+        var mp = copy(ap.madePrompt);
+        var now = made2[slot];
+        if (now && now !== h.url) {
+          hist2[slot] = [{ url: now, at: new Date().toISOString(), prompt: mp[slot] || '' }]
+            .concat(isArray(hist2[slot]) ? hist2[slot] : []).slice(0, 10);
+        }
+        made2[slot] = h.url;
+        if (h.prompt) { mp[slot] = h.prompt; }
+        var next = copy(ap);
+        next.made = made2;
+        next.history = hist2;
+        next.madePrompt = mp;
+        if (node) { node.disabled = true; }
+        Api.generations.update(view.brief.id, { asset_prompts: next }).then(function () {
+          view.brief.asset_prompts = next;
+          toast(tl('line.useThisDone'), 'success');
+          paint();
+        }).catch(function (err) {
+          if (node) { node.disabled = false; }
+          console.error('[screens-line] 戻せませんでした:', err);
+          toast(t('common.error'), 'danger');
+        });
+      }
       /* いま見ている層が空で、絵のある層が他にあるなら、そこへ行けるようにする。
          耳の数字だけでは見落とす */
       if (!Object.keys(made).length) {
@@ -864,6 +934,10 @@
           a.target = '_blank';
           a.rel = 'noopener';
           add(card, a);
+          var dl = button('btn btn--text btn--sm', tl('line.save'), function () {
+            saveImage(url, nameFor(slot, '', url), dl);
+          });
+          add(card, dl);
         }
         /* 前に作った絵。小さく並べ、押すと共通の窓で大きく見る */
         var past = pastOf(slot);
@@ -872,11 +946,21 @@
           add(pd, el('summary', 'line-prompt__sum', tl('line.past', { n: past.length })));
           var row = add(pd, el('div', 'line-past'));
           past.forEach(function (h, i) {
-            var th = el('img', 'line-past__img');
+            var one = add(row, el('div', 'line-past__one'));
+            var th = add(one, el('img', 'line-past__img'));
             th.src = h.url;
             th.loading = 'lazy';
             th.alt = tl('line.pastNth', { n: i + 1 });
             th.title = String(h.at || '').slice(0, 10);
+            add(one, el('span', 'line-past__at', String(h.at || '').slice(0, 10)));
+            var use = button('btn btn--secondary btn--sm', tl('line.useThis'), function () {
+              useVersion(slot, h, use);
+            });
+            add(one, use);
+            var sv2 = button('btn btn--text btn--sm', tl('line.save'), function () {
+              saveImage(h.url, nameFor(slot, h.at, h.url), sv2);
+            });
+            add(one, sv2);
             th.addEventListener('click', function () {
               if (!App || typeof App.openViewer !== 'function') { return; }
               var shots = (url ? [{ type: 'image', src: url, label: tl('line.pastNow') }] : [])
@@ -886,7 +970,6 @@
                 }));
               App.openViewer(shots, (url ? 1 : 0) + i);
             });
-            add(row, th);
           });
           add(card, pd);
         }
