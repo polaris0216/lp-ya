@@ -39,7 +39,20 @@
     });
   }
 
+  /* 名前の受け取り方は2通り。
+       ?lp=...  GitHub Pages のとき（404.html がパスを付け替えて渡す）
+       パスそのもの  置き場が「どのパスでも view.html を 200 で返す」とき
+         （Cloudflare Pages の _redirects）。こちらだと HTTP 404 にならない。
+     実測 2026-10-21: いまの公開URLは全部 HTTP 404 を返していた。
+     どちらでも動くようにしておけば、置き場を移すあいだも止まらない */
   var slug = new URLSearchParams(window.location.search).get('lp') || '';
+  if (!slug) {
+    /* パスをそのまま名前として読む。この読み方をするのは、置き場が
+       「どのパスでも view.html を 200 で返す」設定のときだけで、
+       そこでは LP は root 直下に置く（Cloudflare Pages の _redirects）*/
+    slug = (window.location.pathname || '').replace(/^\/+/, '').replace(/\/+$/, '');
+    if (slug === 'view.html' || slug === 'index.html') { slug = ''; }
+  }
   var stateNode = document.getElementById('state');
   if (!slug) { stateNode.textContent = 'このURLは無効です。'; return; }
 
