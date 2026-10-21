@@ -4935,3 +4935,6 @@ input[type='radio'] {
 .line-area { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .line-area__no { flex: 0 0 56px; font-size: var(--fs-note); color: var(--c-text-sub); }
 .line-area .input { flex: 1 1 0; min-width: 0; }
+
+/* 公開URLの欄で、載せるドメインを選ぶ（並べたものが2本以上のときだけ出る） */
+.lpr-url__site { flex: 0 1 auto; max-width: 220px; }

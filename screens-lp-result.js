@@ -95,6 +95,7 @@
       'Only one visual so far', '아직 1장뿐입니다'],
     'lpr.publicUrl': ['公開URL', 'Public URL', '공개 URL'],
     'lpr.urlTitle': ['公開URLの名前', 'Public URL name', '공개 URL 이름'],
+    'lpr.urlSite': ['載せるドメイン', 'Domain', '載せるドメイン'],
     'lpr.urlBrand': ['会社・ブランド', 'Company or brand', '회사・브랜드'],
     'lpr.urlProduct': ['商品名', 'Product', '상품명'],
     'lpr.urlLayer': ['層（自動）', 'Audience (auto)', '층(자동)'],
@@ -1220,14 +1221,35 @@
         add(box, el('span', 'lpr-url__layer',
           String(view.gen.variant_label || '-').toLowerCase()));
 
+        /* どのドメインに載せるか。並べたものが2本以上あるときだけ出す。
+           1本しか無いなら選ばせる意味が無い */
+        var sites = lpSites();
+        var pick = null;
+        if (sites.length > 1) {
+          pick = el('select', 'input input--sm lpr-url__site');
+          pick.setAttribute('aria-label', t('lpr.urlSite'));
+          var cur = lpSiteUrl();
+          sites.forEach(function (one) {
+            var o = el('option', '', String(one.label || one.url));
+            o.value = String(one.url || '');
+            if (o.value === cur) { o.selected = true; }
+            add(pick, o);
+          });
+          add(box, pick);
+          add(box, el('span', 'lpr-url__sep', '/'));
+        }
+
         var preview = el('p', 't-note lpr-url__preview', '');
         var show = function () {
           var slug = [slugify(brand.value), slugify(product.value),
             String(view.gen.variant_label || '-').toLowerCase()].filter(Boolean).join('/');
-          preview.textContent = lpBase() + 'view.html?lp=' + slug;
+          var base = pick && pick.value
+            ? String(pick.value).replace(/\/*$/, '/') : lpBase();
+          preview.textContent = base + 'view.html?lp=' + slug;
         };
         brand.addEventListener('input', show);
         product.addEventListener('input', show);
+        if (pick) { pick.addEventListener('change', show); }
         show();
 
         var save = button('btn btn--secondary btn--sm', t('lpr.urlSave'), function (e) {
@@ -1236,8 +1258,18 @@
           var node = e && e.currentTarget;
           if (node) { node.disabled = true; }
           var shop = [b, slugify(product.value)].filter(Boolean).join('/');
-          Api.projects.update(projectId, { shop_slug: shop }).then(function () {
+          var patch = { shop_slug: shop };
+          /* 選んだドメインも一緒に覚えさせる。覚えないと、画面を開き直した
+             ときに並びの先頭へ戻り、配ったURLと食い違う */
+          if (pick) {
+            var info2 = {};
+            Object.keys(salesInfo()).forEach(function (k) { info2[k] = salesInfo()[k]; });
+            info2.lp_site = String(pick.value || '');
+            patch.sales_info = info2;
+          }
+          Api.projects.update(projectId, patch).then(function () {
             view.project.shop_slug = shop;
+            if (patch.sales_info) { view.project.sales_info = patch.sales_info; }
             /* 公開中なら、新しい名前で公開し直す。でないと画面の表示と
                実際に開けるURLが食い違う */
             if (!view.gen.published_at) { return null; }
@@ -1850,10 +1882,29 @@
          これまで view.gen.public_url を見ていたが、そんな列は無いので
          いつも空だった。そのため公開しても「公開URL」も「公開をやめる」も
          出ていなかった（実測 2026-10-11）*/
-      /* 顧客のLPを載せる置き場。別ドメインに分けてあればそちら、
-         空ならこれまでどおりアプリと同じ置き場（手元での開発はこのまま）*/
+      /* LPを載せる置き場。案件ごとにブランドのドメインを選べる（2026-10-22）。
+         選んだものは案件（projects.sales_info.lp_site）に覚えさせる。
+         1案件＝1ブランドなので、生成の回ごとではなく案件に持たせる。
+         並べていなければ、これまでどおりアプリと同じ置き場 */
+      function lpSites() {
+        return (App && typeof App.lpSites === 'function') ? (App.lpSites() || []) : [];
+      }
+
+      function salesInfo() {
+        var info = view.project && view.project.sales_info;
+        return (info && typeof info === 'object') ? info : {};
+      }
+
+      function lpSiteUrl() {
+        var list = lpSites();
+        if (!list.length) { return ''; }
+        var want = String(salesInfo().lp_site || '');
+        var hit = list.filter(function (x) { return x && x.url === want; })[0];
+        return String((hit || list[0]).url || '');
+      }
+
       function lpBase() {
-        var site = (App && typeof App.lpSite === 'function') ? String(App.lpSite() || '') : '';
+        var site = lpSiteUrl();
         if (site) { return site.replace(/\/*$/, '/'); }
         return location.href.split('#')[0].replace(/[^/]*$/, '');
       }
