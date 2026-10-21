@@ -1221,11 +1221,10 @@
           String(view.gen.variant_label || '-').toLowerCase()));
 
         var preview = el('p', 't-note lpr-url__preview', '');
-        var base = location.href.split('#')[0].replace(/[^/]*$/, '');
         var show = function () {
           var slug = [slugify(brand.value), slugify(product.value),
             String(view.gen.variant_label || '-').toLowerCase()].filter(Boolean).join('/');
-          preview.textContent = base + 'view.html?lp=' + slug;
+          preview.textContent = lpBase() + 'view.html?lp=' + slug;
         };
         brand.addEventListener('input', show);
         product.addEventListener('input', show);
@@ -1851,11 +1850,18 @@
          これまで view.gen.public_url を見ていたが、そんな列は無いので
          いつも空だった。そのため公開しても「公開URL」も「公開をやめる」も
          出ていなかった（実測 2026-10-11）*/
+      /* 顧客のLPを載せる置き場。別ドメインに分けてあればそちら、
+         空ならこれまでどおりアプリと同じ置き場（手元での開発はこのまま）*/
+      function lpBase() {
+        var site = (App && typeof App.lpSite === 'function') ? String(App.lpSite() || '') : '';
+        if (site) { return site.replace(/\/*$/, '/'); }
+        return location.href.split('#')[0].replace(/[^/]*$/, '');
+      }
+
       function publicUrl() {
         var slug = String(view.gen.public_url_slug || '');
         if (!slug) { return ''; }
-        var base = location.href.split('#')[0].replace(/[^/]*$/, '');
-        return base + 'view.html?lp=' + encodeURIComponent(slug);
+        return lpBase() + 'view.html?lp=' + encodeURIComponent(slug);
       }
 
       /* 公開したときのURLの名前。メールの登録もこの名前で受けるので、

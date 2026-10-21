@@ -57,6 +57,17 @@
 
   var APP_NAME = 'エルピーヤ';
   var APP_VERSION = '1.0.0';
+  /* 顧客のLPを載せる置き場。アプリ本体とは別のドメインに分ける。
+     理由（2026-10-21 に実測して確かめたこと）:
+       1. いまはアプリと同じ所に相乗りしていて、LPのURLが **HTTP 404** を返す
+          （GitHub Pages に実体が無く、404.html が受けて転送しているため）。
+          画面は出るが、クローラーには 404 と noindex の両方を返している。
+       2. GitHub Pages はカスタムドメインを1リポジトリ1つしか持てないので、
+          顧客が自社ドメインで出したい、に構造的に応えられない。
+       3. 顧客のLPが1本でも通報を受けると、同じドメインのアプリ本体まで巻き添え。
+     空なら、これまでどおりアプリと同じ置き場を使う（手元での開発はこのまま）。
+     末尾は「/」で終える */
+  var LP_SITE = '';
   var DEFAULT_LANG = 'ja';
   var TOAST_MS = 3200;
 
@@ -2805,6 +2816,7 @@
     openSheet: openSheet,
     closeModal: closeModal,
     openViewer: openViewer,
+    lpSite: function () { return LP_SITE; },
     closeViewer: closeViewer,
     saveProgressButton: saveProgressButton,
 
