@@ -87,6 +87,8 @@
   var USER_LIMIT = 50;
   var INQUIRY_LIMIT = 50;
   var COUPON_LIMIT = 20;
+  /* AIの使用量。月ごとに合計するだけなので、直近ぶんが読めれば足りる */
+  var AI_USAGE_LIMIT = 1000;
   var TX_SCAN_LIMIT = 300;                         // 本日の消費を数えるために読む履歴の上限
   var MAX_FEATURE_KEY_LENGTH = 40;
   var MAX_FEATURE_NAME_LENGTH = 40;
@@ -167,6 +169,18 @@
     'local.chatSend': ['返信する', 'Send reply', '답장 보내기'],
     'local.chatSent': ['返信しました', 'Reply sent', '답장했습니다'],
     'local.chatNeedBody': ['返信の内容を入れてください', 'Enter a reply', '내용을 입력하세요'],
+    'local.aiCostTitle': ['AIにかかった費用', 'AI spend', 'AI 비용'],
+    'local.aiCostDesc': ['投げた回数ぶんが課金されます。作り直しも1回に数えます。',
+      'Billed per request, including retries.', '요청 횟수만큼 과금됩니다(재시도 포함).'],
+    'local.aiCostMonth': ['月', 'Month', '월'],
+    'local.aiCostTries': ['投げた回数', 'Requests', '요청 수'],
+    'local.aiCostMade': ['できた枚数', 'Delivered', '생성 수'],
+    'local.aiCostRate': ['1枚あたり', 'Per image', '1장당'],
+    'local.aiCostUsd': ['費用', 'Cost', '비용'],
+    'local.aiCostEmpty': ['まだ記録がありません', 'No records yet', '기록이 없습니다'],
+    'local.aiCostNote': ['※ 単価は「画像1回あたりの原価（USD×1000）」で変えられます。記録は当時の単価のまま残ります。',
+      'Unit price is editable above; past rows keep the price at the time.',
+      '단가는 위에서 변경할 수 있으며, 과거 기록은 당시 단가를 유지합니다.'],
     'local.statusLabel': ['状態', 'Status', '상태'],
     'local.toSuspend': ['このユーザーを停止する', 'Suspend this user', '이 사용자를 정지'],
     'local.toActivate': ['このユーザーを有効にする', 'Activate this user', '이 사용자를 활성화'],
@@ -721,7 +735,10 @@
         tableList('creditTransactions', { order: 'created_at.desc', limit: TX_SCAN_LIMIT }),
         tableList('inquiries', { order: 'created_at.desc', limit: INQUIRY_LIMIT }),
         tableList('coupons', { order: 'created_at.desc', limit: COUPON_LIMIT }),
-        tableList('platformSelectors', { order: 'platform.asc' })
+        tableList('platformSelectors', { order: 'platform.asc' }),
+        /* AIの使用量。読めなくても管理画面は開けるようにする（原価は飾り） */
+        tableList('aiUsage', { order: 'created_at.desc', limit: AI_USAGE_LIMIT })
+          .catch(function () { return []; })
       ]).then(function (results) {
         var featureRows = results[0] || [];
         state.unitPrice = unitPriceOf(featureRows);
@@ -742,6 +759,7 @@
         state.inquiries = results[3] || [];
         state.coupons = results[4] || [];
         state.selectors = results[5] || [];
+        state.aiUsage = results[6] || [];
         draw();
       }, function (err) {
         console.error('[screens-admin] 管理データの読み込みに失敗しました', err);
@@ -777,6 +795,8 @@
       wrap.appendChild(stats);
 
       wrap.appendChild(unitPriceSection());
+      /* 原価は値付けの根拠なので、単価のすぐ下に置く */
+      wrap.appendChild(aiCostSection());
       wrap.appendChild(usersSection());
       wrap.appendChild(couponSection());
       wrap.appendChild(inquiriesSection());
@@ -1234,6 +1254,51 @@
         }
         run();
       }
+    }
+
+    /* ---- AIにかかった費用（2026-10-23 要望）----
+       値付けの根拠が「請求画面を人が見る」しか無かった。
+       投げた回数と、そのときの単価を貯めてあるので、月ごとに合計する。
+       1枚あたりの実測倍率もここで分かる（＝作り直しの重さ） */
+    function aiCostSection() {
+      if (!state.aiUsage || !state.aiUsage.length) {
+        return section(tl('local.aiCostTitle'), tl('local.aiCostDesc'),
+          [emptyBlock(tl('local.aiCostEmpty'))]);
+      }
+      /* 月ごとにまとめる */
+      var byMonth = {};
+      state.aiUsage.forEach(function (row) {
+        var key = String(row.created_at || '').slice(0, 7);   // YYYY-MM
+        if (!key) { return; }
+        var m = byMonth[key] || (byMonth[key] = { tries: 0, made: 0, usd: 0 });
+        var tries = Number(row.tries) || 0;
+        m.tries += tries;
+        m.made += Number(row.made) || 0;
+        m.usd += tries * (Number(row.unit_usd) || 0);
+      });
+      var months = Object.keys(byMonth).sort().reverse();
+      var list = el('div', 'list');
+      months.forEach(function (key) {
+        var m = byMonth[key];
+        var item = el('div', 'list-row');
+        var bodyNode = el('div', 'list-row__body');
+        bodyNode.appendChild(el('div', 'list-row__title', key));
+        /* 1枚あたり何回まわったか。これが原価の効き目そのもの */
+        var rate = m.made ? (m.tries / m.made) : 0;
+        bodyNode.appendChild(el('div', 'list-row__sub clamp-2',
+          tl('local.aiCostTries') + ' ' + fmtNumber(m.tries)
+          + ' ・ ' + tl('local.aiCostMade') + ' ' + fmtNumber(m.made)
+          + (m.made ? ' ・ ' + tl('local.aiCostRate') + ' ' + rate.toFixed(2) + '回' : '')));
+        item.appendChild(bodyNode);
+        var meta = el('div', 'list-row__meta');
+        meta.appendChild(el('span', 'num', '$' + m.usd.toFixed(2)));
+        item.appendChild(meta);
+        list.appendChild(item);
+      });
+      var wrap = el('div', 'stack stack--tight');
+      wrap.appendChild(list);
+      wrap.appendChild(el('p', 'field__hint', tl('local.aiCostNote')));
+      return section(tl('local.aiCostTitle'), tl('local.aiCostDesc'), [wrap]);
     }
 
     /* ---- クーポン発行 ---- */

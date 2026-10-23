@@ -111,6 +111,7 @@
     coupons: TABLE_PREFIX + 'coupons',
     inquiries: TABLE_PREFIX + 'inquiries',
     inquiryMessages: TABLE_PREFIX + 'inquiry_messages',
+    aiUsage: TABLE_PREFIX + 'ai_usage',
     platformSelectors: TABLE_PREFIX + 'platform_selectors',
     leads: TABLE_PREFIX + 'leads'
   };
@@ -753,6 +754,7 @@
     coupons: makeTable(TABLES.coupons),
     inquiries: makeTable(TABLES.inquiries),
     inquiryMessages: makeTable(TABLES.inquiryMessages),
+    aiUsage: makeTable(TABLES.aiUsage),
     platformSelectors: makeTable(TABLES.platformSelectors)
   };
 
