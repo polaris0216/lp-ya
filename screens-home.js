@@ -122,7 +122,10 @@
   ];
   var MAX_NAME = 30;
   var MAX_FEATURES = 300;
-  var IMAGE_MAX_EDGE = 1024;       // ponytail: 画像はデータURLのまま projects.image_urls に入れるので長辺1024pxへ縮小する。専用ストレージを使うならここを差し替える。
+  /* 長辺1024pxへ縮めてから置き場に上げる。原寸のままだと、見本として
+     渡すときに縮める手間が増えるだけで、形の見分けには効かない
+     （2026-10-23: データURLで行に入れるのをやめ、Storage のURLで持つようにした）*/
+  var IMAGE_MAX_EDGE = 1024;
   var IMAGE_QUALITY = 0.72;
 
   /* ---------- 小さな道具 ---------- */
@@ -2648,15 +2651,52 @@
 
       picked.forEach(function (file) {
         shrinkImage(file, function (err, dataUrl) {
-          pending--;
           if (err) {
+            pending--;
             console.error('[screens-home] 画像を読み込めませんでした: ' + (file && file.name ? file.name : ''), err);
             toast(t('common.error'), 'danger');
-          } else {
-            form.images.push(dataUrl);
+            if (pending === 0) { paintImages(); }
+            return;
           }
-          if (pending === 0) { paintImages(); }
+          /* 置き場に上げて、URLで持つ（2026-10-23）。
+             前はデータURLのまま projects の行に入れていたが、
+             1枚あたり十数万字になり、15枚で行が数MBになる。
+             案件を開くたびにそれを運ぶことになるし、公開LPのHTMLにも
+             焼き込まれる。ブランドロゴと同じ置き場を使う。
+             上げられなかったときはデータURLのまま進む——
+             ここで止めると、写真を1枚も入れられなくなる */
+          putShot(dataUrl, file, function (url) {
+            pending--;
+            form.images.push(url || dataUrl);
+            if (pending === 0) { paintImages(); }
+          });
         });
+      });
+    }
+
+    /* 縮めた絵を置き場へ上げる。上げられなければ null を返す（呼んだ側が元のまま使う）*/
+    function putShot(dataUrl, file, done) {
+      if (!window.Api || !Api.files || typeof Api.files.upload !== 'function') { done(null); return; }
+      var blob;
+      try {
+        /* data:…;base64,… を Blob に戻す。fetch(dataUrl) でも取れるが、
+           古い WebView で通らないことがあるので自前で解く */
+        var comma = dataUrl.indexOf(',');
+        var bin = window.atob(dataUrl.slice(comma + 1));
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+        blob = new window.Blob([bytes], { type: 'image/jpeg' });
+      } catch (err) {
+        console.error('[screens-home] 画像を組み直せませんでした', err);
+        done(null);
+        return;
+      }
+      Api.files.upload(blob, {
+        folder: 'shots/' + String(projectId || 'draft'),
+        ext: 'jpg', contentType: 'image/jpeg'
+      }).then(function (url) { done(String(url || '') || null); }, function (err) {
+        console.error('[screens-home] 置き場に上げられませんでした（そのまま進みます）', err);
+        done(null);
       });
     }
 
