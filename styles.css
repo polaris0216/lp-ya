@@ -4913,24 +4913,6 @@ input[type='radio'] {
 /* 生成された絵は押したら大きく見える。押せると分かるようにする */
 .line-card__img { cursor: zoom-in; }
 
-/* 前に作った絵。横に並べ、はみ出たら横に送る */
-.line-past__wrap { display: flex; align-items: center; gap: 4px; }
-.line-past { display: flex; gap: 12px; overflow-x: auto; padding: 4px 0; scroll-behavior: smooth; }
-/* 矢印でも送れるので、指でこする帯は見せない */
-.line-past::-webkit-scrollbar { display: none; }
-.line-past__arrow { flex: 0 0 auto; padding: 8px 4px; min-width: 28px; font-size: 16px; }
-.line-past__arrow:disabled { opacity: .25; cursor: default; }
-.line-past__one { flex: 0 0 auto; display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 120px; }
-.line-past__at { font-size: var(--fs-note); color: var(--c-text-sub); text-align: center; }
-.line-past__img {
-  width: 120px;
-  height: 90px;
-  object-fit: cover;
-  border-radius: var(--r-control);
-  background: var(--c-bg);
-  cursor: zoom-in;
-}
-
 /* 押せる面（LINEに登録する行き先） */
 .line-area { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .line-area__no { flex: 0 0 56px; font-size: var(--fs-note); color: var(--c-text-sub); }
