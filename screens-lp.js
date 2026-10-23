@@ -196,14 +196,11 @@
     'lp.kindKv': ['KV', 'KV', 'KV'],
     'lp.kindAds': ['メタ広告', 'Meta ads', '메타 광고'],
     'lp.kindLine': ['LINEの台', 'LINE assets', 'LINE 소재'],
-    'lp.lineMake': ['LINEの台を作る', 'Create LINE assets', 'LINE 소재 만들기'],
-    'lp.lineMade': ['LINEの台を作りました。区画ごとに生成できます。',
-      'LINE assets created. Generate them section by section.',
-      'LINE 소재를 만들었습니다.'],
+    'lp.lineGo': ['LINEコンテンツの画面へ', 'Go to LINE contents', 'LINE 콘텐츠 화면으로'],
+    'lp.lineMoved': ['LINEの台は「LINEコンテンツ」の画面で作ります。形を選ぶところも、生成も、そちらにまとめました。',
+      'LINE assets are created on the LINE contents screen.',
+      'LINE 소재는 「LINE 콘텐츠」 화면에서 만듭니다.'],
     /* 2026-10-23: この場で形を選べるようにしたので、別画面へ送らない */
-    'lp.lineNeedPick': ['上でリッチメニューかリッチメッセージの形を選ぶと、作れるようになります。',
-      'Pick a rich menu or rich message layout above to continue.',
-      '위에서 리치메뉴 또는 리치메시지 형식을 선택하면 만들 수 있습니다.'],
     'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
     'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
     'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
@@ -683,7 +680,10 @@
           /* LINEの台だけは、ここから足せる。寸法も組み方も決まっていて
              AIに書かせる所が無いので、LPを作り直さずに付けられる
              （2026-10-14 要望:「アプリ内の作る機能を追加し、それを経由して作成」） */
-          if (view.kind === 'line_brief') { add(body, makeLineBtn()); }
+          /* LINEの台はここでは作らない（2026-10-23 決め）。
+             同じ話が2画面にあると、どちらで作ったか分からなくなる。
+             作るのは LINEコンテンツの画面だけにして、ここからは行き先だけ出す */
+          if (view.kind === 'line_brief') { add(body, goLineBtn()); }
           /* 種類は、いつもと同じ「耳の下の行」に出す。
              戻れないと行き止まりになるので、何も無いときも出す
              （耳の帯に入れると、層と種類の並びが入れ替わって見える） */
@@ -1229,102 +1229,31 @@
           /* 何番目を見ているかは描き直しをまたいで覚える。作り直しのあとに
              paint() が走ると、見ていた版に戻れなくなる */
           if (view.shotAt[slot] === undefined || view.shotAt[slot] >= shots.length) { view.shotAt[slot] = 0; }
-          var stage = el('div', 'lp-shot');
-          var img = el('img', 'lp-section__img');
-          img.alt = ''; img.loading = 'lazy';
-          /* 押したら大きく見る。区画のカードでは幅360pxまでなので、
-             文字が読めるか・商品の形が合っているかを確かめられない */
-          img.title = t('lp.shotZoom');
-          img.setAttribute('role', 'button');
-          img.setAttribute('tabindex', '0');
-          var zoom = function () { openShot(shots[view.shotAt[slot]].url); };
-          img.addEventListener('click', zoom);
-          img.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); zoom(); }
+          /* 見せ方は shot-carousel.js に切り出した（2026-10-23）。
+             同じものを LINEコンテンツの画面でも使う */
+          var car = window.LpyaShotCarousel({
+            shots: shots,
+            at: view.shotAt[slot],
+            currentPrompt: sec.prompt || '',
+            labels: {
+              now: t('lp.shotNow'), restore: t('lp.restore'), zoom: t('lp.shotZoom'),
+              prev: t('lp.prevShot'), next: t('lp.nextShot'),
+              prompt: t('lp.shotPrompt'), promptNone: t('lp.shotPromptNone'),
+              promptUse: t('lp.shotPromptUse'), copy: t('lp.copy')
+            },
+            onZoom: function (u) { openShot(u); },
+            onMove: function (n) { view.shotAt[slot] = n; },
+            onRestore: function (i) { restoreVersion(slot, i); },
+            onUsePrompt: function (was) {
+              sec.prompt = was;
+              view.dirty = true;
+              if (promptTa) { promptTa.value = was; }
+              var sv = document.getElementById('lp-save'); if (sv) { sv.disabled = false; }
+              toast(t('lp.shotPromptUsed'), 'success');
+            },
+            onCopy: function (was) { copyText(was); }
           });
-          /* 両端に前後の版をぼかして覗かせる。次に何が来るかが見えるので、
-             押す前に見当がつく。飾りではなく、押しても送れるようにする */
-          var peekPrev = el('img', 'lp-shot__peek');
-          var peekNext = el('img', 'lp-shot__peek');
-          peekPrev.alt = ''; peekNext.alt = '';
-          peekPrev.loading = 'lazy'; peekNext.loading = 'lazy';
-          var foot = el('div', 'lp-shot__foot');
-          var counter = el('span', 't-note', '');
-          var action = el('span', 'lp-shot__action');
-          add(foot, counter);
-          add(foot, action);
-          /* その版を作った文。文を直して作り直したあと「前の方がよかった」と
-             なったとき、絵だけ戻せても文が戻せないと同じものを作り直せない。
-             古い版には文が残っていないことがある（この機能より前に作ったもの） */
-          var shotPrompt = el('details', 'lp-shot__prompt');
-          var shotPromptSum = el('summary', '', t('lp.shotPrompt'));
-          var shotPromptBody = el('pre', 'lp-shot__prompt-body', '');
-          var shotPromptRow = el('div', 'lp-toolbar');
-          add(shotPrompt, shotPromptSum);
-          add(shotPrompt, shotPromptBody);
-          add(shotPrompt, shotPromptRow);
-
-          /* 矢印では paint() を呼ばない。全部を描き直すと画面が作り直され、
-             見ていた場所を失ってページの先頭へ飛ぶ（実測）。
-             ここで変わるのは絵と下の1行だけなので、その2つだけ書き換える */
-          var older = function (at) { return (at + 1) % shots.length; };          /* 左＝古い方 */
-          var newer = function (at) { return (at - 1 + shots.length) % shots.length; };
-
-          var show = function () {
-            var at = view.shotAt[slot];
-            img.src = shots[at].url;
-            /* 版が2つしか無いと、左右の覗きが同じ絵になる。それでも
-               「隣がある」ことは伝わるので、そのまま出す */
-            peekPrev.src = shots[older(at)].url;
-            peekNext.src = shots[newer(at)].url;
-            counter.textContent = (at + 1) + ' / ' + shots.length
-              + (shots[at].at ? '　' + String(shots[at].at).slice(0, 16).replace('T', ' ') : '');
-            clear(action);
-            /* いま使っている版以外を見ているときだけ、置き換えの手を出す */
-            add(action, at === 0
-              ? el('span', 'chip chip--sm chip--success', t('lp.shotNow'))
-              : button('btn btn--secondary btn--sm', t('lp.restore'), function () { restoreVersion(slot, at - 1); }));
-
-            var was = String(shots[at].prompt || '');
-            shotPromptBody.textContent = was || t('lp.shotPromptNone');
-            clear(shotPromptRow);
-            /* いま書かれている文と違うときだけ「この文に戻す」を出す。
-               同じ文なら押す意味がないので出さない */
-            if (was && was !== String(sec.prompt || '')) {
-              add(shotPromptRow, button('btn btn--secondary btn--sm', t('lp.shotPromptUse'), function () {
-                sec.prompt = was;
-                view.dirty = true;
-                if (promptTa) { promptTa.value = was; }
-                var sv = document.getElementById('lp-save'); if (sv) { sv.disabled = false; }
-                toast(t('lp.shotPromptUsed'), 'success');
-              }));
-              add(shotPromptRow, button('btn btn--text btn--sm', t('lp.copy'), function () { copyText(was); }));
-            } else if (was) {
-              add(shotPromptRow, button('btn btn--text btn--sm', t('lp.copy'), function () { copyText(was); }));
-            }
-          };
-
-          if (shots.length > 1) {
-            var goOlder = function () { view.shotAt[slot] = older(view.shotAt[slot]); show(); };
-            var goNewer = function () { view.shotAt[slot] = newer(view.shotAt[slot]); show(); };
-            var prev = button('btn btn--secondary btn--sm lp-shot__nav', '‹', goOlder);
-            prev.setAttribute('aria-label', t('lp.prevShot'));
-            var next = button('btn btn--secondary btn--sm lp-shot__nav', '›', goNewer);
-            next.setAttribute('aria-label', t('lp.nextShot'));
-            peekPrev.addEventListener('click', goOlder);
-            peekNext.addEventListener('click', goNewer);
-            add(stage, peekPrev);
-            add(stage, prev);
-            add(stage, img);
-            add(stage, next);
-            add(stage, peekNext);
-          } else {
-            add(stage, img);
-          }
-          show();
-          add(li, stage);
-          if (shots.length > 1) { add(li, foot); }
-          add(li, shotPrompt);
+          add(li, car.node);
         }
 
         /* よくある質問は絵を作らない。見せるのも直させるのも、写真の指示ではなく
@@ -1604,94 +1533,13 @@
       /* LINEの台を、いま開いている回に足す。
          販売の条件（リッチメニュー・リッチメッセージの形）を選んでいないと
          ワーカーが断るので、押す前にここでも言う */
-      function makeLineBtn() {
-        var pr = view.project || {};
-        var info = (pr.sales_info && typeof pr.sales_info === 'object') ? pr.sales_info : {};
-
-        /* 形をここで選べるようにする（2026-10-23 要望）。
-           これまでは「先に販売の条件で選んでください」と出すだけで、
-           別の画面へ行かされた。作る所で選べないのは行き止まりに近い。
-           見本は line-pick.js（S21 と同じもの）*/
+      /* LINEコンテンツの画面へ送るだけ。作る所は1つにまとめた（2026-10-23）*/
+      function goLineBtn() {
         var wrap = el('div', 'stack stack--tight');
-        var chosen = { menu: String(info.line_menu || ''), msg: String(info.line_msg || '') };
-
-        if (typeof window.LpyaLinePick === 'function') {
-          var fm = el('div', 'field');
-          add(fm, el('label', 'field__label', t('lp.pubLineMenu')));
-          add(fm, window.LpyaLinePick({
-            kind: 'menu', value: chosen.menu, noneLabel: t('lp.pubLineNone'),
-            onPick: function (id) { chosen.menu = id; refresh(); }
-          }));
-          add(wrap, fm);
-
-          var fg = el('div', 'field');
-          add(fg, el('label', 'field__label', t('lp.pubLineMsg')));
-          add(fg, window.LpyaLinePick({
-            kind: 'message', value: chosen.msg, noneLabel: t('lp.pubLineNone'),
-            onPick: function (id) { chosen.msg = id; refresh(); }
-          }));
-          add(wrap, fg);
-        }
-
-        var b = button('btn btn--primary', t('lp.lineMake'), function () {
-          if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
-          var any = view.gens[0] || (view.byKind.lp_brief || [])[0];
-          if (!any) { toast(t('lp.empty'), 'danger'); return; }
-          b.disabled = true;
-          /* 押した時点の形を案件へ入れてから積む。
-             入れずに積むと、ワーカーが古い形で作ってしまう */
-          saveShapes().then(function () {
-          Api.generationJobs.insert({
-            feature_key: 'line_brief',
-            status: 'pending',
-            projects_id: projectId,
-            users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function') ? Api.auth.userId() : undefined,
-            payload: { generation_id: any.id },
-            lang: currentLocale()
-          }).then(function (job) {
-            if (!App.watchJob) { b.disabled = false; return; }
-            App.watchJob({
-              jobId: job.id,
-              titleKey: 'lp.kindLine',
-              urls: [],
-              onDone: function () {
-                reloadAll().then(function () { b.disabled = false; toast(t('lp.lineMade'), 'success'); paint(); });
-              },
-              onFail: function () { b.disabled = false; paint(); }
-            });
-          }).catch(function (err) {
-            b.disabled = false;
-            console.error('[screens-lp] LINEの台を積めませんでした:', err);
-            toast(t('common.error'), 'danger');
-          });
-          });
-        });
-
-        /* 形が1つも選ばれていなければ押させない。
-           押せてしまうと、ワーカーが断ってから気づくことになる */
-        function refresh() {
-          var none = !chosen.menu && !chosen.msg;
-          b.disabled = none;
-          hint.style.display = none ? '' : 'none';
-        }
-
-        function saveShapes() {
-          if (chosen.menu === String(info.line_menu || '')
-            && chosen.msg === String(info.line_msg || '')) { return Promise.resolve(); }
-          var next = {};
-          Object.keys(info).forEach(function (k) { next[k] = info[k]; });
-          next.line_menu = chosen.menu;
-          next.line_msg = chosen.msg;
-          return Api.projects.update(projectId, { sales_info: next }).then(function () {
-            pr.sales_info = next;
-            info = next;
-          });
-        }
-
-        var hint = el('p', 'field__hint', t('lp.lineNeedPick'));
-        add(wrap, hint);
-        add(wrap, b);
-        refresh();
+        add(wrap, el('p', 'field__hint', t('lp.lineMoved')));
+        add(wrap, button('btn btn--primary', t('lp.lineGo'), function () {
+          location.hash = '#/S21';
+        }));
         return wrap;
       }
 

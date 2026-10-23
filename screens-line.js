@@ -172,10 +172,13 @@
     'line.make': ['絵を作る', 'Generate', '생성'],
     'line.remake': ['作り直す', 'Regenerate', '다시 생성'],
     'line.open': ['大きく見る', 'Open', '크게 보기'],
-    'line.past': ['前に作った絵 {n}枚', '{n} earlier versions', '이전에 만든 그림 {n}장'],
-    'line.pastNow': ['いまの絵', 'Current', '현재 그림'],
-    'line.pastNth': ['{n}つ前', '{n} back', '{n}번째 이전'],
     'line.useThis': ['これを使う', 'Use this', '이걸로 설정'],
+    'line.shotNow': ['いま使う版', 'In use', '사용 중'],
+    'line.shotPrompt': ['この版を作った生成文を見る', 'Show the prompt that made this version', '이 버전을 만든 프롬프트 보기'],
+    'line.shotPromptNone': ['この版の生成文は残っていません', 'No prompt kept for this version', '이 버전의 프롬프트가 없습니다'],
+    'line.shotPromptUse': ['この文に戻す', 'Use this prompt', '이 프롬프트로 되돌리기'],
+    'line.shotPromptUsed': ['生成文を戻しました。保存してから作り直してください',
+      'Prompt restored. Save, then regenerate.', '프롬프트를 되돌렸습니다. 저장 후 다시 생성하세요'],
     'line.useThisDone': ['この絵をいまの絵にしました', 'Now the current image', '현재 그림으로 바꿨습니다'],
     'line.prev': ['前へ', 'Previous', '이전'],
     'line.next': ['次へ', 'Next', '다음'],
@@ -270,7 +273,10 @@
     add(screen, body);
     add(root, screen);
 
-    var view = { project: null, brief: null, layers: {}, layer: '', texts: null, busy: {} };
+    /* shotAt は「どの版を見ているか」。描き直しをまたいで覚える
+       （作り直しのあと paint() が走ると、見ていた版に戻れなくなる）*/
+    var view = { project: null, brief: null, layers: {}, layer: '', texts: null,
+      busy: {}, shotAt: {} };
 
     /* 絵のある束を選ぶ。いちばん新しい1本にすると、区画を作り直した直後に
        「絵が1枚も無い」画面になる（実測 2026-10-15: 作った絵は1つ前の束にあった）。
@@ -863,95 +869,48 @@
           }));
         }
         add(card, det);
-        /* 写真は生成文のあと */
+        /* 写真は生成文のあと。
+           見せ方は LP案ページと同じ（2026-10-23 要望）。shot-carousel.js を
+           両方から使う。版を左右に送れて、いま使う版が分かり、
+           その版を作った文もその場で読める */
         if (url) {
-          var img = el('img', 'line-card__img');
-          img.src = url;
-          img.alt = String(sec.title || '');
-          img.loading = 'lazy';
-          /* 押したらそのまま大きく見る（2026-10-18 要望）。
-             拡大の窓はアプリ共通のものを使う（左右で送れる）。
-             同じ層のできている絵を順に並べて渡す */
-          img.addEventListener('click', function (event) {
-            if (!App || typeof App.openViewer !== 'function') { return; }
-            if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) { return; }
-            event.preventDefault();
-            var shots = [];
-            var at = 0;
-            (view.brief.sections || []).forEach(function (x) {
-              var u = made[String(x.index) + '-1'];
-              if (!u) { return; }
-              if (Number(x.index) === Number(sec.index)) { at = shots.length; }
-              shots.push({ type: 'image', src: u, label: String(x.title || '') });
-            });
-            App.openViewer(shots, at);
+          var madeP = (view.brief.asset_prompts && view.brief.asset_prompts.madePrompt) || {};
+          var shots = [{ url: url, at: '', prompt: madeP[slot] || '' }].concat(pastOf(slot));
+          if (view.shotAt[slot] === undefined || view.shotAt[slot] >= shots.length) {
+            view.shotAt[slot] = 0;
+          }
+          var car = window.LpyaShotCarousel({
+            shots: shots,
+            at: view.shotAt[slot],
+            currentPrompt: sec.prompt || '',
+            labels: {
+              now: tl('line.shotNow'), restore: tl('line.useThis'), zoom: tl('line.open'),
+              prev: tl('line.prev'), next: tl('line.next'),
+              prompt: tl('line.shotPrompt'), promptNone: tl('line.shotPromptNone'),
+              promptUse: tl('line.shotPromptUse'), copy: tl('line.copy')
+            },
+            onZoom: function (u) {
+              if (!App || typeof App.openViewer !== 'function') { return; }
+              App.openViewer([{ type: 'image', src: u, label: String(sec.title || '') }], 0);
+            },
+            onMove: function (n) { view.shotAt[slot] = n; },
+            /* 0番目以外を選んだら、その版をいまの絵にする */
+            onRestore: function (i, shot) { useVersion(slot, shot); },
+            onUsePrompt: function (was) {
+              base.value = was;
+              toast(tl('line.shotPromptUsed'), 'success');
+            },
+            onCopy: function (was) {
+              if (navigator.clipboard) { navigator.clipboard.writeText(was); }
+            }
           });
-          add(card, img);
-          var a = el('a', 'btn btn--text btn--sm', tl('line.open'));
-          a.href = url;
-          a.target = '_blank';
-          a.rel = 'noopener';
-          add(card, a);
+          add(card, car.node);
+
           var dl = button('btn btn--text btn--sm', t('common.download'), function () {
-            saveImage(url, nameFor(slot, '', url), dl);
+            saveImage(shots[view.shotAt[slot]].url,
+              nameFor(slot, shots[view.shotAt[slot]].at, shots[view.shotAt[slot]].url), dl);
           });
           add(card, dl);
-        }
-        /* 前に作った絵。小さく並べ、押すと共通の窓で大きく見る */
-        var past = pastOf(slot);
-        if (past.length) {
-          var pd = el('details', 'line-prompt');
-          add(pd, el('summary', 'line-prompt__sum', tl('line.past', { n: past.length })));
-          /* 横に流すだけだと、指でこすらないと次が見えない（2026-10-20 要望）。
-             左右の矢印で1枚ずつ送れるようにする。端まで来たら矢印を止める */
-          var wrap = add(pd, el('div', 'line-past__wrap'));
-          var prev = button('btn btn--text line-past__arrow', '◀', function () { step(-1); });
-          prev.setAttribute('aria-label', tl('line.prev'));
-          add(wrap, prev);
-          var row = add(wrap, el('div', 'line-past'));
-          var next = button('btn btn--text line-past__arrow', '▶', function () { step(1); });
-          next.setAttribute('aria-label', tl('line.next'));
-          add(wrap, next);
-          function step(dir) {
-            var one = row.querySelector('.line-past__one');
-            var w = one ? one.getBoundingClientRect().width + 12 : 132;
-            row.scrollBy({ left: dir * w, behavior: 'smooth' });
-          }
-          /* 端では押せなくする。送れる先があるかどうかで決める */
-          function arrows() {
-            var max = row.scrollWidth - row.clientWidth;
-            prev.disabled = row.scrollLeft <= 1;
-            next.disabled = row.scrollLeft >= max - 1;
-          }
-          row.addEventListener('scroll', arrows);
-          setTimeout(arrows, 0);
-          past.forEach(function (h, i) {
-            var one = add(row, el('div', 'line-past__one'));
-            var th = add(one, el('img', 'line-past__img'));
-            th.src = h.url;
-            th.loading = 'lazy';
-            th.alt = tl('line.pastNth', { n: i + 1 });
-            th.title = String(h.at || '').slice(0, 10);
-            add(one, el('span', 'line-past__at', String(h.at || '').slice(0, 10)));
-            var use = button('btn btn--secondary btn--sm', tl('line.useThis'), function () {
-              useVersion(slot, h, use);
-            });
-            add(one, use);
-            var sv2 = button('btn btn--text btn--sm', t('common.download'), function () {
-              saveImage(h.url, nameFor(slot, h.at, h.url), sv2);
-            });
-            add(one, sv2);
-            th.addEventListener('click', function () {
-              if (!App || typeof App.openViewer !== 'function') { return; }
-              var shots = (url ? [{ type: 'image', src: url, label: tl('line.pastNow') }] : [])
-                .concat(past.map(function (x, k) {
-                  return { type: 'image', src: x.url,
-                    label: tl('line.pastNth', { n: k + 1 }) + ' ' + String(x.at || '').slice(0, 10) };
-                }));
-              App.openViewer(shots, (url ? 1 : 0) + i);
-            });
-          });
-          add(card, pd);
         }
         var b = button('btn btn--primary btn--sm', url ? tl('line.remake') : tl('line.make'), function () {
           queue('lp_section',
