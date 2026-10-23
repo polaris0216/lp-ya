@@ -25,10 +25,10 @@
   var KINDS = [
     { key: 'lp_brief', label: 'lp.kindLp' },
     { key: 'kv_brief', label: 'lp.kindKv' },
-    { key: 'ads_brief', label: 'lp.kindAds' },
-    /* LINEの台。販売の条件で形を選んだ案件にだけ中身がある。
-       選んでいなければ束が空になるだけで、耳は出ない */
-    { key: 'line_brief', label: 'lp.kindLine' }
+    { key: 'ads_brief', label: 'lp.kindAds' }
+    /* LINEの台はここに出さない（2026-10-23 決め）。
+       作るのも見るのも「LINEコンテンツ」の画面（S21）にまとめた。
+       同じ話が2画面にあると、どちらで作ったか分からなくなる */
   ];
 
   /* 種類の呼び名。KINDS を引くのはここだけ */
@@ -195,11 +195,6 @@
     'lp.kindLp': ['LP', 'LP', 'LP'],
     'lp.kindKv': ['KV', 'KV', 'KV'],
     'lp.kindAds': ['メタ広告', 'Meta ads', '메타 광고'],
-    'lp.kindLine': ['LINEの台', 'LINE assets', 'LINE 소재'],
-    'lp.lineGo': ['LINEコンテンツの画面へ', 'Go to LINE contents', 'LINE 콘텐츠 화면으로'],
-    'lp.lineMoved': ['LINEの台は「LINEコンテンツ」の画面で作ります。形を選ぶところも、生成も、そちらにまとめました。',
-      'LINE assets are created on the LINE contents screen.',
-      'LINE 소재는 「LINE 콘텐츠」 화면에서 만듭니다.'],
     /* 2026-10-23: この場で形を選べるようにしたので、別画面へ送らない */
     'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
     'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
@@ -677,13 +672,6 @@
             add(body, el('p', 'field__hint', t('lp.emptyHint')));
           }
           if (view.missingLabel) { add(body, el('p', 'field__hint', t('lp.kindEmptyHint'))); }
-          /* LINEの台だけは、ここから足せる。寸法も組み方も決まっていて
-             AIに書かせる所が無いので、LPを作り直さずに付けられる
-             （2026-10-14 要望:「アプリ内の作る機能を追加し、それを経由して作成」） */
-          /* LINEの台はここでは作らない（2026-10-23 決め）。
-             同じ話が2画面にあると、どちらで作ったか分からなくなる。
-             作るのは LINEコンテンツの画面だけにして、ここからは行き先だけ出す */
-          if (view.kind === 'line_brief') { add(body, goLineBtn()); }
           /* 種類は、いつもと同じ「耳の下の行」に出す。
              戻れないと行き止まりになるので、何も無いときも出す
              （耳の帯に入れると、層と種類の並びが入れ替わって見える） */
@@ -1530,19 +1518,6 @@
       /* 区画を1つだけ動かす。全部まとめる方（startAssets）と同じ仕事だが、
          payload に slot を入れて1点に絞る。作り直しのときは force を付ける
          （付けないと、もうあるものとして飛ばされる） */
-      /* LINEの台を、いま開いている回に足す。
-         販売の条件（リッチメニュー・リッチメッセージの形）を選んでいないと
-         ワーカーが断るので、押す前にここでも言う */
-      /* LINEコンテンツの画面へ送るだけ。作る所は1つにまとめた（2026-10-23）*/
-      function goLineBtn() {
-        var wrap = el('div', 'stack stack--tight');
-        add(wrap, el('p', 'field__hint', t('lp.lineMoved')));
-        add(wrap, button('btn btn--primary', t('lp.lineGo'), function () {
-          location.hash = '#/S21';
-        }));
-        return wrap;
-      }
-
       function generateMotion(index, redo) {
         if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
         var slot = String(index) + '-1';
