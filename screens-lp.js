@@ -1172,9 +1172,40 @@
           add(body, el('p', 'empty', t('lp.loadingSections')));
           return;
         }
+        /* 危ない表現を拾って、区画の上に出す（2026-10-24 要望）。
+           止めない——生成も保存も通す。止めると直せないのに進めなくなる。
+           何も拾わなければ何も出さない（「問題ありません」とは言わない）*/
+        add(body, compliPanel());
+
         var list = el('ol', 'lpd-sections');
         view.gen.sections.forEach(function (sec, i) { add(list, sectionCard(sec, i)); });
         add(body, list);
+      }
+
+      /* 検査の材料。割引の根拠は支援リターンの1件目から取る
+         （list_price → price が、そのまま比較対照の価格になる）*/
+      function compliPanel() {
+        if (typeof window.LpyaCompliance !== 'function'
+          && !(window.LpyaCompliance && window.LpyaCompliance.check)) { return null; }
+        if (typeof window.LpyaCompliancePanel !== 'function') { return null; }
+        var pr = view.project || {};
+        var rw = (isArray(pr.rewards) ? pr.rewards : [])[0] || {};
+        var found;
+        try {
+          found = window.LpyaCompliance.check(
+            window.LpyaCompliance.displayText(view.gen),
+            {
+              category: pr.category,
+              listPrice: rw.list_price,
+              price: rw.price,
+              /* 公開予定の日が入っていれば、まだ売っていない価格との比較になる */
+              beforeSale: !!(pr.sales_info && pr.sales_info.sale_start)
+            });
+        } catch (err) {
+          console.error('[screens-lp] 表現の検査でつまずきました', err);
+          return null;
+        }
+        return window.LpyaCompliancePanel(found, { t: t });
       }
 
       function sectionCard(sec, i) {

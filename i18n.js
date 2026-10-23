@@ -413,6 +413,10 @@
     'job.stalledHow': ['ターミナルで tools/install-worker-agent.sh を実行すると、ログイン時に自動で立ち上がるようになります。', 'Run tools/install-worker-agent.sh in a terminal to start it automatically at login.', '터미널에서 tools/install-worker-agent.sh 를 실행하면 로그인 시 자동으로 시작됩니다.'],
 
     // ブランド指定
+    'compli.title': ['気をつけたい表現', 'Expressions to review', '주의할 표현'],
+    'compli.note': ['景品表示法・薬機法で指摘されやすい表現を拾っています。違反の判定ではありません。最終的な可否はご自身か専門家の確認でお願いします。',
+      'These are expressions often questioned under Japanese advertising and pharmaceutical law. This is not a legal judgement.',
+      '일본 표시법·약기법에서 지적되기 쉬운 표현입니다. 위법 판정이 아닙니다.'],
     'product.brandPanel': ['ブランド指定', 'Brand settings', '브랜드 설정'],
     'product.brandLogo': ['ブランドロゴ', 'Brand logo', '브랜드 로고'],
     'product.brandLogoPick': ['ロゴを選ぶ', 'Choose a logo', '로고 선택'],
