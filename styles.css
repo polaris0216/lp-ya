@@ -4941,3 +4941,19 @@ input[type='radio'] {
 
 /* 管理画面で見るユーザーの使用履歴。長いので枠の中で送る */
 .admin-hist { max-height: 260px; overflow-y: auto; margin-bottom: var(--sp-group); }
+
+/* 問い合わせのやり取り。どちらが書いたかを左右で分ける */
+.chat { max-height: 300px; overflow-y: auto; padding: 4px 0; margin-bottom: var(--sp-group); }
+.chat__row { display: flex; margin-bottom: 8px; }
+.chat__row--mine { justify-content: flex-end; }
+.chat__bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: var(--r-control);
+  background: var(--c-bg);
+  font-size: var(--fs-note);
+}
+.chat__bubble--mine { background: var(--c-accent-soft, #eef2ff); }
+.chat__who { font-size: var(--fs-note); color: var(--c-text-sub); margin-bottom: 2px; }
+.chat__body { white-space: pre-wrap; word-break: break-word; }
+.chat__at { font-size: var(--fs-note); color: var(--c-text-sub); margin-top: 4px; text-align: right; }

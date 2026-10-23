@@ -158,6 +158,15 @@
     'local.tx_purchase': ['チャージ', 'Top-up', '충전'],
     'local.tx_grant': ['管理者付与', 'Granted', '관리자 지급'],
     'local.tx_coupon': ['クーポン', 'Coupon', '쿠폰'],
+    'local.chatTitle': ['やり取り', 'Conversation', '대화'],
+    'local.chatLoad': ['読み込んでいます…', 'Loading…', '불러오는 중…'],
+    'local.chatFail': ['やり取りを読み込めませんでした', 'Could not load', '대화를 불러오지 못했습니다'],
+    'local.chatYou': ['運営', 'Support', '운영'],
+    'local.chatUser': ['お客さま', 'Customer', '고객'],
+    'local.chatReply': ['返信を書く', 'Write a reply', '답장 쓰기'],
+    'local.chatSend': ['返信する', 'Send reply', '답장 보내기'],
+    'local.chatSent': ['返信しました', 'Reply sent', '답장했습니다'],
+    'local.chatNeedBody': ['返信の内容を入れてください', 'Enter a reply', '내용을 입력하세요'],
     'local.statusLabel': ['状態', 'Status', '상태'],
     'local.toSuspend': ['このユーザーを停止する', 'Suspend this user', '이 사용자를 정지'],
     'local.toActivate': ['このユーザーを有効にする', 'Activate this user', '이 사용자를 활성화'],
@@ -1453,6 +1462,18 @@
       return row;
     }
 
+    /* やり取りの1行。どちらが書いたかで左右に寄せる */
+    function chatRow(m) {
+      var mine = !!m.from_admin;
+      var row = el('div', 'chat__row' + (mine ? ' chat__row--mine' : ''));
+      var bubble = el('div', 'chat__bubble' + (mine ? ' chat__bubble--mine' : ''));
+      bubble.appendChild(el('div', 'chat__who', mine ? tl('local.chatYou') : tl('local.chatUser')));
+      bubble.appendChild(el('div', 'chat__body', textOf(m.body)));
+      bubble.appendChild(el('div', 'chat__at', fmtDate(m.created_at)));
+      row.appendChild(bubble);
+      return row;
+    }
+
     function openInquiryModal(inquiry) {
       var open = needApp('openModal');
       if (!open) {
@@ -1473,8 +1494,72 @@
       info.appendChild(infoRow(tl('local.inquiryStatusLabel'), t(current.key)));
       modal.appendChild(info);
 
-      modal.appendChild(el('p', 'modal__body', tl('local.inquiryBodyLabel')));
-      modal.appendChild(el('p', 'note-box', textOf(inquiry.body)));
+      /* ---- やり取り（2026-10-23 要望）----
+         これまでは本文を1つ出すだけで、返事を書く所が無かった。
+         利用者からは「読まれたのか」も分からない。
+         046 で足した inquiry_messages に積んで、1本の流れとして出す */
+      modal.appendChild(el('p', 'modal__body', tl('local.chatTitle')));
+      var chatHost = el('div', 'chat');
+      chatHost.appendChild(el('p', 't-note', tl('local.chatLoad')));
+      modal.appendChild(chatHost);
+
+      var reply = el('textarea', 'input textarea');
+      reply.rows = 3;
+      reply.setAttribute('aria-label', tl('local.chatReply'));
+      reply.placeholder = tl('local.chatReply');
+      modal.appendChild(reply);
+      var sendBtn = button('btn btn--primary', tl('local.chatSend'), function () { sendReply(); });
+      modal.appendChild(sendBtn);
+
+      drawChat();
+
+      function drawChat() {
+        var table = tableOf('inquiryMessages');
+        if (!table) { return; }
+        table.list({ eq: { inquiries_id: inquiry.id }, order: 'created_at.asc', limit: 200 })
+          .then(function (rows) {
+            clearNode(chatHost);
+            /* 最初の1通がまだ移っていない古いスレッドは、本文を頭に足して見せる */
+            var list = (rows || []).slice();
+            if (!list.length && textOf(inquiry.body).trim()) {
+              list = [{ from_admin: false, body: inquiry.body, created_at: inquiry.created_at }];
+            }
+            list.forEach(function (m) { chatHost.appendChild(chatRow(m)); });
+            chatHost.scrollTop = chatHost.scrollHeight;
+          }, function (err) {
+            console.error('[S18] やり取りを読めませんでした', err);
+            clearNode(chatHost);
+            chatHost.appendChild(el('p', 't-note t-danger', tl('local.chatFail')));
+          });
+      }
+
+      function sendReply() {
+        var text = String(reply.value || '').trim();
+        if (!text) { toast(tl('local.chatNeedBody'), 'danger'); return; }
+        var me = needApp('getUser') ? window.App.getUser() : null;
+        if (!me) { return; }
+        sendBtn.disabled = true;
+        tableInsert('inquiryMessages', {
+          inquiries_id: inquiry.id,
+          users_id: String(me.id),
+          from_admin: true,
+          body: text
+        }).then(function () {
+          /* 返事を書いたら「対応中」に進める。状態を別に押させない */
+          return tableUpdate('inquiries', inquiry.id, { inquiry_status: 'in_progress' })
+            .catch(function () { return null; });
+        }).then(function () {
+          sendBtn.disabled = false;
+          reply.value = '';
+          toast(tl('local.chatSent'), 'success');
+          drawChat();
+          load();
+        }, function (err) {
+          sendBtn.disabled = false;
+          console.error('[S18] 返信できませんでした', err);
+          handleError(err, sendReply);
+        });
+      }
 
       var chips = el('div', 'chips');
       INQUIRY_STATUSES.forEach(function (one) {

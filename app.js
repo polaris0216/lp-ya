@@ -255,6 +255,9 @@
       'settings.passwordMismatch': '新しいパスワードが一致しません',
       'settings.passwordSame': 'いまのパスワードと同じです',
       'settings.passwordWrong': 'いまのパスワードが違います',
+      'settings.chatMe': 'あなた',
+      'settings.chatSupport': '運営',
+      'settings.inquiryPast': 'これまでのやり取り',
       'settings.inquiry': 'お問い合わせ',
       'settings.inquiryHint': '不具合・ご要望はこちらから送信できます。返答状況は管理者が管理画面で更新します。',
       'settings.inquirySubject': '件名',
@@ -362,6 +365,9 @@
       'settings.passwordMismatch': 'New passwords do not match',
       'settings.passwordSame': 'Same as your current password',
       'settings.passwordWrong': 'Current password is incorrect',
+      'settings.chatMe': 'You',
+      'settings.chatSupport': 'Support',
+      'settings.inquiryPast': 'Past conversations',
       'settings.inquiry': 'Contact us',
       'settings.inquiryHint': 'Send bug reports or requests here. An administrator updates the response status.',
       'settings.inquirySubject': 'Subject',
@@ -469,6 +475,9 @@
       'settings.passwordMismatch': '새 비밀번호가 일치하지 않습니다',
       'settings.passwordSame': '현재 비밀번호와 같습니다',
       'settings.passwordWrong': '현재 비밀번호가 올바르지 않습니다',
+      'settings.chatMe': '나',
+      'settings.chatSupport': '운영',
+      'settings.inquiryPast': '지난 대화',
       'settings.inquiry': '문의하기',
       'settings.inquiryHint': '오류·요청 사항을 여기서 보낼 수 있습니다. 응답 상태는 관리자가 관리 화면에서 갱신합니다.',
       'settings.inquirySubject': '제목',
@@ -2728,6 +2737,49 @@
     ]);
   }
 
+  /* 過去のやり取りを出す。1通送って終わりだと「読まれたのか」が分からない
+     （2026-10-23 要望）。新しいものから3件まで、そのまま読めるようにする */
+  function inquiryThreads(host) {
+    if (!global.Api || !global.Api.inquiries) { return; }
+    global.Api.inquiries.list({
+      eq: { users_id: String(state.user.id) }, order: 'created_at.desc', limit: 3
+    }).then(function (rows) {
+      if (!rows || !rows.length) { return; }
+      rows.forEach(function (q) {
+        var box = el('div', { class: 'section', style: 'margin-top:12px' });
+        box.appendChild(el('p', { class: 'field__label',
+          text: (q.subject || t('settings.inquiry')) + ' ・ ' + formatDate(q.created_at) }));
+        var chat = el('div', { class: 'chat' });
+        box.appendChild(chat);
+        host.appendChild(box);
+        global.Api.inquiryMessages.list({
+          eq: { inquiries_id: q.id }, order: 'created_at.asc', limit: 100
+        }).then(function (ms) {
+          var list = (ms || []).slice();
+          if (!list.length && q.body) {
+            list = [{ from_admin: false, body: q.body, created_at: q.created_at }];
+          }
+          list.forEach(function (m) {
+            var mine = !m.from_admin;   /* 利用者から見た「自分」は from_admin=false */
+            var row = el('div', { class: 'chat__row' + (mine ? ' chat__row--mine' : '') });
+            var bubble = el('div', { class: 'chat__bubble' + (mine ? ' chat__bubble--mine' : '') });
+            bubble.appendChild(el('div', { class: 'chat__who',
+              text: mine ? t('settings.chatMe') : t('settings.chatSupport') }));
+            bubble.appendChild(el('div', { class: 'chat__body', text: String(m.body || '') }));
+            bubble.appendChild(el('div', { class: 'chat__at', text: formatDate(m.created_at) }));
+            row.appendChild(bubble);
+            chat.appendChild(row);
+          });
+          chat.scrollTop = chat.scrollHeight;
+        }).catch(function (err) {
+          console.error('[App] やり取りを読めませんでした', err);
+        });
+      });
+    }).catch(function (err) {
+      console.error('[App] 問い合わせの一覧を読めませんでした', err);
+    });
+  }
+
   function inquirySection() {
     if (!state.user) { return el('div', {}); }
 
@@ -2758,11 +2810,27 @@
           body: text,
           status: 'pending',
           inquiry_status: 'pending'
+        }).then(function (row) {
+          /* 最初の1通を、やり取りの流れにも積む。
+             積まないと、管理者が返信したときに話の頭が抜けて見える */
+          var made = Array.isArray(row) ? row[0] : row;
+          if (made && made.id && global.Api.inquiryMessages) {
+            return global.Api.inquiryMessages.insert({
+              inquiries_id: made.id,
+              users_id: String(state.user.id),
+              from_admin: false,
+              body: text
+            }).catch(function (err) {
+              console.error('[App] 最初の1通を積めませんでした', err);
+            });
+          }
+          return null;
         }).then(function () {
           send.disabled = false;
           subject.value = '';
           body.value = '';
           toast(t('settings.inquirySent'), 'success');
+          navigate('settings');
         }, function (err) {
           console.error('[App] 問い合わせの送信に失敗しました', err);
           send.disabled = false;
@@ -2771,6 +2839,9 @@
       }
     });
 
+    var threads = el('div', {});
+    inquiryThreads(threads);
+
     return el('section', { class: 'section' }, [
       el('div', { class: 'section__head' }, [
         el('h2', { class: 'section__title', text: t('settings.inquiry') })
@@ -2778,7 +2849,8 @@
       el('p', { class: 'section__desc', text: t('settings.inquiryHint') }),
       el('div', { class: 'field' }, [subject]),
       el('div', { class: 'field' }, [body]),
-      send
+      send,
+      threads
     ]);
   }
 

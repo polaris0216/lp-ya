@@ -110,6 +110,7 @@
     featureCredits: TABLE_PREFIX + 'feature_credits',
     coupons: TABLE_PREFIX + 'coupons',
     inquiries: TABLE_PREFIX + 'inquiries',
+    inquiryMessages: TABLE_PREFIX + 'inquiry_messages',
     platformSelectors: TABLE_PREFIX + 'platform_selectors',
     leads: TABLE_PREFIX + 'leads'
   };
@@ -751,6 +752,7 @@
     featureCredits: makeTable(TABLES.featureCredits),
     coupons: makeTable(TABLES.coupons),
     inquiries: makeTable(TABLES.inquiries),
+    inquiryMessages: makeTable(TABLES.inquiryMessages),
     platformSelectors: makeTable(TABLES.platformSelectors)
   };
 
