@@ -335,59 +335,16 @@
       add(box, el('h2', 'section__title', tl('line.sizes')));
       add(box, el('p', 'field__hint', tl('line.sizesHint')));
 
-      /* 形は文字で並べても分からない（2026-10-15 指摘）。
-         実際の縦横比と枠の割り方を、小さな見本で描く。
-         押して選ぶ形にして、選んだものに印を付ける */
+      /* 形を選ぶ見本は line-pick.js に置いた（2026-10-23）。
+         同じものが LP案ページ（S12）にも要るので、写さずに共有する */
       function pick(kind, value, onPick) {
-        var wrap = el('div', 'line-pick');
-        var state = { value: value };
-        var none = button('line-pick__one' + (value ? '' : ' is-on'), '', function () {
-          state.value = '';
-          paintPick();
-          onPick('');
-        });
-        add(none, el('span', 'line-pick__none', '—'));
-        add(none, el('span', 'line-pick__name', tl('line.none')));
-        add(wrap, none);
-        layouts(kind).forEach(function (L) {
-          var b = button('line-pick__one' + (L.id === value ? ' is-on' : ''), '', function () {
-            state.value = L.id;
-            paintPick();
-            onPick(L.id);
-          });
-          b.setAttribute('data-id', L.id);
-          /* 見本。高さは幅から縦横比で出す。カスタム（高さ未定）は
-             いちばん短い高さで描く——「高さは自由」と名前に出ている */
-          var h = L.h || L.hMin || 1040;
-          var shape = el('div', 'line-pick__shape');
-          shape.style.aspectRatio = String(L.w) + ' / ' + String(h);
-          L.cells.forEach(function (c) {
-            var cell = el('span', 'line-pick__cell');
-            cell.style.left = (c.x * 100) + '%';
-            cell.style.top = (c.y * 100) + '%';
-            cell.style.width = (c.w * 100) + '%';
-            cell.style.height = (c.h * 100) + '%';
-            add(shape, cell);
-          });
-          add(b, shape);
-          add(b, el('span', 'line-pick__name', L.name));
-          add(b, el('span', 'line-pick__size', L.h ? (L.w + '×' + L.h) : (L.w + '×高さ自由')));
-          add(wrap, b);
-        });
-        function paintPick() {
-          [].slice.call(wrap.children).forEach(function (node) {
-            var id = node.getAttribute('data-id') || '';
-            node.className = 'line-pick__one' + (id === state.value ? ' is-on' : '');
-          });
+        if (typeof window.LpyaLinePick !== 'function') {
+          console.error('[screens-line] line-pick.js が読み込まれていません');
+          return el('p', 'field__hint', tl('line.none'));
         }
-        /* 箱の中だけを送るので、いま選んでいるものが隠れていることがある。
-           開いたときに、選んでいる所まで中を送っておく */
-        window.requestAnimationFrame(function () {
-          var on = wrap.querySelector('.is-on');
-          if (!on || on === wrap.firstChild) { return; }
-          wrap.scrollTop = Math.max(0, on.offsetTop - wrap.clientHeight / 2 + on.offsetHeight / 2);
+        return window.LpyaLinePick({
+          kind: kind, value: value, noneLabel: tl('line.none'), onPick: onPick
         });
-        return wrap;
       }
 
       var chosen = { menu: String(info.line_menu || ''), msg: String(info.line_msg || '') };

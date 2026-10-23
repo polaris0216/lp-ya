@@ -200,9 +200,10 @@
     'lp.lineMade': ['LINEの台を作りました。区画ごとに生成できます。',
       'LINE assets created. Generate them section by section.',
       'LINE 소재를 만들었습니다.'],
-    'lp.lineNeedPick': ['先に「販売の条件」でリッチメニュー・リッチメッセージの形を選んでください。',
-      'Pick a rich menu / rich message layout under the sale terms first.',
-      '먼저 판매 조건에서 리치메뉴·리치메시지 형식을 선택하세요.'],
+    /* 2026-10-23: この場で形を選べるようにしたので、別画面へ送らない */
+    'lp.lineNeedPick': ['上でリッチメニューかリッチメッセージの形を選ぶと、作れるようになります。',
+      'Pick a rich menu or rich message layout above to continue.',
+      '위에서 리치메뉴 또는 리치메시지 형식을 선택하면 만들 수 있습니다.'],
     'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
     'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
     'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
@@ -1606,14 +1607,40 @@
       function makeLineBtn() {
         var pr = view.project || {};
         var info = (pr.sales_info && typeof pr.sales_info === 'object') ? pr.sales_info : {};
-        if (!info.line_menu && !info.line_msg) {
-          return el('p', 'field__hint', t('lp.lineNeedPick'));
+
+        /* 形をここで選べるようにする（2026-10-23 要望）。
+           これまでは「先に販売の条件で選んでください」と出すだけで、
+           別の画面へ行かされた。作る所で選べないのは行き止まりに近い。
+           見本は line-pick.js（S21 と同じもの）*/
+        var wrap = el('div', 'stack stack--tight');
+        var chosen = { menu: String(info.line_menu || ''), msg: String(info.line_msg || '') };
+
+        if (typeof window.LpyaLinePick === 'function') {
+          var fm = el('div', 'field');
+          add(fm, el('label', 'field__label', t('lp.pubLineMenu')));
+          add(fm, window.LpyaLinePick({
+            kind: 'menu', value: chosen.menu, noneLabel: t('lp.pubLineNone'),
+            onPick: function (id) { chosen.menu = id; refresh(); }
+          }));
+          add(wrap, fm);
+
+          var fg = el('div', 'field');
+          add(fg, el('label', 'field__label', t('lp.pubLineMsg')));
+          add(fg, window.LpyaLinePick({
+            kind: 'message', value: chosen.msg, noneLabel: t('lp.pubLineNone'),
+            onPick: function (id) { chosen.msg = id; refresh(); }
+          }));
+          add(wrap, fg);
         }
+
         var b = button('btn btn--primary', t('lp.lineMake'), function () {
           if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
           var any = view.gens[0] || (view.byKind.lp_brief || [])[0];
           if (!any) { toast(t('lp.empty'), 'danger'); return; }
           b.disabled = true;
+          /* 押した時点の形を案件へ入れてから積む。
+             入れずに積むと、ワーカーが古い形で作ってしまう */
+          saveShapes().then(function () {
           Api.generationJobs.insert({
             feature_key: 'line_brief',
             status: 'pending',
@@ -1637,8 +1664,35 @@
             console.error('[screens-lp] LINEの台を積めませんでした:', err);
             toast(t('common.error'), 'danger');
           });
+          });
         });
-        return b;
+
+        /* 形が1つも選ばれていなければ押させない。
+           押せてしまうと、ワーカーが断ってから気づくことになる */
+        function refresh() {
+          var none = !chosen.menu && !chosen.msg;
+          b.disabled = none;
+          hint.style.display = none ? '' : 'none';
+        }
+
+        function saveShapes() {
+          if (chosen.menu === String(info.line_menu || '')
+            && chosen.msg === String(info.line_msg || '')) { return Promise.resolve(); }
+          var next = {};
+          Object.keys(info).forEach(function (k) { next[k] = info[k]; });
+          next.line_menu = chosen.menu;
+          next.line_msg = chosen.msg;
+          return Api.projects.update(projectId, { sales_info: next }).then(function () {
+            pr.sales_info = next;
+            info = next;
+          });
+        }
+
+        var hint = el('p', 'field__hint', t('lp.lineNeedPick'));
+        add(wrap, hint);
+        add(wrap, b);
+        refresh();
+        return wrap;
       }
 
       function generateMotion(index, redo) {
