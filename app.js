@@ -243,6 +243,18 @@
       'settings.appInfo': 'アプリ情報',
       'settings.version': 'バージョン',
       'settings.server': '保存先',
+      'settings.profile': 'プロフィール',
+      'settings.profileSave': '表示名を保存',
+      'settings.profileSaved': '表示名を変更しました',
+      'settings.profileNeedName': '表示名を入力してください',
+      'settings.currentPassword': 'いまのパスワード',
+      'settings.passwordAgain': '新しいパスワード（確認）',
+      'settings.passwordHint': '安全のため、いまのパスワードで本人確認してから変更します。8文字以上。',
+      'settings.passwordNeedAll': 'いまのパスワードと新しいパスワードを入力してください',
+      'settings.passwordTooShort': 'パスワードは8文字以上にしてください',
+      'settings.passwordMismatch': '新しいパスワードが一致しません',
+      'settings.passwordSame': 'いまのパスワードと同じです',
+      'settings.passwordWrong': 'いまのパスワードが違います',
       'settings.inquiry': 'お問い合わせ',
       'settings.inquiryHint': '不具合・ご要望はこちらから送信できます。返答状況は管理者が管理画面で更新します。',
       'settings.inquirySubject': '件名',
@@ -338,6 +350,18 @@
       'settings.appInfo': 'About',
       'settings.version': 'Version',
       'settings.server': 'Storage',
+      'settings.profile': 'Profile',
+      'settings.profileSave': 'Save name',
+      'settings.profileSaved': 'Name updated',
+      'settings.profileNeedName': 'Enter a display name',
+      'settings.currentPassword': 'Current password',
+      'settings.passwordAgain': 'New password (confirm)',
+      'settings.passwordHint': 'We verify your current password first. At least 8 characters.',
+      'settings.passwordNeedAll': 'Enter both your current and new password',
+      'settings.passwordTooShort': 'Use at least 8 characters',
+      'settings.passwordMismatch': 'New passwords do not match',
+      'settings.passwordSame': 'Same as your current password',
+      'settings.passwordWrong': 'Current password is incorrect',
       'settings.inquiry': 'Contact us',
       'settings.inquiryHint': 'Send bug reports or requests here. An administrator updates the response status.',
       'settings.inquirySubject': 'Subject',
@@ -433,6 +457,18 @@
       'settings.appInfo': '앱 정보',
       'settings.version': '버전',
       'settings.server': '저장 위치',
+      'settings.profile': '프로필',
+      'settings.profileSave': '이름 저장',
+      'settings.profileSaved': '이름을 변경했습니다',
+      'settings.profileNeedName': '표시 이름을 입력하세요',
+      'settings.currentPassword': '현재 비밀번호',
+      'settings.passwordAgain': '새 비밀번호(확인)',
+      'settings.passwordHint': '안전을 위해 현재 비밀번호로 본인 확인 후 변경합니다. 8자 이상.',
+      'settings.passwordNeedAll': '현재 비밀번호와 새 비밀번호를 입력하세요',
+      'settings.passwordTooShort': '비밀번호는 8자 이상이어야 합니다',
+      'settings.passwordMismatch': '새 비밀번호가 일치하지 않습니다',
+      'settings.passwordSame': '현재 비밀번호와 같습니다',
+      'settings.passwordWrong': '현재 비밀번호가 올바르지 않습니다',
       'settings.inquiry': '문의하기',
       'settings.inquiryHint': '오류·요청 사항을 여기서 보낼 수 있습니다. 응답 상태는 관리자가 관리 화면에서 갱신합니다.',
       'settings.inquirySubject': '제목',
@@ -2594,6 +2630,104 @@
   }
 
   /* 問い合わせの送信（inquiries の書き手はこのフォームだけ。管理画面は読む側） */
+  /* プロフィールとパスワード。設定画面の中で完結させる（2026-10-23 要望）。
+     別画面にしないのは、どちらも年に数回しか触らないため。
+     行き来させるほうが手間になる */
+  function profileSection() {
+    if (!state.user) { return el('div', {}); }
+    var user = state.user;
+
+    /* ---- 表示名 ---- */
+    var name = el('input', { class: 'input', type: 'text', 'aria-label': t('settings.displayName') });
+    name.value = user.display_name || '';
+    name.placeholder = t('settings.displayName');
+
+    var saveName = button({
+      label: t('settings.profileSave'),
+      variant: 'secondary',
+      onClick: function () {
+        var next = String(name.value || '').trim();
+        if (!next) { toast(t('settings.profileNeedName'), 'danger'); return; }
+        if (next === (user.display_name || '')) { return; }
+        saveName.disabled = true;
+        global.Api.auth.updateProfile({ display_name: next }).then(function (row) {
+          saveName.disabled = false;
+          setUser(row || user);
+          toast(t('settings.profileSaved'), 'success');
+        }, function (err) {
+          saveName.disabled = false;
+          console.error('[App] プロフィールを保存できませんでした', err);
+          toast(t('common.error'), 'danger');
+        });
+      }
+    });
+
+    var rows = [
+      el('p', { class: 'field__label', text: t('settings.displayName') }),
+      el('div', { class: 'field' }, [name]),
+      saveName
+    ];
+
+    /* ---- パスワード ----
+       Googleで入った人はパスワードを持たないので、その場合は出さない。
+       出すと「変えられない」と分かるまで試させることになる */
+    if (global.Api.auth.hasPassword(user)) {
+      var nowPw = el('input', { class: 'input', type: 'password', 'aria-label': t('settings.currentPassword') });
+      nowPw.placeholder = t('settings.currentPassword');
+      nowPw.autocomplete = 'current-password';
+      var newPw = el('input', { class: 'input', type: 'password', 'aria-label': t('auth.newPassword') });
+      newPw.placeholder = t('auth.newPassword');
+      newPw.autocomplete = 'new-password';
+      var again = el('input', { class: 'input', type: 'password', 'aria-label': t('settings.passwordAgain') });
+      again.placeholder = t('settings.passwordAgain');
+      again.autocomplete = 'new-password';
+
+      var changePw = button({
+        label: t('settings.changePassword'),
+        variant: 'secondary',
+        onClick: function () {
+          var cur = String(nowPw.value || '');
+          var next = String(newPw.value || '');
+          if (!cur || !next) { toast(t('settings.passwordNeedAll'), 'danger'); return; }
+          if (next.length < 8) { toast(t('settings.passwordTooShort'), 'danger'); return; }
+          if (next !== String(again.value || '')) { toast(t('settings.passwordMismatch'), 'danger'); return; }
+          if (next === cur) { toast(t('settings.passwordSame'), 'danger'); return; }
+          changePw.disabled = true;
+          /* Supabase はいまのパスワードを確かめずに変えてしまう。
+             席を離した隙に第三者が変えられるので、先に signIn で本人か確かめる */
+          global.Api.auth.signIn(user.email, cur).then(function () {
+            return global.Api.auth.changePassword(next);
+          }).then(function () {
+            changePw.disabled = false;
+            nowPw.value = ''; newPw.value = ''; again.value = '';
+            toast(t('auth.passwordChanged'), 'success');
+          }, function (err) {
+            changePw.disabled = false;
+            var wrong = err && (err.status === 400 || err.status === 401);
+            console.error('[App] パスワードを変更できませんでした', err);
+            toast(wrong ? t('settings.passwordWrong') : t('common.error'), 'danger');
+          });
+        }
+      });
+
+      rows = rows.concat([
+        el('p', { class: 'field__label', text: t('settings.changePassword') }),
+        el('p', { class: 'field__hint', text: t('settings.passwordHint') }),
+        el('div', { class: 'field' }, [nowPw]),
+        el('div', { class: 'field' }, [newPw]),
+        el('div', { class: 'field' }, [again]),
+        changePw
+      ]);
+    }
+
+    return el('section', { class: 'section' }, [
+      el('div', { class: 'section__head' }, [
+        el('h2', { class: 'section__title', text: t('settings.profile') })
+      ]),
+      el('div', { class: 'stack stack--tight' }, rows)
+    ]);
+  }
+
   function inquirySection() {
     if (!state.user) { return el('div', {}); }
 
@@ -2655,6 +2789,7 @@
         el('p', { class: 'screen__lead', text: t('common.sharedDataNotice') })
       ]),
       accountSection(),
+      profileSection(),
       firstAdminSection(),
       historySection(),
       languageSection(),

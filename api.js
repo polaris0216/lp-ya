@@ -486,6 +486,12 @@
 
   var auth = {
     session: function () { return session; },
+    /* 表示名を変える。users 行は RLS で自分のぶんしか触れないので直で更新する */
+    updateProfile: function (patch) {
+      var id = currentUserId();
+      if (!id) { return Promise.reject(new ApiError('loginRequired', 401, 'セッションがありません')); }
+      return api.users.update(id, patch).then(function () { return myProfile(); });
+    },
     userId: currentUserId,
     profile: myProfile,
 
@@ -504,6 +510,21 @@
           }
           return { user: data, needsConfirmation: true };
         });
+    },
+
+    /* パスワードを変える。Supabase の auth/v1/user に PUT する。
+       いまのパスワードは Supabase 側では確かめないので、
+       画面で「いまのパスワード」を入れさせ、signIn で本人確認してから呼ぶ
+       （端末を離席中に第三者が変えてしまうのを防ぐ。2026-10-23） */
+    changePassword: function (nextPassword) {
+      return request('PUT', 'user', { password: String(nextPassword || '') },
+        { base: AUTH_BASE, autoRetry: 0 });
+    },
+
+    /* Googleで入った人はパスワードを持っていない。画面の出し分けに使う */
+    hasPassword: function (user) {
+      var p = String((user && user.auth_provider) || '').toLowerCase();
+      return !p || p === 'email' || p === 'password';
     },
 
     signIn: function (email, password) {
