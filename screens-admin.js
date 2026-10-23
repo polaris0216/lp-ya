@@ -149,6 +149,15 @@
     'local.unlimitedBadge': ['無制限 {date}まで', 'Unlimited until {date}', '무제한 {date}까지'],
     'local.unlimitedNone': ['無制限利用権なし', 'No unlimited access', '무제한 이용권 없음'],
     'local.userActions': ['ユーザー操作', 'User actions', '사용자 관리'],
+    'local.useHistory': ['使用履歴', 'Usage history', '사용 내역'],
+    'local.useHistoryEmpty': ['まだ履歴がありません', 'No history yet', '내역이 없습니다'],
+    'local.useHistoryLoad': ['読み込んでいます…', 'Loading…', '불러오는 중…'],
+    'local.useHistoryFail': ['履歴を読み込めませんでした', 'Could not load history', '내역을 불러오지 못했습니다'],
+    'local.useHistoryAfter': ['残', 'left', '잔액'],
+    'local.tx_consume': ['利用', 'Used', '사용'],
+    'local.tx_purchase': ['チャージ', 'Top-up', '충전'],
+    'local.tx_grant': ['管理者付与', 'Granted', '관리자 지급'],
+    'local.tx_coupon': ['クーポン', 'Coupon', '쿠폰'],
     'local.statusLabel': ['状態', 'Status', '상태'],
     'local.toSuspend': ['このユーザーを停止する', 'Suspend this user', '이 사용자를 정지'],
     'local.toActivate': ['このユーザーを有効にする', 'Activate this user', '이 사용자를 활성화'],
@@ -708,6 +717,13 @@
         var featureRows = results[0] || [];
         state.unitPrice = unitPriceOf(featureRows);
         state.unitRowId = unitPriceRowId(featureRows);
+        /* キーのままでは管理者に読めない（crowdfunding_lp と出る）。
+           feature_name を引けるように控えておく */
+        state.featureNames = {};
+        featureRows.forEach(function (row) {
+          var k = textOf(row.feature_key).trim();
+          if (k && k !== UNIT_PRICE_KEY) { state.featureNames[k] = textOf(row.feature_name).trim() || k; }
+        });
         state.featureCount = 0;
         featureRows.forEach(function (row) {
           if (textOf(row.feature_key).trim() !== UNIT_PRICE_KEY) { state.featureCount += 1; }
@@ -950,6 +966,42 @@
       return row;
     }
 
+    /* 機能の消費ではない行（チャージ・付与など）の呼び方。
+       tl() は辞書に無いキーでエラーを出すので、LOCAL を直に見る */
+    function txTypeName(type) {
+      var k = textOf(type).trim();
+      if (!k) { return ''; }
+      return LOCAL['local.tx_' + k] ? tl('local.tx_' + k) : k;
+    }
+
+    /* 履歴1行。S17（ユーザー側）と同じ見え方にそろえる */
+    function useHistoryRow(row) {
+      var item = el('div', 'list-row');
+      var body = el('div', 'list-row__body');
+      /* 何に使ったか。feature_key が入っていればその名前、無ければ memo */
+      var key = textOf(row.feature_key).trim();
+      var what = (key && state.featureNames && state.featureNames[key])
+        || key || txTypeName(row.transaction_type) || '—';
+      body.appendChild(el('span', 'list-row__title clamp-1', what));
+      var sub = fmtDate(row.created_at);
+      var memo = textOf(row.memo || row.description).trim();
+      if (memo) { sub += ' ・ ' + memo; }
+      body.appendChild(el('span', 'list-row__sub clamp-2', sub));
+      item.appendChild(body);
+
+      var amount = Math.round(Number(row.credit_amount || row.amount) || 0);
+      var meta = el('div', 'list-row__meta');
+      meta.appendChild(el('span', amount < 0 ? 'num t-danger' : 'num t-ok',
+        (amount > 0 ? '+' : '') + fmtNumber(amount)));
+      if (row.balance_after !== null && row.balance_after !== undefined) {
+        meta.appendChild(document.createElement('br'));
+        meta.appendChild(el('span', 'num t-note',
+          tl('local.useHistoryAfter') + ' ' + fmtNumber(row.balance_after)));
+      }
+      item.appendChild(meta);
+      return item;
+    }
+
     function openUserModal(user) {
       var open = needApp('openModal');
       if (!open) {
@@ -972,6 +1024,31 @@
       var until = unlimitedUntilOf(user);
       info.appendChild(infoRow(t('admin.grantUnlimited'), until ? fmtDate(until) : tl('local.unlimitedNone')));
       modal.appendChild(info);
+
+      /* ---- そのユーザーの使用履歴（2026-10-23 要望）----
+         残高だけ見ても「何に使ったか」が分からず、問い合わせに答えられない。
+         RLS は credit_transactions に elpiya_is_admin() を持っているので、
+         管理者はそのまま他人のぶんも読める */
+      modal.appendChild(el('p', 'modal__body', tl('local.useHistory')));
+      var histHost = el('div', 'admin-hist');
+      histHost.appendChild(el('p', 't-note', tl('local.useHistoryLoad')));
+      modal.appendChild(histHost);
+      if (window.Api && window.Api.credits && typeof window.Api.credits.history === 'function') {
+        window.Api.credits.history(user.id, 30).then(function (rows) {
+          clearNode(histHost);
+          if (!rows || !rows.length) {
+            histHost.appendChild(el('p', 't-note', tl('local.useHistoryEmpty')));
+            return;
+          }
+          var list = el('div', 'list');
+          rows.forEach(function (row) { list.appendChild(useHistoryRow(row)); });
+          histHost.appendChild(list);
+        }).catch(function (err) {
+          console.error('[S18] 使用履歴を読めませんでした', err);
+          clearNode(histHost);
+          histHost.appendChild(el('p', 't-note t-danger', tl('local.useHistoryFail')));
+        });
+      }
 
       /* クレジット付与 */
       var creditInput = numberInput('', { min: 1, max: MAX_GRANT_CREDIT, placeholder: '100' });

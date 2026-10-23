@@ -4938,3 +4938,6 @@ input[type='radio'] {
 
 /* 公開URLの欄で、載せるドメインを選ぶ（並べたものが2本以上のときだけ出る） */
 .lpr-url__site { flex: 0 1 auto; max-width: 220px; }
+
+/* 管理画面で見るユーザーの使用履歴。長いので枠の中で送る */
+.admin-hist { max-height: 260px; overflow-y: auto; margin-bottom: var(--sp-group); }
