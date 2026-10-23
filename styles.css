@@ -4920,3 +4920,6 @@ input[type='radio'] {
 
 /* 公開URLの欄で、載せるドメインを選ぶ（並べたものが2本以上のときだけ出る） */
 .lpr-url__site { flex: 0 1 auto; max-width: 220px; }
+
+/* 写真が満杯のとき。口は消さず、押せないことを見せる */
+.dropzone--full { opacity: .55; cursor: not-allowed; }

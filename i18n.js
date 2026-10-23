@@ -271,7 +271,8 @@
     ],
     'product.photoPanelDesc': ['参考ページから集めた写真と動画がすべてここに並びます。足りないカットは下から追加してください。生成AIに参考として一緒に渡します。', 'Every photo and video collected from the reference page appears here. Add any missing shots below. They are passed to the AI as reference material.', '참고 페이지에서 수집한 사진과 동영상이 모두 여기에 표시됩니다.'],
     'product.dropzone': ['クリックまたはドラッグして写真を追加', 'Click or drag to add photos', '클릭 또는 드래그하여 사진 추가'],
-    'product.dropzoneSub': ['PNG / JPG（自動で圧縮して保存）・手動での追加は15枚まで', 'PNG / JPG (compressed automatically) · up to 15 added by hand', 'PNG / JPG (자동 압축 저장) · 직접 추가는 15장까지'],
+    'product.dropzoneSub': ['PNG / JPG（自動で縮めて置き場に上げます）', 'PNG / JPG (resized and uploaded automatically)', 'PNG / JPG (자동 축소 후 업로드)'],
+    'product.dropzoneFull': ['写真は{n}枚までです。いらないものを × で消すと足せます。', 'Up to {n} photos. Remove one with × to add more.', '사진은 {n}장까지입니다. ×로 지우면 추가할 수 있습니다.'],
     'product.basicPanel': ['商品カテゴリ & 基本情報', 'Category & basics', '상품 카테고리 & 기본 정보'],
     'product.basicPanelDesc': ['カテゴリを選ぶと、その分野で実績のあるLPの構成・フックパターンが生成に反映されます。', 'Choosing a category applies the page structure and hook patterns that work in that field.', '카테고리를 선택하면 해당 분야에서 통한 상세페이지 구성·후킹 패턴이 반영됩니다.'],
     'product.category': ['カテゴリ', 'Category', '카테고리'],
@@ -413,6 +414,12 @@
 
     // ブランド指定
     'product.brandPanel': ['ブランド指定', 'Brand settings', '브랜드 설정'],
+    'product.brandLogo': ['ブランドロゴ', 'Brand logo', '브랜드 로고'],
+    'product.brandLogoPick': ['ロゴを選ぶ', 'Choose a logo', '로고 선택'],
+    'product.brandLogoDrop': ['外す', 'Remove', '해제'],
+    'product.brandLogoHint': ['KVの文字の板（仕様・セット内容）の左上に出ます。入れなければ商品名を文字で出します。背景が透けるPNGがいちばんきれいに出ます（JPGでも使えますが、白い四角が付きます）。',
+      'Shown at the top-left of the KV spec panel. A transparent PNG looks best.',
+      'KV 사양 패널 좌측 상단에 표시됩니다. 배경이 투명한 PNG가 가장 깔끔합니다.'],
     'product.brandPanelDesc': ['LP・KV・広告バナーの配色と書体をここで固定します。指定しない項目は商品カテゴリから自動で選ばれます。', 'Locks the palette and typefaces used across the page, key visual and ad banners. Anything left blank is chosen from the category.', '상세페이지·KV·광고 배너의 배색과 서체를 여기서 고정합니다.'],
     'product.brandColors': ['ブランドカラー（最大5色）', 'Brand colors (up to 5)', '브랜드 컬러(최대 5색)'],
     'product.brandColorsHint': ['先頭がメインカラーです。ドラッグではなく削除して入れ直すと順番を変えられます。', 'The first one is the main color. Remove and re-add to change the order.', '첫 번째가 메인 컬러입니다.'],

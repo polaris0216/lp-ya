@@ -62,7 +62,12 @@
   }
 
   /* ---------- 定数 ---------- */
-  var MAX_IMAGES = 15;
+  /* 手で足せる枚数ではなく、持てる枚数の上限。
+     参考ページから集めると平均40〜55枚になるので、15では最初から超えている
+     （実測 2026-10-23: shlebru 55枚 / Anthus 45枚 / SIMTIPLE 34枚）。
+     超えていると追加口が黙って隠れ、自分の写真を1枚も入れられなかった。
+     集めたぶんを呑み込める数にする */
+  var MAX_IMAGES = 80;
   var MAX_BRAND_COLORS = 5;
   /* 競合LPのURLの上限。競合分析の画面（S10 の MAX_URLS）と同じ数にそろえる */
   var MAX_RIVALS = 5;
@@ -757,7 +762,10 @@
     for (si = 0; si < stale.length; si += 1) { stale[si].parentNode.removeChild(stale[si]); }
     setHeader(t('project.createTitle'), true);
 
+    var lastBrandLogo = '';
+    var paintBrandLogo = function () {};
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
+      salesInfo: {}, brandLogo: '',
       category: '', outputLang: 'ja', cfPlatform: 'makuake', fundingGoal: '', valueProp: '', brandTone: '',
       refUrls: [''],
       /* 競合LPのURL（最大5件）。1件ずつ { url, outcome } で持つ。
@@ -919,6 +927,11 @@
       form.features = text(row.product_features);
       form.target = text(row.target_audience);
       form.brandTone = text(row.brand_tone);
+      /* ブランドロゴは sales_info の中にある（LP案ページの「販売の条件」と同じ置き場）。
+         ほかの鍵（LINEの形など）を壊さないよう、丸ごと控えてから差し替える */
+      form.salesInfo = (row.sales_info && typeof row.sales_info === 'object') ? row.sales_info : {};
+      form.brandLogo = String(form.salesInfo.brand_logo || '');
+      lastBrandLogo = form.brandLogo;
       form.images = list(row.image_urls).map(String);
       form.productShots = list(row.product_shot_urls).map(String);
       lastShots = JSON.stringify(form.productShots.slice().sort());
@@ -1240,7 +1253,63 @@
       });
       brandPanel.appendChild(brandColorAdd);
 
+      /* ブランドロゴ（2026-10-23 要望）。
+         置き場は LP案ページの「販売の条件」と同じ sales_info.brand_logo。
+         ロゴは透過を残したいので、商品写真と違って縮めずそのまま上げる
+         （JPGにすると、透けていたところが白い四角になる）*/
       brandPanel.appendChild(el('div', 'divider'));
+      brandPanel.appendChild(el('span', 'field__label', t('product.brandLogo')));
+      var logoRow = el('div', 'lp-brandlogo');
+      var logoImg = el('img', 'lp-brandlogo__img');
+      logoImg.alt = '';
+      var logoPick = button('btn btn--secondary btn--sm', t('product.brandLogoPick'), function () {
+        logoFile.click();
+      });
+      var logoDrop = button('btn btn--text btn--sm', t('product.brandLogoDrop'), function () {
+        form.brandLogo = '';
+        paintBrandLogo();
+        markDirty();
+      });
+      var logoFile = el('input', 'is-hidden');
+      logoFile.type = 'file';
+      logoFile.accept = 'image/png,image/jpeg,image/webp,image/svg+xml';
+      logoFile.addEventListener('change', function () {
+        var file = logoFile.files && logoFile.files[0];
+        logoFile.value = '';
+        if (!file) { return; }
+        if (!window.Api || !Api.files || typeof Api.files.upload !== 'function') { return; }
+        logoPick.disabled = true;
+        logoPick.textContent = t('common.loading');
+        var ext = (String(file.type).split('/')[1] || 'png').replace('svg+xml', 'svg');
+        Api.files.upload(file, {
+          folder: 'brand/' + String(projectId || 'draft'),
+          ext: ext, contentType: file.type || 'image/png'
+        }).then(function (url) {
+          form.brandLogo = String(url || '');
+          logoPick.disabled = false;
+          logoPick.textContent = t('product.brandLogoPick');
+          paintBrandLogo();
+          markDirty();
+        }, function (err) {
+          logoPick.disabled = false;
+          logoPick.textContent = t('product.brandLogoPick');
+          console.error('[screens-home] ブランドロゴを上げられませんでした', err);
+          toast(errorMessage(err), 'danger');
+        });
+      });
+      logoRow.appendChild(logoImg);
+      logoRow.appendChild(logoPick);
+      logoRow.appendChild(logoDrop);
+      logoRow.appendChild(logoFile);
+      brandPanel.appendChild(logoRow);
+      brandPanel.appendChild(el('p', 'field__hint', t('product.brandLogoHint')));
+      paintBrandLogo = function () {
+        logoImg.src = form.brandLogo || '';
+        logoImg.style.display = form.brandLogo ? '' : 'none';
+        logoDrop.style.display = form.brandLogo ? '' : 'none';
+      };
+      paintBrandLogo();
+
       brandPanel.appendChild(el('span', 'field__label', t('product.brandFonts')));
       var fontGrid = el('div', 'row--2');
       FONT_SLOTS.forEach(function (slot) {
@@ -2564,7 +2633,22 @@
       if (registerBtn) { registerBtn.hidden = form.productShots.length === 0; }
 
       imagesHost.hidden = form.images.length === 0;
-      if (dropzone) { dropzone.hidden = form.images.length >= MAX_IMAGES; }
+      /* 満杯でも追加口は消さない。消すと、なぜ足せないのか分からないまま
+         「壊れている」ようにしか見えない（2026-10-23 指摘）。
+         出したうえで、押せないことと理由を書く */
+      if (dropzone) {
+        var full = form.images.length >= MAX_IMAGES;
+        dropzone.hidden = false;
+        dropzone.classList.toggle('dropzone--full', full);
+        var fileIn = dropzone.querySelector('.dropzone__input');
+        if (fileIn) { fileIn.disabled = full; }
+        var sub = dropzone.querySelector('.dropzone__sub');
+        if (sub) {
+          sub.textContent = full
+            ? t('product.dropzoneFull', { n: MAX_IMAGES })
+            : t('product.dropzoneSub');
+        }
+      }
       paintVideos();
     }
 
@@ -2801,6 +2885,10 @@
         product_features: form.features.trim() || null,
         target_audience: primaryTargetName(),
         image_urls: form.images.slice(),
+        /* ブランドロゴ。変えたときだけ送る（undefined は cleanPayload が外す）。
+           毎回送ると、別の画面が入れた LINEの形などを古い値で上書きしてしまう */
+        sales_info: form.brandLogo === lastBrandLogo ? undefined
+          : Object.assign({}, form.salesInfo, { brand_logo: form.brandLogo || undefined }),
         /* 素材生成で AI に渡す見本。GIF も可（最初のコマを切り抜いて使う） */
         /* ☆は、この画面で変えたときだけ書く。変えていなければ列ごと送らない
            （undefined は cleanPayload が外す）。
