@@ -2069,51 +2069,24 @@
            寸法はLINEが受け取るものしか無いので、人が選ぶのは「形」だけにして、
            実寸は line-assets.mjs の表から引く（2026-10-14 要望:
            「寸法はアプリ内で選んで、その寸法に合わせて生成」）*/
-        var LINE_MENU = [
-          ['', t('lp.pubLineNone')],
-          ['大-1', '大・全面1枠（2500×1686）'],
-          ['大-2x', '大・左右2枠（2500×1686）'],
-          ['大-3L', '大・左に商品＋右に2枠（2500×1686）'],
-          ['大-3y', '大・上1枠＋下2枠（2500×1686）'],
-          ['大-1+3', '大・上1枠＋下3枠（2500×1686）'],
-          ['大-4', '大・4枠（2500×1686）'],
-          ['大-6', '大・2段3列（2500×1686）'],
-          ['小-1', '小・全面1枠（2500×843）'],
-          ['小-2x', '小・左右2枠（2500×843）'],
-          ['小-3x', '小・横3枠（2500×843）']
-        ];
-        var LINE_MSG = [
-          ['', t('lp.pubLineNone')],
-          ['正方形A', '正方形・1枠（1040×1040）'],
-          ['正方形B', '正方形・左右2枠（1040×1040）'],
-          ['正方形C', '正方形・上下2枠（1040×1040）'],
-          ['正方形E', '正方形・4枠（1040×1040）'],
-          ['正方形H', '正方形・2段3列（1040×1040）'],
-          ['正方形K', '正方形・左大＋右2枠（1040×1040）'],
-          ['横長A', '横長・細1枠（1040×350）'],
-          ['横長B', '横長・1枠（1040×700）'],
-          ['横長D', '横長・1枠（1040×585）'],
-          ['縦長A', '縦長・1枠（1040×1300）'],
-          ['縦長E', '縦長・長い1枠（1040×1850）'],
-          ['カスタム', 'カスタム（1040×高さ自由）']
-        ];
-        function picker(key, labelKey, hintKey, list) {
+        /* 形は文字で並べても分からない（2026-10-23 指摘:
+           「大・左に商品＋右に2枠（2500×1686）」では、どんな割り方か読めない）。
+           LINEコンテンツの画面と同じ見本つきの選択を使う（line-pick.js）*/
+        var shape = { menu: String(info.line_menu || ''), msg: String(info.line_msg || '') };
+        function shapePick(key, labelKey, hintKey, kind, onPick) {
           var f = el('div', 'field');
           add(f, el('label', 'field__label', t(labelKey)));
-          var sel = el('select', 'input select');
-          list.forEach(function (one) {
-            var op = el('option', '', one[1]);
-            op.value = one[0];
-            if (String(info[key] || '') === one[0]) { op.selected = true; }
-            add(sel, op);
-          });
-          add(f, sel);
+          if (typeof window.LpyaLinePick === 'function') {
+            add(f, window.LpyaLinePick({
+              kind: kind, value: shape[key], noneLabel: t('lp.pubLineNone'),
+              onPick: function (id) { shape[key] = id; if (onPick) { onPick(id); } }
+            }));
+          }
           add(f, el('p', 'field__hint', t(hintKey)));
           add(box2, f);
-          return sel;
         }
-        var menuSel = picker('line_menu', 'lp.pubLineMenu', 'lp.pubLineMenuHint', LINE_MENU);
-        var msgSel = picker('line_msg', 'lp.pubLineMsg', 'lp.pubLineMsgHint', LINE_MSG);
+        shapePick('menu', 'lp.pubLineMenu', 'lp.pubLineMenuHint', 'menu');
+        shapePick('msg', 'lp.pubLineMsg', 'lp.pubLineMsgHint', 'message', function () { paintH(); });
         /* カスタムを選んだときだけ、高さを聞く */
         var hf = el('div', 'field');
         add(hf, el('label', 'field__label', t('lp.pubLineMsgH')));
@@ -2125,8 +2098,7 @@
         hIn.value = String(info.line_msg_h || 1040);
         add(hf, hIn);
         add(box2, hf);
-        function paintH() { hf.style.display = msgSel.value === 'カスタム' ? '' : 'none'; }
-        msgSel.addEventListener('change', paintH);
+        function paintH() { hf.style.display = shape.msg === 'カスタム' ? '' : 'none'; }
         paintH();
         add(box, box2);
         function termsValue() {
@@ -2138,11 +2110,11 @@
           /* KVから始めるかは、販売の条件と同じ入れ物に持つ（列を増やさない） */
           if (kvBox.checked) { v.kv_first = true; }
           if (brandLogo) { v.brand_logo = brandLogo; }
-          if (menuSel.value) { v.line_menu = menuSel.value; }
-          if (msgSel.value) {
-            v.line_msg = msgSel.value;
+          if (shape.menu) { v.line_menu = shape.menu; }
+          if (shape.msg) {
+            v.line_msg = shape.msg;
             /* 高さはカスタムのときだけ持つ。他の形は表の寸法で決まる */
-            if (msgSel.value === 'カスタム') {
+            if (shape.msg === 'カスタム') {
               v.line_msg_h = Math.min(2080, Math.max(520, Number(hIn.value) || 1040));
             }
           }
