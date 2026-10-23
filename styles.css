@@ -4923,3 +4923,11 @@ input[type='radio'] {
 
 /* 写真が満杯のとき。口は消さず、押せないことを見せる */
 .dropzone--full { opacity: .55; cursor: not-allowed; }
+
+/* 気をつけたい表現。たたんでおく（毎回開いていると本来の作業の邪魔になる） */
+.compli { margin-bottom: var(--sp-group); }
+.compli__sum { cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; }
+/* 言い換え案は本文として読む。list-row__meta は右寄せなので、左に戻す */
+.compli .list-row__meta { white-space: normal; text-align: left; color: var(--c-text); }
+.compli .list-row { align-items: flex-start; }
+.compli .list-row__sub { font-weight: 600; }
