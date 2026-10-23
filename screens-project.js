@@ -477,7 +477,14 @@
         return Promise.all([
           window.Api.projects.get(projectId),
           window.Api.analysisReports.list({ eq: { projects_id: String(projectId) }, limit: 50 }),
-          window.Api.generations.list({ eq: { projects_id: String(projectId) }, limit: 50 })
+          /* 生成物は「どこまで出来ているか」を見るためだけに読む。
+             既定だと generated_html（1件150KB超）まで運んでしまうので、
+             要る列だけに絞る。読んでいたのに使っていなかった */
+          window.Api.generations.list({
+            eq: { projects_id: String(projectId) },
+            select: 'id,feature_key,variant_label,created_at,asset_prompts',
+            limit: 50
+          })
         ]);
       }).then(function (results) {
         data.project = results[0];
@@ -518,16 +525,41 @@
       ].join(' · ');
     }
 
-    function openAnalysis() {
-      if (!hasProduct(data.project)) {
-        toast(t('projectDetail.emptyProducts'), 'danger');
+    /* いちばん進んだ工程を返す（2026-10-24 要望）。
+       工程の並びは app.js の WORKFLOW と同じ:
+         S4 商品入力 → S11 分析 → S12 LP案 → S13 生成結果 → S21 LINE
+       後ろから見て、最初に「出来ている」ものへ送る */
+    function furthest() {
+      var gens = data.generations || [];
+      var madeOf = function (g) {
+        var made = g && g.asset_prompts && g.asset_prompts.made;
+        return made && typeof made === 'object' ? Object.keys(made).length : 0;
+      };
+      var any = function (key, needMade) {
+        return gens.some(function (g) {
+          if (String(g.feature_key) !== key) { return false; }
+          return needMade ? madeOf(g) > 0 : true;
+        });
+      };
+      /* LINEの台は絵が出来てから。指示だけでは「出来た」と言えない */
+      if (any('line_brief', true)) { return 'S21'; }
+      /* 生成結果は、絵が1枚でも出来ていること */
+      if (gens.some(function (g) { return madeOf(g) > 0; })) { return 'S13'; }
+      /* LP案は、指示（区画）が出来ていればそこまで進んでいる */
+      if (any('lp_brief', false)) { return 'S12'; }
+      if (data.reports.length) { return 'S11'; }
+      return 'S4';
+    }
+
+    /* 途中まで出来ているなら、そこへ送る。
+       いつも分析レポートへ送ると、先へ進んだ案件ほど遠回りになる */
+    function openFurthest() {
+      var id = furthest();
+      if (id === 'S11') {
+        openReport();
         return;
       }
-      if (!selectedProductId) {
-        toast(t('projectDetail.selectProductFirst'), 'danger');
-        return;
-      }
-      go('S4', { id: projectId });
+      go(id, { id: projectId });
     }
 
     function openReport() {
@@ -665,12 +697,16 @@
       mainRow.appendChild(button('btn btn--primary', t('projectDetail.registerProduct'), function () {
         go('S4', { id: projectId });
       }));
-      mainRow.appendChild(button('btn btn--secondary', t('projectDetail.startAnalysis'), openAnalysis));
+      /* 2026-10-24 要望: ここは「分析レポート」へ行く口にする。
+         新しく分析を始める口は、分析レポートの画面の中にある */
+      mainRow.appendChild(button('btn btn--secondary', t('projectDetail.openReport'), openReport));
       screen.appendChild(mainRow);
 
       /* 保存済みのものを開く / ダッシュボードへ戻る */
       var links = el('div', 'stack');
-      links.appendChild(button('btn btn--secondary btn--block', t('projectDetail.openReport'), openReport));
+      /* 2026-10-24 要望: 出来ているところまで一息で戻れるようにする */
+      links.appendChild(button('btn btn--secondary btn--block',
+        t('projectDetail.openFurthest'), openFurthest));
       links.appendChild(button('btn btn--text btn--block', t('projectDetail.backToDashboard'), function () {
         go('S3');
       }));

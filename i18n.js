@@ -545,8 +545,11 @@
     'projectDetail.remainingCredit': ['残ポイント', 'Remaining points', '남은 포인트'],
     'projectDetail.registeredProducts': ['登録済み商品', 'Registered products', '등록된 상품'],
     'projectDetail.registerProduct': ['商品情報を編集', 'Edit product details', '상품 정보 편집'],
-    'projectDetail.startAnalysis': ['競合LP分析', 'Analyze competitor pages', '경쟁 LP 분석'],
-    'projectDetail.openReport': ['分析レポートを開く', 'Open analysis report', '분석 리포트 열기'],
+    /* 2026-10-24: 詳細画面の2つのボタンを付け替えた。
+       「競合LP分析」→「分析レポート」（新しく分析を始める口はレポート画面の中）
+       「分析レポートを開く」→「続きから」（出来ているところまで送る） */
+    'projectDetail.openFurthest': ['続きから', 'Resume where you left off', '이어서 작업'],
+    'projectDetail.openReport': ['分析レポート', 'Analysis report', '분석 리포트'],
     'projectDetail.openGeneration': ['生成結果を開く', 'Open generated results', '생성 결과 열기'],
     'projectDetail.backToDashboard': ['ダッシュボードへ戻る', 'Back to dashboard', '대시보드로 돌아가기'],
     'projectDetail.emptyProducts': ['商品がまだ登録されていません', 'No products registered yet', '아직 등록된 상품이 없습니다'],
