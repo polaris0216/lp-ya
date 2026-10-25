@@ -888,6 +888,16 @@
         zipBtn.title = t('lp.zipHint');
         add(bulkBar, zipBtn);
         add(bulkBar, el('p', 'lp-bulk__note', t('lp.genAllHint')));
+        /* 押す前に、どれくらい待つかと、いくらかを出す（2026-10-25）。
+           LPは区画が平均28枚あるので、知らずに押すと一気に進む */
+        if (window.LpyaJobEta) {
+          var etaTxt = window.LpyaJobEta.hint('lp_section', t);
+          if (etaTxt) { add(bulkBar, el('p', 'field__hint', etaTxt)); }
+        }
+        if (window.LpyaCost) {
+          window.LpyaCost.attach(bulkBar, 'crowdfunding_lp',
+            { t: t, count: isArray(view.gen.sections) ? view.gen.sections.length : 0 });
+        }
         add(bulkBar, viaSwitch());
         var done = doneCount();
         var total = (view.gen.sections || []).length;

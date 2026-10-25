@@ -4952,3 +4952,6 @@ input[type='radio'] {
 
 /* 進捗の窓。閉じてよいことを小さく添える */
 .jobwatch__close-note { font-size: var(--fs-note); color: var(--c-text-sub); margin: 4px 0 0; }
+
+/* 押す前に出す値段。目立たせすぎない（脅しに見える） */
+.cost-hint { margin-top: 2px; }

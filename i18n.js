@@ -413,6 +413,11 @@
     'job.stalledHow': ['ターミナルで tools/install-worker-agent.sh を実行すると、ログイン時に自動で立ち上がるようになります。', 'Run tools/install-worker-agent.sh in a terminal to start it automatically at login.', '터미널에서 tools/install-worker-agent.sh 를 실행하면 로그인 시 자동으로 시작됩니다.'],
 
     // ブランド指定
+    /* 値段。**いまは消費が繋がっていない**ので「減ります」とは書かない。
+       繋がったあとも、この文面のままで正しい */
+    'cost.plain': ['この生成は{p}ポイントです', 'This costs {p} points', '이 생성은 {p}포인트입니다'],
+    'cost.withCount': ['この生成は{p}ポイント（絵を{n}枚つくります）',
+      'This costs {p} points ({n} images)', '이 생성은 {p}포인트({n}장 생성)'],
     /* 待ち時間の目安。数字は実測（2026-10-25、仕事454件）から置く。
        推測で短く言うと、待てたはずの人を不安にさせる */
     'eta.about': ['ふつう{a}分ほどで終わります。閉じても進みます。',
