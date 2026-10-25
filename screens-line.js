@@ -87,10 +87,10 @@
     'line.save': ['形を保存', 'Save sizes', '형식 저장'],
     'line.saved': ['保存しました', 'Saved', '저장했습니다'],
     'line.images': ['2. 絵を作る', '2. Make the images', '2. 이미지 만들기'],
-    'line.imagesHint': ['先に「区画を作る」で何を描くかを決め、それから1枚ずつ絵にします。',
+    'line.imagesHint': ['先に「ブロックを作る」で何を描くかを決め、それから1枚ずつ絵にします。',
       'Write the briefs first, then generate image by image.',
       '먼저 구획을 만들고, 그 다음 한 장씩 생성합니다.'],
-    'line.makeBrief': ['区画を作る（何を描くか決める）', 'Write the briefs', '구획 만들기'],
+    'line.makeBrief': ['ブロックを作る（何を描くか決める）', 'Write the briefs', '구획 만들기'],
     'line.makeAll': ['絵をまとめて作る', 'Generate all', '이미지 일괄 생성'],
     /* 枠ごとに別の商品を出す（2026-10-18 要望）。
        商品は別のプロジェクトから呼び出す */
@@ -106,7 +106,7 @@
       'Pick the products (assigned to cells in order)', '상품 선택'],
     'line.noOther': ['他のプロジェクトがありません。', 'No other projects.', '다른 프로젝트가 없습니다.'],
     'line.saved2': ['呼び出す商品を保存しました', 'Saved', '저장했습니다'],
-    'line.goLayer': ['{v}層には絵があります。開く', 'Layer {v} has images. Open',
+    'line.goLayer': ['{v}ターゲットには絵があります。開く', 'Layer {v} has images. Open',
       '{v} 레이어에 이미지가 있습니다'],
     /* 生成文を見る・足す（2026-10-18 要望） */
     'line.prompt': ['生成プロンプトを見る・足す', 'View / extend the prompt', '생성 프롬프트 보기·추가'],
@@ -118,7 +118,7 @@
     'line.promptAdd': ['足したい指示', 'Your extra instruction', '추가 지시'],
     'line.promptAddPh': ['例: 背景は夜の台所にする／札は丸い形にする',
       'e.g. make the background a night kitchen', '예: 배경을 밤의 주방으로'],
-    'line.promptHint': ['上の文は直接直せます。直すと、その区画は「区画を作る」で'
+    'line.promptHint': ['上の文は直接直せます。直すと、そのブロックは「ブロックを作る」で'
       + '作り直しても上書きされません（自動の更新は入りません）。'
       + '下の「足したい指示」はいちばん後ろに付き、どちらの場合も残ります。',
       'You can edit the prompt above; edited sections are not overwritten by rebuilds.',
@@ -165,9 +165,9 @@
       'Images will be made with the OpenAI API', '이제 OpenAI API로 만듭니다'],
     'line.viaBrowserOn': ['これからは ChatGPT の画面で作ります（追加の料金なし）',
       'Images will be made in the ChatGPT browser', '이제 ChatGPT 화면에서 만듭니다'],
-    'line.briefDone': ['区画を作りました', 'Briefs written', '구획을 만들었습니다'],
+    'line.briefDone': ['ブロックを作りました', 'Briefs written', '구획을 만들었습니다'],
     'line.needSize': ['先に形を選んで保存してください。', 'Pick and save the sizes first.', '먼저 형식을 선택해 저장하세요.'],
-    'line.noBrief': ['まだ区画がありません。「区画を作る」を押してください。',
+    'line.noBrief': ['まだブロックがありません。「ブロックを作る」を押してください。',
       'No briefs yet. Press “Write the briefs”.', '아직 구획이 없습니다.'],
     'line.make': ['絵を作る', 'Generate', '생성'],
     'line.remake': ['作り直す', 'Regenerate', '다시 생성'],
@@ -628,6 +628,9 @@
             function () { view.layer = L; view.brief = view.layers[L]; paint(); });
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           add(b, el('span', 'lp-variant__label', L));
+          /* 記号だけだと、どのターゲット向けかが分からない（LP案・生成結果の
+             耳と同じように名前も出す。2026-10-25 要望） */
+          add(b, el('span', 'lp-variant__name', String((g && g.title) || '').slice(0, 20)));
           add(b, el('span', 'lp-deliv__count' + (n ? '' : ' is-none'), ' ' + n + '/' + tot));
           add(tabs, b);
         });

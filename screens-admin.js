@@ -253,7 +253,7 @@
     'local.featureListEmpty': ['機能が登録されていません。下の入力から行を追加してください', 'No features yet. Add a row with the form below.', '등록된 기능이 없습니다. 아래 입력에서 행을 추가해 주세요'],
     'local.unsavedBadge': ['未保存', 'Unsaved', '미저장'],
     'local.featureNameLabel': ['機能名（任意）', 'Feature name (optional)', '기능 이름(선택)'],
-    'local.featureNamePlaceholder': ['例: KV生成', 'e.g. Key visual generation', '예: KV 생성'],
+    'local.featureNamePlaceholder': ['例: キービジュアル生成', 'e.g. Key visual generation', '예: KV 생성'],
     'local.featureKeyPlaceholder': ['例: kv_generation', 'e.g. kv_generation', '예: kv_generation'],
     'local.creditCostPlaceholder': ['例: 20', 'e.g. 20', '예: 20'],
     'local.featureKeyRequired': ['機能キーを入力してください', 'Please enter a feature key', '기능 키를 입력해 주세요'],

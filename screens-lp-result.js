@@ -32,20 +32,20 @@
     'lpr.backToDraft': ['LP案に戻る', 'Back to draft', '초안으로'],
     'lpr.noGen': ['LP案がありません。先に LP案 を作ってください。', 'No LP draft yet. Create one first.', 'LP 초안이 없습니다. 먼저 만들어 주세요.'],
     'lpr.noProject': ['プロジェクトが選ばれていません', 'No project selected', '프로젝트가 선택되지 않았습니다'],
-    'lpr.stats': ['{sections} 区画 / 絵 {images} 枚 / 高さ約 {height}px', '{sections} sections / {images} visuals / about {height}px tall', '{sections}구획 / 이미지 {images}장 / 높이 약 {height}px'],
-    'lpr.mode': ['区画の見せ方', 'How each section shows', '구획 표현 방식'],
-    'lpr.modeHint': ['区画ごとに、絵で見せるか文字で読ませるかを選べます。生成のときに両方できています。',
+    'lpr.stats': ['{sections} ブロック / 絵 {images} 枚 / 高さ約 {height}px', '{sections} sections / {images} visuals / about {height}px tall', '{sections}구획 / 이미지 {images}장 / 높이 약 {height}px'],
+    'lpr.mode': ['ブロックの見せ方', 'How each section shows', '구획 표현 방식'],
+    'lpr.modeHint': ['ブロックごとに、絵で見せるか文字で読ませるかを選べます。生成のときに両方できています。',
       'Pick per section: show the visual, or read it as text. Both were generated.',
       '구획마다 이미지로 볼지 텍스트로 읽을지 고를 수 있습니다. 생성 시 둘 다 만들어져 있습니다.'],
     'lpr.modeImage': ['絵', 'Visual', '이미지'],
     'lpr.modeText': ['文字', 'Text', '텍스트'],
     'lpr.modeBoth': ['絵＋文字', 'Visual + text', '이미지＋텍스트'],
     'lpr.modeShot': ['文字（写真の上）', 'Text on photo', '사진 위 텍스트'],
-    'lpr.modeCount': ['{n}区画', '{n} sections', '{n}개 구획'],
+    'lpr.modeCount': ['{n}ブロック', '{n} sections', '{n}개 구획'],
     'lpr.viewSales': ['販売ページ', 'Sales page', '판매 페이지'],
-    'lpr.viewCanvas': ['区画そのまま', 'Sections only', '구획 그대로'],
+    'lpr.viewCanvas': ['ブロックそのまま', 'Sections only', '구획 그대로'],
     'lpr.viewHint': ['販売ページは、公開したときに見える形です（LINE友だち追加もここに出ます）。'
-      + '区画そのままは、作った絵と文字だけを縦に並べたものです。',
+      + 'ブロックそのままは、作った絵と文字だけを縦に並べたものです。',
       'The sales page is what visitors see once published (including the LINE button).',
       '판매 페이지는 공개 시 보이는 형태입니다.'],
     'lpr.noSales': ['販売ページの文章がまだありません。生成プロンプトの画面で「販売ページの文章をAIに書かせる」を押してください',
@@ -57,11 +57,11 @@
       'Edit the text right in the preview, then press “Save text”.',
       '미리보기 안의 글을 그대로 고칠 수 있습니다. 고친 뒤 “텍스트 저장”을 누르세요.'],
     'lpr.editSaved': ['文字を保存しました', 'Text saved', '텍스트를 저장했습니다'],
-    'lpr.editOnlyCanvas': ['文字を直せるのは「区画そのまま」のときだけです',
+    'lpr.editOnlyCanvas': ['文字を直せるのは「ブロックそのまま」のときだけです',
       'Text editing works in “Sections only”.', '“구획 그대로”에서만 수정할 수 있습니다'],
-    'lpr.modeAll': ['すべての区画を', 'All sections', '모든 구획을'],
+    'lpr.modeAll': ['すべてのブロックを', 'All sections', '모든 구획을'],
     'lpr.modeReset': ['既定にもどす', 'Reset to default', '기본값으로'],
-    'lpr.modeResetDone': ['区画ごとの選択を捨てて、既定に戻しました',
+    'lpr.modeResetDone': ['ブロックごとの選択を捨てて、既定に戻しました',
       'Cleared per-section choices; back to the default.',
       '구획별 선택을 지우고 기본값으로 되돌렸습니다'],
     'lpr.modeNoText': ['文字版なし', 'No text version', '텍스트 버전 없음'],
@@ -69,12 +69,12 @@
     'lpr.live': ['公開中', 'Live', '공개 중'],
     'lpr.take': ['使う案', 'Version', '사용할 안'],
     'lpr.takeNo': ['{n}回目', 'Take {n}', '{n}회차'],
-    'lpr.takeHint': ['この層は {n} 回作っています。選ぶと、そのときの絵と文字で組み直します。',
+    'lpr.takeHint': ['このターゲットは {n} 回作っています。選ぶと、そのときの絵と文字で組み直します。',
       'This audience has {n} takes. Picking one rebuilds the page from that take.',
       '이 층은 {n}회 생성했습니다.'],
-    'lpr.shots': ['この区画の絵', 'Visuals for this section', '이 구획의 이미지'],
-    'lpr.shelf': ['区画ごとの写真', 'Photos by section', '구획별 사진'],
-    'lpr.shelfHint': ['写真が複数ある区画は {n} 件です。選ぶと、その場でページに入れ替わります。',
+    'lpr.shots': ['このブロックの絵', 'Visuals for this section', '이 구획의 이미지'],
+    'lpr.shelf': ['ブロックごとの写真', 'Photos by section', '구획별 사진'],
+    'lpr.shelfHint': ['写真が複数あるブロックは {n} 件です。選ぶと、その場でページに入れ替わります。',
       '{n} sections have more than one photo. Pick one and the page updates right away.',
       '사진이 여러 장인 구획은 {n}건입니다.'],
     'lpr.shelfNone': ['作り直した写真がまだありません。', 'No regenerated photos yet.', '아직 다시 만든 사진이 없습니다.'],
@@ -82,11 +82,11 @@
       'This take has no images yet, so the page shows text only.',
       '이 안에는 아직 이미지가 없습니다.'],
     'lpr.goShots': ['絵のある案に切り替える', 'Switch to a take with images', '이미지가 있는 안으로'],
-    'lpr.pickGo': ['この区画まで移動', 'Jump to this section', '이 구획으로 이동'],
-    'lpr.pickUnused': ['価格やリスクの話はMakuake本体に任せるので、販売ページには出しません（区画そのままには出ます）',
+    'lpr.pickGo': ['このブロックまで移動', 'Jump to this section', '이 구획으로 이동'],
+    'lpr.pickUnused': ['価格やリスクの話はMakuake本体に任せるので、販売ページには出しません（ブロックそのままには出ます）',
       'Left to the Makuake page itself, so not shown here (still in the plain lineup)',
       'Makuake 본편에 맡기므로 판매 페이지에는 표시하지 않습니다'],
-    'lpr.shelfOne': ['残り {n} 区画は写真が1枚なので、そのまま使います。',
+    'lpr.shelfOne': ['残り {n} ブロックは写真が1枚なので、そのまま使います。',
       'The other {n} sections have a single photo and use it automatically.',
       '나머지 {n} 구획은 사진이 1장이라 그대로 사용합니다.'],
     'lpr.shotNow': ['いま使っている絵', 'In use', '사용 중'],
@@ -98,7 +98,7 @@
     'lpr.urlSite': ['載せるドメイン', 'Domain', '載せるドメイン'],
     'lpr.urlBrand': ['会社・ブランド', 'Company or brand', '회사・브랜드'],
     'lpr.urlProduct': ['商品名', 'Product', '상품명'],
-    'lpr.urlLayer': ['層（自動）', 'Audience (auto)', '층(자동)'],
+    'lpr.urlLayer': ['ターゲット（自動）', 'Audience (auto)', '층(자동)'],
     'lpr.urlSave': ['URLを保存', 'Save URL', 'URL 저장'],
     'lpr.urlSaved': ['URLを保存しました', 'URL saved', 'URL을 저장했습니다'],
     'lpr.urlHint': ['英数字とハイフンだけ使えます。日本語は使えません',
@@ -744,12 +744,12 @@
             if (mode === 'image') {
               return img
                 ? '<section>' + img + '</section>'
-                : '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（絵が未生成）</p></section>';
+                : '<section class="todo"><p>' + escapeHtml(String(sec.title || ('ブロック ' + sec.index))) + '（絵が未生成）</p></section>';
             }
             if (mode === 'text') {
               return (txt || cap)
                 ? '<section>' + txt + cap + '</section>'
-                : '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（文字がありません）</p></section>';
+                : '<section class="todo"><p>' + escapeHtml(String(sec.title || ('ブロック ' + sec.index))) + '（文字がありません）</p></section>';
             }
             /* 文字を写真の上に重ねる板。写真は背景として敷き、
                その上に幕をかけて白い文字を置く。絵が無ければブランド色の地。
@@ -757,7 +757,7 @@
                差し込むと、引用符や ) で囲いを抜けられる */
             if (mode === 'shot') {
               if (!inner) {
-                return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（文字がありません）</p></section>';
+                return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('ブロック ' + sec.index))) + '（文字がありません）</p></section>';
               }
               return '<section class="shot">'
                 + (url ? '<img class="shot__bg" src="' + escapeHtml(url) + '" alt="">' : '')
@@ -766,7 +766,7 @@
                 + (cap ? '<section>' + cap + '</section>' : '');
             }
             if (mode === 'both' && (img || txt || cap)) { return '<section>' + img + txt + cap + '</section>'; }
-            return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('区画 ' + sec.index))) + '（未生成）</p></section>';
+            return '<section class="todo"><p>' + escapeHtml(String(sec.title || ('ブロック ' + sec.index))) + '（未生成）</p></section>';
           });
           /* 置き方も販売ページと同じ: 冒頭の直後 → 6枚おき → 末尾 */
           if (callOut()) {

@@ -1151,7 +1151,7 @@
       var cfSelect = el('select', 'select');
       cfSelect.id = 'home-create-cf-platform';
       CF_PLATFORMS.forEach(function (one) {
-        var option = el('option', null, one.label + '（KV ' + one.note + '）');
+        var option = el('option', null, one.label + '（キービジュアル ' + one.note + '）');
         option.value = one.value;
         if (form.cfPlatform === one.value) { option.selected = true; }
         cfSelect.appendChild(option);

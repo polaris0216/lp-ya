@@ -125,7 +125,7 @@
     // ==== landing: S0 ログイン前ホーム ====
     'landing.eyebrow': ['クラファン・自社EC対応 / 日本語AI', 'For crowdfunding and DTC / Japanese AI', '크라우드펀딩·자사몰 / 일본어 AI'],
     'landing.title': ['競合分析からデザインまで、\n1ページでAIが。', 'From competitor analysis to design,\nall in one page with AI.', '경쟁사 분석부터 디자인까지,\n한 페이지에서 AI로.'],
-    'landing.lead': ['売れている競合LPのURLを入れるだけ。勝ちパターンを読み解いて、クラファンLP・自社LP・KV・Meta広告・LINEコンテンツをまとめて作ります。', 'Just paste the URLs of competitor pages that sell. We read the winning pattern and produce your crowdfunding page, own LP, key visual, Meta ads and LINE content together.', '팔리는 경쟁 상세페이지 URL만 넣으세요. 승리 패턴을 읽어 크라우드펀딩 페이지·자사 LP·KV·메타광고·LINE 콘텐츠를 한 번에 만듭니다.'],
+    'landing.lead': ['売れている競合LPのURLを入れるだけ。勝ちパターンを読み解いて、クラファンLP・自社LP・キービジュアル・Meta広告・LINEコンテンツをまとめて作ります。', 'Just paste the URLs of competitor pages that sell. We read the winning pattern and produce your crowdfunding page, own LP, key visual, Meta ads and LINE content together.', '팔리는 경쟁 상세페이지 URL만 넣으세요. 승리 패턴을 읽어 크라우드펀딩 페이지·자사 LP·KV·메타광고·LINE 콘텐츠를 한 번에 만듭니다.'],
     'landing.ctaStart': ['無料で始める', 'Start free', '무료로 시작하기'],
     'landing.ctaLogin': ['ログイン', 'Log in', '로그인'],
     'landing.ctaNote': ['登録時にお試しポイント付き。カード登録は不要です。', 'Trial points on sign-up. No card required.', '가입 시 체험 포인트 제공. 카드 등록 불필요.'],
@@ -138,16 +138,16 @@
     'landing.step2': ['競合LPを分析', 'Analyze competitors', '경쟁 상세페이지 분석'],
     'landing.step2Desc': ['売れているLPを最大5件登録すると、構成・訴求順・CTA配置・売れた理由を読み解きます。', 'Register up to five pages that sell. We extract structure, order of appeal, CTA placement and why they worked.', '팔리는 페이지를 최대 5건 등록하면 구성·소구 순서·CTA 배치·이유를 읽어냅니다.'],
     'landing.step3': ['まとめて生成', 'Generate everything', '한 번에 생성'],
-    'landing.step3Desc': ['LP・KV・Meta広告・LINEコンテンツを一括生成。A/Bテスト用の2案も出せます。', 'Landing pages, key visuals, Meta ads and LINE content at once, plus two variants for A/B testing.', '상세페이지·KV·메타광고·LINE 콘텐츠를 한 번에. A/B 테스트용 2안도 만듭니다.'],
+    'landing.step3Desc': ['LP・キービジュアル・Meta広告・LINEコンテンツを一括生成。A/Bテスト用の2案も出せます。', 'Landing pages, key visuals, Meta ads and LINE content at once, plus two variants for A/B testing.', '상세페이지·KV·메타광고·LINE 콘텐츠를 한 번에. A/B 테스트용 2안도 만듭니다.'],
 
     'landing.featuresLabel': ['できること', 'What you get', '기능'],
-    'landing.featuresTitle': ['LP・広告・KV・LINE、1ページで。', 'Pages, ads, visuals and LINE — one place.', '상세페이지·광고·KV·LINE, 한 페이지에서.'],
+    'landing.featuresTitle': ['LP・広告・キービジュアル・LINE、1ページで。', 'Pages, ads, visuals and LINE — one place.', '상세페이지·광고·KV·LINE, 한 페이지에서.'],
     'landing.featuresDesc': ['作ったものはそのまま公開でき、閲覧数とCTAクリックを計測できます。', 'Publish what you made and measure views and CTA clicks.', '만든 결과물은 그대로 공개하고 조회수와 CTA 클릭을 측정할 수 있습니다.'],
     'landing.featCfLp': ['クラファンLP', 'Crowdfunding page', '크라우드펀딩 페이지'],
     'landing.featCfLpDesc': ['Makuake・CAMPFIRE・GREENFUNDING の型に沿った構成で生成します。', 'Built to the structures that work on Makuake, CAMPFIRE and GREENFUNDING.', 'Makuake·CAMPFIRE·GREENFUNDING 형식에 맞춰 생성합니다.'],
     'landing.featOwnLp': ['自社LP', 'Your own LP', '자사 LP'],
     'landing.featOwnLpDesc': ['LINE友だち追加ボタン付き。公開URLをそのまま配れます。', 'With a LINE add-friend button. Share the public URL as is.', 'LINE 친구추가 버튼 포함. 공개 URL을 그대로 배포할 수 있습니다.'],
-    'landing.featKv': ['KV（メインビジュアル）', 'Key visual', 'KV(메인 비주얼)'],
+    'landing.featKv': ['キービジュアル（メインビジュアル）', 'Key visual', 'KV(메인 비주얼)'],
     'landing.featKvDesc': ['商品写真を活かしたメインビジュアルを生成します。', 'Key visuals built around your own product photos.', '상품 사진을 살린 메인 비주얼을 생성합니다.'],
     'landing.featAds': ['Meta広告', 'Meta ads', '메타광고'],
     'landing.featAdsDesc': ['訴求軸を変えたA・B・C案のクリエイティブとコピーを出します。', 'Three creative and copy variants with different angles.', '소구축을 달리한 A·B·C안 크리에이티브와 카피를 만듭니다.'],
@@ -160,7 +160,7 @@
     'landing.pricingTitle': ['必要な分だけ、ポイントで。', 'Pay only for what you generate.', '필요한 만큼만, 포인트으로.'],
     'landing.pricingDesc': ['月額の縛りはありません。使った機能の分だけポイントが減ります。', 'No monthly lock-in. Points are spent per feature you use.', '월 구독 묶임 없음. 사용한 기능만큼 포인트이 차감됩니다.'],
     'landing.pricingUnit': ['ポイント制', 'Point based', '포인트 제'],
-    'landing.pricingNote': ['プロジェクト作成は無料。LP生成60P / KV・Meta広告・LINE 30P / 競合分析・A/Bテスト 40P。', 'Creating a project is free. Landing page 60P / KV, Meta ads, LINE 30P / analysis and A/B 40P.', '프로젝트 생성은 무료. 상세페이지 60P / KV·메타광고·LINE 30P / 분석·A/B 40P.'],
+    'landing.pricingNote': ['プロジェクト作成は無料。LP生成60P / キービジュアル・Meta広告・LINE 30P / 競合分析・A/Bテスト 40P。', 'Creating a project is free. Landing page 60P / KV, Meta ads, LINE 30P / analysis and A/B 40P.', '프로젝트 생성은 무료. 상세페이지 60P / KV·메타광고·LINE 30P / 분석·A/B 40P.'],
 
     'landing.finalTitle': ['今すぐ、最初のLPを作ってみましょう。', 'Make your first landing page now.', '지금, 첫 상세페이지를 만들어 보세요.'],
     'landing.finalDesc': ['商品を入れるところから、数分で。', 'From entering your product, in a few minutes.', '상품을 넣는 것부터, 몇 분이면.'],
@@ -230,7 +230,7 @@
 
     // ==== project: S4 プロジェクト作成 ====
     'project.createTitle': ['商品入力', 'Product details', '상품 입력'],
-    'project.createSubtitle': ['ここに入れた内容が、LP・KV・広告・LINEすべての材料になります', 'Everything here becomes the material for the pages, key visuals, ads and LINE content', '여기에 입력한 내용이 모든 생성물의 재료가 됩니다'],
+    'project.createSubtitle': ['ここに入れた内容が、LP・キービジュアル・広告・LINEすべての材料になります', 'Everything here becomes the material for the pages, key visuals, ads and LINE content', '여기에 입력한 내용이 모든 생성물의 재료가 됩니다'],
     'project.createCreditNote': ['作成に10ポイント消費', 'Creating a project costs 10 points', '생성에 10포인트이 소모됩니다'],
     'project.name': ['プロジェクト名', 'Project name', '프로젝트 이름'],
     'project.nameRequired': ['プロジェクト名を入力してください', 'Please enter a project name', '프로젝트 이름을 입력해 주세요'],
@@ -240,7 +240,7 @@
     'product.features': ['商品の特徴', 'Product features', '상품 특징'],
     'product.featuresMax': ['300文字まで入力できます', 'Up to 300 characters', '300자까지 입력할 수 있습니다'],
     'product.cfPlatform': ['出稿するクラファン', 'Crowdfunding platform', '출고할 크라우드펀딩'],
-    'product.cfPlatformHint': ['KV（メインビジュアル）の縦横比と枚数がこれで決まります。Makuake はキービジュアル1枚＋スライドショー7枚で計8枚、CAMPFIRE と machi-ya はメイン画像1枚です。',
+    'product.cfPlatformHint': ['キービジュアル（メインビジュアル）の縦横比と枚数がこれで決まります。Makuake はキービジュアル1枚＋スライドショー7枚で計8枚、CAMPFIRE と machi-ya はメイン画像1枚です。',
       'This sets the key visual ratio and how many to make. Makuake takes 8 (1 key visual + 7 slideshow); CAMPFIRE and machi-ya take 1 main image.',
       'KV의 비율과 장수가 여기서 정해집니다. Makuake는 8장(키비주얼 1＋슬라이드쇼 7), CAMPFIRE와 machi-ya는 메인 이미지 1장입니다.'],
     'product.outputLang': ['出力言語', 'Output language', '출력 언어'],
@@ -276,7 +276,7 @@
       '★ 사진은 소재를 만들기 전에 배경을 제거해 상품만 잘라냅니다. 배경이 많은 채로 넘기면 AI가 배경까지 상품으로 이해해 다른 물건을 그려 버립니다.'
     ],
     's4.productShotHint': [
-      '★を付けた写真だけを、KV・LP・広告の素材を作るときの見本としてAIに渡します。商品そのものが写っているものを選んでください（仕様の図版やレビュー画面は外す）。',
+      '★を付けた写真だけを、キービジュアル・LP・広告の素材を作るときの見本としてAIに渡します。商品そのものが写っているものを選んでください（仕様の図版やレビュー画面は外す）。',
       'Only the photos you star are handed to the AI as the reference when producing key visuals, LPs and ads. Pick the ones that actually show the product — leave out spec graphics and review screenshots.',
       '★를 표시한 사진만 KV·LP·광고 소재를 만들 때 참고로 AI에 전달합니다. 상품 자체가 찍힌 것을 선택해 주세요(사양 도표나 리뷰 화면은 제외).'
     ],
@@ -335,7 +335,7 @@
     // 参考ページからのAI自動入力
     'product.refPanel': ['AI自動分析', 'AI analysis', 'AI 자동 분석'],
     'product.refUrlsLabel': ['参考ページ（商品販売元ページ）', 'Reference pages (the product\u2019s own sales page)', '참고 페이지(상품 판매처 페이지)'],
-    'product.refPanelDesc': ['URLを貼って「AI自動分析」を押すと、2つを続けて読みます。①参考ページ（すでに販売している海外クラファンや Alibaba などの商品販売元ページ）から、商品写真・訴求メッセージ・ターゲット案・ブランドトーン・配色・フォントを下のフォームに埋めます。②競合LPは、①が終わってから分析します。すべて手入力したい場合はこの区画を使わずに下へ進んでください。',
+    'product.refPanelDesc': ['URLを貼って「AI自動分析」を押すと、2つを続けて読みます。①参考ページ（すでに販売している海外クラファンや Alibaba などの商品販売元ページ）から、商品写真・訴求メッセージ・ターゲット案・ブランドトーン・配色・フォントを下のフォームに埋めます。②競合LPは、①が終わってから分析します。すべて手入力したい場合はこのブロックを使わずに下へ進んでください。',
       'Paste URLs and press "Analyse with AI". It reads two things in order: (1) your own product page — photos, messaging, target segments, brand tone, colours and fonts go into the form below; (2) competitor LPs, analysed once step 1 finishes. To type everything yourself, skip this panel.',
       'URL을 붙여넣고 "AI 자동 분석"을 누르면 두 가지를 차례로 읽습니다. ①자사 상품 페이지에서 사진·소구 메시지·타깃 안·브랜드 톤·배색·폰트를 아래 폼에 채우고, ②경쟁 LP는 ①이 끝난 뒤 분석합니다.'],
     'product.refUrl': ['参考ページURL', 'Reference page URL', '참고 페이지 URL'],
@@ -372,7 +372,7 @@
     'product.refMediaVideo': ['動画{n}', '{n} videos', '동영상 {n}'],
     'product.refShots': ['絵:', 'Visual:', '그림:'],
     'product.refStructureCta': ['申込導線', 'CTA', '신청 도선'],
-    'product.refStructureCount': ['{n}区画', '{n} sections', '{n}개 구간'],
+    'product.refStructureCount': ['{n}ブロック', '{n} sections', '{n}개 구간'],
     'product.refRun': ['AI自動分析', 'Analyse with AI', 'AI 자동 분석'],
     'product.refRunning': ['読み取り中…', 'Reading…', '읽는 중…'],
     'product.refNoUrl': ['参考ページURLを1件以上入れてください', 'Please enter at least one reference URL', '참고 페이지 URL을 1건 이상 입력해 주세요'],
@@ -428,7 +428,7 @@
        実際は動いている担当を「入れ直せ」と案内していた（実測: 9分かかるLP・KVプロンプトの裏で
        次のジョブを出すと、必ずこの誤報が出た） */
     'job.queuedBusy': ['他の生成が動いているので順番待ちです（{m}分）。終わり次第このまま始まります。', 'Waiting in line ({m} min) — another generation is running. It starts as soon as that one finishes.', '다른 생성이 실행 중이라 대기 중입니다({m}분). 끝나는 대로 이어서 시작합니다.'],
-    'ov.makeLpTitle': ['LP・KVプロンプトを作成中', 'Writing the LP/KV prompts', 'LP·KV 프롬프트 작성 중'],
+    'ov.makeLpTitle': ['LP・キービジュアルプロンプトを作成中', 'Writing the LP/KV prompts', 'LP·KV 프롬프트 작성 중'],
     /* 窓は1つしか出せないが、仕事は同時に走る。裏で見張っている数 */
     'job.alsoRunning': ['ほかに {n} 件を生成中です（終わり次第、画面に反映します）', '{n} more running — they will appear as they finish.', '다른 {n}건도 생성 중입니다(끝나는 대로 화면에 반영됩니다)'],
     'job.stalledHow': ['ターミナルで tools/install-worker-agent.sh を実行すると、ログイン時に自動で立ち上がるようになります。', 'Run tools/install-worker-agent.sh in a terminal to start it automatically at login.', '터미널에서 tools/install-worker-agent.sh 를 실행하면 로그인 시 자동으로 시작됩니다.'],
@@ -462,10 +462,10 @@
     'product.brandLogo': ['ブランドロゴ', 'Brand logo', '브랜드 로고'],
     'product.brandLogoPick': ['ロゴを選ぶ', 'Choose a logo', '로고 선택'],
     'product.brandLogoDrop': ['外す', 'Remove', '해제'],
-    'product.brandLogoHint': ['KVの文字の板（仕様・セット内容）の左上に出ます。入れなければ商品名を文字で出します。背景が透けるPNGがいちばんきれいに出ます（JPGでも使えますが、白い四角が付きます）。',
+    'product.brandLogoHint': ['キービジュアルの文字の板（仕様・セット内容）の左上に出ます。入れなければ商品名を文字で出します。背景が透けるPNGがいちばんきれいに出ます（JPGでも使えますが、白い四角が付きます）。',
       'Shown at the top-left of the KV spec panel. A transparent PNG looks best.',
       'KV 사양 패널 좌측 상단에 표시됩니다. 배경이 투명한 PNG가 가장 깔끔합니다.'],
-    'product.brandPanelDesc': ['LP・KV・広告バナーの配色と書体をここで固定します。指定しない項目は商品カテゴリから自動で選ばれます。', 'Locks the palette and typefaces used across the page, key visual and ad banners. Anything left blank is chosen from the category.', '상세페이지·KV·광고 배너의 배색과 서체를 여기서 고정합니다.'],
+    'product.brandPanelDesc': ['LP・キービジュアル・広告バナーの配色と書体をここで固定します。指定しない項目は商品カテゴリから自動で選ばれます。', 'Locks the palette and typefaces used across the page, key visual and ad banners. Anything left blank is chosen from the category.', '상세페이지·KV·광고 배너의 배색과 서체를 여기서 고정합니다.'],
     'product.brandColors': ['ブランドカラー（最大5色）', 'Brand colors (up to 5)', '브랜드 컬러(최대 5색)'],
     'product.brandColorsHint': ['先頭がメインカラーです。ドラッグではなく削除して入れ直すと順番を変えられます。', 'The first one is the main color. Remove and re-add to change the order.', '첫 번째가 메인 컬러입니다.'],
     'product.brandColorAdd': ['色を追加', 'Add a color', '색 추가'],
@@ -485,10 +485,10 @@
 
     // ターゲット案 A〜E
     'product.targetPanel': ['ターゲット案（A〜E）', 'Target segments (A-E)', '타깃 안(A~E)'],
-    'product.targetPanelDesc': ['この商品を一番買ってくれそうな消費者層を、AIが可能性の高い順に5つ出します。ここで決めたA〜Eが、そのままLPと広告バナーの5セットになります。実際に出稿して反応の良い案をメインに絞ってください。', 'Five segments most likely to buy. A-E here become the five landing page and ad banner sets, so you can run them and keep the winner.', '가장 잘 팔릴 고객층 5안. 여기서 정한 A~E가 그대로 상세페이지·광고 배너 5세트가 됩니다.'],
+    'product.targetPanelDesc': ['この商品を一番買ってくれそうなターゲットを、AIが可能性の高い順に5つ出します。ここで決めたA〜Eが、そのままLPと広告バナーの5セットになります。実際に出稿して反応の良い案をメインに絞ってください。', 'Five segments most likely to buy. A-E here become the five landing page and ad banner sets, so you can run them and keep the winner.', '가장 잘 팔릴 고객층 5안. 여기서 정한 A~E가 그대로 상세페이지·광고 배너 5세트가 됩니다.'],
     'product.targetPropose': ['AIに5案を出してもらう', 'Ask the AI for five segments', 'AI에게 5안 받기'],
     'product.targetName': ['ターゲット名', 'Segment name', '타깃 이름'],
-    'product.targetDesc': ['この層に刺さる理由・訴求の切り口', 'Why it lands and the angle to use', '이 층에 통하는 이유·소구 각도'],
+    'product.targetDesc': ['このターゲットに刺さる理由・訴求の切り口', 'Why it lands and the angle to use', '이 층에 통하는 이유·소구 각도'],
     'product.targetEmpty': ['まだターゲット案がありません。上のボタンでAIに出してもらうか、手で書いてください。', 'No segments yet. Ask the AI above, or write them yourself.', '아직 타깃 안이 없습니다.'],
     'product.targetAdd': ['ターゲットを追加', 'Add a segment', '타깃 추가'],
     'product.targetAge': ['年代', 'Age range', '연령대'],
@@ -505,7 +505,7 @@
     'product.targetTop': ['最優先', 'Top priority', '최우선'],
     'product.targetPersona': ['ペルソナ', 'Persona', '페르소나'],
     'product.targetPersonaPlaceholder': ['例: 38歳・共働き・都内マンション。週末は家を整える時間が好きで、ホテルの香りに憧れがある。Instagramでインテリア投稿を保存しがち', 'e.g. 38, dual-income, city apartment. Enjoys tidying on weekends and admires hotel scents. Saves interior posts on Instagram.', '예: 38세·맞벌이·도심 아파트. 주말에 집을 정리하는 시간을 좋아하고 호텔 향에 동경이 있음'],
-    'product.targetRationale': ['AIがこの層を選んだ理由', 'Why the AI picked this segment', 'AI가 이 층을 고른 이유'],
+    'product.targetRationale': ['AIがこのターゲットを選んだ理由', 'Why the AI picked this segment', 'AI가 이 층을 고른 이유'],
     'product.targetRationalePlaceholder': ['AIに5案を出してもらうと、ここに選定理由が入ります（手入力のときは空欄で構いません）', 'Filled in when the AI proposes segments. Leave blank when writing your own.', 'AI가 5안을 제안하면 여기에 선정 이유가 들어갑니다'],
     'product.targetOpen': ['詳細を開く', 'Show details', '자세히 보기'],
     'product.targetClose': ['詳細を閉じる', 'Hide details', '접기'],
@@ -620,11 +620,11 @@
     'analysis.platform.machiya': ['Machi-ya', 'Machi-ya', 'Machi-ya'],
     'analysis.platform.wadiz': ['Wadiz（韓国）', 'Wadiz (Korea)', '와디즈'],
     'analysis.platform.other': ['その他', 'Other', '기타'],
-    'analysis.kvSettings': ['KV収集設定', 'KV collection settings', 'KV 수집 설정'],
+    'analysis.kvSettings': ['キービジュアル収集設定', 'KV collection settings', 'KV 수집 설정'],
     'analysis.lpSettings': ['LP収集設定', 'LP collection settings', 'LP 수집 설정'],
-    'admin.selectorsTitle': ['KV / LP 収集設定', 'KV / LP collection settings', 'KV / LP 수집 설정'],
-    'admin.selectorsDesc': ['プラットフォームごとに、KVと本文をページのどこから取るかを決めます。ここは運営が管理する設定で、利用者の画面には出ません。分析を実行すると、その時点のこの設定が使われます。', 'Where the key visual and body are read from on each platform. Operators manage this; it is not shown to users. Each analysis uses the settings as of the moment it runs.', '플랫폼별로 KV와 본문을 어디에서 가져올지 정합니다.'],
-    'admin.selectorsKv': ['KV（メインビジュアル）', 'Key visual', 'KV(메인 비주얼)'],
+    'admin.selectorsTitle': ['キービジュアル / LP 収集設定', 'KV / LP collection settings', 'KV / LP 수집 설정'],
+    'admin.selectorsDesc': ['プラットフォームごとに、キービジュアルと本文をページのどこから取るかを決めます。ここは運営が管理する設定で、利用者の画面には出ません。分析を実行すると、その時点のこの設定が使われます。', 'Where the key visual and body are read from on each platform. Operators manage this; it is not shown to users. Each analysis uses the settings as of the moment it runs.', '플랫폼별로 KV와 본문을 어디에서 가져올지 정합니다.'],
+    'admin.selectorsKv': ['キービジュアル（メインビジュアル）', 'Key visual', 'KV(메인 비주얼)'],
     'admin.selectorsLp': ['LP（本文）', 'Page body', '상세 본문'],
     'admin.selectorsPlaceholder': ['CSSセレクタを改行で複数', 'One CSS selector per line', 'CSS 선택자를 줄바꿈으로'],
     'admin.selectorsSave': ['収集設定を保存', 'Save collection settings', '수집 설정 저장'],
@@ -656,7 +656,7 @@
 
     // ==== report: S11 分析レポート ====
     'report.title': ['分析レポート', 'Analysis report', '분석 리포트'],
-    'report.collectedKv': ['収集したKV', 'Collected KV', '수집한 KV'],
+    'report.collectedKv': ['収集したキービジュアル', 'Collected KV', '수집한 KV'],
     'report.collectedLp': ['収集したLP', 'Collected LP', '수집한 LP'],
     'report.successFactors': ['成功要因', 'Success factors', '성공 요인'],
     'report.pageStructure': ['ページ構成', 'Page structure', '페이지 구성'],

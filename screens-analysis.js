@@ -193,7 +193,7 @@
     /* ---- 構造・流れ分析（1段階目）と、共通点まとめ＋プロンプト作成（2段階目） ---- */
     'flow.title': ['構造・流れ分析', 'Structure and flow', '구조·흐름 분석'],
     'flow.lead': [
-      '競合LPを上から下まで区画に割り、それぞれが読み手に何をさせる区画なのか、次へどう渡しているのかを見ています。',
+      '競合LPを上から下までブロックに割り、それぞれが読み手に何をさせるブロックなのか、次へどう渡しているのかを見ています。',
       'Each competitor page is split into blocks, showing what each block asks of the reader and how it hands over to the next.',
       '경쟁 페이지를 위에서 아래로 구획으로 나누고, 각 구획이 독자에게 무엇을 시키는지, 다음으로 어떻게 넘기는지를 봅니다.'
     ],
@@ -224,14 +224,14 @@
     ],
     'cp.do': ['真似すべき型', 'Do this', '따라야 할 형태'],
     'cp.avoid': ['避けるべき型', 'Avoid this', '피해야 할 형태'],
-    'pr.targets': ['作るターゲット層', 'Which audiences to build for', '만들 타깃층'],
+    'pr.targets': ['作るターゲット', 'Which audiences to build for', '만들 타깃층'],
     'pr.targetsHint': [
-      '選んだ層のぶんだけ、自社LP・クラファンLP・KV・メタ広告バナーを作ります。あとから他の層を追加で作ることもできます。',
+      '選んだターゲットのぶんだけ、自社LP・クラファンLP・キービジュアル・メタ広告バナーを作ります。あとから他のターゲットを追加で作ることもできます。',
       'An own-site LP, a crowdfunding LP, a key visual and Meta ad banners are produced for each audience you pick. You can add the others later.',
       '선택한 층의 수만큼 자사 LP·크라우드펀딩 LP·KV·메타 광고 배너를 만듭니다. 나중에 다른 층을 추가로 만들 수도 있습니다.'
     ],
-    'pr.needTarget': ['作るターゲット層を1つ以上選んでください。', 'Pick at least one audience.', '만들 타깃층을 하나 이상 선택해 주세요.'],
-    'pr.selected': ['{n}層 × 4種類 ＝ {m}本', '{n} audiences x 4 kinds = {m} pieces', '{n}개 층 × 4종류 = {m}개'],
+    'pr.needTarget': ['作るターゲットを1つ以上選んでください。', 'Pick at least one audience.', '만들 타깃층을 하나 이상 선택해 주세요.'],
+    'pr.selected': ['{n}ターゲット × 4種類 ＝ {m}本', '{n} audiences x 4 kinds = {m} pieces', '{n}개 층 × 4종류 = {m}개'],
     'pr.brief': ['作る指示', 'The brief', '만들 지시'],
     'pr.images': ['画像プロンプト（ChatGPT image2）', 'Image prompts (ChatGPT image2)', '이미지 프롬프트(ChatGPT image2)'],
     'pr.videos': ['動画プロンプト（Replicate）', 'Video prompts (Replicate)', '동영상 프롬프트(Replicate)'],
@@ -324,7 +324,7 @@
     's10.remove': ['このURLを削除', 'Remove this URL', '이 URL 삭제'],
     's10.platformChanged': ['プラットフォームを{name}に変更しました', 'Platform changed to {name}', '플랫폼을 {name}(으)로 변경했습니다'],
     's10.kvDesc': [
-      'KV（メインビジュアル）を取り出す範囲です。プラットフォームごとの既定セレクタが入っています。',
+      'キービジュアル（メインビジュアル）を取り出す範囲です。プラットフォームごとの既定セレクタが入っています。',
       'Where the key visual is collected from. Default selectors are filled in per platform.',
       'KV(메인 비주얼)를 가져올 범위입니다. 플랫폼별 기본 셀렉터가 들어 있습니다.'
     ],
@@ -350,7 +350,7 @@
     ],
     's10.autoDetect': ['自動判定', 'Auto detect', '자동 판별'],
     's10.autoDetectNote': [
-      'その他のページはセレクタを空のままにすると、ページ構造を精査してKV領域とLP本文領域を判定し、採用したセレクタを根拠としてレポートに表示します。',
+      'その他のページはセレクタを空のままにすると、ページ構造を精査してキービジュアル領域とLP本文領域を判定し、採用したセレクタを根拠としてレポートに表示します。',
       'For other pages, leave the selector empty and the page structure is inspected to decide the KV and body areas; the selector that was adopted is shown in the report.',
       '기타 페이지는 셀렉터를 비워 두면 페이지 구조를 살펴 KV 영역과 LP 본문 영역을 판별하고, 채택한 셀렉터를 근거로 리포트에 표시합니다.'
     ],
@@ -390,9 +390,9 @@
     's11.runFailed': ['分析結果の保存に失敗しました', 'Failed to save the analysis result', '분석 결과 저장에 실패했습니다'],
     's11.counts': ['テキスト{text} / 画像{image} / GIF{gif} / 動画{video}', 'Text {text} / Images {image} / GIF {gif} / Video {video}', '텍스트 {text} / 이미지 {image} / GIF {gif} / 동영상 {video}'],
     's11.openAll': ['すべて見る', 'View all', '전체 보기'],
-    's11.kvOpenTitle': ['収集したKV（{n}件）', 'Collected KV ({n})', '수집한 KV({n}건)'],
+    's11.kvOpenTitle': ['収集したキービジュアル（{n}件）', 'Collected KV ({n})', '수집한 KV({n}건)'],
     's11.lpOpenTitle': ['収集したLP（{n}件）', 'Collected LP ({n})', '수집한 LP({n}건)'],
-    's11.tapKv': ['タップすると収集したKVを種別ごとに一覧できます', 'Tap to list the collected KV by content type', '탭하면 수집한 KV를 종류별로 볼 수 있습니다'],
+    's11.tapKv': ['タップすると収集したキービジュアルを種別ごとに一覧できます', 'Tap to list the collected KV by content type', '탭하면 수집한 KV를 종류별로 볼 수 있습니다'],
     's11.tapLp': ['タップするとLP本文を上から順に読めます', 'Tap to read the LP body from the top', '탭하면 LP 본문을 위에서부터 읽을 수 있습니다'],
     's11.weight': ['重要度 {n}', 'Importance {n}', '중요도 {n}'],
     's11.evidence': ['根拠：{url}', 'Evidence: {url}', '근거: {url}'],
@@ -409,7 +409,7 @@
     's11.selectorUsed': ['採用セレクタ', 'Selector used', '채택한 셀렉터'],
     's11.basis': ['判定の根拠', 'Why this selector', '판별 근거'],
     's11.basisAuto': [
-      'ページ構造を精査し、見出しと画像がまとまった最初のブロックをKV領域と判定しました。',
+      'ページ構造を精査し、見出しと画像がまとまった最初のブロックをキービジュアル領域と判定しました。',
       'The page structure was inspected and the first block that groups a heading with images was treated as the KV area.',
       '페이지 구조를 살펴 제목과 이미지가 모인 첫 블록을 KV 영역으로 판별했습니다.'
     ],
@@ -430,7 +430,7 @@
     's11.errMediaNone': ['収集する種別が選ばれておらず、結果が空でした', 'No content type was selected, so the result was empty', '수집할 종류가 선택되지 않아 결과가 비었습니다'],
     's11.errNotFound': ['指定セレクタがページに見つかりませんでした', 'The given selector was not found on the page', '지정한 셀렉터를 페이지에서 찾지 못했습니다'],
     's11.assetStrip': ['収集した素材（横に送って見る）', 'Collected assets (scroll sideways)', '수집한 소재(옆으로 넘겨서 보기)'],
-    's11.kindKv': ['KV', 'KV', 'KV'],
+    's11.kindKv': ['キービジュアル', 'KV', 'KV'],
     's11.kindLp': ['LP本文', 'LP body', 'LP 본문'],
     's11.createdAt': ['作成日時', 'Created', '생성 일시'],
     's11.urlCount': ['競合LP {n}件', '{n} competitor LPs', '경쟁 LP {n}건'],
@@ -440,16 +440,16 @@
     's11.sourceFlow': ['この競合ページの流れ', 'How this competitor page flows', '이 경쟁 페이지의 흐름'],
     's11.sourceFactors': ['この競合ページの重要要素', 'Key elements of this competitor page', '이 경쟁 페이지의 중요 요소'],
     's11.openHint': ['項目を押すと詳しく見られます', 'Tap a row to see the details', '항목을 누르면 자세히 볼 수 있습니다'],
-    's11.roleLabel': ['この区画の役割', 'What this block does', '이 구획의 역할'],
+    's11.roleLabel': ['このブロックの役割', 'What this block does', '이 구획의 역할'],
     's11.bodyLabel': ['何を表していたか', 'What it showed', '무엇을 나타내고 있었는가'],
     's11.hookLabel': ['次へのつなぎ', 'How it leads to the next block', '다음으로 넘기는 방법'],
     's11.emotionLabel': ['読み手の状態', 'Where the reader is', '읽는 사람의 상태'],
-    's11.marksLabel': ['この区画にあるもの', 'What this block contains', '이 구획에 있는 것'],
+    's11.marksLabel': ['このブロックにあるもの', 'What this block contains', '이 구획에 있는 것'],
     's11.assetsLabel': ['ここに置かれていた素材', 'The assets placed here', '여기에 놓여 있던 소재'],
-    's11.kvAssets': ['KV（最初の1画面）の素材', 'Key visual assets', 'KV(첫 화면)의 소재'],
+    's11.kvAssets': ['キービジュアル（最初の1画面）の素材', 'Key visual assets', 'KV(첫 화면)의 소재'],
     's11.lpAssets': ['LP本文の素材', 'Body assets', 'LP 본문의 소재'],
     's11.assetsMissing': [
-      'この区画の素材は、古い分析には記録されていません。再分析すると、区画ごとに素材が並びます。',
+      'このブロックの素材は、古い分析には記録されていません。再分析すると、ブロックごとに素材が並びます。',
       'Per-block assets are not stored in this older analysis. Re-run it to see them here.',
       '이 구획의 소재는 이전 분석에는 기록되어 있지 않습니다. 다시 분석하면 구획별 소재가 표시됩니다.'
     ],
@@ -460,18 +460,18 @@
     /* 反省点のカードで「では自分はどうするか」を出すときの見出し。
        ここに「反省点」と書くと、上の札と同じ言葉が2度出て中身が伝わらない */
     's11.factorInstead': ['代わりにやること', 'Do this instead', '대신 할 일'],
-    'ov.makeLp': ['LP・KVプロンプトを生成', 'Generate LP/KV prompts', 'LP·KV 프롬프트 생성'],
+    'ov.makeLp': ['LP・キービジュアルプロンプトを生成', 'Generate LP/KV prompts', 'LP·KV 프롬프트 생성'],
     'ov.makeLpHint': [
-      'マスターブリーフ（LP全体の決まり：色・書体・禁止事項・商品の一貫性）と、区画ごとの生成プロンプトを書きます。元ページの区画を骨格に、日本のLPの決まりを当てます。ターゲット層ごとに1本。',
+      'マスターブリーフ（LP全体の決まり：色・書体・禁止事項・商品の一貫性）と、ブロックごとの生成プロンプトを書きます。元ページのブロックを骨格に、日本のLPの決まりを当てます。ターゲットごとに1本。',
       'Writes the master brief (page-wide rules: colors, type, prohibitions, product consistency) and one prompt per section. The origin page is the skeleton; Japanese LP rules are applied. One per target segment.',
       '마스터 브리프(LP 전체 규칙: 색·서체·금지·상품 일관성)와 구획별 생성 프롬프트를 씁니다. 원본 페이지 구획을 뼈대로 일본 LP 규칙을 적용합니다. 타깃층별 한 편.'
     ],
     'ov.makeLpRunning': ['書いています…', 'Writing…', '작성 중…'],
-    'ov.makeLpTitle': ['LP・KVプロンプトを作成中', 'Writing the LP/KV prompts', 'LP·KV 프롬프트 작성 중'],
+    'ov.makeLpTitle': ['LP・キービジュアルプロンプトを作成中', 'Writing the LP/KV prompts', 'LP·KV 프롬프트 작성 중'],
     'ov.makeLpQueued': ['プロンプトの作成を受け付けました', 'Prompt writing queued', '프롬프트 작성을 접수했습니다'],
     'ov.structureTitle': ['共通する流れ', 'The shared flow', '공통되는 흐름'],
     'ov.structureLead': [
-      '競合ページを突き合わせて、共通していた区画の並びです。押すと、その区画で何をしていたかと、自分のLPでやることが出ます。',
+      '競合ページを突き合わせて、共通していたブロックの並びです。押すと、そのブロックで何をしていたかと、自分のLPでやることが出ます。',
       'The block order shared across the competitor pages. Tap a row for what they did and what to do on your own LP.',
       '경쟁 페이지를 대조해 공통된 구획의 순서입니다. 누르면 그 구획에서 무엇을 했는지와 내 LP에서 할 일이 나옵니다.'
     ],
@@ -515,7 +515,7 @@
     /* ---- ページ構成のセクション名と説明 ---- */
     'sec.firstview': ['ファーストビュー', 'First view', '퍼스트 뷰'],
     'secDesc.firstview': [
-      '商品名・一言価値・KV・最初のCTAを1画面に収めている',
+      '商品名・一言価値・キービジュアル・最初のCTAを1画面に収めている',
       'Product name, one-line value, key visual and the first CTA all fit in one screen',
       '상품명·한 줄 가치·KV·첫 CTA를 한 화면에 담고 있다'
     ],

@@ -39,11 +39,11 @@
 
   var LOCAL = {
     'lp.title': ['生成プロンプト', 'Generation prompts', '생성 프롬프트'],
-    'lp.lead': ['総合分析から書いたマスターブリーフ（LP全体の決まり）と、区画ごとの生成プロンプトです。プロンプトを直してから、区画ごとに生成します。',
+    'lp.lead': ['総合分析から書いたマスターブリーフ（LP全体の決まり）と、ブロックごとの生成プロンプトです。プロンプトを直してから、ブロックごとに生成します。',
       'The master brief (page-wide rules) and one prompt per section, written from the overall analysis. Edit, then generate section by section.',
       '종합 분석에서 쓴 마스터 브리프(LP 전체 규칙)와 구획별 생성 프롬프트입니다. 고친 뒤 구획마다 생성합니다.'],
     'lp.empty': ['まだ生成プロンプトがありません。', 'No prompts yet.', '아직 생성 프롬프트가 없습니다.'],
-    'lp.emptyHint': ['総合分析のページで「LP・KVプロンプトを生成」を押してください。',
+    'lp.emptyHint': ['総合分析のページで「LP・キービジュアルプロンプトを生成」を押してください。',
       'Press "Generate LP/KV prompts" on the overall analysis page.',
       '종합 분석 페이지에서 "LP·KV 프롬프트 생성"을 누르세요.'],
     'lp.brief': ['マスターブリーフ（LP全体の決まり）', 'Master brief (page-wide rules)', '마스터 브리프(LP 전체 규칙)'],
@@ -51,10 +51,10 @@
     'lp.briefClose': ['閉じる', 'Close', '닫기'],
     'lp.copy': ['コピー', 'Copy', '복사'],
     'lp.copied': ['コピーしました', 'Copied', '복사했습니다'],
-    'lp.sections': ['区画', 'Sections', '구획'],
-    'lp.section': ['区画 {n}', 'Section {n}', '구획 {n}'],
+    'lp.sections': ['ブロック', 'Sections', '구획'],
+    'lp.section': ['ブロック {n}', 'Section {n}', '구획 {n}'],
     'lp.prompt': ['生成プロンプト', 'Prompt', '생성 프롬프트'],
-    'lp.gen': ['この区画を生成', 'Generate this section', '이 구획 생성'],
+    'lp.gen': ['このブロックを生成', 'Generate this section', '이 구획 생성'],
     'lp.via': ['絵の作り先', 'Where images are made', '그림 생성처'],
     'lp.viaBrowser': ['ChatGPTの画面', 'ChatGPT (browser)', 'ChatGPT 화면'],
     'lp.viaApi': ['OpenAI API', 'OpenAI API', 'OpenAI API'],
@@ -84,7 +84,7 @@
     'lp.faqBodyHint': ['「Q1 …。A1 …。Q2 …。A2 …」の形で書きます。最大8問まで出ます',
       'Write as "Q1 …. A1 …. Q2 …. A2 …". Up to 8 questions are shown.',
       '「Q1 …. A1 …. Q2 …. A2 …」 형식으로 씁니다. 최대 8문항까지 나옵니다'],
-    'lp.faqNoImage': ['この区画は、絵ではなく文字で組むので生成しません（そのままLPに出ます）',
+    'lp.faqNoImage': ['このブロックは、絵ではなく文字で組むので生成しません（そのままLPに出ます）',
       'This section is laid out as text, not an image, so nothing is generated.',
       '이 구획은 그림이 아니라 글자로 구성하므로 생성하지 않습니다'],
     'lp.readBodyHint': ['ここに書いた文字が、そのままLPに出ます。行を分けると読みやすく組まれます'
@@ -105,13 +105,13 @@
     'lp.genAll': ['全部一括生成', 'Generate everything', '전부 일괄 생성'],
     'lp.genOne': ['生成する', 'Generate', '생성'],
     'lp.genOneRedo': ['作り直す', 'Regenerate', '다시 생성'],
-    'lp.genOneHint': ['いま開いている層・種類の、まだ絵が無い区画だけを作ります',
+    'lp.genOneHint': ['いま開いているターゲット・種類の、まだ絵が無いブロックだけを作ります',
       'Generates the missing sections of the audience and kind you have open.',
       '지금 열어둔 타깃·종류의 미생성 구획만 만듭니다'],
-    'lp.genOneRedoHint': ['いま開いている層・種類の全区画を、いまのプロンプトで作り直します',
+    'lp.genOneRedoHint': ['いま開いているターゲット・種類の全ブロックを、いまのプロンプトで作り直します',
       'Redo every section of the open audience and kind with the current prompts',
       '열려 있는 층·종류의 모든 구획을 지금의 프롬프트로 다시 만듭니다'],
-    'lp.genAllRedoHint': ['全ターゲット層の LP・KV・メタ広告を、まとめて作り直します',
+    'lp.genAllRedoHint': ['全ターゲットの LP・キービジュアル・メタ広告を、まとめて作り直します',
       'Redo the LP, KV and ads for every audience',
       '모든 타깃층의 LP·KV·메타 광고를 한꺼번에 다시 만듭니다'],
     'lp.makeAssets': ['動く絵を生成する', 'Generate motion visuals', '움직이는 소재 생성'],
@@ -125,14 +125,14 @@
     'lp.queueing': ['いま積んでいます。少し待ってください', 'Queueing — please wait.', '등록 중입니다'],
     'lp.alreadyQueued': ['すでに生成中です。重ねて積みませんでした',
       'Already generating — nothing was queued again.', '이미 생성 중입니다'],
-    'lp.doneOne': ['いま開いているぶんができました。他の層・種類は裏で続いています',
+    'lp.doneOne': ['いま開いているぶんができました。他のターゲット・種類は裏で続いています',
       'The one you have open is done. The other audiences and kinds are still running.',
       '지금 열어둔 분량이 완료되었습니다. 다른 타깃·종류는 계속 진행 중입니다'],
-    'lp.queuedAll': ['{n}区画を積みました。全ターゲット層の LP・KV・メタ広告が順に作られます',
+    'lp.queuedAll': ['{n}ブロックを積みました。全ターゲットの LP・キービジュアル・メタ広告が順に作られます',
       'Queued {n} sections. LP, KV and Meta ads for every audience will be generated in turn.',
       '{n}구획을 등록했습니다. 모든 타깃의 LP·KV·메타광고가 순서대로 만들어집니다'],
-    'lp.genAllRedoConfirm': ['{n} 区画をすべて作り直します。今の絵は上書きされます。よろしいですか？', 'Regenerate all {n} sections? Current images will be replaced.', '{n}개 구획을 모두 다시 생성합니다. 지금의 이미지는 덮어씌워집니다. 진행할까요?'],
-    'lp.genAllHint': ['全ターゲット層（A〜E）の LP・KV・メタ広告から、まだ絵が無い区画だけを作ります。'
+    'lp.genAllRedoConfirm': ['{n} ブロックをすべて作り直します。今の絵は上書きされます。よろしいですか？', 'Regenerate all {n} sections? Current images will be replaced.', '{n}개 구획을 모두 다시 생성합니다. 지금의 이미지는 덮어씌워집니다. 진행할까요?'],
+    'lp.genAllHint': ['全ターゲット（A〜E）の LP・キービジュアル・メタ広告から、まだ絵が無いブロックだけを作ります。'
       + '1枚 35〜60秒、10枚ずつ同時に作ります',
       'Generates only the sections that have no image yet, across LP, KV and Meta ads for every audience (A–E). '
       + '35–60 s each, 10 at a time.',
@@ -141,10 +141,10 @@
     'lp.save': ['プロンプトを保存', 'Save prompts', '프롬프트 저장'],
     'lp.saved': ['保存しました', 'Saved', '저장했습니다'],
     'lp.canvas': ['キャンバスに並べる', 'Lay out on canvas', '캔버스에 배치'],
-    'lp.progress': ['{done}/{total} 区画が完成', '{done}/{total} sections done', '{done}/{total} 구획 완료'],
+    'lp.progress': ['{done}/{total} ブロックが完成', '{done}/{total} sections done', '{done}/{total} 구획 완료'],
     'lp.queued': ['生成を積みました', 'Queued', '생성을 예약했습니다'],
-    'lp.genDone': ['区画ができました', 'Section generated', '구획이 생성되었습니다'],
-    'lp.refs': ['商品の見本（全区画に添付・最大16枚）', 'Product references (attached to every section, up to 16)', '상품 견본(모든 구획에 첨부·최대 16장)'],
+    'lp.genDone': ['ブロックができました', 'Section generated', '구획이 생성되었습니다'],
+    'lp.refs': ['商品の見本（全ブロックに添付・最大16枚）', 'Product references (attached to every section, up to 16)', '상품 견본(모든 구획에 첨부·최대 16장)'],
     'lp.refsShape': ['形の根拠 {n}枚', 'Shape references ({n})', '형태 기준 {n}장'],
     'lp.refsShapeHint': ['商品だけがはっきり写っているもの。生成される商品の形は、この写真だけで決まります',
       'Product-only shots. The generated product shape comes from these alone.',
@@ -174,7 +174,7 @@
     'lp.noRefs': ['切り抜きがありません。商品入力で商品が写っている写真に☆を付けると、自動で切り抜きます。',
       'No cutouts yet. Star product photos in Product input; they are cut out automatically.',
       '잘라낸 사진이 없습니다. 상품 입력에서 상품 사진에 ☆를 붙이면 자동으로 잘라냅니다.'],
-    'lp.target': ['ターゲット層', 'Target', '타깃층'],
+    'lp.target': ['ターゲット', 'Target', '타깃층'],
     'lp.history': ['前の版 {n}', 'Previous {n}', '이전 버전 {n}'],
     'lp.restore': ['この版に戻す', 'Use this version', '이 버전으로 되돌리기'],
     'lp.restored': ['前の版に戻しました', 'Restored', '이전 버전으로 되돌렸습니다'],
@@ -193,15 +193,15 @@
     'lp.shotZoom': ['大きく見る', 'Open larger', '크게 보기'],
     'lp.motion': ['動く絵', 'Motion', '움직이는 소재'],
     'lp.kindLp': ['LP', 'LP', 'LP'],
-    'lp.kindKv': ['KV', 'KV', 'KV'],
+    'lp.kindKv': ['キービジュアル', 'KV', 'KV'],
     'lp.kindAds': ['メタ広告', 'Meta ads', '메타 광고'],
     /* 2026-10-23: この場で形を選べるようにしたので、別画面へ送らない */
     'lp.unsure': ['見本と違うかもしれません', 'May not match the product', '견본과 다를 수 있습니다'],
-    'lp.motionPick': ['動きが向く区画', 'Good for motion', '움직임이 어울리는 구획'],
-    'lp.motionMake': ['この区画のGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
+    'lp.motionPick': ['動きが向くブロック', 'Good for motion', '움직임이 어울리는 구획'],
+    'lp.motionMake': ['このブロックのGIFを作る', 'Make the GIF', '이 구획 GIF 만들기'],
     /* 履歴の選択肢。日付だけでは何回目か分からない */
     'lp.roundNth': ['{n}回目案', 'Run {n}', '{n}회차 안'],
-    'lp.motionGroup': ['{kind}（動きが向く区画）', '{kind} (good for motion)', '{kind}（움직임이 어울리는 구획）'],
+    'lp.motionGroup': ['{kind}（動きが向くブロック）', '{kind} (good for motion)', '{kind}（움직임이 어울리는 구획）'],
     'lp.motionHas': ['作成済み', 'Made', '생성됨'],
     'lp.motionNone': ['未作成', 'Not made', '미생성'],
     'lp.motionPromptHead': ['Replicate（bytedance/seedance-2.5）へ送る文 — {kind} / 比率 {aspect} / 見本 {refs}枚',
@@ -211,10 +211,10 @@
     'lp.motionPromptReset': ['元に戻す', 'Revert', '되돌리기'],
     'lp.motionPromptSaved': ['保存しました。次に作るときはこの文を使います', 'Saved. The next run uses this prompt.', '저장했습니다.'],
     'lp.motionPromptNote': [
-      '直した文は、次にこの区画のGIFを作るときに使われます。ただし区画のプロンプト自体を直して作り直すと、この文は組み直されて上書きされます。',
+      '直した文は、次にこのブロックのGIFを作るときに使われます。ただしブロックのプロンプト自体を直して作り直すと、この文は組み直されて上書きされます。',
       'Your edit is used the next time this section’s GIF is made. Editing the section prompt itself rebuilds and overwrites this text.',
       '수정한 문장은 다음에 이 구획의 GIF를 만들 때 사용됩니다.'],
-    'lp.motionPromptNone': ['まだありません。一度「この区画のGIFを作る」を押すと、送る文が保存されて見られます。',
+    'lp.motionPromptNone': ['まだありません。一度「このブロックのGIFを作る」を押すと、送る文が保存されて見られます。',
       'Not written yet. Press “Make the GIF” once and the prompt is saved so you can read it.',
       '아직 없습니다. 「이 구획 GIF 만들기」를 한 번 누르면 저장되어 볼 수 있습니다.'],
     'lp.motionRedo': ['GIFを作り直す', 'Remake the GIF', 'GIF 다시 만들기'],
@@ -223,18 +223,18 @@
     'lp.kindEmpty': ['この種類はまだ作られていません。総合分析から作り直すと一緒に作られます。',
       'Nothing here yet. Regenerate from the overall analysis to produce it.',
       '아직 없습니다. 종합 분석에서 다시 만들면 함께 생성됩니다.'],
-    'lp.stale': ['商品入力・ターゲット層・競合分析のどれかが変わっています。生成プロンプトを今の設定で書き直しますか？（数分。区画の絵はそのまま残り、作り直すときに新しいプロンプトが使われます）',
+    'lp.stale': ['商品入力・ターゲット・競合分析のどれかが変わっています。生成プロンプトを今の設定で書き直しますか？（数分。ブロックの絵はそのまま残り、作り直すときに新しいプロンプトが使われます）',
       'Product input, targets, or competitor analysis changed since these prompts were written. Rewrite with the current settings? (A few minutes. Existing images stay; regenerate to apply.)',
       '상품 입력·타깃층·경쟁 분석 중 하나가 바뀌었습니다. 지금 설정으로 프롬프트를 다시 쓸까요? (몇 분. 기존 이미지는 남고, 다시 만들 때 새 프롬프트가 쓰입니다)'],
     'lp.rewrite': ['生成プロンプトを更新する', 'Update the prompts', '프롬프트 업데이트'],
-    'lp.loadingSections': ['区画を読み込んでいます…', 'Loading sections…', '구획을 불러오는 중…'],
-    'lp.kindEmptyFor': ['{v}層の{k}はまだ作られていません。', 'No {k} for audience {v} yet.', '{v} 타깃의 {k}는 아직 없습니다.'],
-    'lp.kindEmptyHint': ['「生成プロンプトを更新する」を押すと、足りない層のぶんが書かれます。',
+    'lp.loadingSections': ['ブロックを読み込んでいます…', 'Loading sections…', '구획을 불러오는 중…'],
+    'lp.kindEmptyFor': ['{v}ターゲットの{k}はまだ作られていません。', 'No {k} for audience {v} yet.', '{v} 타깃의 {k}는 아직 없습니다.'],
+    'lp.kindEmptyHint': ['「生成プロンプトを更新する」を押すと、足りないターゲットのぶんが書かれます。',
       'Press "Update the prompts" to write the missing ones.',
       '"프롬프트 업데이트"를 누르면 부족한 분량이 작성됩니다.'],
     /* ---- 公開（販売ページ） ---- */
     'lp.pub': ['販売ページを公開する', 'Publish sales pages', '판매 페이지 공개'],
-    'lp.pubLead': ['ターゲット層ごとに、生成した写真と文章で販売ページを作って公開します。'
+    'lp.pubLead': ['ターゲットごとに、生成した写真と文章で販売ページを作って公開します。'
       + '見た人が LINE に登録することが狙いです。',
       'Publishes one sales page per audience, built from the generated images and copy, '
       + 'aiming to get visitors onto your LINE account.',
@@ -310,7 +310,7 @@
     'lp.pubLineMsgH': ['カスタムの高さ（px）', 'Custom height (px)', '커스텀 높이(px)'],
     'lp.pubLineNone': ['作らない', 'Do not create', '만들지 않음'],
     'lp.pubBrandLogo': ['ブランドロゴの画像', 'Brand logo image', '브랜드 로고 이미지'],
-    'lp.pubBrandLogoHint': ['KVの文字の板（仕様・セット内容）の左上に出ます。'
+    'lp.pubBrandLogoHint': ['キービジュアルの文字の板（仕様・セット内容）の左上に出ます。'
       + '入れなければ、いままでどおり商品名を文字で出します。'
       + '背景が透けるPNGがいちばんきれいに出ます（JPGでも使えますが、白い四角が付きます）。',
       'Shown at the top-left of the text panels (specs, box contents). '
@@ -333,7 +333,7 @@
       + 'platform name is typeset instead; paste a logo URL only if you have the asset.',
       'LINE 유도 위에 표시되는 게재처입니다. Makuake와 CAMPFIRE는 공식 로고가 들어 있습니다.'],
     'lp.pubWrite': ['販売ページの文章をAIに書かせる', 'Write the sales copy with AI', 'AI로 판매 문구 작성'],
-    'lp.pubWriteHint': ['ターゲット層ごとに、冒頭・特長・仕様・よくある質問・最後の一押しを書きます。'
+    'lp.pubWriteHint': ['ターゲットごとに、冒頭・特長・仕様・よくある質問・最後の一押しを書きます。'
       + '数分かかります。書いたあとに公開してください。',
       'Writes hero, benefits, specs, FAQ and closing per audience. Takes a few minutes.',
       '타깃별로 문구를 작성합니다. 몇 분 걸립니다.'],
@@ -342,19 +342,19 @@
     'lp.pubNoCopy': ['まだ販売ページの文章がありません。先に書かせると、価格・送料・保証・よくある質問の入ったページになります',
       'No sales copy yet. Write it first to include price, shipping, warranty and FAQ.',
       '아직 판매 문구가 없습니다.'],
-    'lp.pubHasCopy': ['販売ページの文章: {n}層ぶんあります', 'Sales copy: {n} audiences', '판매 문구: {n}개 타깃'],
+    'lp.pubHasCopy': ['販売ページの文章: {n}ターゲットぶんあります', 'Sales copy: {n} audiences', '판매 문구: {n}개 타깃'],
     'lp.pubMode': ['受け取り方', 'How to collect leads', '수집 방법'],
     'lp.pubModeHint': ['ページを見た人と、どうやって繋がるかを選びます。',
       'How visitors connect with you.', '방문자와 연결되는 방법'],
     'lp.pubModeLine': ['LINE友だち追加', 'LINE', 'LINE'],
     'lp.pubModeMail': ['メール登録', 'Email', '이메일'],
     'lp.pubModeBoth': ['両方', 'Both', '둘 다'],
-    'lp.pubKv': ['ページの最初をKVから始める', 'Start the page with the KV slider', 'KV로 시작'],
-    'lp.pubKvHint': ['チェックすると、ページの一番上にKVが横に並び、5秒ごとにゆっくり流れます。'
+    'lp.pubKv': ['ページの最初をキービジュアルから始める', 'Start the page with the KV slider', 'KV로 시작'],
+    'lp.pubKvHint': ['チェックすると、ページの一番上にキービジュアルが横に並び、5秒ごとにゆっくり流れます。'
       + '左右のボタンでも動かせます。KVが1枚のときはボタンは出ません。',
       'Puts the KV images at the very top as a slider that advances every 5 seconds.',
       'KV가 맨 위에 슬라이더로 들어갑니다.'],
-    'lp.pubKvNone': ['この層のKVがまだありません', 'No KV for this audience yet', 'KV가 없습니다'],
+    'lp.pubKvNone': ['このターゲットのキービジュアルがまだありません', 'No KV for this audience yet', 'KV가 없습니다'],
     'lp.leads': ['集まったメール', 'Collected emails', '수집된 이메일'],
     'lp.leadsNone': ['まだありません', 'None yet', '아직 없습니다'],
     'lp.leadsCount': ['{n}件', '{n}', '{n}건'],
@@ -367,12 +367,12 @@
     'lp.leadsDel': ['消す', 'Delete', '삭제'],
     'lp.pubSave': ['保存する', 'Save', '저장'],
     'lp.pubSaved': ['保存しました', 'Saved', '저장했습니다'],
-    'lp.pubGo': ['{n}層をまとめて公開する', 'Publish {n} audiences', '{n}개 타깃 공개'],
+    'lp.pubGo': ['{n}ターゲットをまとめて公開する', 'Publish {n} audiences', '{n}개 타깃 공개'],
     'lp.pubGoing': ['公開しています…', 'Publishing…', '공개 중…'],
-    'lp.pubDone': ['{n}層を公開しました', 'Published {n} audiences', '{n}개 타깃을 공개했습니다'],
+    'lp.pubDone': ['{n}ターゲットを公開しました', 'Published {n} audiences', '{n}개 타깃을 공개했습니다'],
     'lp.pubStop': ['公開をやめる', 'Unpublish', '공개 중지'],
     'lp.pubStopped': ['公開をやめました', 'Unpublished', '공개를 중지했습니다'],
-    'lp.pubNone': ['公開できる層がありません。先に絵を作ってください',
+    'lp.pubNone': ['公開できるターゲットがありません。先に絵を作ってください',
       'Nothing to publish yet — generate the images first.', '먼저 이미지를 만들어 주세요'],
     'lp.pubCopy': ['URLをコピー', 'Copy URL', 'URL 복사'],
     'lp.pubCopied': ['コピーしました', 'Copied', '복사했습니다'],
@@ -381,12 +381,12 @@
     'lp.zipBusy': ['集めています… {n}/{m}', 'Collecting… {n}/{m}', '모으는 중… {n}/{m}'],
     'lp.zipDone': ['{n}点を1つの zip にしました', 'Zipped {n} files', '{n}개를 zip으로 묶었습니다'],
     'lp.zipNone': ['落とせる絵がまだありません', 'Nothing to download yet', '내려받을 이미지가 없습니다'],
-    'lp.zipHint': ['この回の全ターゲット層ぶん（LP・KV・メタ広告）の絵と生成文を、1つの zip にまとめます',
+    'lp.zipHint': ['この回の全ターゲットぶん（LP・キービジュアル・メタ広告）の絵と生成文を、1つの zip にまとめます',
       'Zips the images and prompts of this round (LP, KV and Meta ads, every audience).',
       '이 회차의 모든 타깃(LP·KV·메타광고) 이미지와 프롬프트를 zip으로 묶습니다'],
     'lp.movedToNewest': ['新しい回ができていたので、そちらに切り替えて生成します。', 'A newer round exists; switched to it.', '새 회차가 있어 그쪽으로 전환했습니다.'],
     'lp.rewriteQueued': ['書き直しています。数分で新しい回が増えます。', 'Rewriting; a new round will appear in a few minutes.', '다시 쓰는 중입니다. 몇 분 뒤 새 회차가 추가됩니다.'],
-    'lp.missing': ['この回に無い層', 'Missing from this round', '이 회차에 없는 층'],
+    'lp.missing': ['この回に無いターゲット', 'Missing from this round', '이 회차에 없는 층'],
     'lp.genLayer': ['{L} だけ生成', 'Generate {L} only', '{L}만 생성'],
     'lp.genLayerQueued': ['{L} のプロンプトを書いています（1分ほど）', 'Writing prompts for {L} (about a minute)', '{L}의 프롬프트를 쓰는 중(1분 정도)'],
   };
@@ -2089,7 +2089,7 @@
               csvBtn.textContent = t('lp.leadsCsvWait');
               allLeads().then(function (all) {
                 /* Excel が文字化けしないよう BOM を付ける */
-                var head = '\ufeff日時,メール,層,ページ\n';
+                var head = '\ufeff日時,メール,ターゲット,ページ\n';
                 var body = all.map(function (x) {
                   return [String(x.created_at || '').slice(0, 19).replace('T', ' '),
                     String(x.email || ''), String(x.variant || ''), String(x.slug || '')]
@@ -2449,7 +2449,7 @@
             var lines = ['# ' + String(g.title || '') + '（' + String(g.variant_label || '-') + ' / '
               + zipName(g.feature_key) + '）', ''];
             (g.sections || []).forEach(function (sec) {
-              lines.push('## 区画' + sec.index + ' ' + String(sec.title || ''));
+              lines.push('## ブロック' + sec.index + ' ' + String(sec.title || ''));
               lines.push(String(sec.prompt || ''));
               lines.push('');
             });
