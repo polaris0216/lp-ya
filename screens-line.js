@@ -305,6 +305,18 @@
       return out;
     }
 
+    /* A〜E の記号から、そのターゲットの名前を引く。
+       案件の targets に { label, name } で入っている（012_brand_and_targets.sql） */
+    function targetName(label) {
+      var list = (view.project && isArray(view.project.targets)) ? view.project.targets : [];
+      for (var i = 0; i < list.length; i += 1) {
+        if (String(list[i] && list[i].label || '') === String(label)) {
+          return String((list[i] && list[i].name) || '');
+        }
+      }
+      return '';
+    }
+
     function reload() {
       return Promise.all([
         Api.projects.get(projectId),
@@ -629,8 +641,11 @@
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           add(b, el('span', 'lp-variant__label', L));
           /* 記号だけだと、どのターゲット向けかが分からない（LP案・生成結果の
-             耳と同じように名前も出す。2026-10-25 要望） */
-          add(b, el('span', 'lp-variant__name', String((g && g.title) || '').slice(0, 20)));
+             耳と同じように名前も出す。2026-10-25 要望）。
+             LINEの台は題名が「LINEの台」で揃っているので、名前は案件の
+             targets（label と name の組）から引く。追加の通信は要らない */
+          var name = targetName(L);
+          if (name) { add(b, el('span', 'lp-variant__name', name.slice(0, 20))); }
           add(b, el('span', 'lp-deliv__count' + (n ? '' : ' is-none'), ' ' + n + '/' + tot));
           add(tabs, b);
         });
