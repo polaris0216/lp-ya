@@ -195,7 +195,11 @@
     return !!(project && textOf(project.product_name).trim());
   }
 
+  /* 2026-10-25: err.message をそのまま出していたので、"Failed to fetch" のような
+     技術的な文が画面に出ていた。人に向けて書かれた文（日本語が入っているもの）
+     だけを通し、それ以外は次の手のある言い方に置き換える */
   function errorMessage(err, fallbackKey) {
+    if (window.LpyaError) { return window.LpyaError.message(err, t); }
     if (err && err.message) { return String(err.message); }
     return t(fallbackKey || 'common.networkError');
   }

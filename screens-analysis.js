@@ -890,7 +890,10 @@
     root.appendChild(banner);
   }
 
+  /* 2026-10-25: err.message をそのまま出していたので、"Failed to fetch" のような
+     技術的な文が画面に出ていた。人に向けて書かれた文だけを通す */
   function errorMessage(err, fallbackKey) {
+    if (window.LpyaError) { return window.LpyaError.message(err, t); }
     if (err && typeof err.message === 'string' && err.message) { return err.message; }
     return t(fallbackKey || 'common.networkError');
   }
