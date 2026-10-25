@@ -413,6 +413,21 @@
     'job.stalledHow': ['ターミナルで tools/install-worker-agent.sh を実行すると、ログイン時に自動で立ち上がるようになります。', 'Run tools/install-worker-agent.sh in a terminal to start it automatically at login.', '터미널에서 tools/install-worker-agent.sh 를 실행하면 로그인 시 자동으로 시작됩니다.'],
 
     // ブランド指定
+    /* 待ち時間の目安。数字は実測（2026-10-25、仕事454件）から置く。
+       推測で短く言うと、待てたはずの人を不安にさせる */
+    'eta.about': ['ふつう{a}分ほどで終わります。閉じても進みます。',
+      'Usually about {a} min. You can close this.', '보통 {a}분 정도 걸립니다. 닫아도 됩니다.'],
+    'eta.wide': ['ふつう{a}分ほど。混み合うと{b}分かかることがあります。閉じても進みます。',
+      'Usually about {a} min; up to {b} min when busy. You can close this.',
+      '보통 {a}분, 혼잡하면 {b}분까지 걸립니다. 닫아도 됩니다.'],
+    'eta.left': ['あと{m}分ほど', 'About {m} min left', '약 {m}분 남음'],
+    'eta.overP50': ['もう少しかかります（長いと{b}分ほど）',
+      'Taking a little longer (up to {b} min)', '조금 더 걸립니다(최대 {b}분)'],
+    'eta.overP90': ['時間がかかっています。閉じても進みます',
+      'This is taking a while. You can close this.', '시간이 걸리고 있습니다. 닫아도 됩니다.'],
+    'job.canClose': ['この窓は閉じても大丈夫です。作業は裏で進みます。',
+      'You can close this window. Work continues in the background.',
+      '이 창은 닫아도 됩니다. 작업은 뒤에서 계속됩니다.'],
     'compli.title': ['気をつけたい表現', 'Expressions to review', '주의할 표현'],
     'compli.note': ['景品表示法・薬機法で指摘されやすい表現を拾っています。違反の判定ではありません。最終的な可否はご自身か専門家の確認でお願いします。',
       'These are expressions often questioned under Japanese advertising and pharmaceutical law. This is not a legal judgement.',

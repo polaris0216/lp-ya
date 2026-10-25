@@ -793,6 +793,13 @@
         });
       });
       add(box, all);
+      /* 押す前に、どれくらい待つかを出す（2026-10-25）。
+         実測では絵づくりが中央値9分・上位10%で106分と幅が大きい。
+         言わないと「固まった」と思って押し直される */
+      if (window.LpyaJobEta) {
+        var eta = window.LpyaJobEta.hint('lp_section', t);
+        if (eta) { add(box, el('p', 'field__hint', eta)); }
+      }
       var grid = el('div', 'line-grid');
       view.brief.sections.forEach(function (sec) {
         var slot = String(sec.index) + '-1';

@@ -1818,6 +1818,8 @@
     global.Api.generationJobs.get(id).then(function (row) {
     if (!watch || watch.jobId !== id) { return; }
     watch.status = String(row.status || 'pending');
+    /* 仕事の種類。残り時間の目安（job-eta.js）を引くのに使う */
+    if (row.feature_key) { watch.featureKey = String(row.feature_key); }
     /* 中止はワーカーが status に書く。押した直後は cancel_requested だけが
        立っている（止まるまで「いま走っている1段」ぶんかかる） */
     watch.cancelling = !!row.cancel_requested && watch.status !== 'cancelled';
@@ -1984,6 +1986,14 @@
     if (watch.msgNode && !isWaitedLong()
       && watch.status !== 'done' && watch.status !== 'failed' && watch.status !== 'cancelled') {
       var now = watch.note || t(watch.status === 'processing' ? 'job.running' : 'job.queued');
+      /* 残りの目安を添える（2026-10-25）。経過だけ出していると、
+         6分で終わるのか2時間かかるのか分からず、席を立てない。
+         実測では絵づくりが中央値9分・上位10%で106分と幅が大きい */
+      if (global.LpyaJobEta && watch.featureKey && watch.status === 'processing') {
+        var mins = (new Date().getTime() - watch.startedAt) / 60000;
+        var left = global.LpyaJobEta.remain(watch.featureKey, mins, t);
+        if (left) { now = now + '　' + left; }
+      }
       if (watch.msgNode.textContent !== now) { watch.msgNode.textContent = now; }
     }
     if (watch.stepNode) { watch.stepNode.textContent = stepText(); }
@@ -2020,6 +2030,8 @@
     var head = wEl('div', 'row row--between');
     head.appendChild(wEl('span', 'jobwatch__title', t(watch.titleKey)));
     watch.timeNode = wEl('span', 'jobwatch__time', t('job.elapsed', { t: elapsedText() }));
+    /* 閉じてよいことを書く。書かないと、終わるまで見張る人が出る */
+    panel.appendChild(wEl('p', 'jobwatch__close-note', t('job.canClose')));
     head.appendChild(watch.timeNode);
     panel.appendChild(head);
 

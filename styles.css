@@ -4949,3 +4949,6 @@ input[type='radio'] {
 .compli .list-row__meta { white-space: normal; text-align: left; color: var(--c-text); }
 .compli .list-row { align-items: flex-start; }
 .compli .list-row__sub { font-weight: 600; }
+
+/* 進捗の窓。閉じてよいことを小さく添える */
+.jobwatch__close-note { font-size: var(--fs-note); color: var(--c-text-sub); margin: 4px 0 0; }
