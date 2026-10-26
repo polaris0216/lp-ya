@@ -23,7 +23,7 @@
       'LP 초안을 참조 페이지와 같은 형태(본문 712px, 카피는 이미지에 새김, 여백 없음)로 조립합니다.'],
     'lpr.build': ['HTMLを組む', 'Build HTML', 'HTML 조립'],
     'lpr.rebuild': ['組み直す', 'Rebuild', '다시 조립'],
-    'lpr.download': ['HTMLを落とす', 'Download HTML', 'HTML 다운로드'],
+    'lpr.download': ['HTMLをダウンロード', 'Download HTML', 'HTML 다운로드'],
     'lpr.publish': ['公開する', 'Publish', '공개'],
     'lpr.unpublish': ['公開をやめる', 'Unpublish', '공개 중지'],
     'lpr.published': ['公開しました', 'Published', '공개했습니다'],

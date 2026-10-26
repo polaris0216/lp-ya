@@ -129,7 +129,7 @@
     /* 押せる面（2026-10-19）。画像だけではLINEに登録できない */
     'line.areas': ['押したときの行き先（LINEに登録する面）',
       'Tap targets (areas for LINE)', '탭 영역'],
-    'line.areasHint': ['枠ごとの行き先を入れて、JSONを落としてください。'
+    'line.areasHint': ['枠ごとの行き先を入れて、JSONをダウンロードしてください。'
       + 'Messaging API の richmenu にそのまま使えます。'
       + '空のままの枠は、押しても何も起きない形で書き出します。',
       'Enter a link per cell and download the JSON for the Messaging API.',
@@ -138,7 +138,7 @@
     'line.areasLabel': ['表示名', 'Label', '표시명'],
     'line.areasUri': ['行き先のURL', 'Link', '링크'],
     'line.areasSave': ['行き先を保存', 'Save links', '링크 저장'],
-    'line.areasGet': ['JSONを落とす', 'Download JSON', 'JSON 받기'],
+    'line.areasGet': ['JSONをダウンロード', 'Download JSON', 'JSON 받기'],
     'line.areasSaved': ['行き先を保存しました', 'Saved', '저장했습니다'],
     /* 商品ごとに売る場所が違う（2026-10-18 要望） */
     'line.cellPf': ['この商品の掲載先', 'Platform for this product', '이 상품의 게재처'],
