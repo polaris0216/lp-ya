@@ -104,9 +104,9 @@
         body: String(o.body || o.text || o.copy || o.description || ''),
         type: String(o.type || ((o.image || o.image_url) ? 'image' : 'text')),
         image: String(o.image || o.image_url || ''),
-        titleColor: String(o.titleColor || ''),
-        bodyColor: String(o.bodyColor || ''),
-        bg: String(o.bg || ''),
+        titleColor: safeColor(o.titleColor, ''),
+        bodyColor: safeColor(o.bodyColor, ''),
+        bg: safeColor(o.bg, ''),
         /* 区画ごとの素材の指示。ここで捨てると、LPから絵が消える */
         media: asArray(o.media)
       };
@@ -145,6 +145,11 @@
     });
     out.titleSize = Number(out.titleSize) || DEFAULT_DESIGN.titleSize;
     out.bodySize = Number(out.bodySize) || DEFAULT_DESIGN.bodySize;
+    /* ここが色の唯一の入口。ここで直せば、下の20か所あまりの差し込みが
+       すべて安全になる（1か所ずつ囲って回るより確実で、CSS にも効く） */
+    ['titleColor', 'bodyColor', 'bgColor', 'accentColor'].forEach(function (key) {
+      out[key] = safeColor(out[key], DEFAULT_DESIGN[key]);
+    });
     return out;
   }
 
@@ -186,6 +191,34 @@
       .split("'").join('&#39;');
   }
 
+  /* 色は「文字を囲う」だけでは守れない。
+     色は fill="…"（SVGの属性）にも color:…（CSS）にも入る。CSS の中では
+     escapeHtml の &quot; は効かず、属性を抜けられる書き方も残る。
+     なので**値そのものを確かめて**、色の形をしていなければ既定に戻す。
+     通すのは #rgb / #rrggbb / #rrggbbaa / rgb(a)(数字) / 英字だけの色名。
+     （2026-10-27 の棚卸しで、区画の titleColor が保存データから素通しで
+       SVG の fill と CSS の両方に入っていたため） */
+  var COLOR_OK = /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,%\s]+\)|[a-zA-Z]{3,20})$/;
+  function safeColor(value, fallback) {
+    var v = String(value === undefined || value === null ? '' : value).trim();
+    return COLOR_OK.test(v) ? v : fallback;
+  }
+
+  /* 行き先も、囲うだけでは守れない。href="javascript:…" は引用符も
+     山かっこも要らないので escapeHtml をそのまま通る。LINEのURLは
+     利用者の自由入力なので、**通す仕組み（スキーム）を決め打ちする**。
+     通すのは http / https / mailto と、同じ場所を指す相対パスだけ。
+     （2026-10-27 の棚卸し） */
+  function safeUrl(value) {
+    var v = String(value === undefined || value === null ? '' : value).trim();
+    if (!v) { return ''; }
+    /* 制御文字で "java\tscript:" のように割ってくる書き方を潰してから見る */
+    var flat = v.replace(/[\u0000-\u001F\u007F\s]/g, '').toLowerCase();
+    if (/^(https?:|mailto:)/.test(flat)) { return v; }
+    if (/^[a-z][a-z0-9+.-]*:/.test(flat)) { return ''; }   // それ以外のスキームは通さない
+    return v;                                              // 相対パス
+  }
+
   /* LINE友だち追加のボタン。
      実物の販売ページ（nowgoav.jp/lavaclip-lp）に合わせた:
      ・LINE公式の緑（#06C755）、白文字、丸いピル
@@ -203,7 +236,7 @@
     var skin = 'background:#06C755;color:#FFFFFF;border:0;';
     if (style.variant === 'outline') { skin = 'background:#FFFFFF;color:#06C755;border:2px solid #06C755;box-shadow:none;'; }
     return '<div class="line-cta">'
-      + '<a class="line-cta__a" href="' + escapeHtml(href) + '" target="_blank" rel="noopener" style="' + base + skin + '">'
+      + '<a class="line-cta__a" href="' + escapeHtml(safeUrl(href)) + '" target="_blank" rel="noopener" style="' + base + skin + '">'
       + lineMarkSvg() + '<span>' + escapeHtml(style.label) + '</span></a></div>';
   }
 
@@ -240,7 +273,7 @@
   }
 
   function lineBarMarkup(style, href) {
-    return '<div class="line-bar"><a href="' + escapeHtml(href) + '">'
+    return '<div class="line-bar"><a href="' + escapeHtml(safeUrl(href)) + '">'
       + escapeHtml(style.label) + '</a></div>';
   }
 
