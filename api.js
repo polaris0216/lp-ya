@@ -484,8 +484,27 @@
   // 自分のプロフィール行（a2f58db45_users）。RLS があるので自分の行しか返らない。
   function myProfile() {
     var id = currentUserId();
-    if (!id) { return Promise.reject(new ApiError('loginRequired', 401, 'セッションがありません')); }
-    return api.users.get(id);
+    if (id) { return api.users.get(id); }
+    /* Google から戻った直後は、ハッシュに access_token と refresh_token しか
+       入っていない（OAuth の implicit の決まり）。利用者の情報は付いてこないので、
+       session.user が空のままになる。ここで止めると、せっかく発行された
+       セッションを捨てて未ログイン扱いになり、トップページへ戻る
+       （2026-10-27 実測: Google 側の認証も Supabase の identity 作成も
+         成功しているのに、画面だけがログインしていなかった）。
+       トークンはあるのだから、本人の情報は聞きに行けばよい。 */
+    if (!session || !session.access_token) {
+      return Promise.reject(new ApiError('loginRequired', 401, 'セッションがありません'));
+    }
+    return request('GET', 'user', null, { base: AUTH_BASE, autoRetry: 0 })
+      .then(function (me) {
+        if (!me || !me.id) {
+          return Promise.reject(new ApiError('loginRequired', 401, '利用者を特定できませんでした'));
+        }
+        session.user = me;
+        storage.set('session', JSON.stringify(session));
+        storage.set('userId', me.id);
+        return api.users.get(me.id);
+      });
   }
 
   var auth = {
