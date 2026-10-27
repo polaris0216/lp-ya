@@ -95,8 +95,10 @@
   var STORAGE_PREFIX = 'elpiya.';
   // Google ログインは Supabase 側に OAuth を設定するまで使えない。未設定のまま
   // authorize へ飛ばすと 400 が返り、アプリを離れて生のエラーJSONが表示される。
-  // docs/SUPABASE-SETUP.md の手順4 を終えたら true にする（ここ1か所だけ）。
-  var GOOGLE_LOGIN_ENABLED = false;
+  // 2026-10-27 に設定を済ませたので true（Google Cloud の lp-ya プロジェクト、
+  // Supabase の external_google_enabled、戻り先は app.lpya.net）。
+  // 実測: authorize が 302 で accounts.google.com へ転送されることを確認した。
+  var GOOGLE_LOGIN_ENABLED = true;
   // session はログイン状態そのもの。これだけは端末に置かないと開くたびログインになる。
   var ALLOWED_STORAGE_KEYS = ['lang', 'session', 'userId', 'projectId', 'analysisReportId', 'generationId'];
 
