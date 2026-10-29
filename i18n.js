@@ -341,7 +341,7 @@
     'product.refUrl': ['参考ページURL', 'Reference page URL', '참고 페이지 URL'],
     'product.refAdd': ['URLを追加', 'Add URL', 'URL 추가'],
     'product.rivalPanel': ['競合LPのURL（最大5件）', 'Competitor LP URLs (up to 5)', '경쟁 LP URL(최대 5개)'],
-    'product.rivalPanelDesc': ['売れている競合のクラファンページを貼ってください。上の商品の読み取りが終わってから、同じボタンで続けて分析します。結果は「競合LP分析」の画面で見られます。伸びなかったページも貼ると、避けるべき型が出ます。',
+    'product.rivalPanelDesc': ['売れている競合のクラファンページを貼ってください。上の商品の読み取りが終わってから、同じボタンで続けて分析します。結果は「競合分析結果」の画面で見られます。伸びなかったページも貼ると、避けるべき型が出ます。',
       'Paste competitor crowdfunding pages. They are analysed right after the product page above is read; results appear on the Competitor analysis screen. Pages that did poorly are useful too — they show what to avoid.',
       '잘 팔린 경쟁사 크라우드펀딩 페이지를 붙여넣으세요. 위 상품 읽기가 끝난 뒤 이어서 분석합니다.'],
     'product.rivalDuplicate': ['同じURLがすでに入っています', 'This URL is already in the list', '같은 URL이 이미 있습니다'],
@@ -590,7 +590,7 @@
        「競合LP分析」→「分析レポート」（新しく分析を始める口はレポート画面の中）
        「分析レポートを開く」→「続きから」（出来ているところまで送る） */
     'projectDetail.openFurthest': ['続きから', 'Resume where you left off', '이어서 작업'],
-    'projectDetail.openReport': ['分析レポート', 'Analysis report', '분석 리포트'],
+    'projectDetail.openReport': ['競合分析結果', 'Competitor findings', '경쟁 분석 결과'],
     'projectDetail.openGeneration': ['生成結果を開く', 'Open generated results', '생성 결과 열기'],
     'projectDetail.backToDashboard': ['ダッシュボードへ戻る', 'Back to dashboard', '대시보드로 돌아가기'],
     'projectDetail.emptyProducts': ['商品がまだ登録されていません', 'No products registered yet', '아직 등록된 상품이 없습니다'],
@@ -673,7 +673,7 @@
     'reportConfirm.sectionOrder': ['LPセクション構成', 'LP section order', 'LP 섹션 구성'],
     'reportConfirm.creditCost': ['消費ポイント', 'Point cost', '소모 포인트'],
     'reportConfirm.generateWith': ['この内容で生成', 'Generate with these settings', '이 내용으로 생성'],
-    'reportConfirm.backToReport': ['総合分析へ', 'Back to the overview', '종합 분석으로'],
+    'reportConfirm.backToReport': ['販売戦略分析結果へ', 'Back to the sales strategy', '판매 전략 분석 결과로'],
     'reportConfirm.backToAnalysis': ['競合分析へ', 'Back to analysis', '경쟁 분석으로'],
     'reportConfirm.winPatternNote': ['反映する勝ちパターン', 'Winning pattern to apply', '반영할 성공 패턴'],
     'reportConfirm.reflectedCount': ['分析結果 {count}件を反映', 'Applying {count} analysis findings', '분석 결과 {count}건 반영'],
