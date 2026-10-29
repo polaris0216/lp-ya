@@ -335,7 +335,7 @@
     // 参考ページからのAI自動入力
     'product.refPanel': ['AI自動分析', 'AI analysis', 'AI 자동 분석'],
     'product.refUrlsLabel': ['参考ページ（商品販売元ページ）', 'Reference pages (the product\u2019s own sales page)', '참고 페이지(상품 판매처 페이지)'],
-    'product.refPanelDesc': ['URLを貼って「AI自動分析」を押すと、2つを続けて読みます。①参考ページ（すでに販売している海外クラファンや Alibaba などの商品販売元ページ）から、商品写真・訴求メッセージ・ターゲット案・ブランドトーン・配色・フォントを下のフォームに埋めます。②競合LPは、①が終わってから分析します。すべて手入力したい場合はこのブロックを使わずに下へ進んでください。',
+    'product.refPanelDesc': ['URLを貼って「AI自動分析」を押すと、ここから3つが続けて走ります。①参考ページ（すでに販売している海外クラファンや Alibaba などの商品販売元ページ）から、商品写真・訴求メッセージ・ブランドトーン・配色・フォントを下のフォームに埋めます。②競合LPを分析して「競合分析結果」に出します。③勝ち筋をふまえてターゲットを決め、「販売戦略分析結果」に出します。押すのはこの1回だけで、順番はこちらで守ります。すべて手入力したい場合はこのブロックを使わずに下へ進んでください。',
       'Paste URLs and press "Analyse with AI". It reads two things in order: (1) your own product page — photos, messaging, target segments, brand tone, colours and fonts go into the form below; (2) competitor LPs, analysed once step 1 finishes. To type everything yourself, skip this panel.',
       'URL을 붙여넣고 "AI 자동 분석"을 누르면 두 가지를 차례로 읽습니다. ①자사 상품 페이지에서 사진·소구 메시지·타깃 안·브랜드 톤·배색·폰트를 아래 폼에 채우고, ②경쟁 LP는 ①이 끝난 뒤 분석합니다.'],
     'product.refUrl': ['参考ページURL', 'Reference page URL', '참고 페이지 URL'],
@@ -390,8 +390,8 @@
     // ==== wf: プロジェクトの工程タブ（画面上部） ====
     'wf.input': ['商品入力', 'Product', '상품 입력'],
     'wf.competitor': ['競合LP分析', 'Competitors', '경쟁 LP 분석'],
-    'wf.report': ['分析レポート', 'Report', '분석 리포트'],
-    'wf.overall': ['総合分析', 'Overview', '종합 분석'],
+    'wf.report': ['競合分析結果', 'Competitor findings', '경쟁 분석 결과'],
+    'wf.overall': ['販売戦略分析結果', 'Sales strategy', '판매 전략 분석 결과'],
     'wf.prompt': ['LP案', 'LP draft', 'LP 초안'],
     'wf.result': ['生成結果', 'Generated results', '생성 결과'],
     'wf.line': ['LINEコンテンツ', 'LINE content', 'LINE 콘텐츠'],
@@ -655,7 +655,7 @@
     'analysis.startFailed': ['分析の開始に失敗しました', 'Failed to start the analysis', '분석 시작에 실패했습니다'],
 
     // ==== report: S11 分析レポート ====
-    'report.title': ['分析レポート', 'Analysis report', '분석 리포트'],
+    'report.title': ['競合分析結果', 'Competitor findings', '경쟁 분석 결과'],
     'report.collectedKv': ['収集したキービジュアル', 'Collected KV', '수집한 KV'],
     'report.collectedLp': ['収集したLP', 'Collected LP', '수집한 LP'],
     'report.successFactors': ['成功要因', 'Success factors', '성공 요인'],
@@ -664,7 +664,7 @@
     'report.winPattern': ['勝ちパターン', 'Winning pattern', '성공 패턴'],
     'report.proceed': ['生成に進む', 'Proceed to generation', '생성으로 진행'],
     'report.collectionError': ['収集エラー', 'Collection error', '수집 오류'],
-    'report.empty': ['分析レポートがまだありません', 'No analysis report yet', '아직 분석 리포트가 없습니다'],
+    'report.empty': ['まだ分析していません。商品入力のページで「AI自動分析」を押すと、ここに結果が出ます。', 'Nothing analysed yet. Press “AI analysis” on the product page and the findings will appear here.', '아직 분석하지 않았습니다. 상품 입력 페이지에서 “AI 자동 분석”을 누르면 여기에 결과가 나옵니다.'],
     'report.loadFailed': ['レポートの読み込みに失敗しました', 'Failed to load the report', '리포트를 불러오지 못했습니다'],
 
     // ==== reportConfirm: S12 分析内容確認 ====

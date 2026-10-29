@@ -153,10 +153,10 @@
   var FALLBACK = {
     ja: {
       'common.back': '戻る',
-      'wf.overall': '総合分析',
+      'wf.overall': '販売戦略分析結果',
       'wf.input': '商品入力',
       'wf.competitor': '競合LP分析',
-      'wf.report': '分析レポート',
+      'wf.report': '競合分析結果',
       'wf.prompt': '生成プロンプト',
       'wf.result': '生成結果',
       'wf.line': 'LINEコンテンツ',

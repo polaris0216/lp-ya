@@ -1665,6 +1665,32 @@
       });
     }
 
+    /* ターゲット案も続けて積む。走る順番（商品 → 競合 → ターゲット）は
+       ワーカーが守る（job-worker の取り出し条件）。
+       2026-10-29 要望: 「AI自動分析」ひと押しで、競合分析結果と
+       販売戦略分析結果まで出るようにする。押す場所が3つあると、
+       どれを押せばよいか分からない */
+    function queueTargetProposal() {
+      if (!projectId || !analysisApiReady()) { return Promise.resolve(null); }
+      /* すでに層が入っているなら作り直さない（手で直した内容を消さない） */
+      if (form.targets && form.targets.length) { return Promise.resolve({ skipped: true }); }
+      return window.Api.analysis.run({
+        mode: 'target_proposal',
+        projects_id: String(projectId),
+        urls: filledRefUrls(),
+        product: {
+          name: form.name.trim(),
+          category: form.category,
+          price: digitsOf(form.price),
+          features: form.features.trim(),
+          value_prop: form.valueProp.trim()
+        }
+      }).catch(function (err) {
+        console.error('[screens-home] ターゲット案を積めませんでした', err);
+        return null;
+      });
+    }
+
     function filledRefUrls() {
       var out = [];
       form.refUrls.forEach(function (url) {
@@ -2261,10 +2287,14 @@
         /* 競合LPも貼ってあれば、同じボタンで積む。走る順番（商品 → 競合）は
            ワーカーが守るので、ここでは積むだけ（2026-10-06） */
         queueRivalAnalysis().then(function (row) {
-          if (!row) { return; }
-          toast(row.skipped
-            ? t('product.rivalSame')
-            : t('product.rivalQueued', { n: filledRivalUrls().length }), 'success');
+          if (row) {
+            toast(row.skipped
+              ? t('product.rivalSame')
+              : t('product.rivalQueued', { n: filledRivalUrls().length }), 'success');
+          }
+          /* 競合分析のあとに層も決める。ここまでやって初めて
+             「販売戦略分析結果」の画面に中身が出る */
+          return queueTargetProposal();
         });
         if (result && result.queued) { startWatch(result.job_id, 'job.title'); return; }
         var before = form.images.length;

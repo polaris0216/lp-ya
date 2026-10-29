@@ -373,7 +373,7 @@
       '등록한 경쟁 링크별 결과입니다. 좌우 버튼으로 다음 링크의 결과로 이동합니다.'
     ],
     's11.toOverall': ['総合分析を見る', 'View the overview', '종합 분석 보기'],
-    'overall.title': ['総合分析', 'Overview', '종합 분석'],
+    'overall.title': ['販売戦略分析結果', 'Sales strategy', '판매 전략 분석 결과'],
     'overall.lead': [
       '登録した競合すべてを突き合わせた結果です。共通していた型・LPの流れ・成功と失敗の要因をまとめています。',
       'Everything the competitor pages had in common: the shared pattern, the flow, and what worked or fell short.',
@@ -2007,9 +2007,10 @@
       var head = el('div', 'screen__head');
       add(head, el('h1', 'screen__title', t('report.title')));
       add(wrap, head);
-      add(wrap, emptyBox(t('report.empty'), t('s11.reportEmptyAction'), function () {
-        go('S4', { id: projectId });
-      }));
+      /* 分析がまだ無いときに「競合LP分析を始める」を出さない（2026-10-29 要望）。
+         分析は商品入力の「AI自動分析」から始まる1本道で、ここに二つ目の
+         入口があると「どちらから始めるのか」で迷う。案内だけ出す */
+      add(wrap, emptyBox(t('report.empty')));
       root.appendChild(wrap);
     }
 
