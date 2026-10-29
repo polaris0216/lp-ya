@@ -138,6 +138,21 @@
       + '35–60 s each, 10 at a time.',
       '모든 타깃(A~E)의 LP·KV·메타광고 중, 아직 이미지가 없는 구획만 만듭니다.'],
     'lp.genAllRunning': ['まとめて生成しています…', 'Generating all…', '한꺼번에 생성 중…'],
+    'lp.genPicked': ['選んだターゲットだけ生成', 'Generate the selected audiences', '선택한 타깃만 생성'],
+    'lp.genPickedHint': ['下の表でチェックを入れたターゲットの LP・キービジュアル・メタ広告だけを作ります',
+      'Generates the LP, KV and Meta ads for the audiences you ticked below.',
+      '아래 표에서 체크한 타깃의 LP·KV·메타광고만 만듭니다'],
+    'lp.pickTitle': ['生成するターゲット', 'Audiences to generate', '생성할 타깃'],
+    'lp.pickAll': ['すべて選ぶ', 'Select all', '전체 선택'],
+    'lp.pickNone': ['選択を外す', 'Clear', '선택 해제'],
+    'lp.pickCol': ['選ぶ', 'Pick', '선택'],
+    'lp.pickLabel': ['ターゲット', 'Audience', '타깃'],
+    'lp.pickLeft': ['残り', 'Remaining', '남은 수'],
+    'lp.pickLeftN': ['{n}ブロック', '{n} sections', '{n}구획'],
+    'lp.pickLeftNone': ['なし', 'none', '없음'],
+    'lp.pickEmpty': ['選ばれたターゲットには、まだ絵が無いブロックがありません',
+      'The selected audiences have no sections left to generate.',
+      '선택한 타깃에는 아직 만들 구획이 없습니다'],
     'lp.save': ['プロンプトを保存', 'Save prompts', '프롬프트 저장'],
     'lp.saved': ['保存しました', 'Saved', '저장했습니다'],
     'lp.canvas': ['キャンバスに並べる', 'Lay out on canvas', '캔버스에 배치'],
@@ -449,7 +464,7 @@
       /* shotAt は区画ごとに「いま何番目の版を見ているか」。paint() で作り直しても
          見ていた版に戻れるよう、描画の外に持つ */
       var view = { project: null, gens: [], gen: null, dirty: false, busy: {}, shotAt: {}, motionOpen: {},
-        kind: 'lp_brief', byKind: {}, missingLabel: '' };
+        kind: 'lp_brief', byKind: {}, missingLabel: '', picked: {} };
       /* 一覧では本文（content.brief）を取らない。1本25,000字あり、
          3種類×20件で5.9MBになる。画面が開くたびにこれを読んでいたので、
          取り直しが重なると白いまま返らなくなった（実測 2026-10-04）。
@@ -881,6 +896,10 @@
         all.title = t('lp.genAllHint');
         add(bulkBar, all);
         add(bulkBar, allRedo);
+        /* 全部ではなく、選んだターゲットだけ作る口（2026-10-29 要望）。
+           「全部一括生成」のすぐ下に、ターゲットの一覧表とチェックを出す。
+           押すまでは何も起きないので、既定では1つも選んでいない */
+        add(bulkBar, pickPanel(anyBusy));
         /* できあがりを持ち出す口。生成の隣に置く（別の画面を探させない） */
         var zipBtn = button('btn btn--secondary lp-bulk__zip', t('lp.zip'), function (e) {
           downloadZip(e.currentTarget);
@@ -2494,7 +2513,7 @@
          「全区画をまとめて生成」はここを使う。
          これまでは開いている種類・層の1つしか作らなかったので、
          5層ぶんのLPとKVと広告を作るのに15回押す必要があった（2026-10-02 要望） */
-      function sameBatch() {
+      function sameBatch(only) {
         var myBatch = batchOf(view.gen);
         var myTime = (view.gen && view.gen.created_at || '').slice(0, 16);
         var out = [];
@@ -2502,6 +2521,7 @@
           (view.byKind[k.key] || []).forEach(function (g) {
             var b = batchOf(g);
             var same = myBatch ? (b === myBatch) : ((g.created_at || '').slice(0, 16) === myTime);
+            if (only && only.indexOf(String(g.variant_label || '-')) === -1) { return; }
             if (same && isArray(g.sections) && g.sections.length) { out.push(g); }
           });
         });
@@ -2515,8 +2535,89 @@
           .map(function (s) { return s.index; });
       }
 
+      /* 生成するターゲットの一覧表。チェックを入れた層だけ作る。
+         数えるのは、いま見ている回の LP・キービジュアル・メタ広告を合わせた
+         「まだ絵が無いブロック」。耳に出ている数と同じ数え方にする */
+      function pickPanel(anyBusy) {
+        var wrap = el('div', 'lp-pick');
+        var rows = sameBatch();
+        var labels = [];
+        rows.forEach(function (g) {
+          var L = String(g.variant_label || '-');
+          if (labels.indexOf(L) === -1) { labels.push(L); }
+        });
+        labels.sort();
+        if (!labels.length) { return wrap; }
+
+        var head = el('div', 'lp-pick__head');
+        add(head, el('span', 'lp-pick__title', t('lp.pickTitle')));
+        add(head, button('btn btn--secondary btn--sm', t('lp.pickAll'), function () {
+          labels.forEach(function (L) { view.picked[L] = true; });
+          paint();
+        }));
+        add(head, button('btn btn--secondary btn--sm', t('lp.pickNone'), function () {
+          view.picked = {};
+          paint();
+        }));
+        add(wrap, head);
+
+        var table = el('table', 'lp-pick__table');
+        var thead = el('thead');
+        var hr = el('tr');
+        add(hr, el('th', 'lp-pick__c-pick', t('lp.pickCol')));
+        add(hr, el('th', '', t('lp.pickLabel')));
+        add(hr, el('th', 'lp-pick__c-left', t('lp.pickLeft')));
+        add(thead, hr);
+        add(table, thead);
+        var tbody = el('tbody');
+        var picked = [];
+        labels.forEach(function (L) {
+          var mine = rows.filter(function (g) { return String(g.variant_label || '-') === L; });
+          var left = mine.reduce(function (n, g) { return n + missingOf(g).length; }, 0);
+          var name = String((mine[0] && mine[0].title) || '').slice(0, 40);
+          var on = !!view.picked[L];
+          if (on) { picked.push(L); }
+
+          var tr = el('tr', on ? 'is-on' : '');
+          var td1 = el('td', 'lp-pick__c-pick');
+          var box = el('input');
+          box.type = 'checkbox';
+          box.checked = on;
+          box.id = 'lp-pick-' + L;
+          box.addEventListener('change', function () {
+            if (box.checked) { view.picked[L] = true; } else { delete view.picked[L]; }
+            paint();
+          });
+          add(td1, box);
+          add(tr, td1);
+
+          var td2 = el('td');
+          var lab = el('label', 'lp-pick__name');
+          lab.setAttribute('for', box.id);
+          add(lab, el('span', 'lp-variant__label', L));
+          if (name) { add(lab, el('span', 'lp-pick__sub', name)); }
+          add(td2, lab);
+          add(tr, td2);
+
+          add(tr, el('td', 'lp-pick__c-left' + (left ? '' : ' is-none'),
+            left ? t('lp.pickLeftN', { n: left }) : t('lp.pickLeftNone')));
+          add(tbody, tr);
+        });
+        add(table, tbody);
+        add(wrap, table);
+
+        var go = button('btn btn--primary lp-pick__go', t('lp.genPicked'), function () {
+          generateEverything(false, picked.slice());
+        });
+        go.title = t('lp.genPickedHint');
+        go.disabled = !picked.length || anyBusy;
+        add(wrap, go);
+        add(wrap, el('p', 'lp-bulk__note', t('lp.genPickedHint')));
+        return wrap;
+      }
+
       /* 全種類・全層をまとめて積む。1つの生成物＝1つの仕事（ワーカーは3件まで同時に取る） */
-      function generateEverything(redo) {
+      function generateEverything(redo, only) {
         if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
         /* 二度押しで同じ仕事が重なるのを止める。
            実測 2026-10-02: 4回押されて同じ内容が4重に積まれ、57件の待ち行列になった。
@@ -2549,18 +2650,18 @@
             view.dirty = false;
             paint();
             toast(t('lp.movedToNewest'), 'success');
-            return loadDetail(top).then(function () { paint(); queueAll(redo, unlock); });
+            return loadDetail(top).then(function () { paint(); queueAll(redo, unlock, only); });
           }
-          return queueAll(redo, unlock);
-        }).catch(function () { queueAll(redo, unlock); });
+          return queueAll(redo, unlock, only);
+        }).catch(function () { queueAll(redo, unlock, only); });
       }
 
       /* 積む本体。generateEverything が取り直したあとに呼ぶ */
-      function queueAll(redo, unlock) {
-        var plan = sameBatch().map(function (g) {
+      function queueAll(redo, unlock, only) {
+        var plan = sameBatch(only).map(function (g) {
           return { gen: g, sections: redo ? (g.sections || []).map(function (s) { return s.index; }) : missingOf(g) };
         }).filter(function (x) { return x.sections.length; });
-        if (!plan.length) { unlock(); toast(t('lp.allDone'), 'success'); return; }
+        if (!plan.length) { unlock(); toast(only ? t('lp.pickEmpty') : t('lp.allDone'), 'success'); return; }
         var total = plan.reduce(function (n, x) { return n + x.sections.length; }, 0);
         /* すでに同じ案の仕事が待っていれば積まない。
            画面を開き直すと札が下りるので、札だけでは防ぎきれない */

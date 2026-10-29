@@ -4655,6 +4655,34 @@ input[type='radio'] {
   .lp-bulk__btn, .lp-bulk__zip { flex: 1 1 100%; }
 }
 
+/* 選んだターゲットだけ生成する。全部一括生成のすぐ下に、
+   どの層を作るのか分かる一覧表を出す（2026-10-29 要望） */
+.lp-pick {
+  flex: 1 0 100%;
+  margin: 12px 0 0; padding: 14px;
+  border: 1px solid var(--c-line, #e3e3ea); border-radius: 12px;
+  background: var(--c-surface, #fff);
+}
+.lp-pick__head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.lp-pick__title { flex: 1 1 auto; font-size: 15px; font-weight: 700; }
+.lp-pick__table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.lp-pick__table th {
+  text-align: left; padding: 6px 8px; font-size: var(--fs-note); font-weight: 600;
+  color: var(--c-text-sub, #666); border-bottom: 1px solid var(--c-line, #e3e3ea);
+}
+.lp-pick__table td { padding: 8px; border-bottom: 1px solid var(--c-line, #f0f0f4); vertical-align: middle; }
+.lp-pick__table tr.is-on td { background: var(--c-tint, #f6f3ff); }
+.lp-pick__c-pick { width: 48px; }
+.lp-pick__c-left { width: 96px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lp-pick__c-left.is-none { color: var(--c-text-sub, #999); }
+.lp-pick__c-pick input { width: 18px; height: 18px; cursor: pointer; }
+.lp-pick__name { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; cursor: pointer; }
+.lp-pick__sub { color: var(--c-text-sub, #666); }
+.lp-pick__go {
+  margin-top: 12px; width: 100%; min-height: 48px;
+  font-size: 15px; font-weight: 700;
+}
+
 /* 販売ページの公開 */
 .lp-pub__url { margin: 6px 0 0; font-size: 13px; color: var(--c-text-sub, #666); word-break: break-all; }
 .lp-pub__row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
