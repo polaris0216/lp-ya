@@ -38,7 +38,7 @@
   }
 
   var LOCAL = {
-    'lp.title': ['生成プロンプト', 'Generation prompts', '생성 프롬프트'],
+    'lp.title': ['LP作成', 'Build the LP', 'LP 만들기'],
     'lp.lead': ['総合分析から書いたマスターブリーフ（LP全体の決まり）と、ブロックごとの生成プロンプトです。プロンプトを直してから、ブロックごとに生成します。',
       'The master brief (page-wide rules) and one prompt per section, written from the overall analysis. Edit, then generate section by section.',
       '종합 분석에서 쓴 마스터 브리프(LP 전체 규칙)와 구획별 생성 프롬프트입니다. 고친 뒤 구획마다 생성합니다.'],
