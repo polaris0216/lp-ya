@@ -393,7 +393,7 @@
     'wf.report': ['競合分析結果', 'Competitor findings', '경쟁 분석 결과'],
     'wf.overall': ['販売戦略分析結果', 'Sales strategy', '판매 전략 분석 결과'],
     'wf.prompt': ['LP作成', 'Build the LP', 'LP 만들기'],
-    'wf.result': ['生成結果', 'Generated results', '생성 결과'],
+    'wf.result': ['LP登録確認', 'Check the LP', 'LP 등록 확인'],
     'wf.line': ['LINEコンテンツ', 'LINE content', 'LINE 콘텐츠'],
     'wf.pending': ['この工程は作り直し中です', 'This step is being rebuilt', '이 단계는 다시 만드는 중입니다'],
 
