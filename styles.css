@@ -3416,7 +3416,7 @@ input[type='radio'] {
        上に帯と「いちばん速くて安い」の札を付け、どちらを選ぶ話なのかを示す */
 .lp-vs {
   display: grid;
-  grid-template-columns: minmax(132px, 12em) 1fr 1.15fr;
+  grid-template-columns: minmax(190px, 14em) 1fr 1.15fr;
   width: 100%;
   max-width: 940px;
   margin: 40px auto 0;
@@ -3490,9 +3490,9 @@ input[type='radio'] {
   font-size: var(--fs-sub);
   font-weight: var(--fw-bold);
   color: var(--c-text);
-  /* 「何をもとに作るか」が途中で折れていた。語の切れ目でだけ折る */
-  word-break: keep-all;
-  overflow-wrap: anywhere;
+  /* 「何をもとに作るか」が途中で折れていた。項目名は1行に収める
+     （収まる幅を列に持たせてある。狭い画面では縦積みになるので関係ない） */
+  white-space: nowrap;
 }
 
 .lp-vs__old {
@@ -3557,7 +3557,7 @@ input[type='radio'] {
   .lp-vs__key,
   .lp-vs__old,
   .lp-vs__now { display: block; padding: 0; }
-  .lp-vs__key { font-weight: var(--fw-bold); color: var(--c-text); font-size: 17px; }
+  .lp-vs__key { font-weight: var(--fw-bold); color: var(--c-text); font-size: 17px; white-space: normal; }
   .lp-vs__old,
   .lp-vs__now {
     padding: 12px 16px;
