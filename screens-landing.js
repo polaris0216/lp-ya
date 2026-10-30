@@ -54,6 +54,12 @@
 
   /* 比較の下に置く絵。ブラウザのChatGPTで作って lp-ya/assets/ に置いたもの */
   var COMPARE_IMAGE = 'assets/compare.webp';
+  /* 比較の帯の上に出す2枚（2026-10-30 要望）。金額の差より先に、
+     気持ちの差を見せる。左＝外注を待っているとき、右＝エルピーヤのあと */
+  var COMPARE_FACES = [
+    { src: 'assets/compare-before.jpg', cap: 'compare.beforeCap', alt: 'compare.beforeAlt' },
+    { src: 'assets/compare-after.jpg', cap: 'compare.afterCap', alt: 'compare.afterAlt', now: true }
+  ];
 
   var STEPS = ['landing.step1', 'landing.step2', 'landing.step3'];
 
@@ -185,6 +191,24 @@
   /* --- 外注との比較：左右2列。右（エルピーヤ）だけ地を変えて立たせる --- */
   function buildCompare() {
     var section = buildSection('compare.title', 'compare.desc');
+
+    /* 先に写真を2枚。数字を読む前に、どちらの側にいたいかを決めてもらう。
+       読み込めない環境では黙って消す（帯ごと崩さない） */
+    var faces = el('div', 'lp-faces');
+    COMPARE_FACES.forEach(function (one) {
+      var fig = el('figure', 'lp-face' + (one.now ? ' lp-face--now' : ''));
+      var img = el('img', 'lp-face__img');
+      img.src = one.src;
+      img.alt = t(one.alt);
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.addEventListener('error', function () { fig.remove(); });
+      fig.appendChild(img);
+      fig.appendChild(el('figcaption', 'lp-face__cap', t(one.cap)));
+      faces.appendChild(fig);
+    });
+    section.appendChild(faces);
+
     var table = el('div', 'lp-vs');
 
     var head = el('div', 'lp-vs__head');
