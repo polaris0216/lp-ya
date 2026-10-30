@@ -3433,7 +3433,9 @@ input[type='radio'] {
        上に帯と「いちばん速くて安い」の札を付け、どちらを選ぶ話なのかを示す */
 .lp-vs {
   display: grid;
-  grid-template-columns: minmax(190px, 14em) 1fr 1.15fr;
+  /* エルピーヤの列は、下の写真とぴったり同じ幅（板の半分）にする。
+     外注のぶんは残りを項目名と分け合う（2026-10-30 指摘） */
+  grid-template-columns: minmax(160px, 172px) 1fr 50%;
   width: 100%;
   max-width: 940px;
   margin: 40px auto 0;
@@ -3454,11 +3456,12 @@ input[type='radio'] {
 
 .lp-vs__corner,
 .lp-vs__col,
-.lp-vs__key,
 .lp-vs__old,
 .lp-vs__now {
   padding: 22px 24px;
 }
+/* 項目名の列は幅が決まっているので、余白を詰めて文字の居場所を残す */
+.lp-vs__key { padding: 22px 12px; }
 
 .lp-vs__col {
   font-size: var(--fs-sub);
