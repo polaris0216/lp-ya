@@ -261,9 +261,13 @@
       table.appendChild(row);
     });
 
-    section.appendChild(table);
-    /* 表のすぐ下に写真。あいだに文を挟まない（2026-10-30 指摘） */
-    section.appendChild(faces);
+    /* 表と写真は1枚の板として扱う。別々に節へ入れていたため、
+       節の gap（10px）があいだに入って線が切れていた（2026-10-30 指摘）。
+       包みを1つにすれば、gap は包みの外側にだけ効く */
+    var board = el('div', 'lp-vs-board');
+    board.appendChild(table);
+    board.appendChild(faces);
+    section.appendChild(board);
     section.appendChild(el('p', 'lp-vs__note', t('compare.note')));
 
     return section;

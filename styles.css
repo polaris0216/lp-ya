@@ -3368,13 +3368,22 @@ input[type='radio'] {
    金額の差より先に、気持ちの差を見せる。
    左＝外注を待っているとき、右＝エルピーヤのあと。
    右だけ枠で囲って、表のエルピーヤの列と同じ扱いにする */
+/* 表と写真を1枚の板にする。別々に節へ入れていたため、節の gap（10px）が
+   あいだに入って線が切れていた（2026-10-30 指摘） */
+.lp-vs-board {
+  width: 100%;
+  max-width: 940px;
+  margin: 40px auto 0;
+}
+.lp-vs-board .lp-vs { margin-top: 0; }
+
 .lp-faces {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
   width: 100%;
   max-width: 940px;
-  /* 表の続きとして、隙間をあけずに下へ貼る（2026-10-30 指摘） */
+  /* 表の続きとして、隙間をあけずに下へ貼る */
   margin: 0 auto;
   padding: 0 8px 10px;
   border-radius: 0 0 var(--r-card) var(--r-card);
@@ -3384,7 +3393,8 @@ input[type='radio'] {
 .lp-face__img {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  /* 16:9（2026-10-30 指摘「写真が縦に長い」） */
+  aspect-ratio: 16 / 9;
   object-fit: cover;
   border-radius: 0;
   border: 0;
@@ -3427,8 +3437,8 @@ input[type='radio'] {
   width: 100%;
   max-width: 940px;
   margin: 40px auto 0;
-  padding: 8px 8px 10px;
-  /* 下に写真をぴったり貼るので、下側の角は落とす（2026-10-30 指摘） */
+  /* 下に写真をぴったり貼るので、下の余白も角も落とす（2026-10-30 指摘） */
+  padding: 8px 8px 0;
   border-radius: var(--r-card) var(--r-card) 0 0;
   background: var(--c-surface-3);
   text-align: center;

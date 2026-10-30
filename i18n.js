@@ -152,7 +152,7 @@
     'compare.beforeCap': ['外注に出して、直しの電話をしている間。', 'On the phone with the agency about another round of fixes.', '외주에 맡기고 수정 전화를 하는 동안.'],
     'compare.afterCap': ['エルピーヤなら、ワンクリックでこの顔。', 'With Elpiya, one click and this is you.', '엘피야라면 원클릭으로 이런 얼굴.'],
     'compare.beforeAlt': ['夜のオフィスで、外注先と電話しながら頭を抱えている人', 'Someone on the phone to their agency at night, head in hand', '밤 사무실에서 외주처와 통화하며 머리를 감싸 쥔 사람'],
-    'compare.afterAlt': ['片付いた机で、エルピーヤを開いたパソコンをワンクリックして笑っている人', 'Someone smiling after a single click in Elpiya at a clear desk', '정리된 책상에서 엘피야를 원클릭하고 웃고 있는 사람'],
+    'compare.afterAlt': ['エルピーヤの「LP作成」の画面を開いたノートパソコンを見て笑っている人', 'Someone smiling at a laptop showing the Elpiya build screen', '엘피야 화면이 열린 노트북을 보며 웃고 있는 사람'],
     'compare.imageAlt': ['エルピーヤで作ったクラウドファンディングLPを開いているところ', 'A crowdfunding landing page made with Elpiya, open on a laptop', '엘피야로 만든 크라우드펀딩 상세페이지를 열어 둔 모습'],
     'compare.note': ['外注の金額は一般的な相場です。エルピーヤの所要時間は実測の中央値で、商品や競合の数によって前後します。', 'Outsourcing figures are typical market rates. Our turnaround is a measured median and varies with the product and the number of competitors.', '외주 금액은 일반적인 시세입니다. 소요 시간은 실측 중앙값이며 상품과 경쟁사 수에 따라 달라집니다.'],
 
