@@ -3113,9 +3113,21 @@
 
   registerScreen('settings', { render: function (root) { renderSettings(root); } });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start);
-  } else {
+  /* 起動を待つ合図は DOMContentLoaded。defer を付けた script は
+     **すべて走り終えてから**この合図が出る（仕様）。
+     ここを readyState === 'loading' で見ていたのが誤りだった：
+     defer の script が動く時点で readyState はもう 'interactive' なので、
+     この app.js が読まれた瞬間に start() が走り、
+     **自分より下に並んでいる画面ファイルがまだ1つも読まれていない**状態で
+     最初の画面を描いていた。
+     実測 2026-10-30: #/S19 を直接開くと「画面 S19 が登録されていません。
+     登録済み: settings / S0 / S1 / S2」、#/S12 では
+     「window.LpyaShotCarousel is not a function」で画面が白くなった。
+     いつも起きなかったのは、start() の中の読み直しを待つあいだに
+     残りの script が間に合っていたからで、速く開いたときだけ負けていた。 */
+  if (document.readyState === 'complete') {
     start();
+  } else {
+    document.addEventListener('DOMContentLoaded', start);
   }
 })(window);
