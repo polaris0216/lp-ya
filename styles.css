@@ -3507,6 +3507,39 @@ input[type='radio'] {
    閉じずに開けておく（2026-10-30 指摘：絵と表の間に隙間を作らない） */
 .lp-vs__row:last-child .lp-vs__now { border-radius: 0; }
 
+/* ---- 罫線（2026-10-31 指摘「セル枠がなくてみづらい」）----
+   太い格子で囲うと帳票になってしまうので、**細い線だけ**で仕切る。
+     ・行の区切りは、表の端から端まで通す1本
+     ・見出しの下だけ少し濃くして、ここから中身が始まることを示す
+     ・項目名と外注のあいだに縦の仕切りを1本
+   エルピーヤの列は紫の枠が外周なので、中の区切りは薄くして
+   1本の列として読めるままにする */
+/* 線の色は、表の地（--c-surface-3）の上で見えるところまで濃くする。
+   --c-line のままだと地に溶けて、引いていないのと同じだった */
+.lp-vs { --vs-rule: #D3D0DF; }
+
+.lp-vs__head .lp-vs__corner,
+.lp-vs__head .lp-vs__col {
+  border-bottom: 2px solid var(--vs-rule);
+}
+.lp-vs__row + .lp-vs__row .lp-vs__key,
+.lp-vs__row + .lp-vs__row .lp-vs__old {
+  border-top: 1px solid var(--vs-rule);
+}
+/* 白い列の中の区切りは、紫の枠を切らないように内側だけ薄く引く */
+.lp-vs__row + .lp-vs__row .lp-vs__now {
+  border-top: 1px solid var(--c-line);
+}
+/* 項目名と外注を分ける縦の線。見出しの行から最後の行まで通す */
+.lp-vs__corner,
+.lp-vs__key {
+  border-right: 1px solid var(--vs-rule);
+}
+/* 項目名の列は、ほんのり沈めて見出しの列だと分かるようにする。
+   行おきの色は敷かない。縞と罫線が重なると、どちらも読みにくくなる */
+.lp-vs__corner,
+.lp-vs__key { background: color-mix(in srgb, var(--vs-rule) 26%, transparent); }
+
 .lp-vs__key {
   font-size: var(--fs-sub);
   font-weight: var(--fw-bold);
@@ -3586,7 +3619,17 @@ input[type='radio'] {
   .lp-vs__key,
   .lp-vs__old,
   .lp-vs__now { display: block; padding: 0; }
-  .lp-vs__key { font-weight: var(--fw-bold); color: var(--c-text); font-size: 17px; white-space: normal; }
+  .lp-vs__key {
+    font-weight: var(--fw-bold); color: var(--c-text); font-size: 17px;
+    white-space: normal;
+    /* 縦積みでは列が無いので、罫線も下地も外す */
+    border: 0; background: none;
+  }
+  .lp-vs__corner, .lp-vs__head .lp-vs__col { border: 0; }
+  .lp-vs__row + .lp-vs__row .lp-vs__key,
+  .lp-vs__row + .lp-vs__row .lp-vs__old,
+  .lp-vs__row + .lp-vs__row .lp-vs__now { border-top: 0; }
+
   .lp-vs__old,
   .lp-vs__now {
     padding: 12px 16px;
