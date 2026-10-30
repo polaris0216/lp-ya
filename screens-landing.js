@@ -52,15 +52,6 @@
     'landing.featAds', 'landing.featLine', 'landing.featAb'
   ];
 
-  /* ponytail: 値段は i18n と同じく直書き。管理画面の単価を引くのはログイン後だけなので、
-     ここを動的にしたくなったら api.js 越しに公開価格を足すこと */
-  var PRICES = [
-    { key: 'landing.priceProject', value: null },
-    { key: 'landing.priceLp', value: '60P' },
-    { key: 'landing.priceAsset', value: '30P' },
-    { key: 'landing.priceAnalysis', value: '40P' }
-  ];
-
   function t(key, params) {
     if (window.I18N && typeof window.I18N.t === 'function') { return window.I18N.t(key, params); }
     return key;
@@ -204,22 +195,12 @@
     return section;
   }
 
-  /* --- 料金：注記1行をやめて、機能と必要ポイントを並べる --- */
+  /* --- 料金：払い方だけを言う。金額は出さない（2026-10-30 利用者の決め）。
+         必要ポイントは管理画面でいつでも変わるうえ（アプリ内はDBから取っている）、
+         1ポイントが何円かも管理画面の設定なので、ここに「60P」とだけ置いても
+         はじめて来た人には金額が分からない。直書きは古くなるだけだった --- */
   function buildPricing() {
-    var section = buildSection('landing.pricingTitle', 'landing.pricingDesc');
-    var grid = el('div', 'lp-prices');
-
-    PRICES.forEach(function (row) {
-      var tile = el('div', 'lp-price');
-      tile.appendChild(el('span', 'lp-price__name', t(row.key)));
-      var value = row.value;
-      var node = el('span', 'lp-price__value' + (value ? '' : ' lp-price__value--free'), value || t('landing.priceFree'));
-      tile.appendChild(node);
-      grid.appendChild(tile);
-    });
-
-    section.appendChild(grid);
-    return section;
+    return buildSection('landing.pricingTitle', 'landing.pricingDesc');
   }
 
   function buildFinalCta() {

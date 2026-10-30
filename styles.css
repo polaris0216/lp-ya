@@ -3458,48 +3458,6 @@ input[type='radio'] {
   color: var(--c-text-sub);
 }
 
-/* --- 料金：注記1行ではなく、機能と必要ポイントを並べる --- */
-.lp-prices {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  width: 100%;
-  max-width: 680px;
-  margin-top: 24px;
-  text-align: left;
-}
-
-.lp-price {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 20px;
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-  background: var(--c-surface);
-}
-
-.lp-price__name {
-  font-size: var(--fs-note);
-  font-weight: var(--fw-bold);
-  color: var(--c-text);
-}
-
-.lp-price__value {
-  font-family: var(--font-title);
-  font-size: 26px;
-  font-weight: var(--fw-bold);
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  color: var(--c-sub);
-  white-space: nowrap;
-}
-
-.lp-price__value--free {
-  font-size: 18px;
-}
-
 /* --- 最終CTA --- */
 .lp-band {
   width: calc(100% - var(--sp-screen) * 2);
@@ -3543,7 +3501,6 @@ input[type='radio'] {
       linear-gradient(120deg, rgba(124, 58, 237, .16), rgba(219, 39, 119, .10));
   }
   .lp-bento__cell { grid-column: span 12; }
-  .lp-prices { grid-template-columns: 1fr; }
   .lp-cta { flex: 1 1 100%; }
 }
 
