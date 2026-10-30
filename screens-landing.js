@@ -29,6 +29,11 @@
   }
 
   var HERO_VIDEO = 'hero-bg.mp4';
+  /* 動画の1コマ目を静止画で持っておく（2026-10-30 指摘「開いてすぐは動画が
+     全然見えない」）。動画は JS が作るので、取りに行き始めるのが遅い。
+     index.html が head から先に読み、poster として即座に出す。
+     動画が追いついたら、そのまま同じ絵から動き出す */
+  var HERO_POSTER = 'hero-bg.jpg';
 
   /* ヒーロー直下に出す掲載先。ロゴの実体は platform-logos.js（assets/platform から生成）。
      国内4つのあとに海外・韓国を続ける。ロゴが無いものは buildProof が黙って飛ばすので、
@@ -53,7 +58,6 @@
   ];
 
   /* 比較の下に置く絵。ブラウザのChatGPTで作って lp-ya/assets/ に置いたもの */
-  var COMPARE_IMAGE = 'assets/compare.webp';
   /* 比較の帯の上に出す2枚（2026-10-30 要望）。金額の差より先に、
      気持ちの差を見せる。左＝外注を待っているとき、右＝エルピーヤのあと */
   var COMPARE_FACES = [
@@ -105,6 +109,27 @@
     return node;
   }
 
+  /* 金額だけ色を変えて入れる（2026-10-30 指摘「30万円・15万円を赤の太字に」）。
+     辞書に綴りを入れず、数字＋万円／円 の形をその場で拾う。
+     こうしておけば、相場を書き換えても印の付け直しが要らない。
+     innerHTML は使わない（辞書の文をそのまま差し込む口を作らない） */
+  var MONEY = /([0-9][0-9,]*(?:万)?円)/;
+  function money(node, text) {
+    String(text).split('\n').forEach(function (line, index) {
+      if (index > 0) { node.appendChild(el('br')); }
+      line.split(MONEY).forEach(function (part, i) {
+        if (!part) { return; }
+        /* split に丸括弧を使っているので、奇数番が金額そのもの */
+        if (i % 2 === 1) {
+          node.appendChild(el('span', 'lp-vs__yen', part));
+        } else {
+          node.appendChild(document.createTextNode(part));
+        }
+      });
+    });
+    return node;
+  }
+
   /* 見出しの「、」で改行させる（2行ヘッドライン） */
   function headline(text) {
     var node = el('h1', 'lp-hero__title');
@@ -122,6 +147,10 @@
     var video = document.createElement('video');
     video.className = 'lp-hero__video';
     video.src = HERO_VIDEO;
+    /* 1コマ目を先に出す。index.html が head で先読みしてあるので、
+       ここに着いた時点ではもう手元にある */
+    video.poster = HERO_POSTER;
+    video.preload = 'auto';
     video.autoplay = true;
     video.loop = true;
     video.muted = true;
@@ -192,7 +221,9 @@
   function buildCompare() {
     var section = buildSection('compare.title', 'compare.desc');
 
-    /* 先に写真を2枚。数字を読む前に、どちらの側にいたいかを決めてもらう。
+    /* 並びは「表 → 写真」（2026-10-30 指摘）。数字で違いを示してから、
+       その違いが暮らしにどう出るかを写真で見せる。
+       写真は表の続きとして見えるよう、隙間をあけずに下に貼り付ける。
        読み込めない環境では黙って消す（帯ごと崩さない） */
     var faces = el('div', 'lp-faces');
     COMPARE_FACES.forEach(function (one) {
@@ -207,7 +238,6 @@
       fig.appendChild(el('figcaption', 'lp-face__cap', t(one.cap)));
       faces.appendChild(fig);
     });
-    section.appendChild(faces);
 
     var table = el('div', 'lp-vs');
 
@@ -223,7 +253,8 @@
       var oldCell = row.appendChild(el('span', 'lp-vs__old'));
       /* 狭い画面では見出しの行を消すので、どちらの話かを各セルに持たせる */
       oldCell.setAttribute('data-label', t('compare.colOld'));
-      lines(oldCell, t(one.old));
+      /* 外注側の金額は赤の太字にする。いちばん効くのは「いくら浮くか」 */
+      money(oldCell, t(one.old));
       var nowCell = row.appendChild(el('span', 'lp-vs__now' + (one.big ? ' lp-vs__now--big' : '')));
       nowCell.setAttribute('data-label', t('compare.colNew'));
       lines(nowCell, t(one.now));
@@ -231,17 +262,9 @@
     });
 
     section.appendChild(table);
+    /* 表のすぐ下に写真。あいだに文を挟まない（2026-10-30 指摘） */
+    section.appendChild(faces);
     section.appendChild(el('p', 'lp-vs__note', t('compare.note')));
-
-    /* 絵は飾りではなく「1時間でここまで出る」の証拠として置く。
-       読み込めない環境では黙って消す（帯ごと崩さない） */
-    var shot = el('img', 'lp-vs__shot');
-    shot.src = COMPARE_IMAGE;
-    shot.alt = t('compare.imageAlt');
-    shot.loading = 'lazy';
-    shot.decoding = 'async';
-    shot.addEventListener('error', function () { shot.remove(); });
-    section.appendChild(shot);
 
     return section;
   }

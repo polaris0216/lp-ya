@@ -149,10 +149,10 @@
     'compare.newHow': ['売れた競合LPと海外の元データ、最大5つのターゲット層の分析', 'Competitor pages that sold, the overseas original, and up to five target segments', '팔린 경쟁 상세페이지와 해외 원본, 최대 5개 타깃층 분석'],
     /* 比較の帯の上に置く2枚。言いたいのは金額より「気持ちがどう変わるか」。
        左が外注を待っているとき、右がエルピーヤで片付いたあと（2026-10-30 要望） */
-    'compare.beforeCap': ['外注に出して、直しを待っている間。', 'Waiting on the agency for another round of fixes.', '외주에 맡기고 수정을 기다리는 동안.'],
-    'compare.afterCap': ['エルピーヤなら、1時間後にはこの顔。', 'With Elpiya, this is you an hour later.', '엘피야라면 1시간 뒤엔 이런 얼굴.'],
-    'compare.beforeAlt': ['赤字だらけの校正紙を前に、夜のオフィスで手が止まっている人', 'Someone stuck at a desk at night in front of proofs covered in red corrections', '빨간 교정지 앞에서 밤늦게 손이 멈춘 사람'],
-    'compare.afterAlt': ['片付いた机で、朝の光の中コーヒーを持ってひと息ついている人', 'Someone leaning back with a mug at a clear desk in the morning light', '정리된 책상에서 아침 햇살 속에 커피를 든 사람'],
+    'compare.beforeCap': ['外注に出して、直しの電話をしている間。', 'On the phone with the agency about another round of fixes.', '외주에 맡기고 수정 전화를 하는 동안.'],
+    'compare.afterCap': ['エルピーヤなら、ワンクリックでこの顔。', 'With Elpiya, one click and this is you.', '엘피야라면 원클릭으로 이런 얼굴.'],
+    'compare.beforeAlt': ['夜のオフィスで、外注先と電話しながら頭を抱えている人', 'Someone on the phone to their agency at night, head in hand', '밤 사무실에서 외주처와 통화하며 머리를 감싸 쥔 사람'],
+    'compare.afterAlt': ['片付いた机で、エルピーヤを開いたパソコンをワンクリックして笑っている人', 'Someone smiling after a single click in Elpiya at a clear desk', '정리된 책상에서 엘피야를 원클릭하고 웃고 있는 사람'],
     'compare.imageAlt': ['エルピーヤで作ったクラウドファンディングLPを開いているところ', 'A crowdfunding landing page made with Elpiya, open on a laptop', '엘피야로 만든 크라우드펀딩 상세페이지를 열어 둔 모습'],
     'compare.note': ['外注の金額は一般的な相場です。エルピーヤの所要時間は実測の中央値で、商品や競合の数によって前後します。', 'Outsourcing figures are typical market rates. Our turnaround is a measured median and varies with the product and the number of competitors.', '외주 금액은 일반적인 시세입니다. 소요 시간은 실측 중앙값이며 상품과 경쟁사 수에 따라 달라집니다.'],
 
