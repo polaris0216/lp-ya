@@ -1014,7 +1014,7 @@ a.card:active,
 .app-subhead--tabs {
   align-items: stretch;
   padding-bottom: 0;
-  min-height: 52px;
+  min-height: 68px;
 }
 
 /* 工程の耳が出ているときは戻る矢印を出さない。
@@ -1023,6 +1023,37 @@ a.card:active,
 .app-subhead--tabs .app-header__back { display: none; }
 
 .wtabs::-webkit-scrollbar { height: 0; }
+
+/* 6つの耳を、やることで3つに括る（2026-10-30 要望）。
+   括りの名前を耳の上に出し、括りごとに下地で囲う。
+   横に6つ並んでいるだけだと、どこまでが「調べる」でどこからが「作る」なのか
+   読み取れなかった。ポイントの支払いもこの括りで分ける */
+.wtabs__group {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 3px 5px 0;
+  border-radius: 12px 12px 0 0;
+  background: color-mix(in srgb, var(--c-line) 28%, transparent);
+}
+.wtabs__group--here { background: color-mix(in srgb, var(--c-sub) 16%, transparent); }
+.wtabs__gname {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  color: var(--c-text-sub); white-space: nowrap;
+}
+.wtabs__group--here .wtabs__gname { color: var(--c-sub); }
+.wtabs__gno {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--c-text-sub); color: var(--c-white);
+  font-size: 9px; line-height: 1;
+}
+.wtabs__group--here .wtabs__gno { background: var(--c-sub); }
+.wtabs__grow { display: flex; align-items: flex-end; gap: 4px; }
+/* 括りの中では、耳は上の余白を持たない（括りの下地が余白を持つ） */
+.wtabs__group .wtabs__item { margin-top: 0; }
+
 
 .wtabs__item {
   display: inline-flex;
@@ -1092,6 +1123,9 @@ a.card:active,
   .wtabs__item { padding: 8px 10px; }
   .wtabs__label { display: none; }
   .wtabs__item--active .wtabs__label { display: inline; }
+  /* 括りの名前は、畳んだときこそ要る。文字が消えた耳を括りが説明する */
+  .wtabs__gtext { font-size: 9px; }
+  .wtabs__group { padding: 3px 3px 0; }
 }
 
 /* 生成待ちの素材（S13）。1行に何枚も並べて見比べる */

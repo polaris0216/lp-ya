@@ -127,15 +127,28 @@
      競合LPのURLも結果の指定も商品入力（S4）で入れられるようになり、
      あの画面を開く理由が無くなったため。画面そのものは残してあるが、
      開くと商品入力へ送る */
+  /* 6つの工程は、やることで3つに括れる（2026-10-30 要望）。
+     耳が6つ横に並んでいるだけだと、どこまでが「調べる」でどこからが
+     「作る」なのかが読み取れない。括りの名前を耳の上に出し、
+     括りごとに囲う。ポイントの支払いもこの括りで分ける。
+       ① 調べる … 商品入力・競合分析結果・販売戦略分析結果
+       ② 作る   … LP作成・LP登録確認
+       ③ 届ける … LINEコンテンツ */
+  var WORKFLOW_GROUPS = [
+    { no: 1, key: 'wfg.research' },
+    { no: 2, key: 'wfg.build' },
+    { no: 3, key: 'wfg.deliver' }
+  ];
+
   var WORKFLOW = [
-    { id: 'S4', labelKey: 'wf.input' },
-    { id: 'S11', labelKey: 'wf.report' },
-    { id: 'S20', labelKey: 'wf.overall' },
-    { id: 'S12', labelKey: 'wf.prompt' },
-    { id: 'S13', labelKey: 'wf.result' },
+    { id: 'S4', labelKey: 'wf.input', group: 1 },
+    { id: 'S11', labelKey: 'wf.report', group: 1 },
+    { id: 'S20', labelKey: 'wf.overall', group: 1 },
+    { id: 'S12', labelKey: 'wf.prompt', group: 2 },
+    { id: 'S13', labelKey: 'wf.result', group: 2 },
     /* 生成結果の次。LINE公式アカウントで使う絵と文章を作る工程
        （2026-10-15 要望）。LPが出来てからでないと口調がそろわないので、最後 */
-    { id: 'S21', labelKey: 'wf.line' }
+    { id: 'S21', labelKey: 'wf.line', group: 3 }
   ];
 
   /* 下層の画面にいるときも、どの工程の中にいるのかを示す。
@@ -155,6 +168,9 @@
       'common.back': '戻る',
       'wf.overall': '販売戦略分析結果',
       'wf.input': '商品入力',
+      'wfg.research': '調べる',
+      'wfg.build': '作る',
+      'wfg.deliver': '届ける',
       'wf.competitor': '競合LP分析',
       'wf.report': '競合分析結果',
       'wf.prompt': 'LP作成',
@@ -1669,24 +1685,45 @@
     setSubheadTabs(true);
     host.setAttribute('aria-label', t('common.mainNav'));
 
-    WORKFLOW.forEach(function (step, index) {
-      var active = step.id === here;
-      var tab = el('button', {
-        type: 'button',
-        class: 'wtabs__item' + (active ? ' wtabs__item--active' : '')
-          + (step.pending ? ' wtabs__item--pending' : ''),
-        'aria-current': active ? 'step' : null,
-        'aria-disabled': step.pending ? 'true' : null,
-        disabled: step.pending ? true : null,
-        title: step.pending ? t('wf.pending') : null
+    /* 括りごとに囲って、括りの名前を耳の上に出す。
+       番号は通し番号のまま（1〜6）。括りで振り直すと、画面の中で
+       「④LP作成」と呼んでいるものと食い違う */
+    WORKFLOW_GROUPS.forEach(function (g) {
+      var steps = WORKFLOW.filter(function (x) { return x.group === g.no; });
+      if (!steps.length) { return; }
+      var inHere = steps.some(function (x) { return x.id === here; });
+      var box = el('div', {
+        class: 'wtabs__group' + (inHere ? ' wtabs__group--here' : ''),
+        'data-group': String(g.no)
       }, [
-        el('span', { class: 'wtabs__no' }, [String(index + 1)]),
-        el('span', { class: 'wtabs__label' }, [t(step.labelKey)])
+        el('span', { class: 'wtabs__gname' }, [
+          el('span', { class: 'wtabs__gno' }, [String(g.no)]),
+          el('span', { class: 'wtabs__gtext' }, [t(g.key)])
+        ])
       ]);
-      if (!active && !step.pending) {
-        tab.addEventListener('click', function () { navigate(step.id, { id: projectId }); });
-      }
-      host.appendChild(tab);
+      var row = el('div', { class: 'wtabs__grow' }, []);
+      steps.forEach(function (step) {
+        var index = WORKFLOW.indexOf(step);
+        var active = step.id === here;
+        var tab = el('button', {
+          type: 'button',
+          class: 'wtabs__item' + (active ? ' wtabs__item--active' : '')
+            + (step.pending ? ' wtabs__item--pending' : ''),
+          'aria-current': active ? 'step' : null,
+          'aria-disabled': step.pending ? 'true' : null,
+          disabled: step.pending ? true : null,
+          title: step.pending ? t('wf.pending') : null
+        }, [
+          el('span', { class: 'wtabs__no' }, [String(index + 1)]),
+          el('span', { class: 'wtabs__label' }, [t(step.labelKey)])
+        ]);
+        if (!active && !step.pending) {
+          tab.addEventListener('click', function () { navigate(step.id, { id: projectId }); });
+        }
+        row.appendChild(tab);
+      });
+      box.appendChild(row);
+      host.appendChild(box);
     });
   }
 

@@ -392,6 +392,11 @@
     'wf.competitor': ['競合LP分析', 'Competitors', '경쟁 LP 분석'],
     'wf.report': ['競合分析結果', 'Competitor findings', '경쟁 분석 결과'],
     'wf.overall': ['販売戦略分析結果', 'Sales strategy', '판매 전략 분석 결과'],
+    /* 6工程の括り（2026-10-30）。耳の上に出す。
+       ①調べる ②作る ③届ける。ポイントの支払いもこの括りで分ける */
+    'wfg.research': ['調べる', 'Research', '조사'],
+    'wfg.build': ['作る', 'Build', '제작'],
+    'wfg.deliver': ['届ける', 'Deliver', '전달'],
     'wf.prompt': ['LP作成', 'Build the LP', 'LP 만들기'],
     'wf.result': ['LP登録確認', 'Check the LP', 'LP 등록 확인'],
     'wf.line': ['LINEコンテンツ', 'LINE content', 'LINE 콘텐츠'],
