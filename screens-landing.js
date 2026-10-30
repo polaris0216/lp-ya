@@ -47,10 +47,13 @@
   /* 外注との比較。左が外注、右がエルピーヤ。行は3つだけに絞る
      （費用・納期・何をもとに作るか）。増やすと表になって読まれなくなる */
   var COMPARE = [
-    { row: 'compare.rowCost', old: 'compare.oldCost', now: 'compare.newCost' },
-    { row: 'compare.rowTime', old: 'compare.oldTime', now: 'compare.newTime' },
+    { row: 'compare.rowCost', old: 'compare.oldCost', now: 'compare.newCost', big: true },
+    { row: 'compare.rowTime', old: 'compare.oldTime', now: 'compare.newTime', big: true },
     { row: 'compare.rowHow', old: 'compare.oldHow', now: 'compare.newHow' }
   ];
+
+  /* 比較の下に置く絵。ブラウザのChatGPTで作って lp-ya/assets/ に置いたもの */
+  var COMPARE_IMAGE = 'assets/compare.webp';
 
   var STEPS = ['landing.step1', 'landing.step2', 'landing.step3'];
 
@@ -181,7 +184,7 @@
 
   /* --- 外注との比較：左右2列。右（エルピーヤ）だけ地を変えて立たせる --- */
   function buildCompare() {
-    var section = buildSection('compare.title', 'compare.desc', 'lp-section--left');
+    var section = buildSection('compare.title', 'compare.desc');
     var table = el('div', 'lp-vs');
 
     var head = el('div', 'lp-vs__head');
@@ -197,7 +200,7 @@
       /* 狭い画面では見出しの行を消すので、どちらの話かを各セルに持たせる */
       oldCell.setAttribute('data-label', t('compare.colOld'));
       lines(oldCell, t(one.old));
-      var nowCell = row.appendChild(el('span', 'lp-vs__now'));
+      var nowCell = row.appendChild(el('span', 'lp-vs__now' + (one.big ? ' lp-vs__now--big' : '')));
       nowCell.setAttribute('data-label', t('compare.colNew'));
       lines(nowCell, t(one.now));
       table.appendChild(row);
@@ -205,6 +208,17 @@
 
     section.appendChild(table);
     section.appendChild(el('p', 'lp-vs__note', t('compare.note')));
+
+    /* 絵は飾りではなく「1時間でここまで出る」の証拠として置く。
+       読み込めない環境では黙って消す（帯ごと崩さない） */
+    var shot = el('img', 'lp-vs__shot');
+    shot.src = COMPARE_IMAGE;
+    shot.alt = t('compare.imageAlt');
+    shot.loading = 'lazy';
+    shot.decoding = 'async';
+    shot.addEventListener('error', function () { shot.remove(); });
+    section.appendChild(shot);
+
     return section;
   }
 

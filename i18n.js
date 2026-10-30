@@ -147,6 +147,7 @@
     'compare.rowHow': ['何をもとに作るか', 'What it is built on', '무엇을 근거로 만드는가'],
     'compare.oldHow': ['打ち合わせの内容と、担当者の経験', 'The brief, plus the designer\u2019s own experience', '미팅 내용과 담당자의 경험'],
     'compare.newHow': ['売れた競合LPと海外の元データ、最大5つのターゲット層の分析', 'Competitor pages that sold, the overseas original, and up to five target segments', '팔린 경쟁 상세페이지와 해외 원본, 최대 5개 타깃층 분석'],
+    'compare.imageAlt': ['エルピーヤで作ったクラウドファンディングLPを開いているところ', 'A crowdfunding landing page made with Elpiya, open on a laptop', '엘피야로 만든 크라우드펀딩 상세페이지를 열어 둔 모습'],
     'compare.note': ['外注の金額は一般的な相場です。エルピーヤの所要時間は実測の中央値で、商品や競合の数によって前後します。', 'Outsourcing figures are typical market rates. Our turnaround is a measured median and varies with the product and the number of competitors.', '외주 금액은 일반적인 시세입니다. 소요 시간은 실측 중앙값이며 상품과 경쟁사 수에 따라 달라집니다.'],
 
     'landing.stepsLabel': ['使い方', 'How it works', '사용법'],

@@ -3364,16 +3364,17 @@ input[type='radio'] {
   color: var(--c-text-sub);
 }
 
-/* --- 外注との比較。表の罫線は引かず、列の地の違いだけで分ける --- */
+/* --- 外注との比較。沈んだ地の上に、エルピーヤの列だけを白く浮かせる --- */
 .lp-vs {
   display: grid;
-  grid-template-columns: minmax(96px, 11em) 1fr 1fr;
+  grid-template-columns: minmax(96px, 11em) 1fr 1.1fr;
   width: 100%;
-  max-width: 880px;
-  margin: 24px 0 0;
+  max-width: 900px;
+  margin: 28px auto 0;
+  padding: 8px;
   border-radius: var(--r-card);
-  overflow: hidden;
-  background: var(--c-surface);
+  background: var(--c-surface-3);
+  text-align: left;
 }
 
 .lp-vs__head,
@@ -3383,72 +3384,112 @@ input[type='radio'] {
   grid-template-columns: subgrid;
 }
 
-.lp-vs__row + .lp-vs__row,
-.lp-vs__head + .lp-vs__row { border-top: 1px solid var(--c-line-soft); }
-
 .lp-vs__corner,
 .lp-vs__col,
 .lp-vs__key,
 .lp-vs__old,
 .lp-vs__now {
-  padding: 14px 18px;
+  padding: 18px 22px;
 }
 
 .lp-vs__col {
-  font-size: var(--fs-note);
+  font-size: var(--fs-body);
   font-weight: var(--fw-bold);
   color: var(--c-text-sub);
 }
 
-/* エルピーヤの列だけ、上から下までひと続きの地にする。
-   行ごとに塗ると縞に見えて、列として読めない */
+/* エルピーヤの列。白く浮かせて、上下の端だけ丸める。
+   行ごとに塗ると縞に見えて1本の列として読めないので、地は通しで白 */
 .lp-vs__col--now,
 .lp-vs__now {
-  background: var(--grad-soft), var(--c-surface);
-  color: var(--c-text);
+  background: var(--c-surface);
+  box-shadow: 0 1px 2px rgba(80, 60, 120, .06);
 }
 
-.lp-vs__col--now { color: var(--c-main-press); }
+.lp-vs__col--now {
+  border-radius: var(--r-control) var(--r-control) 0 0;
+  color: var(--c-main-press);
+}
+
+.lp-vs__row:last-child .lp-vs__now {
+  border-radius: 0 0 var(--r-control) var(--r-control);
+  box-shadow: 0 2px 6px rgba(80, 60, 120, .08);
+}
 
 .lp-vs__key {
-  font-size: var(--fs-note);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
   color: var(--c-text-sub);
 }
 
 .lp-vs__old {
-  font-size: var(--fs-note);
+  font-size: var(--fs-body);
   line-height: 1.8;
   color: var(--c-text-sub);
 }
 
 .lp-vs__now {
-  font-size: var(--fs-body);
-  font-weight: var(--fw-medium);
-  line-height: 1.75;
+  font-size: var(--fs-sub);
+  font-weight: var(--fw-semi);
+  line-height: 1.7;
+  color: var(--c-text);
+}
+
+/* 費用と納期は短く強い事実。ここだけ数字として大きく出す */
+.lp-vs__now--big {
+  font-family: var(--font-title);
+  font-size: 26px;
+  font-weight: var(--fw-bold);
+  letter-spacing: -.02em;
+  line-height: 1.35;
+  color: var(--c-main-press);
+  font-variant-numeric: tabular-nums;
 }
 
 .lp-vs__note {
-  margin: 10px 0 0;
-  max-width: 880px;
+  margin: 12px auto 0;
+  max-width: 900px;
   font-size: var(--fs-note);
   line-height: 1.7;
   color: var(--c-text-mute);
 }
 
+/* 比較のあとに置く絵。飾りではなく「1時間でここまで出る」の証拠 */
+.lp-vs__shot {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  margin: 28px auto 0;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--r-card);
+  border: 1px solid var(--c-line);
+}
+
 /* 狭い画面では3列に割れない。見出しの行を消して、
    「項目 → 外注 → エルピーヤ」の縦並びにする */
 @media (max-width: 720px) {
-  .lp-vs { grid-template-columns: 1fr; }
+  .lp-vs {
+    grid-template-columns: 1fr;
+    padding: 6px;
+  }
   .lp-vs__head { display: none; }
-  .lp-vs__row { display: block; padding: 14px 16px; }
+  .lp-vs__row { display: block; padding: 16px; }
   .lp-vs__row + .lp-vs__row { border-top: 1px solid var(--c-line-soft); }
   .lp-vs__key,
   .lp-vs__old,
   .lp-vs__now { display: block; padding: 0; }
   .lp-vs__key { font-weight: var(--fw-bold); color: var(--c-text); }
   .lp-vs__old,
-  .lp-vs__now { padding: 8px 12px; margin-top: 6px; border-radius: var(--r-control); }
-  .lp-vs__old { background: var(--c-surface-3); }
+  .lp-vs__now {
+    padding: 10px 14px;
+    margin-top: 8px;
+    border-radius: var(--r-control);
+  }
+  .lp-vs__old { background: var(--c-surface-3); box-shadow: none; }
+  .lp-vs__now,
+  .lp-vs__row:last-child .lp-vs__now { border-radius: var(--r-control); }
+  .lp-vs__now--big { font-size: 24px; }
   /* 狭い画面では列が無いので、どちらの話か分かるように頭に名前を出す */
   .lp-vs__old::before,
   .lp-vs__now::before {
