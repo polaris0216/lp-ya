@@ -414,7 +414,9 @@
   }
 
   function showErrorScreen(root, message, onRetry) {
-    showBanner(message, onRetry);
+    /* バナーは出さない。この下で同じ文と同じ「再試行」を本文に出すので、
+       2つ並ぶと「別々の失敗が2件あった」ように読める（2026-10-30） */
+    clearBanner();
     clear(root);
     var wrap = el('div', 'screen');
     var empty = el('div', 'empty');
