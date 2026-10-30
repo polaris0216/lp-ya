@@ -128,7 +128,7 @@
     validation: '入力内容に誤りがあります。項目を確認して、もう一度お試しください。',
     server: 'サーバーでエラーが発生しました。時間をおいて、もう一度お試しください。',
     parse: 'サーバーからの応答を読み取れませんでした。もう一度お試しください。',
-    insufficient: 'クレジットが不足しています。チャージしてから、もう一度お試しください。',
+    insufficient: 'ポイントが足りません。ポイントの画面で足してから、もう一度お試しください。',
     invalidLogin: 'メールアドレスまたはパスワードが違います。',
     emailTaken: 'このメールアドレスはすでに登録されています。ログインしてください。',
     weakPassword: 'パスワードは6文字以上で入力してください。',
@@ -199,6 +199,10 @@
       var lack = new ApiError('insufficient', status, text);
       lack.balance = Number(parts[1]) || 0;
       lack.shortage = Number(parts[2]) || 0;
+      /* いくら足りないのかを文にのせる。「不足しています」だけだと、
+         いくら足せばよいのか画面から分からない（2026-10-30） */
+      lack.message = 'ポイントが足りません（残高 ' + lack.balance
+        + 'P / あと ' + lack.shortage + 'P 必要）。ポイントの画面で足してください。';
       return lack;
     }
     // 'unauthorized' / 'notfound' / 'couponExpired' など、そのままコードになるもの

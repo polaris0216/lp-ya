@@ -4717,6 +4717,18 @@ input[type='radio'] {
   font-size: 15px; font-weight: 700;
 }
 
+/* AIを使うボタンに出す値段の札（2026-10-30 要望）。
+   押す指の先に金額があるようにする。説明文まで読ませない */
+.btn__pt {
+  display: inline-flex; align-items: center;
+  margin-left: 8px; padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 11px; font-weight: 700; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.btn--primary .btn__pt { background: rgba(255,255,255,.26); }
+
 /* 販売ページの公開 */
 .lp-pub__url { margin: 6px 0 0; font-size: 13px; color: var(--c-text-sub, #666); word-break: break-all; }
 .lp-pub__row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

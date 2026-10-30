@@ -1090,6 +1090,11 @@
       registerRow = el('div', 'lp-toolbar');
       registerBtn = button('btn btn--secondary', t('s4.registerShots'), registerShots);
       registerBtn.title = t('s4.registerShotsHint');
+      /* 切り抜きもAIを使うので値段を出す。☆の枚数ぶん走る */
+      if (window.LpyaCost) {
+        window.LpyaCost.stamp(registerBtn, 'product_cutouts',
+          Math.max(1, form.productShots.length));
+      }
       registerRow.appendChild(registerBtn);
       /* 手で☆を付けたあとでも、AIに付け直させられる口。
          一度でも手で触ると shots_by='human' が立ち、AIは触らなくなるので、
@@ -1451,6 +1456,8 @@
         input.setAttribute('placeholder', 'https://');
         input.setAttribute('aria-label', t('product.refUrl') + ' ' + (index + 1));
         input.addEventListener('input', function () { form.refUrls[index] = input.value; });
+        /* URLを入れた／消したら、ボタンの値段を出し直す */
+        input.addEventListener('blur', stampRunCost);
         row.appendChild(input);
         var remove = button('btn btn--text', t('common.delete'), function () {
           form.refUrls.splice(index, 1);
@@ -1460,6 +1467,7 @@
         row.appendChild(remove);
         refHost.appendChild(row);
       });
+      stampRunCost();
     }
 
     /* 1件ぶんを { url, outcome } の形にそろえる */
@@ -1549,6 +1557,20 @@
         rivalNote.textContent = t('product.rivalCount',
           { n: filledRivalUrls().length, max: MAX_RIVALS });
       }
+      stampRunCost();
+    }
+
+    /* 「AI自動分析」は1回押すと3本続けて走る（商品の読み取り → 競合分析 →
+       ターゲットの提案）。押す前に出すのは、その3本を足した額
+       （2026-10-30 要望）。URLを足すたびに数が変わるので、描き直すたびに出し直す */
+    function stampRunCost() {
+      if (!refRunButton || !window.LpyaCost || typeof window.LpyaCost.stampSum !== 'function') { return; }
+      var parts = [];
+      if (filledRefUrls().length) { parts.push(['product_autofill', 1]); }
+      var rivals = filledRivalUrls().length;
+      if (rivals) { parts.push(['competitor_analysis', rivals]); }
+      parts.push(['target_proposal', 1]);
+      window.LpyaCost.stampSum(refRunButton, parts);
     }
 
     /* 入れた競合LP。空行・重複・形のおかしいURLは落とす */

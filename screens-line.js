@@ -618,6 +618,7 @@
            （実測 2026-10-18） */
         queue('line_brief', view.brief ? { generation_id: view.brief.id } : {}, 'line.briefDone', mk);
       });
+      if (window.LpyaCost) { window.LpyaCost.stamp(mk, 'line_brief', 1); }
       add(box, mk);
       /* 押しても絵が出ない、と受け取られた（2026-10-15）。
          このボタンが何をするボタンなのかを、すぐ下に書く */
@@ -810,6 +811,14 @@
           paint();
         });
       });
+      /* LINEの絵も lp_section の仕組みで作る。値段はその枚数ぶん
+         （2026-10-30 要望：AIを使うボタンには必ず値段を出す） */
+      if (window.LpyaCost) {
+        window.LpyaCost.stamp(all, 'lp_section', names.reduce(function (n, L) {
+          var g = view.layers[L];
+          return n + ((g && isArray(g.sections)) ? g.sections.length : 0);
+        }, 0));
+      }
       add(box, all);
       /* 押す前に、どれくらい待つかと、いくらかを出す（2026-10-25）。
          実測では絵づくりが中央値9分・上位10%で106分と幅が大きい。
@@ -819,13 +828,7 @@
         var eta = window.LpyaJobEta.hint('lp_section', t);
         if (eta) { add(box, el('p', 'field__hint', eta)); }
       }
-      if (window.LpyaCost) {
-        var sheets = names.reduce(function (n, L) {
-          var g = view.layers[L];
-          return n + ((g && isArray(g.sections)) ? g.sections.length : 0);
-        }, 0);
-        window.LpyaCost.attach(box, 'line_contents', { t: t, count: sheets });
-      }
+
       var grid = el('div', 'line-grid');
       view.brief.sections.forEach(function (sec) {
         var slot = String(sec.index) + '-1';
@@ -951,6 +954,7 @@
               sections: [sec.index], force: !!url },
             'line.briefDone', b);
         });
+        if (window.LpyaCost) { window.LpyaCost.stamp(b, 'lp_section', 1); }
         add(card, b);
         add(grid, card);
       });
@@ -1030,6 +1034,7 @@
       var b = button('btn btn--secondary', has ? tl('line.remakeText') : tl('line.makeText'), function () {
         queue('line_copy', {}, 'line.copied', b);
       });
+      if (window.LpyaCost) { window.LpyaCost.stamp(b, 'line_copy', 1); }
       add(box, b);
       if (!has) { add(box, el('p', 'empty', tl('line.noText'))); return; }
       var list = el('div', 'line-texts');

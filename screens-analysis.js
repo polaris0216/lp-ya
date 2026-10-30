@@ -2764,8 +2764,10 @@
       });
       if (report && report.id && urls.length) {
         var actions = el('div', 'lp-toolbar');
-        add(actions, button('btn btn--primary btn--sm', t('s11.errorRetry', { n: urls.length }),
-          function (ev) { retryCollection(ev.currentTarget, report, urls); }));
+        var retryBtn = button('btn btn--primary btn--sm', t('s11.errorRetry', { n: urls.length }),
+          function (ev) { retryCollection(ev.currentTarget, report, urls); });
+        if (window.LpyaCost) { window.LpyaCost.stamp(retryBtn, 'competitor_analysis', urls.length); }
+        add(actions, retryBtn);
         add(actions, el('span', 't-note', t('s11.errorRetryHint')));
         add(section, actions);
       }
@@ -3020,6 +3022,19 @@
         var lpBtn = button('btn btn--primary btn--block', t('ov.makeLp'), function () {
           startLpDraft(lpBtn, report);
         });
+        /* AIを使うボタンには値段を出す（2026-10-30 要望）。
+           ターゲット層の数ぶん、1層に1本ずつ書く */
+        if (window.LpyaCost) {
+          /* 値段はターゲット層の数で変わる。プロジェクトはこの画面では
+             読んでいないので、ここで取ってから出し直す（取れなければ1層ぶん） */
+          window.LpyaCost.stamp(lpBtn, 'lp_brief', 1);
+          if (window.Api && window.Api.projects && projectId) {
+            window.Api.projects.get(projectId).then(function (pj) {
+              var n = (pj && Array.isArray(pj.targets)) ? pj.targets.length : 0;
+              window.LpyaCost.stamp(lpBtn, 'lp_brief', Math.max(1, n));
+            }).catch(function () {});
+          }
+        }
         add(actions, lpBtn);
         add(actions, el('p', 't-note', t('ov.makeLpHint')));
 

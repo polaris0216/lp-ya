@@ -858,6 +858,9 @@
         var one = button('btn btn--secondary', t('lp.genOne'), function () { generate(null); });
         one.title = t('lp.genOneHint');
         one.disabled = !mineLeft || anyBusy;
+        /* AIを使うボタンには値段を出す（2026-10-30 要望）。
+           払うのはDBの引き金（055）。ここは知らせるためだけ */
+        stampCost(one, 'lp_section', mineLeft);
         add(toolbar, one);
 
         var oneRedo = button('btn btn--secondary', t('lp.genOneRedo'), function () {
@@ -866,6 +869,7 @@
         });
         oneRedo.title = t('lp.genOneRedoHint');
         oneRedo.disabled = anyBusy;
+        stampCost(oneRedo, 'lp_section', (view.gen.sections || []).length);
         add(toolbar, oneRedo);
 
         var all = button('btn btn--primary lp-bulk__btn',
@@ -890,10 +894,14 @@
         /* 静止画は lp_section（OpenAI の画面）、動く絵は lp_assets（Replicate の
            seedance-2.5）と作る先が別なので、ボタンも分ける。
            押したときの案を指すので、層を切り替えてから押せばその層ぶんが作られる */
-        add(toolbar, button('btn btn--secondary', t('lp.makeAssets'), function (e) {
+        var motionBtn = button('btn btn--secondary', t('lp.makeAssets'), function (e) {
           startAssets(e.currentTarget);
-        }));
+        });
+        stampCost(motionBtn, 'lp_assets', motionSlots().length);
+        add(toolbar, motionBtn);
         all.title = t('lp.genAllHint');
+        stampCost(all, 'lp_section', remaining);
+        stampCost(allRedo, 'lp_section', batchPlan.reduce(function (x, y) { return x + y.all; }, 0));
         add(bulkBar, all);
         add(bulkBar, allRedo);
         /* 全部ではなく、選んだターゲットだけ作る口（2026-10-29 要望）。
@@ -1421,6 +1429,7 @@
             generate(sec.index);
           });
           b.disabled = busy;
+          stampCost(b, 'lp_section', 1);
           add(row, b);
         }
         add(row, button('btn btn--secondary btn--sm', t('lp.copy'), function () { copyText(String(sec.prompt || '')); }));
@@ -1452,6 +1461,7 @@
             mbusy ? t('lp.motionRunning') : t(moving ? 'lp.motionRedo' : 'lp.motionMake'),
             function () { generateMotion(sec.index, !!moving); });
           mb.disabled = mbusy;
+          stampCost(mb, 'lp_assets', 1);
           add(mrow, mb);
           add(det, mrow);
 
@@ -1573,6 +1583,21 @@
         big.alt = '';
         add(box, big);
         App.openModal(box);
+      }
+
+      /* まとめて動かすと、絵がある区画ぶん走る。値段を出すのに数える */
+      function motionSlots() {
+        var made = (view.gen && view.gen.asset_prompts && view.gen.asset_prompts.made) || {};
+        return ((view.gen && view.gen.sections) || []).filter(function (sec) {
+          return !!made[String(sec.index) + '-1'];
+        });
+      }
+
+      /* 値段の札。単価表が読めていないあいだは何も出さない */
+      function stampCost(btn, featureKey, units) {
+        if (window.LpyaCost && typeof window.LpyaCost.stamp === 'function') {
+          window.LpyaCost.stamp(btn, featureKey, units);
+        }
       }
 
       /* 区画を1つだけ動かす。全部まとめる方（startAssets）と同じ仕事だが、
@@ -2016,9 +2041,11 @@
         add(row, button('btn btn--secondary', t('lp.pubSave'), function (e) {
           savePublishSettings(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), termsValue(), leadMode());
         }));
-        add(row, button('btn btn--secondary', t('lp.pubWrite'), function (e) {
+        var writeBtn = button('btn btn--secondary', t('lp.pubWrite'), function (e) {
           writeSalesCopy(e.currentTarget, slugify(slugIn.value), lineIn.value.trim(), termsValue(), leadMode());
-        }));
+        });
+        stampCost(writeBtn, 'sales_copy', 1);
+        add(row, writeBtn);
         /* 公開できるのは、絵のある LP だけ */
         var ready = sameBatch().filter(function (g) {
           return g.feature_key === 'lp_brief' && doneOf(g) > 0;
@@ -2200,6 +2227,7 @@
         var was = node.textContent;
         node.disabled = true;
         node.textContent = t('lp.pubWriting');
+        /* 札はここで消える（textContent を入れ替えるため）。描き直しで戻る */
         var patch = { shop_slug: slug || null, line_url: line || null, lead_mode: mode || 'line' };
         if (terms) { patch.sales_info = Object.keys(terms).length ? terms : null; }
         Api.projects.update(projectId, patch).catch(function () { /* 保存できなくても進める */ })
@@ -2611,6 +2639,9 @@
         });
         go.title = t('lp.genPickedHint');
         go.disabled = !picked.length || anyBusy;
+        stampCost(go, 'lp_section', rows.filter(function (g) {
+          return picked.indexOf(String(g.variant_label || '-')) !== -1;
+        }).reduce(function (n, g) { return n + missingOf(g).length; }, 0));
         add(wrap, go);
         add(wrap, el('p', 'lp-bulk__note', t('lp.genPickedHint')));
         return wrap;
