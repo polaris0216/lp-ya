@@ -30,12 +30,18 @@
 
   var HERO_VIDEO = 'hero-bg.mp4';
 
-  /* ヒーロー直下に出す掲載先。ロゴの実体は platform-logos.js（assets/platform から生成） */
+  /* ヒーロー直下に出す掲載先。ロゴの実体は platform-logos.js（assets/platform から生成）。
+     国内4つのあとに海外・韓国を続ける。ロゴが無いものは buildProof が黙って飛ばすので、
+     素材が揃っていない行をここに書いても画面は壊れない。
+     商品入力のKVプリセットと URL の言語判定も同じ顔ぶれ（screens-home.js） */
   var PLATFORMS = [
     { id: 'makuake', name: 'Makuake' },
     { id: 'campfire', name: 'CAMPFIRE' },
     { id: 'greenfunding', name: 'GREENFUNDING' },
-    { id: 'machiya', name: 'Machi-ya' }
+    { id: 'machiya', name: 'Machi-ya' },
+    { id: 'kickstarter', name: 'Kickstarter' },
+    { id: 'indiegogo', name: 'Indiegogo' },
+    { id: 'wadiz', name: 'Wadiz' }
   ];
 
   var STEPS = ['landing.step1', 'landing.step2', 'landing.step3'];
@@ -141,6 +147,9 @@
       var img = el('img', 'lp-proof__logo');
       img.src = logo.src;
       img.alt = platform.name;
+      /* 大きさの光学補正をCSS側でやるため、どの社かを持たせる。
+         色を変える加工は各社の条件で禁じられているので、できるのは大きさだけ */
+      img.setAttribute('data-platform', platform.id);
       img.loading = 'lazy';
       img.decoding = 'async';
       row.appendChild(img);

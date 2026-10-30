@@ -58,6 +58,67 @@
 - 注意: greenfunding と同じ。**配布ページと使用条件の文書は見つかっていない**
   （運営はメディアジーン、掲載は CAMPFIRE 上）。同じく利用者の判断で登録した。
 
+## kickstarter.png
+
+- 元: `kickstarter-brand-assets/kickstarter-logo-green.png`（960×102）そのまま
+- 出どころ: Kickstarter「Brand assets」 https://www.kickstarter.com/help/brand_assets
+  → 《Download wordmarks and logos》
+  https://d3mlfyygrfdi2i.cloudfront.net/63qxg36f-kickstarter-brand-assets.zip
+  （ログイン不要で配布されている）
+- 取得日: 2026-10-30
+- 条件（ページに明記）:
+  - ブランドガイドラインを守るかぎり、**事前の許諾なしに使ってよい**
+  - Kickstarter が作った・推奨していると**誤解させる使い方はできない**
+  - サイトが Kickstarter の運営だと**誤解させる使い方はできない**
+  - 「引き伸ばす・つぶす・重ねる・装飾する・歪める」等の**改変はできない**
+  - ドメイン名への使用など、上記以外の用途は書面の許可が要る
+- 白地に置くので緑版（#05CE78）。濃い地に置くときは同じZIPの白版へ差し替える
+
+## indiegogo.svg
+
+- 元: `igg_pink.svg`（373×54、Gogenta #E51075）そのまま
+- 出どころ: Indiegogoヘルプ「Using Official Badges and Logos for Social Media」
+  https://help.indiegogo.com/article/684-using-official-badges-and-logos-for-social-media
+  → 《Download logos》（運営の Gamefound が SharePoint で配布。ログイン不要の共有リンク）
+  https://gamefound.sharepoint.com/sites/marketing/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2Fmarketing%2FShared%20Documents%2FGamefound%20Internal%2FIGG%2FHelp%5FIGG%2FLOGO%5FIGG
+- 取得日: 2026-10-30
+- 条件（ヘルプに明記）:
+  - **ロゴを改変しない**（色・比率など）
+  - 周囲に**ロゴの高さの1/2**の余白を取る
+  - どこに置いてもコントラストと可読性を確保する
+  - 白・明るい地では Gogenta（主）か Dark Purple（副）。色地では白版のみ
+  - 小さくて読めないときは ® を省いてよい（ヘルプの明記）
+- 注意: この共有リンクは `curl` では 403 になる。ブラウザからなら開ける。
+  差し替えるときは普通のブラウザで `igg_pink.svg` を落とすこと
+
+## wadiz.png（白地を透過にしたもの）
+
+- 元: 利用者が用意した 340×120 の PNG（黒一色・白地・透過なし）。
+  ワディズのワードマークをそのまま写したもので、描き起こしではない
+- 取得日: 2026-10-30
+- **この1枚だけ加工している。** 他社の素材は配布物をそのまま置いているが、
+  これは白い紙に印刷された状態だったので、次の2つだけ行った:
+  1. 文字の外接矩形で切る（まわりの白い余白を落とす。340×100 になった）。
+     **純白でない画素を全部含める**こと。しきい値で切るとアンチエイリアスの端が
+     落ちて素材が痩せる（実測: 1px足りず 339px になり、素材は340px以上という
+     決まり〈tools/sales-page-selftest.mjs〉に引っかかった）
+  2. 白地を透過にする。白地に黒なので、明るさをそのまま不透明度の裏返しに
+     使える（輝度Lの画素 → 黒・不透明度 255-L）。
+     **形も比率も色も変えていない。** 白地に戻すと元と一致する
+     （実測: 最大差 5/255。これは元のアンチエイリアスの僅かな色味が
+     黒＋不透明度に潰れるぶん）
+  - 加工の理由: ページの地は `--c-bg`（#F7F6FA）で純白ではないので、
+    白地のまま置くと薄い四角が見える
+- **注意: 公式に配布されているロゴ素材ではない。**
+  2026-10-30 時点で、ワディズにロゴの配布ページは存在しない。
+  wadiz.kr は自動アクセスを遮断していて（403）、サイトの素材も取れない。
+  greenfunding・machiya と同じく、**利用者の判断で登録した**。
+  配布と使用条件の文書が出てきたら、ここに書き足して必要なら差し替えること
+- **使っていない素材**: ネット上には第三者が描き起こした「ワディズロゴ」の
+  配布（Naverブログ等）があるが、**描き直したものである上に
+  「영리적 사용 불가（営利利用不可）」のCCライセンスが付いている**ので使わない。
+  このアプリはポイント販売の営利サービスなので条件に合わない（2026-10-30 確認）
+
 ## campfire-koubyo.png / campfire-koubyo-tilt.png（配布素材を**改変**したもの）
 
 - 元: `campfire.png` の上段（社名）だけを切り出し、下に「好評公開中」を

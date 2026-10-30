@@ -3314,6 +3314,17 @@ input[type='radio'] {
   opacity: .78;
 }
 
+/* 光学補正。総大文字のワードマーク（Kickstarter・Indiegogo）は、
+   小文字や記号を含む他社と同じ高さにすると一回り大きく見える。
+   できるのは大きさだけ。各社の条件で色とデザインの加工は禁じられている
+   （グレースケールに揃えるのは規約違反になる） */
+.lp-proof__logo[data-platform='kickstarter'],
+.lp-proof__logo[data-platform='indiegogo'] { height: 17px; }
+
+/* wadiz は小文字だが、字面が高さいっぱいまで埋まる（下に伸びる字が無い）ので
+   総大文字と同じ扱いにする */
+.lp-proof__logo[data-platform='wadiz'] { height: 19px; }
+
 .lp-proof__note {
   margin: 0;
   font-size: var(--fs-note);
