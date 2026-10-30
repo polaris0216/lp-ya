@@ -243,21 +243,27 @@
 
     var head = el('div', 'lp-vs__head');
     head.appendChild(el('span', 'lp-vs__corner', ''));
-    head.appendChild(el('span', 'lp-vs__col', t('compare.colOld')));
-    head.appendChild(el('span', 'lp-vs__col lp-vs__col--now', t('compare.colNew')));
+    head.appendChild(el('span', 'lp-vs__col'))
+      .appendChild(el('span', 'lp-vs__in', t('compare.colOld')));
+    head.appendChild(el('span', 'lp-vs__col lp-vs__col--now'))
+      .appendChild(el('span', 'lp-vs__in', t('compare.colNew')));
     table.appendChild(head);
 
     COMPARE.forEach(function (one) {
       var row = el('div', 'lp-vs__row');
-      row.appendChild(el('span', 'lp-vs__key', t(one.row)));
+      /* セルの中身は必ず1つの包みに入れる。セルは grid で上下中央に
+         そろえているので、文字を直に置くと「制作会社で／30万円／ほど」と
+         ひと切れずつ別の行になってしまう（2026-10-31 実測） */
+      var keyCell = row.appendChild(el('span', 'lp-vs__key'));
+      keyCell.appendChild(el('span', 'lp-vs__in', t(one.row)));
       var oldCell = row.appendChild(el('span', 'lp-vs__old'));
       /* 狭い画面では見出しの行を消すので、どちらの話かを各セルに持たせる */
       oldCell.setAttribute('data-label', t('compare.colOld'));
       /* 外注側の金額は赤の太字にする。いちばん効くのは「いくら浮くか」 */
-      money(oldCell, t(one.old));
+      money(oldCell.appendChild(el('span', 'lp-vs__in')), t(one.old));
       var nowCell = row.appendChild(el('span', 'lp-vs__now' + (one.big ? ' lp-vs__now--big' : '')));
       nowCell.setAttribute('data-label', t('compare.colNew'));
-      lines(nowCell, t(one.now));
+      lines(nowCell.appendChild(el('span', 'lp-vs__in')), t(one.now));
       table.appendChild(row);
     });
 

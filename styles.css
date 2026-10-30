@@ -3451,19 +3451,31 @@ input[type='radio'] {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
-  align-items: center;
+  /* セルは行いっぱいに伸ばす。center にしていたせいで、セルごとに高さが
+     変わり、下地と罫線が宙に浮いて段違いになっていた（2026-10-31 指摘）。
+     文字の上下中央そろえは、セルの中で取る */
+  align-items: stretch;
 }
 
+/* セルは grid にして align-content で上下中央にそろえる。
+   中身は必ず .lp-vs__in ひとつに包む（screens-landing.js）。
+   直に文字を置くと、ひと切れずつ別の行になる（2026-10-31 実測:
+   「制作会社で／30万円／ほど」と縦に割れた） */
 .lp-vs__corner,
 .lp-vs__col,
+.lp-vs__key,
 .lp-vs__old,
 .lp-vs__now {
+  display: grid;
+  align-content: center;
   padding: 22px 24px;
 }
 /* 項目名と外注の列は幅が決まっているので、余白を詰めて文字の居場所を残す。
    詰めないと「打ち合わせの内容と、担当者の経験」が1文字だけ折り返していた */
 .lp-vs__key { padding: 22px 12px; }
 .lp-vs__old { padding: 22px 14px; }
+/* 包み。セルの中で1つの塊として扱われるので、折り返しも <br> も効く */
+.lp-vs__in { display: block; }
 
 .lp-vs__col {
   font-size: var(--fs-sub);
@@ -3518,10 +3530,13 @@ input[type='radio'] {
    --c-line のままだと地に溶けて、引いていないのと同じだった */
 .lp-vs { --vs-rule: #D3D0DF; }
 
+/* 見出しの下の線。白い列の中だけは薄くして、紫の枠の中が
+   太い線で分断されないようにする */
 .lp-vs__head .lp-vs__corner,
-.lp-vs__head .lp-vs__col {
+.lp-vs__head .lp-vs__col:not(.lp-vs__col--now) {
   border-bottom: 2px solid var(--vs-rule);
 }
+.lp-vs__col--now { border-bottom: 1px solid var(--c-line); }
 .lp-vs__row + .lp-vs__row .lp-vs__key,
 .lp-vs__row + .lp-vs__row .lp-vs__old {
   border-top: 1px solid var(--vs-rule);
