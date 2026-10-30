@@ -3460,8 +3460,10 @@ input[type='radio'] {
 .lp-vs__now {
   padding: 22px 24px;
 }
-/* 項目名の列は幅が決まっているので、余白を詰めて文字の居場所を残す */
+/* 項目名と外注の列は幅が決まっているので、余白を詰めて文字の居場所を残す。
+   詰めないと「打ち合わせの内容と、担当者の経験」が1文字だけ折り返していた */
 .lp-vs__key { padding: 22px 12px; }
+.lp-vs__old { padding: 22px 14px; }
 
 .lp-vs__col {
   font-size: var(--fs-sub);
