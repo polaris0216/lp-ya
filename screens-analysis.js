@@ -380,12 +380,7 @@
       '등록한 경쟁사를 모두 대조한 결과입니다. 공통된 형·LP 흐름·성공과 실패 요인을 정리했습니다.'
     ],
     'overall.toSources': ['リンクごとの結果に戻る', 'Back to the per-link results', '링크별 결과로 돌아가기'],
-    's11.draftTitle': ['この分析はまだ実行されていません', 'This analysis has not been run yet', '이 분석은 아직 실행되지 않았습니다'],
-    's11.draftBody': [
-      '競合LPの登録は保存済みです。ポイント消費確認から分析を実行してください。',
-      'Your competitor list is saved. Run the analysis from the point confirmation screen.',
-      '경쟁 LP 등록은 저장되어 있습니다. 포인트 사용 확인에서 분석을 실행해 주세요.'
-    ],
+    's11.noResult': ['分析結果なし', 'No analysis result', '분석 결과 없음'],
     's11.collecting': ['収集しています…', 'Collecting…', '수집하는 중…'],
     's11.runFailed': ['分析結果の保存に失敗しました', 'Failed to save the analysis result', '분석 결과 저장에 실패했습니다'],
     's11.counts': ['テキスト{text} / 画像{image} / GIF{gif} / 動画{video}', 'Text {text} / Images {image} / GIF {gif} / Video {video}', '텍스트 {text} / 이미지 {image} / GIF {gif} / 동영상 {video}'],
@@ -507,7 +502,6 @@
     ],
     's11.noAsset': ['収集できたコンテンツがありません', 'Nothing could be collected', '수집된 콘텐츠가 없습니다'],
     's11.reAnalyze': ['競合LPを追加して再分析', 'Add competitors and analyse again', '경쟁 LP를 추가해 재분석'],
-    's11.reportEmptyAction': ['競合LP分析を始める', 'Start competitor analysis', '경쟁 LP 분석 시작'],
     /* 構造・流れ分析の区画数。もとは S12 の文言だったが、レポート画面が使う */
     'report.sectionCount': ['{n}セクション', '{n} sections', '{n}개 섹션'],
 
@@ -1871,7 +1865,6 @@
     rememberProjectId(projectId);
 
     var reportId = resolveReportId(params);
-    var forceRun = !!(params && (params.run === '1' || params.run === 'true'));
     var view = { report: null, analysisCost: COST_ANALYSIS_FALLBACK };
 
     costOf(FEATURE_ANALYSIS, COST_ANALYSIS_FALLBACK).then(function (value) {
@@ -1888,21 +1881,17 @@
 
       fetchReport.then(function (row) {
         if (!row) {
-          drawNoReport();
+          drawNoResult();
           return;
         }
         view.report = row;
         rememberReportId(row.id);
 
         /* 実行待ちのまま残っているか、S10 から実行して来たら収集する */
-        if (forceRun || row.analysis_status === STATUS_PENDING) {
-          runCollection();
-          return;
-        }
         drawReport();
       }, function (err) {
         if (err && err.code === 'notfound') {
-          drawNoReport();
+          drawNoResult();
           return;
         }
         console.error('[screens-analysis] 分析レポートの読み込みに失敗しました', err);
@@ -1910,12 +1899,12 @@
       });
     }
 
-    /* 分析はサーバー（analyze-competitor Edge Function）が行う。
-       競合ページの取得・LLM分析・クレジット消費+保存はすべてサーバー側で、
-       この画面は実行の起点と完了待ちだけを受け持つ。
-       開発モード（サーバーにキーが無い間）は {queued, job_id} が返るので、
-       ジョブの完了をポーリングしてからレポートを読み直す。 */
-    function runCollection() {
+    /* 分析を始めるのは商品入力（S4）の「AI自動分析」だけ。
+       この画面は、その結果を映すだけで、分析を起こさない（2026-10-29 利用者の決め）。
+       以前はここでも走らせていたので、S4 が積んだぶんと二重に走り、
+       ポイントが二度引かれることがあった。
+       開いたときにまだ走っていたら、終わるのを待って表示を入れ替えるだけにする。 */
+    function followAnalysis() {
       clear(root);
       var wrap = el('div', 'screen');
       add(wrap, el('div', 'skeleton skeleton--card'));
@@ -1925,12 +1914,6 @@
       add(wrap, el('p', 't-note t-center', t('sa.serverAnalysisNote')));
       root.appendChild(wrap);
 
-      if (!window.Api.analysis || typeof window.Api.analysis.run !== 'function') {
-        console.error('[screens-analysis] Api.analysis.run がありません。api.js を確認してください。');
-        showFailure(root, t('common.error'), runCollection);
-        return;
-      }
-
       function reloadReport() {
         return window.Api.analysisReports.get(view.report.id).then(function (row) {
           view.report = row;
@@ -1938,21 +1921,6 @@
         }, function (err) {
           console.error('[screens-analysis] 分析後のレポート再取得に失敗しました', err);
           showFailure(root, errorMessage(err, 'report.loadFailed'), reloadReport);
-        });
-      }
-
-      /* 進み具合は app.js 共通のポップアップで見せる。
-         外側をクリックすると右下の小窓に畳めて、その間もポーリングは続く。 */
-      function waitForJob(jobId) {
-        if (!App.watchJob) {
-          console.error('[screens-analysis] App.watchJob がありません。app.js を確認してください。');
-          return;
-        }
-        App.watchJob({
-          jobId: jobId,
-          titleKey: 'job.titleAnalysis',
-          urls: urlsOfReport(),
-          onDone: function () { reloadReport(); }
         });
       }
 
@@ -1965,76 +1933,55 @@
         }).filter(Boolean);
       }
 
-      /* すでに走っている分析があれば、もう一度頼まない。
-         頼むとポイントがもう一度引かれ、同じ分析が二重に走る。
-         商品入力の画面から積めるようにしたので（2026-10-06）、
-         この画面に来たときには、もう走っていることがある。
-         画面を読み直しただけでも同じことが起きていた */
+      if (!window.Api.generationJobs || typeof window.Api.generationJobs.list !== 'function') {
+        console.error('[screens-analysis] Api.generationJobs.list がありません。api.js を確認してください。');
+        drawNoResult();
+        return;
+      }
+
       window.Api.generationJobs.list({
         eq: { report_id: String(view.report.id), feature_key: 'competitor_analysis' },
         order: 'created_at.desc', limit: 5
-      }).catch(function () { return []; }).then(function (jobs) {
+      }).then(function (jobs) {
         var live = null;
         (jobs || []).forEach(function (job) {
           if (live) { return; }
           if (job.status === 'pending' || job.status === 'processing') { live = job; }
         });
-        if (live) { waitForJob(live.id); return; }
-        startAnalysis();
-      });
-
-      function startAnalysis() {
-      window.Api.analysis.run({
-        report_id: String(view.report.id),
-        lang: (App.getLang && App.getLang()) || 'ja'
-      }).then(function (result) {
-        if (result && result.queued) {
-          waitForJob(result.job_id);
+        /* 走っていないなら、ここで待っても何も起きない。結果なしとして出す */
+        if (!live) { drawNoResult(); return; }
+        if (!App.watchJob) {
+          console.error('[screens-analysis] App.watchJob がありません。app.js を確認してください。');
+          drawNoResult();
           return;
         }
-        if (result && result.user && App.setUser) { App.setUser(result.user, { silent: true }); }
-        reloadReport();
+        /* 進み具合は app.js 共通のポップアップで見せる。
+           外側をクリックすると右下の小窓に畳めて、その間もポーリングは続く。 */
+        App.watchJob({
+          jobId: live.id,
+          titleKey: 'job.titleAnalysis',
+          urls: urlsOfReport(),
+          onDone: function () { reloadReport(); }
+        });
       }, function (err) {
-        console.error('[screens-analysis] 分析の実行に失敗しました', err);
-        showFailure(root, errorMessage(err, 'sa.analysisFailed'), runCollection);
+        console.error('[screens-analysis] 走っている分析を調べられませんでした', err);
+        drawNoResult();
       });
-      }
     }
 
-    function drawNoReport() {
+    /* 結果が無いときは、それだけを出す。ここから分析を始める口は置かない */
+    function drawNoResult() {
       clear(root);
       var wrap = el('div', 'screen');
       var head = el('div', 'screen__head');
       add(head, el('h1', 'screen__title', t('report.title')));
       add(wrap, head);
-      /* 分析がまだ無いときに「競合LP分析を始める」を出さない（2026-10-29 要望）。
+      /* 分析がまだ無いときに、ここから始める口は置かない（2026-10-29 要望）。
          分析は商品入力の「AI自動分析」から始まる1本道で、ここに二つ目の
-         入口があると「どちらから始めるのか」で迷う。案内だけ出す */
-      add(wrap, emptyBox(t('report.empty')));
-      root.appendChild(wrap);
-    }
-
-    function drawDraft() {
-      clear(root);
-      var wrap = el('div', 'screen');
-      var head = el('div', 'screen__head');
-      add(head, el('h1', 'screen__title', t('report.title')));
-      add(head, el('p', 'screen__lead', t('s11.draftTitle')));
-      add(wrap, head);
-
-      add(wrap, emptyBox(t('s11.draftBody'), t('creditConfirm.runAnalysis'), function () {
-        runCollection();
-      }));
-      add(wrap, el('p', 't-note t-center', t('pr.costLine', {
-        n: formatNumber(hasUnlimited() ? 0 : view.analysisCost),
-        b: formatNumber(currentBalance())
-      })));
-
-      var actions = el('div', 'stack');
-      add(actions, button('btn btn--secondary btn--block', t('s11.reAnalyze'), function () {
-        go('S4', { id: projectId });
-      }));
-      add(wrap, actions);
+         入口があると「どちらから始めるのか」で迷う。
+         下書き（未実行）も同じ扱いにした（2026-10-30）。結果が無いことに
+         変わりはないので、画面を2種類に分けない */
+      add(wrap, emptyBox(t('s11.noResult')));
       root.appendChild(wrap);
     }
 
@@ -2957,7 +2904,7 @@
     function drawReport() {
       var report = view.report;
       if (report.analysis_status !== STATUS_DONE && report.analysis_status !== STATUS_ERROR) {
-        drawDraft();
+        followAnalysis();
         return;
       }
 

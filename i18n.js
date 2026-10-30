@@ -123,6 +123,7 @@
     'account.nameChip': ['{name}様', '{name}', '{name}님'],
 
     // ==== landing: S0 ログイン前ホーム ====
+    'landing.platforms': ['対応プラットフォーム', 'Built for', '지원 플랫폼'],
     'landing.eyebrow': ['クラファン・自社EC対応 / 日本語AI', 'For crowdfunding and DTC / Japanese AI', '크라우드펀딩·자사몰 / 일본어 AI'],
     'landing.title': ['競合分析からデザインまで、\n1ページでAIが。', 'From competitor analysis to design,\nall in one page with AI.', '경쟁사 분석부터 디자인까지,\n한 페이지에서 AI로.'],
     'landing.lead': ['売れている競合LPのURLを入れるだけ。勝ちパターンを読み解いて、クラファンLP・自社LP・キービジュアル・Meta広告・LINEコンテンツをまとめて作ります。', 'Just paste the URLs of competitor pages that sell. We read the winning pattern and produce your crowdfunding page, own LP, key visual, Meta ads and LINE content together.', '팔리는 경쟁 상세페이지 URL만 넣으세요. 승리 패턴을 읽어 크라우드펀딩 페이지·자사 LP·KV·메타광고·LINE 콘텐츠를 한 번에 만듭니다.'],
@@ -141,7 +142,7 @@
     'landing.step3Desc': ['LP・キービジュアル・Meta広告・LINEコンテンツを一括生成。A/Bテスト用の2案も出せます。', 'Landing pages, key visuals, Meta ads and LINE content at once, plus two variants for A/B testing.', '상세페이지·KV·메타광고·LINE 콘텐츠를 한 번에. A/B 테스트용 2안도 만듭니다.'],
 
     'landing.featuresLabel': ['できること', 'What you get', '기능'],
-    'landing.featuresTitle': ['LP・広告・キービジュアル・LINE、1ページで。', 'Pages, ads, visuals and LINE — one place.', '상세페이지·광고·KV·LINE, 한 페이지에서.'],
+    'landing.featuresTitle': ['LP・広告・キービジュアル・LINE、1ページで。', 'Pages, ads, visuals and LINE, all in one place.', '상세페이지·광고·KV·LINE, 한 페이지에서.'],
     'landing.featuresDesc': ['作ったものはそのまま公開でき、閲覧数とCTAクリックを計測できます。', 'Publish what you made and measure views and CTA clicks.', '만든 결과물은 그대로 공개하고 조회수와 CTA 클릭을 측정할 수 있습니다.'],
     'landing.featCfLp': ['クラファンLP', 'Crowdfunding page', '크라우드펀딩 페이지'],
     'landing.featCfLpDesc': ['Makuake・CAMPFIRE・GREENFUNDING の型に沿った構成で生成します。', 'Built to the structures that work on Makuake, CAMPFIRE and GREENFUNDING.', 'Makuake·CAMPFIRE·GREENFUNDING 형식에 맞춰 생성합니다.'],
@@ -157,10 +158,13 @@
     'landing.featAbDesc': ['LPを2案公開して、閲覧数とCTAクリックを並べて見られます。', 'Publish two variants and compare views and CTA clicks side by side.', '2안을 공개하고 조회수·CTA 클릭을 나란히 볼 수 있습니다.'],
 
     'landing.pricingLabel': ['料金', 'Pricing', '요금'],
-    'landing.pricingTitle': ['必要な分だけ、ポイントで。', 'Pay only for what you generate.', '필요한 만큼만, 포인트으로.'],
-    'landing.pricingDesc': ['月額の縛りはありません。使った機能の分だけポイントが減ります。', 'No monthly lock-in. Points are spent per feature you use.', '월 구독 묶임 없음. 사용한 기능만큼 포인트이 차감됩니다.'],
-    'landing.pricingUnit': ['ポイント制', 'Point based', '포인트 제'],
-    'landing.pricingNote': ['プロジェクト作成は無料。LP生成60P / キービジュアル・Meta広告・LINE 30P / 競合分析・A/Bテスト 40P。', 'Creating a project is free. Landing page 60P / KV, Meta ads, LINE 30P / analysis and A/B 40P.', '프로젝트 생성은 무료. 상세페이지 60P / KV·메타광고·LINE 30P / 분석·A/B 40P.'],
+    'landing.pricingTitle': ['必要な分だけ、ポイントで。', 'Pay only for what you generate.', '필요한 만큼만, 포인트로.'],
+    'landing.pricingDesc': ['月額の縛りはありません。使った機能の分だけポイントが減ります。', 'No monthly lock-in. Points are spent per feature you use.', '월 구독 약정 없음. 사용한 기능만큼 포인트가 차감됩니다.'],
+    'landing.priceProject': ['プロジェクト作成', 'Creating a project', '프로젝트 생성'],
+    'landing.priceFree': ['無料', 'Free', '무료'],
+    'landing.priceLp': ['LP生成', 'Landing page', '상세페이지 생성'],
+    'landing.priceAsset': ['キービジュアル・Meta広告・LINE', 'Key visual, Meta ads, LINE', 'KV·메타광고·LINE'],
+    'landing.priceAnalysis': ['競合分析・A/Bテスト', 'Analysis and A/B test', '경쟁 분석·A/B 테스트'],
 
     'landing.finalTitle': ['今すぐ、最初のLPを作ってみましょう。', 'Make your first landing page now.', '지금, 첫 상세페이지를 만들어 보세요.'],
     'landing.finalDesc': ['商品を入れるところから、数分で。', 'From entering your product, in a few minutes.', '상품을 넣는 것부터, 몇 분이면.'],

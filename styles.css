@@ -45,41 +45,55 @@
    1. デザイントークン
    -------------------------------------------------------------------------- */
 :root {
-  /* 面と文字（ttalkkak-ai.com 準拠：ラベンダー地に白パネル） */
-  --c-bg: #F4F1FB;            /* 画面地。白ではなく薄いラベンダー */
+  /* 面と文字
+     2026-10-30 彩度を落とした。ここは利用者が作ったLP・KV・広告を並べて見る道具なので、
+     内装に色を持たせると、見るべきもの（成果物）の色が正しく判断できない。
+     地は紫を1/3に薄め、面の段差を「罫線」ではなく「明度差」で作れるところまで離した。 */
+  --c-bg: #F7F6FA;            /* 画面地。ほぼ無彩色、紫をひと匙だけ */
   --c-surface: #FFFFFF;       /* 面・カード */
-  --c-surface-2: #FBFAFE;     /* 一段沈めた面 */
-  --c-text: #2A2440;          /* 本文字。黒ではなく紫寄りの濃紺 */
-  --c-text-sub: #6B6385;      /* 副文字 */
-  --c-line: #E8E3F4;          /* 罫線 */
-  --c-line-soft: #F1EDF9;     /* 薄い区切り */
-  --c-skeleton: #F1EDF9;      /* ローディング矩形 */
+  --c-surface-2: #FAFAFC;     /* 一段沈めた面 */
+  --c-surface-3: #F1F0F5;     /* さらに沈めた面（枠を引かずに括るため） */
+  --c-text: #1F1B2E;          /* 本文字。黒ではなく紫寄りの濃紺 */
+  --c-text-sub: #6B6680;      /* 副文字 */
+  --c-text-mute: #8F8AA3;     /* 3段目。単位・補足など */
+  --c-line: #E4E2EC;          /* 罫線 */
+  --c-line-soft: #EEEDF3;     /* 薄い区切り */
+  --c-skeleton: #EEEDF3;      /* ローディング矩形 */
 
-  /* ブランド */
-  --c-main: #A855F7;
-  --c-main-press: #9333EA;
-  --c-sub: #7C3AED;
+  /* ブランド。面を塗るためではなく、1点に差すための色 */
+  --c-main: #7C3AED;
+  --c-main-press: #6D28D9;
+  --c-main-weak: rgba(124, 58, 237, .10);
+  --c-sub: #6D28D9;
   --c-accent: #DB2777;
   --c-white: #FFFFFF;
   --c-black: #000000;
 
   /* 状態色 */
-  --c-danger: #F43F5E;
+  --c-danger: #E11D48;
   --c-danger-line: #FBD0D9;
   --c-danger-bg: #FFF1F4;
-  --c-success: #10B981;
-  --c-warn: #F59E0B;
+  --c-success: #0F9D76;
+  --c-warn: #D97706;
 
-  /* グラデーション（アクセント限定：上端ライン・CTA・残高カードのみ。この2本以外は作らない） */
+  /* グラデーションは「印」であって内装ではない（2026-10-30）。
+     使ってよいのは3つだけ: 上端の4pxライン / ロゴマーク / 主ボタン。
+     ヘッダーや帯を塗るのに使わない。 */
   --grad-main: linear-gradient(120deg, #7C3AED 0%, #A21CAF 48%, #DB2777 100%);
-  --grad-soft: linear-gradient(180deg, rgba(168, 85, 247, .06), rgba(219, 39, 119, .05));
+  --grad-soft: linear-gradient(180deg, rgba(124, 58, 237, .05), rgba(219, 39, 119, .04));
 
-  /* フォントスタック（意図書のとおり） */
-  --font-title: system-ui, -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
-  --font-sub: 'Hiragino Sans', system-ui, -apple-system, 'Noto Sans JP', sans-serif;
-  --font-body: -apple-system, system-ui, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
+  /* フォント。M PLUS 2 を自前ホスト（assets/fonts/fonts.css）。
+     システムフォントを weight 900 で殴るのをやめ、可変フォントの 500〜700 で段を作る。 */
+  --font-title: 'M PLUS 2', system-ui, -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+  --font-sub: 'M PLUS 2', system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  --font-body: 'M PLUS 2', system-ui, -apple-system, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
 
-  /* タイポ3段階（見出しは大きく太く） */
+  /* 太さ。見出しでも 700 を上限にする（900 は潰れるだけで強くならない） */
+  --fw-bold: 700;
+  --fw-semi: 600;
+  --fw-medium: 500;
+
+  /* タイポ3段階（大きさと色で段を作る。太さには頼らない） */
   --fs-title: 26px;
   --lh-title: 1.3;
   --fs-sub: 17px;
@@ -87,6 +101,11 @@
   --lh-body: 1.6;
   --fs-note: 13px;
   --fs-input: 16px;   /* iOSズーム防止 */
+  --fs-num: 28px;     /* 数字を主役に出すとき */
+
+  /* 動き。hover/focus/press だけ。それ以上は足さない（2026-10-30） */
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --dur: 140ms;
 
   /* 余白（4の倍数・広めに取る） */
   --sp-screen: 24px;  /* 画面左右 */
@@ -215,6 +234,24 @@ table { border-collapse: collapse; width: 100%; }
 }
 
 /* -----------------------------------------------------------------------------
+   2-b. フォーカスと手応え（2026-10-30）
+   キーボードで辿れることと「押した感じ」は、見た目の作り込みに直結する。
+   以前は :focus-visible が全体で3件しか無く、appearance:none の部品では
+   ブラウザ既定のリングも出ていなかった。
+   -------------------------------------------------------------------------- */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-main);
+  outline-offset: 2px;
+  border-radius: var(--r-control);
+}
+
+/* 暗い地の上では白く抜く（ヒーロー・最終CTA帯など） */
+.lp-hero :focus-visible,
+.lp-band :focus-visible {
+  outline-color: var(--c-white);
+}
+
+/* -----------------------------------------------------------------------------
    3. シェル（ヘッダー / 本文 / タブバー）
    -------------------------------------------------------------------------- */
 .app-shell {
@@ -225,7 +262,8 @@ table { border-collapse: collapse; width: 100%; }
   padding-right: var(--safe-right);
 }
 
-/* --- ヘッダー：グラデーション地にブランドとアカウント状態を並べる（ttalkkak の ws-header 相当） --- */
+/* --- ヘッダー：白地。グラデーションは上端の4pxラインとロゴマークだけに残す
+       （2026-10-30 彩度の引き算。成果物の色を正しく見せるため、内装は無彩色にした） --- */
 .app-header {
   position: sticky;
   top: 0;
@@ -239,10 +277,18 @@ table { border-collapse: collapse; width: 100%; }
      （sticky の top）も一緒に動き、スクロールのたびにタブが上下する。
      入っているのはブランドと account の短い1行だけなので、伸びる余地は要らない */
   height: calc(var(--h-header) + var(--safe-top));
-  background:
-    linear-gradient(90deg, rgba(20, 8, 40, .04), rgba(20, 8, 40, .18)),
-    var(--grad-main);
-  color: var(--c-white);
+  background: var(--c-surface);
+  color: var(--c-text);
+  border-bottom: 1px solid var(--c-line);
+}
+
+/* ブランドの印はここ1本だけ。帯で塗らない */
+.app-header::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--h-accent);
+  background: var(--grad-main);
 }
 
 .app-header__icon {
@@ -253,24 +299,30 @@ table { border-collapse: collapse; width: 100%; }
   align-items: center;
   justify-content: center;
   border-radius: var(--r-control);
-  color: var(--c-white);
-  background: rgba(255, 255, 255, .16);
-  border: 1px solid rgba(255, 255, 255, .35);
+  color: var(--c-text-sub);
+  background: transparent;
+  border: 1px solid var(--c-line);
   cursor: pointer;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
+
+.app-header__icon:hover { background: var(--c-surface-3); color: var(--c-text); }
 
 .app-header__brand {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--c-white);
+  color: var(--c-text);
   text-decoration: none;
   font-family: var(--font-title);
   font-size: var(--fs-sub);
-  font-weight: 800;
-  letter-spacing: -.3px;
+  font-weight: var(--fw-bold);
+  letter-spacing: -.01em;
   white-space: nowrap;
 }
+
+/* ロゴの矢は brand 色で塗る。文字は黒のまま */
+.app-header__brand svg { color: var(--c-main); }
 
 .app-header__spacer { flex: 1 1 auto; }
 
@@ -290,22 +342,31 @@ table { border-collapse: collapse; width: 100%; }
   max-width: 200px;
   padding: 5px 11px;
   border-radius: var(--r-pill);
-  border: 1px solid rgba(255, 255, 255, .38);
-  background: rgba(255, 255, 255, .14);
-  color: var(--c-white);
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  color: var(--c-text-sub);
   font-size: var(--fs-note);
-  font-weight: 600;
+  font-weight: var(--fw-medium);
   line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-decoration: none;
   cursor: pointer;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
-.head-chip--strong { background: rgba(255, 255, 255, .26); font-weight: 800; }
+/* 残高だけは読ませたいので、色ではなく濃さで出す */
+.head-chip--strong {
+  background: var(--c-main-weak);
+  border-color: transparent;
+  color: var(--c-main-press);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
 .head-chip--plain { cursor: default; }
-.head-chip:hover { background: rgba(255, 255, 255, .26); }
+.head-chip:hover { background: var(--c-surface-3); }
+.head-chip--strong:hover { background: var(--c-main-weak); border-color: var(--c-main); }
 
 /* --- 本体：左サイドバー＋右カラム --- */
 .app-body {
@@ -371,7 +432,7 @@ table { border-collapse: collapse; width: 100%; }
 .sidebar__heading {
   flex: 1 1 auto;
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--c-text);
 }
 
@@ -526,7 +587,7 @@ table { border-collapse: collapse; width: 100%; }
   text-align: center;
   font-family: var(--font-sub);
   font-size: var(--fs-sub);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   line-height: 1.35;
   color: var(--c-text);
   white-space: nowrap;
@@ -617,7 +678,7 @@ table { border-collapse: collapse; width: 100%; }
 .screen__title {
   font-family: var(--font-title);
   font-size: var(--fs-title);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: -0.01em;
   line-height: var(--lh-title);
   color: var(--c-text);
@@ -656,7 +717,7 @@ table { border-collapse: collapse; width: 100%; }
 .t-title {
   font-family: var(--font-title);
   font-size: var(--fs-title);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: -0.01em;
   line-height: var(--lh-title);
 }
@@ -691,6 +752,17 @@ table { border-collapse: collapse; width: 100%; }
 .num {
   font-feature-settings: 'tnum' 1;
   font-variant-numeric: tabular-nums;
+}
+
+/* 単独で見せる数値（件数・ポイント・割合）。単位は添え物として落とす */
+.t-num {
+  font-family: var(--font-title);
+  font-size: var(--fs-num);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text);
 }
 
 .break-url {
@@ -823,6 +895,19 @@ table { border-collapse: collapse; width: 100%; }
   gap: 8px;
 }
 
+/* カードは「浮くもの」の印。カードの中のカードは浮かないので、
+   枠と影を外して沈んだ面に変える（2026-10-30 箱の入れ子をやめる）。
+   分析レポートは以前、枠付きの箱が4階層入れ子になっていた */
+.card .card,
+.card .list,
+.card .info-list {
+  border: 0;
+  box-shadow: none;
+  background: var(--c-surface-3);
+}
+
+.card .card { padding: var(--sp-item) 14px; }
+
 /* タップできるカード（残高カードなど） */
 .card[role='button'],
 button.card,
@@ -839,10 +924,10 @@ a.card:active,
 .card[role='button']:active { opacity: .88; }
 
 /* 残高カード：グラデーション塗り */
+/* 残高カード。面はグラデーションで塗らず、濃い無彩色にする（2026-10-30）。
+   グラデーションは上端ライン・ロゴ・主ボタンの3つだけ */
 .card--gradient {
-  background: var(--grad-main);
-  /* 透明な1px枠にグラデの繰り返しが覗くのを防ぐ。background ショートハンドの後に置くこと */
-  background-origin: border-box;
+  background: var(--c-text);
   border-color: transparent;
   color: var(--c-white);
 }
@@ -865,10 +950,12 @@ a.card:active,
   color: var(--c-text-sub);
 }
 
+/* 数字はこの道具の商品。大きさと字送りで読ませる（2026-10-30） */
 .card__value {
   font-family: var(--font-title);
-  font-size: var(--fs-title);
-  font-weight: 700;
+  font-size: var(--fs-num);
+  letter-spacing: -.02em;
+  font-weight: var(--fw-bold);
   line-height: var(--lh-title);
   font-variant-numeric: tabular-nums;
 }
@@ -919,7 +1006,7 @@ a.card:active,
 
 .field__label {
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   line-height: 1.4;
   color: var(--c-text);
 }
@@ -947,6 +1034,7 @@ a.card:active,
 .textarea,
 .select {
   width: 100%;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   min-height: var(--h-control);
   background: var(--c-surface);
   border: 1px solid var(--c-line);
@@ -958,7 +1046,6 @@ a.card:active,
   color: var(--c-text);
   appearance: none;
   -webkit-appearance: none;
-  transition: none;
 }
 
 .textarea {
@@ -1110,7 +1197,7 @@ a.card:active,
   background: var(--c-line);
   color: var(--c-text-sub);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 
 .wtabs__item--active .wtabs__no {
@@ -1228,8 +1315,8 @@ a.card:active,
 .textarea:focus,
 .select:focus {
   outline: none;
-  border-color: var(--c-sub);
-  box-shadow: 0 0 0 3px rgba(91, 42, 134, .14);
+  border-color: var(--c-main);
+  box-shadow: 0 0 0 3px var(--c-main-weak);
 }
 
 .input:disabled,
@@ -1323,7 +1410,16 @@ a.card:active,
   word-break: normal;
 }
 
-.btn:active { opacity: .88; }
+.btn {
+  transition: background-color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              transform var(--dur) var(--ease),
+              opacity var(--dur) var(--ease);
+}
+
+.btn:hover { opacity: .92; }
+/* 押し込みは1pxだけ。これ以上動かすと安っぽくなる */
+.btn:active { opacity: .88; transform: translateY(1px); }
 
 .btn:disabled,
 .btn[aria-disabled='true'] {
@@ -1538,9 +1634,9 @@ a.card:active,
 /* -----------------------------------------------------------------------------
    11. リスト（1列左揃え・行高最小56px・区切りは1px罫線のみ）
    -------------------------------------------------------------------------- */
+/* 並ぶだけの行は「浮かない」。枠を外し、薄い区切りだけで括る（2026-10-30） */
 .list {
   background: var(--c-surface);
-  border: 1px solid var(--c-line);
   border-radius: var(--r-card);
   overflow: hidden;
 }
@@ -1558,7 +1654,7 @@ a.card:active,
   background: var(--c-surface);
 }
 
-.list-row + .list-row { border-top: 1px solid var(--c-line); }
+.list-row + .list-row { border-top: 1px solid var(--c-line-soft); }
 
 button.list-row:active,
 a.list-row:active { opacity: .88; }
@@ -1588,13 +1684,20 @@ a.list-row:active { opacity: .88; }
 
 .list-row__meta {
   flex: 0 0 auto;
-  font-size: var(--fs-note);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
   line-height: 1.4;
-  color: var(--c-text-sub);
+  color: var(--c-text);
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+a.list-row,
+button.list-row { transition: background-color var(--dur) var(--ease); }
+
+a.list-row:hover,
+button.list-row:hover { background: var(--c-surface-3); }
 
 .list-row__thumb {
   flex: 0 0 auto;
@@ -1657,35 +1760,38 @@ a.list-row:active { opacity: .88; }
 }
 
 /* 情報行（プロジェクト情報・削除される項目 など） */
+/* キーと値の一覧。枠で囲わず、細い区切りだけで括る（2026-10-30）。
+   以前は空間いっぱいに左端キー・右端値で、広い画面だと目が往復して読めなかった */
 .info-list {
   background: var(--c-surface);
-  border: 1px solid var(--c-line);
   border-radius: var(--r-card);
   overflow: hidden;
 }
 
 .info-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-item);
-  min-height: 56px;
-  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: minmax(88px, 13em) 1fr;
+  align-items: baseline;
+  gap: 4px var(--sp-item);
+  min-height: 52px;
+  padding: 14px 16px;
 }
 
-.info-row + .info-row { border-top: 1px solid var(--c-line); }
+.info-row + .info-row { border-top: 1px solid var(--c-line-soft); }
+
+@media (max-width: 520px) {
+  .info-row { grid-template-columns: 1fr; }
+}
 
 .info-row__key {
-  flex: 0 1 auto;
   font-size: var(--fs-note);
   color: var(--c-text-sub);
 }
 
 .info-row__val {
-  flex: 1 1 auto;
-  text-align: right;
+  text-align: left;
   font-size: var(--fs-body);
-  font-weight: 600;
+  font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
   overflow-wrap: break-word;
   min-width: 0;
@@ -1719,7 +1825,7 @@ a.list-row:active { opacity: .88; }
   background: var(--c-surface);
 }
 
-.check-row + .check-row { border-top: 1px solid var(--c-line); }
+.check-row + .check-row { border-top: 1px solid var(--c-line-soft); }
 
 .check-row__box {
   flex: 0 0 auto;
@@ -1965,12 +2071,12 @@ a.list-row:active { opacity: .88; }
 
 .info-row--stack.info-row--lead .info-row__key {
   color: var(--c-sub);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 
 .info-row--stack.info-row--lead .info-row__val {
   font-size: calc(var(--fs-body) * 1.18);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   line-height: 1.6;
 }
 
@@ -2030,7 +2136,7 @@ a.list-row:active { opacity: .88; }
   text-align: center;
   font-family: var(--font-sub);
   font-size: var(--fs-sub);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--c-text);
   display: flex;
   align-items: center;
@@ -2136,11 +2242,11 @@ a.list-row:active { opacity: .88; }
   z-index: 1;
   padding: 9px 20px;
   border-radius: 14px 14px 0 0;
-  background: var(--grad-main);
+  background: var(--c-main);
   color: var(--c-white);
   font-family: var(--font-sub);
   font-size: var(--fs-body);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: .02em;
   line-height: 1.3;
   white-space: nowrap;
@@ -2162,7 +2268,7 @@ a.list-row:active { opacity: .88; }
   background: rgba(0, 0, 0, .58);
   color: var(--c-white);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: .04em;
   line-height: 1.4;
   pointer-events: none;
@@ -2273,7 +2379,7 @@ a.list-row:active { opacity: .88; }
   min-width: 0;
   font-family: var(--font-title);
   font-size: var(--fs-sub);
-  font-weight: 800;
+  font-weight: var(--fw-semi);
   color: var(--c-text);
   letter-spacing: -.2px;
 }
@@ -2423,11 +2529,10 @@ a.list-row:active { opacity: .88; }
   width: 26px;
   height: 26px;
   border-radius: var(--r-pill);
-  background: var(--grad-main);
-  background-origin: border-box;
+  background: var(--c-main);
   color: var(--c-white);
   font-size: var(--fs-note);
-  font-weight: 800;
+  font-weight: var(--fw-semi);
 }
 
 /* -----------------------------------------------------------------------------
@@ -2947,7 +3052,7 @@ a.list-row:active { opacity: .88; }
   display: block;
   margin-bottom: 4px;
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--c-sub);
 }
 
@@ -2955,7 +3060,7 @@ a.list-row:active { opacity: .88; }
 
 .modal__lead-val {
   font-size: var(--fs-body);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   line-height: 1.6;
   color: var(--c-text);
   overflow-wrap: break-word;
@@ -3058,23 +3163,36 @@ input[type='radio'] {
 }
 
 /* -----------------------------------------------------------------------------
-   20. S0 ログイン前ホーム（ttalkkak-ai.com のトップページ構成）
+   20. S0 ログイン前ホーム
+   節ごとに組み方を変えてある（ヒーロー＝左右分け／掲載先＝ロゴ列／使い方＝縦罫の3列／
+   できること＝大小の区画／料金＝4タイル／最後＝帯）。同じ型のカード列を二度並べない。
    -------------------------------------------------------------------------- */
 .lp {
+  --lp-max: 1080px;
   display: flex;
   flex-direction: column;
   gap: 0;
 }
 
-/* --- ヒーロー：背景に映像、その上に紗をかけて白文字を置く --- */
-/* ランディングは本文の横幅制限を外してあるので、ヒーローはそのままブラウザ幅になる */
+/* 中身の横幅はこの1本で揃える。ヒーローの文字も節の見出しも同じ左端に来る */
+.lp-hero__inner,
+.lp-proof,
+.lp-section {
+  width: 100%;
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding-inline: var(--sp-screen);
+}
+
+/* --- ヒーロー：文字は左半分。右半分は映像（アプリが作ったLP）をそのまま見せる --- */
 .lp-hero {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border-radius: 0;
-  padding: 88px 28px 80px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  min-height: min(68vh, 560px);
+  padding-block: 72px;
   color: var(--c-white);
   background: var(--grad-main);
 }
@@ -3088,46 +3206,40 @@ input[type='radio'] {
   z-index: -2;
 }
 
-/* 映像の上の紗。これが無いと白文字が読めない */
+/* 紗は左に濃く、右に向かって薄く。白文字は読めて、映像の右側は潰れない */
 .lp-hero__veil {
   position: absolute;
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(180deg, rgba(20, 8, 40, .34), rgba(20, 8, 40, .62)),
-    linear-gradient(120deg, rgba(124, 58, 237, .5), rgba(219, 39, 119, .42));
+    linear-gradient(90deg, rgba(20, 17, 32, .93) 0%, rgba(20, 17, 32, .82) 42%, rgba(20, 17, 32, .24) 78%, rgba(20, 17, 32, .10) 100%),
+    linear-gradient(120deg, rgba(124, 58, 237, .16), rgba(219, 39, 119, .10));
 }
 
 .lp-hero__inner {
-  max-width: 720px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  align-items: flex-start;
+  gap: 18px;
+  text-align: left;
 }
 
 .lp-hero__title {
   margin: 0;
+  max-width: 15em;
   font-family: var(--font-title);
-  font-size: clamp(28px, 5.4vw, 46px);
-  font-weight: 900;
-  line-height: 1.28;
+  font-size: clamp(30px, 4.6vw, 48px);
+  font-weight: var(--fw-bold);
+  line-height: 1.26;
   letter-spacing: -.02em;
 }
 
 .lp-hero__lead {
   margin: 0;
-  max-width: 620px;
+  max-width: 34em;
   font-size: var(--fs-body);
   line-height: 1.85;
-  color: rgba(255, 255, 255, .9);
-}
-
-.lp-hero__note {
-  margin: 0;
-  font-size: var(--fs-note);
-  color: rgba(255, 255, 255, .78);
+  color: rgba(255, 255, 255, .92);
 }
 
 .lp-eyebrow {
@@ -3135,22 +3247,15 @@ input[type='radio'] {
   padding: 5px 12px;
   border-radius: var(--r-pill);
   border: 1px solid rgba(255, 255, 255, .4);
-  background: rgba(255, 255, 255, .14);
+  background: rgba(255, 255, 255, .16);
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: .02em;
-}
-
-.lp-eyebrow--dark {
-  border-color: var(--c-line);
-  background: rgba(168, 85, 247, .1);
-  color: var(--c-sub);
 }
 
 .lp-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: 10px;
   margin-top: 4px;
 }
@@ -3159,39 +3264,82 @@ input[type='radio'] {
   min-width: 168px;
   height: var(--h-control);
   padding: 0 24px;
-  font-weight: 800;
+  font-weight: var(--fw-semi);
+  white-space: nowrap;
 }
 
+/* 映像の上に置くので、地は読めるだけの濃さを持たせる（透かし枠だけにしない） */
 .lp-cta--ghost {
-  background: rgba(255, 255, 255, .16);
-  border: 1px solid rgba(255, 255, 255, .5);
+  background: rgba(16, 6, 32, .55);
+  border: 1px solid rgba(255, 255, 255, .62);
   color: var(--c-white);
 }
 
+.lp-cta--ghost:hover { background: rgba(16, 6, 32, .72); }
+
 .lp-cta--onband {
-  background: var(--c-white);
-  color: var(--c-sub);
+  background: var(--grad-main);
+  color: var(--c-white);
   border: none;
 }
 
-/* --- 説明セクション --- */
+/* --- 掲載先：ロゴだけ並べる。肩書きや業種名は付けない --- */
+.lp-proof {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-block: 28px 0;
+}
+
+.lp-proof__label {
+  font-size: var(--fs-note);
+  font-weight: var(--fw-bold);
+  color: var(--c-text-sub);
+}
+
+.lp-proof__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 16px 36px;
+}
+
+.lp-proof__logo {
+  height: 22px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  opacity: .78;
+}
+
+.lp-proof__note {
+  margin: 0;
+  font-size: var(--fs-note);
+  color: var(--c-text-sub);
+}
+
+/* --- 節の見出し --- */
 .lp-section {
-  width: 100%;
-  max-width: 1020px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 56px var(--sp-screen) 8px;
+  padding-block: 56px 0;
   text-align: center;
+}
+
+.lp-section--left {
+  align-items: flex-start;
+  text-align: left;
 }
 
 .lp-section__title {
   margin: 0;
   font-family: var(--font-title);
   font-size: clamp(21px, 3.4vw, 30px);
-  font-weight: 900;
+  font-weight: var(--fw-bold);
   line-height: 1.4;
   letter-spacing: -.02em;
   color: var(--c-text);
@@ -3199,102 +3347,167 @@ input[type='radio'] {
 
 .lp-section__desc {
   margin: 0;
-  max-width: 620px;
+  max-width: 44em;
   font-size: var(--fs-body);
   line-height: 1.8;
   color: var(--c-text-sub);
 }
 
-.lp-grid {
+/* --- 使い方：枠で囲わず、縦罫と番号で3つに分ける --- */
+.lp-flow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
   width: 100%;
-  margin-top: 20px;
-  text-align: left;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.lp-card {
-  position: relative;
-  background: var(--c-surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-card);
-  box-shadow: var(--shadow-card);
-  padding: 20px;
+.lp-flow__item {
+  padding-left: 18px;
+  border-left: 2px solid var(--c-line);
 }
 
-.lp-card__num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  margin-bottom: 10px;
-  border-radius: var(--r-pill);
-  background: var(--grad-main);
-  color: var(--c-white);
-  font-size: var(--fs-note);
-  font-weight: 800;
-}
-
-.lp-card__title {
+.lp-flow__num {
   display: block;
+  font-family: var(--font-title);
+  font-size: 30px;
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: var(--c-main);
+  opacity: .55;
+}
+
+.lp-flow__title {
+  margin: 10px 0 0;
   font-size: var(--fs-sub);
-  font-weight: 800;
+  font-weight: var(--fw-semi);
   color: var(--c-text);
 }
 
-.lp-card__desc {
+.lp-flow__desc {
   margin: 8px 0 0;
   font-size: var(--fs-note);
   line-height: 1.8;
   color: var(--c-text-sub);
 }
 
-/* --- 料金 --- */
-.lp-price {
+/* --- できること：先頭2件が大きい区画。6件ちょうどで埋まる --- */
+.lp-bento {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px;
   width: 100%;
-  max-width: 480px;
-  margin-top: 20px;
-  padding: 24px;
+  margin-top: 24px;
+  text-align: left;
+}
+
+.lp-bento__cell {
+  grid-column: span 3;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
   border: 1px solid var(--c-line);
   border-radius: var(--r-card);
   background: var(--c-surface);
   box-shadow: var(--shadow-card);
+  transition: border-color .15s ease, transform .15s ease;
 }
 
-.lp-price__label {
-  display: block;
-  font-family: var(--font-title);
-  font-size: var(--fs-title);
-  font-weight: 900;
+.lp-bento__cell:hover {
+  border-color: rgba(168, 85, 247, .45);
+  transform: translateY(-2px);
+}
+
+/* 主力の2件は幅も地も変える（白い箱を6つ並べない） */
+.lp-bento__cell--lead {
+  grid-column: span 6;
+  padding: 24px;
+  background: var(--grad-soft), var(--c-surface);
+  border-color: rgba(168, 85, 247, .28);
+}
+
+.lp-bento__title {
+  margin: 0;
+  font-size: var(--fs-sub);
+  font-weight: var(--fw-semi);
   color: var(--c-text);
 }
 
-.lp-price__desc {
-  margin: 10px 0 0;
+.lp-bento__cell--lead .lp-bento__title {
+  font-family: var(--font-title);
+  font-size: 22px;
+}
+
+.lp-bento__desc {
+  margin: 8px 0 0;
   font-size: var(--fs-note);
-  line-height: 1.9;
+  line-height: 1.8;
   color: var(--c-text-sub);
+}
+
+/* --- 料金：注記1行ではなく、機能と必要ポイントを並べる --- */
+.lp-prices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 680px;
+  margin-top: 24px;
+  text-align: left;
+}
+
+.lp-price {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-card);
+  background: var(--c-surface);
+}
+
+.lp-price__name {
+  font-size: var(--fs-note);
+  font-weight: var(--fw-bold);
+  color: var(--c-text);
+}
+
+.lp-price__value {
+  font-family: var(--font-title);
+  font-size: 26px;
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--c-sub);
+  white-space: nowrap;
+}
+
+.lp-price__value--free {
+  font-size: 18px;
 }
 
 /* --- 最終CTA --- */
 .lp-band {
   width: calc(100% - var(--sp-screen) * 2);
-  max-width: 1020px;
+  max-width: var(--lp-max);
   margin: 56px auto 0;
-  padding: 48px 24px;
+  padding: 56px 24px;
   border-radius: var(--r-card);
-  background: var(--grad-main);
+  background: var(--c-text);
   color: var(--c-white);
   text-align: center;
 }
+
+.lp-band .lp-actions { justify-content: center; }
 
 .lp-band__title {
   margin: 0;
   font-family: var(--font-title);
   font-size: clamp(20px, 3.2vw, 28px);
-  font-weight: 900;
+  font-weight: var(--fw-bold);
   line-height: 1.45;
 }
 
@@ -3304,7 +3517,30 @@ input[type='radio'] {
   color: rgba(255, 255, 255, .88);
 }
 
-/* ランディングだけは本文の横幅制限を広げる */
+/* --- 狭い画面：1列に落とす。紗は横方向から縦方向へ --- */
+@media (max-width: 900px) {
+  .lp-bento__cell--lead { grid-column: span 12; }
+  .lp-bento__cell { grid-column: span 6; }
+  .lp-flow { grid-template-columns: 1fr; gap: 20px; }
+}
+
+@media (max-width: 600px) {
+  .lp-hero { min-height: 0; padding-block: 56px 48px; }
+  .lp-hero__veil {
+    background:
+      linear-gradient(180deg, rgba(20, 17, 32, .80), rgba(20, 17, 32, .90)),
+      linear-gradient(120deg, rgba(124, 58, 237, .16), rgba(219, 39, 119, .10));
+  }
+  .lp-bento__cell { grid-column: span 12; }
+  .lp-prices { grid-template-columns: 1fr; }
+  .lp-cta { flex: 1 1 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-bento__cell { transition: none; }
+  .lp-bento__cell:hover { transform: none; }
+}
+
 /* ランディングだけは横幅制限と左右余白を外し、ヒーローをブラウザ幅で敷く */
 .app-main:has(.lp) {
   max-width: none;
@@ -3355,7 +3591,7 @@ input[type='radio'] {
 .jobwatch__title {
   font-family: var(--font-title);
   font-size: var(--fs-sub);
-  font-weight: 800;
+  font-weight: var(--fw-semi);
   color: var(--c-text);
 }
 
@@ -3382,13 +3618,13 @@ input[type='radio'] {
 
 .jobwatch__step {
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--c-sub);
 }
 
 .jobwatch__pct {
   font-size: var(--fs-sub);
-  font-weight: 800;
+  font-weight: var(--fw-semi);
   color: var(--c-text);
   font-variant-numeric: tabular-nums;
 }
@@ -3465,7 +3701,7 @@ input[type='radio'] {
 
 .jobwatch__label {
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--c-text);
 }
 
@@ -3669,7 +3905,7 @@ input[type='radio'] {
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--c-accent);
 }
 
@@ -3698,7 +3934,7 @@ input[type='radio'] {
   background: var(--c-skeleton);
   color: var(--c-text-sub);
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   vertical-align: middle;
 }
 
@@ -3739,7 +3975,7 @@ input[type='radio'] {
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--grad-main);
+  background: var(--c-main);
 }
 
 .target-card:focus-within { border-color: var(--c-main); }
@@ -3785,7 +4021,7 @@ input[type='radio'] {
 
 .target-card__name {
   font-size: var(--fs-body);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--c-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3799,7 +4035,7 @@ input[type='radio'] {
   background: var(--c-skeleton);
   color: var(--c-text-sub);
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 
 /* 開閉の矢印 */
@@ -3964,7 +4200,7 @@ input[type='radio'] {
   background: var(--c-accent);
   color: var(--c-white);
   font-size: var(--fs-note);
-  font-weight: 800;
+  font-weight: var(--fw-semi);
   font-variant-numeric: tabular-nums;
 }
 
@@ -3972,7 +4208,7 @@ input[type='radio'] {
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--fs-note);
-  font-weight: 800;
+  font-weight: var(--fw-semi);
   color: var(--c-text);
 }
 
@@ -4027,7 +4263,7 @@ input[type='radio'] {
 /* リワード価格の下に出す定価比 */
 .discount-mark {
   font-size: var(--fs-note);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   line-height: 1.6;
 }
 
@@ -4172,7 +4408,7 @@ input[type='radio'] {
   background: rgba(168, 85, 247, .14);
   color: var(--c-sub);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: var(--fw-semi);
 }
 
 .target-card__move-unused {
@@ -4201,11 +4437,10 @@ input[type='radio'] {
   margin-left: 6px;
   padding: 1px 6px;
   border-radius: var(--r-pill);
-  background: var(--grad-main);
-  background-origin: border-box;
-  color: var(--c-white);
+  background: var(--c-main-weak);
+  color: var(--c-main-press);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: var(--fw-semi);
   letter-spacing: .04em;
   vertical-align: middle;
 }
@@ -4306,8 +4541,8 @@ input[type='radio'] {
 .lpd-section { padding: 14px 16px; border: 1px solid var(--c-line); border-radius: var(--r-card); background: var(--c-surface); }
 .lpd-section--cta { border-color: var(--c-accent); }
 .lpd-section__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
-.lpd-section__no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c-text); color: #fff; font-size: 12px; font-weight: 700; }
-.lpd-section__title { font-weight: 700; }
+.lpd-section__no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c-text); color: #fff; font-size: 12px; font-weight: var(--fw-bold); }
+.lpd-section__title { font-weight: var(--fw-bold); }
 .lpd-section .field { margin: 0 0 8px; }
 .lp-assets { margin: 8px 0 0; }
 .lp-assets__row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -4339,7 +4574,7 @@ input[type='radio'] {
   padding: 12px; border: 1px solid var(--c-line); border-radius: var(--r-card);
   background: var(--c-surface, #fff);
 }
-.lpr-shelf__title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: 700; }
+.lpr-shelf__title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: var(--fw-bold); }
 .lpr-pick { margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--c-line); }
 /* いまの下見が使っていない区画。選んでも見た目が変わらないので薄くする */
 .lpr-pick--off { opacity: .6; }
@@ -4391,7 +4626,7 @@ input[type='radio'] {
   margin: 0; padding: 14px 16px;
   border: 1px solid var(--c-line); border-radius: var(--r-card);
 }
-.lpr-modes__title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: 700; }
+.lpr-modes__title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: var(--fw-bold); }
 /* 「すべての区画を◯◯に」。右の棚の頭に置く（幅が狭いので折り返す） */
 .lpr-modes__all {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
@@ -4498,7 +4733,7 @@ input[type='radio'] {
   border: 1px solid var(--c-line);
   border-bottom: none;
   border-radius: 10px 10px 0 0;     /* 耳なので上の角だけ */
-  font-size: var(--fs-note); font-weight: 700; color: var(--c-text-sub);
+  font-size: var(--fs-note); font-weight: var(--fw-bold); color: var(--c-text-sub);
   cursor: pointer;
 }
 /* 開いている耳。1px下げて下の線に食い込み、その1pxを塗って線を切る。
@@ -4511,7 +4746,7 @@ input[type='radio'] {
   color: var(--c-main);
   border-color: var(--c-main);
   border-bottom: 1px solid var(--c-bg);
-  font-weight: 800;
+  font-weight: var(--fw-semi);
 }
 /* 開いていない耳は、地より少し沈めて「奥にある紙」に見せる */
 .lp-deliv { background: #EDE9F6; }
@@ -4521,7 +4756,7 @@ input[type='radio'] {
 /* 「公開中」が2行に折れていた（実測 2026-10-12 利用者の指摘）。
    耳の幅に収まらないと、短い語でも「公開／中」と割れる。折らない */
 .lp-deliv__count {
-  margin-left: 6px; font-size: 11px; font-weight: 700; opacity: .75;
+  margin-left: 6px; font-size: 11px; font-weight: var(--fw-bold); opacity: .75;
   white-space: nowrap; flex: 0 0 auto;
 }
 .lp-deliv__count.is-none { opacity: .45; }
@@ -4532,11 +4767,11 @@ input[type='radio'] {
   display: inline-flex; align-items: baseline; gap: 7px;
   max-width: 300px; padding-left: 14px; padding-right: 14px;
 }
-.lp-delivs--variants .lp-variant__label { font-weight: 800; }
+.lp-delivs--variants .lp-variant__label { font-weight: var(--fw-semi); }
 .lp-delivs--variants .lp-variant__name {
   font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.lp-delivs--variants .lp-variant__count { font-size: 11px; font-weight: 700; opacity: .75; }
+.lp-delivs--variants .lp-variant__count { font-size: 11px; font-weight: var(--fw-bold); opacity: .75; }
 .lp-delivs--variants .lp-variant__count.is-none { opacity: .45; }
 
 /* 種類の行。耳の下に並ぶので、小さめの錠剤にする */
@@ -4563,9 +4798,9 @@ input[type='radio'] {
 .lp-variant--on { border-color: var(--c-accent); box-shadow: 0 0 0 1px var(--c-accent) inset; }
 /* この回に無い層（押すと別の回のその層へ飛ぶ）。薄くして区別する */
 .lp-variant--faded { opacity: .55; }
-.lp-variant__label { font-weight: 700; }
+.lp-variant__label { font-weight: var(--fw-bold); }
 /* その層に絵が何枚あるか。どの層を作ったのかが一目で分かる */
-.lp-variant__count { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--c-accent); font-weight: 700; }
+.lp-variant__count { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--c-accent); font-weight: var(--fw-bold); }
 .lp-variant__count.is-none { color: var(--c-text-sub); font-weight: 400; }
 
 .lp-variant__name { font-size: var(--fs-note); color: var(--c-text-sub); }
@@ -4644,7 +4879,7 @@ input[type='radio'] {
   background: linear-gradient(45deg, #F58529 0%, #DD2A7B 45%, #8134AF 75%, #515BD4 100%);
   color: #fff;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: .04em;
   line-height: 1;
   white-space: nowrap;
@@ -4673,7 +4908,7 @@ input[type='radio'] {
 }
 .lp-bulk__btn {
   flex: 1 1 60%; min-width: 0; min-height: 52px;
-  font-size: 16px; font-weight: 700; letter-spacing: .02em;
+  font-size: 16px; font-weight: var(--fw-bold); letter-spacing: .02em;
 }
 .lp-bulk__zip {
   flex: 0 1 auto; min-height: 52px; white-space: nowrap;
@@ -4797,7 +5032,7 @@ input[type='radio'] {
 .lpr-modes__sum::-webkit-details-marker { display: none; }
 .lpr-modes__sum::before { content: '▸'; display: inline-block; transition: transform .15s; }
 .lpr-modes__box[open] .lpr-modes__sum::before { transform: rotate(90deg); }
-.lpr-modes__box .lpr-modes__title { margin: 0; font-size: 15px; font-weight: 700; }
+.lpr-modes__box .lpr-modes__title { margin: 0; font-size: 15px; font-weight: var(--fw-bold); }
 .lpr-view { display: inline-flex; gap: 4px; }
 
 /* 絵の作り先の切り替え（LP案の画面）。

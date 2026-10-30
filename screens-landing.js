@@ -3,7 +3,8 @@
  * S0 ログイン前ホーム（アプリ紹介）だけを描く。
  *
  * ttalkkak-ai.com のトップページと同じ組み立て:
- *   映像背景のヒーロー → 3ステップ → 機能一覧 → クレジット料金 → 最終CTA
+ *   左寄せヒーロー（右に映像）→ 掲載先ロゴ → 3ステップ → できること → 料金 → 最終CTA
+ *   節ごとに組み方を変えてある（同じ型のカード列を二度並べない）。
  *
  * ---- 他ファイルとの共通契約 ----
  * 画面登録   App.registerScreen('S0', { render: function (root, params) {} });
@@ -29,10 +30,29 @@
 
   var HERO_VIDEO = 'hero-bg.mp4';
 
+  /* ヒーロー直下に出す掲載先。ロゴの実体は platform-logos.js（assets/platform から生成） */
+  var PLATFORMS = [
+    { id: 'makuake', name: 'Makuake' },
+    { id: 'campfire', name: 'CAMPFIRE' },
+    { id: 'greenfunding', name: 'GREENFUNDING' },
+    { id: 'machiya', name: 'Machi-ya' }
+  ];
+
   var STEPS = ['landing.step1', 'landing.step2', 'landing.step3'];
+
+  /* 先頭2つが大きい区画。6件ちょうどで埋まる組み方にしてある */
   var FEATURES = [
     'landing.featCfLp', 'landing.featOwnLp', 'landing.featKv',
     'landing.featAds', 'landing.featLine', 'landing.featAb'
+  ];
+
+  /* ponytail: 値段は i18n と同じく直書き。管理画面の単価を引くのはログイン後だけなので、
+     ここを動的にしたくなったら api.js 越しに公開価格を足すこと */
+  var PRICES = [
+    { key: 'landing.priceProject', value: null },
+    { key: 'landing.priceLp', value: '60P' },
+    { key: 'landing.priceAsset', value: '30P' },
+    { key: 'landing.priceAnalysis', value: '40P' }
   ];
 
   function t(key, params) {
@@ -62,7 +82,7 @@
     return node;
   }
 
-  /* 見出しの「、」で改行させる（ttalkkak の2行ヘッドラインと同じ見え方） */
+  /* 見出しの「、」で改行させる（2行ヘッドライン） */
   function headline(text) {
     var node = el('h1', 'lp-hero__title');
     String(text).split('\n').forEach(function (line, index) {
@@ -72,10 +92,10 @@
     return node;
   }
 
+  /* --- ヒーロー：文字は左、映像の右半分は隠さない --- */
   function buildHero() {
     var hero = el('section', 'lp-hero');
 
-    /* 背景の映像。読めない環境ではグラデーションだけが残る */
     var video = document.createElement('video');
     video.className = 'lp-hero__video';
     video.src = HERO_VIDEO;
@@ -104,39 +124,92 @@
     actions.appendChild(linkButton('btn lp-cta lp-cta--ghost', t('landing.ctaLogin'), 'S1'));
     inner.appendChild(actions);
 
-    inner.appendChild(el('p', 'lp-hero__note', t('landing.ctaNote')));
     hero.appendChild(inner);
     return hero;
   }
 
-  function buildSection(labelKey, titleKey, descKey) {
-    var section = el('section', 'lp-section');
-    section.appendChild(el('span', 'lp-eyebrow lp-eyebrow--dark', t(labelKey)));
+  /* --- 掲載先ロゴ。ロゴが1枚も無い環境では帯ごと出さない --- */
+  function buildProof() {
+    var logos = window.LPYA_PLATFORM_LOGOS || {};
+    var strip = el('section', 'lp-proof');
+    var row = el('div', 'lp-proof__row');
+    var found = 0;
+
+    PLATFORMS.forEach(function (platform) {
+      var logo = logos[platform.id];
+      if (!logo || !logo.src) { return; }
+      var img = el('img', 'lp-proof__logo');
+      img.src = logo.src;
+      img.alt = platform.name;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      row.appendChild(img);
+      found += 1;
+    });
+
+    if (!found) { return null; }
+
+    strip.appendChild(el('span', 'lp-proof__label', t('landing.platforms')));
+    strip.appendChild(row);
+    strip.appendChild(el('p', 'lp-proof__note', t('landing.ctaNote')));
+    return strip;
+  }
+
+  function buildSection(titleKey, descKey, extraClass) {
+    var section = el('section', 'lp-section' + (extraClass ? ' ' + extraClass : ''));
     section.appendChild(el('h2', 'lp-section__title', t(titleKey)));
     if (descKey) { section.appendChild(el('p', 'lp-section__desc', t(descKey))); }
     return section;
   }
 
-  function buildCards(keys, extraClass) {
-    var grid = el('div', 'lp-grid' + (extraClass ? ' ' + extraClass : ''));
-    keys.forEach(function (key, index) {
-      var card = el('article', 'lp-card');
-      if (extraClass === 'lp-grid--steps') {
-        card.appendChild(el('span', 'lp-card__num', String(index + 1)));
-      }
-      card.appendChild(el('span', 'lp-card__title', t(key)));
-      card.appendChild(el('p', 'lp-card__desc', t(key + 'Desc')));
-      grid.appendChild(card);
+  /* --- 使い方：カードで囲わず、縦罫と大きな番号だけで3つに分ける --- */
+  function buildSteps() {
+    var section = buildSection('landing.stepsTitle', 'landing.stepsDesc', 'lp-section--left');
+    var flow = el('ol', 'lp-flow');
+
+    STEPS.forEach(function (key, index) {
+      var item = el('li', 'lp-flow__item');
+      item.appendChild(el('span', 'lp-flow__num', String(index + 1)));
+      item.appendChild(el('h3', 'lp-flow__title', t(key)));
+      item.appendChild(el('p', 'lp-flow__desc', t(key + 'Desc')));
+      flow.appendChild(item);
     });
-    return grid;
+
+    section.appendChild(flow);
+    return section;
   }
 
+  /* --- できること：先頭2件を大きく、残り4件を小さく。6件ちょうどで隙間が出ない --- */
+  function buildFeatures() {
+    var section = buildSection('landing.featuresTitle', 'landing.featuresDesc', 'lp-section--left');
+    var grid = el('div', 'lp-bento');
+
+    FEATURES.forEach(function (key, index) {
+      var cell = el('article', 'lp-bento__cell' + (index < 2 ? ' lp-bento__cell--lead' : ''));
+      cell.appendChild(el('h3', 'lp-bento__title', t(key)));
+      cell.appendChild(el('p', 'lp-bento__desc', t(key + 'Desc')));
+      grid.appendChild(cell);
+    });
+
+    section.appendChild(grid);
+    return section;
+  }
+
+  /* --- 料金：注記1行をやめて、機能と必要ポイントを並べる --- */
   function buildPricing() {
-    var section = buildSection('landing.pricingLabel', 'landing.pricingTitle', 'landing.pricingDesc');
-    var card = el('div', 'lp-price');
-    card.appendChild(el('span', 'lp-price__label', t('landing.pricingUnit')));
-    card.appendChild(el('p', 'lp-price__desc', t('landing.pricingNote')));
-    section.appendChild(card);
+    var section = buildSection('landing.pricingTitle', 'landing.pricingDesc');
+    var grid = el('div', 'lp-prices');
+
+    PRICES.forEach(function (row) {
+      var tile = el('div', 'lp-price');
+      tile.appendChild(el('span', 'lp-price__name', t(row.key)));
+      var value = row.value;
+      var node = el('span', 'lp-price__value' + (value ? '' : ' lp-price__value--free'), value || t('landing.priceFree'));
+      tile.appendChild(node);
+      grid.appendChild(tile);
+    });
+
+    section.appendChild(grid);
     return section;
   }
 
@@ -157,14 +230,11 @@
 
       page.appendChild(buildHero());
 
-      var steps = buildSection('landing.stepsLabel', 'landing.stepsTitle', 'landing.stepsDesc');
-      steps.appendChild(buildCards(STEPS, 'lp-grid--steps'));
-      page.appendChild(steps);
+      var proof = buildProof();
+      if (proof) { page.appendChild(proof); }
 
-      var features = buildSection('landing.featuresLabel', 'landing.featuresTitle', 'landing.featuresDesc');
-      features.appendChild(buildCards(FEATURES));
-      page.appendChild(features);
-
+      page.appendChild(buildSteps());
+      page.appendChild(buildFeatures());
       page.appendChild(buildPricing());
       page.appendChild(buildFinalCta());
 
