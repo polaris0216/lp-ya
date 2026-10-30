@@ -131,8 +131,28 @@
     'landing.ctaLogin': ['ログイン', 'Log in', '로그인'],
     'landing.ctaNote': ['登録時にお試しポイント付き。カード登録は不要です。', 'Trial points on sign-up. No card required.', '가입 시 체험 포인트 제공. 카드 등록 불필요.'],
 
+    /* 外注との比較。金額と納期は変わりうるので、文言をここに集めてある。
+       エルピーヤ側の所要時間は job-eta.js の実測（中央値52分）から「1時間ほど」。
+       推測で短く言わない（短く言うと、待てたはずの人を不安にさせる） */
+    'compare.title': ['外注に出すより、速くて安い。', 'Faster and cheaper than outsourcing.', '외주보다 빠르고 저렴합니다.'],
+    'compare.desc': ['制作会社やフリーランスに頼むときとの違いです。', 'How it compares with an agency or a freelance designer.', '제작사나 프리랜서에게 맡길 때와의 차이입니다.'],
+    'compare.colOld': ['外注', 'Outsourcing', '외주'],
+    'compare.colNew': ['エルピーヤ', 'Elpiya', '엘피야'],
+    'compare.rowCost': ['費用', 'Cost', '비용'],
+    'compare.oldCost': ['制作会社で30万円ほど\nフリーランスで15万円ほど', 'About 300,000 yen at an agency\nAbout 150,000 yen with a freelancer', '제작사 약 30만 엔\n프리랜서 약 15만 엔'],
+    'compare.newCost': ['5,000円から', 'From 5,000 yen', '5,000엔부터'],
+    'compare.rowTime': ['できるまで', 'Turnaround', '완성까지'],
+    'compare.oldTime': ['1〜2週間', 'One to two weeks', '1~2주'],
+    'compare.newTime': ['1時間ほど', 'About an hour', '1시간 정도'],
+    'compare.rowHow': ['何をもとに作るか', 'What it is built on', '무엇을 근거로 만드는가'],
+    'compare.oldHow': ['打ち合わせの内容と、担当者の経験', 'The brief, plus the designer\u2019s own experience', '미팅 내용과 담당자의 경험'],
+    'compare.newHow': ['売れた競合LPと海外の元データ、最大5つのターゲット層の分析', 'Competitor pages that sold, the overseas original, and up to five target segments', '팔린 경쟁 상세페이지와 해외 원본, 최대 5개 타깃층 분석'],
+    'compare.note': ['外注の金額は一般的な相場です。エルピーヤの所要時間は実測の中央値で、商品や競合の数によって前後します。', 'Outsourcing figures are typical market rates. Our turnaround is a measured median and varies with the product and the number of competitors.', '외주 금액은 일반적인 시세입니다. 소요 시간은 실측 중앙값이며 상품과 경쟁사 수에 따라 달라집니다.'],
+
     'landing.stepsLabel': ['使い方', 'How it works', '사용법'],
-    'landing.stepsTitle': ['たった3ステップ、数分で。', 'Three steps, a few minutes.', '딱 3단계, 몇 분이면.'],
+    /* 2026-10-30: 「数分で」をやめた。実測は中央値52分で、所要時間を言うのは
+       比較の表（compare.newTime）1か所だけにする。画面ごとに違う時間を言わない */
+    'landing.stepsTitle': ['やることは、3つだけ。', 'Just three things to do.', '할 일은 3가지뿐.'],
     'landing.stepsDesc': ['デザインの知識も、指示の書き方も要りません。', 'No design skills and no prompt writing needed.', '디자인 지식도, 프롬프트도 필요 없습니다.'],
     'landing.step1': ['商品を入力', 'Enter your product', '상품 입력'],
     'landing.step1Desc': ['写真・カテゴリ・定価・リワード・訴求メッセージを入れます。入力が正確なほど生成結果がよくなります。', 'Photos, category, list price, rewards and messaging. The more accurate the input, the better the output.', '사진·카테고리·정가·리워드·소구 메시지를 넣습니다. 입력이 정확할수록 결과가 좋아집니다.'],
@@ -162,7 +182,7 @@
     'landing.pricingDesc': ['月額の縛りはありません。使った機能の分だけポイントが減ります。', 'No monthly lock-in. Points are spent per feature you use.', '월 구독 약정 없음. 사용한 기능만큼 포인트가 차감됩니다.'],
 
     'landing.finalTitle': ['今すぐ、最初のLPを作ってみましょう。', 'Make your first landing page now.', '지금, 첫 상세페이지를 만들어 보세요.'],
-    'landing.finalDesc': ['商品を入れるところから、数分で。', 'From entering your product, in a few minutes.', '상품을 넣는 것부터, 몇 분이면.'],
+    'landing.finalDesc': ['商品を入れるところから、1時間ほどで。', 'From entering your product, in about an hour.', '상품을 넣는 것부터 1시간 정도면.'],
 
     // ==== lang: 設定画面の言語表示名(現在の言語で他言語名をどう呼ぶか) ====
     'lang.ja': ['日本語', 'Japanese', '일본어'],

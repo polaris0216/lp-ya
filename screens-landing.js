@@ -44,6 +44,14 @@
     { id: 'wadiz', name: 'Wadiz' }
   ];
 
+  /* 外注との比較。左が外注、右がエルピーヤ。行は3つだけに絞る
+     （費用・納期・何をもとに作るか）。増やすと表になって読まれなくなる */
+  var COMPARE = [
+    { row: 'compare.rowCost', old: 'compare.oldCost', now: 'compare.newCost' },
+    { row: 'compare.rowTime', old: 'compare.oldTime', now: 'compare.newTime' },
+    { row: 'compare.rowHow', old: 'compare.oldHow', now: 'compare.newHow' }
+  ];
+
   var STEPS = ['landing.step1', 'landing.step2', 'landing.step3'];
 
   /* 先頭2つが大きい区画。6件ちょうどで埋まる組み方にしてある */
@@ -76,6 +84,15 @@
     var node = el('button', className, label);
     node.type = 'button';
     node.addEventListener('click', function () { go(screenId); });
+    return node;
+  }
+
+  /* \n で改行して入れる（文言側に改行を持たせたいところ用） */
+  function lines(node, text) {
+    String(text).split('\n').forEach(function (line, index) {
+      if (index > 0) { node.appendChild(el('br')); }
+      node.appendChild(document.createTextNode(line));
+    });
     return node;
   }
 
@@ -162,6 +179,35 @@
     return section;
   }
 
+  /* --- 外注との比較：左右2列。右（エルピーヤ）だけ地を変えて立たせる --- */
+  function buildCompare() {
+    var section = buildSection('compare.title', 'compare.desc', 'lp-section--left');
+    var table = el('div', 'lp-vs');
+
+    var head = el('div', 'lp-vs__head');
+    head.appendChild(el('span', 'lp-vs__corner', ''));
+    head.appendChild(el('span', 'lp-vs__col', t('compare.colOld')));
+    head.appendChild(el('span', 'lp-vs__col lp-vs__col--now', t('compare.colNew')));
+    table.appendChild(head);
+
+    COMPARE.forEach(function (one) {
+      var row = el('div', 'lp-vs__row');
+      row.appendChild(el('span', 'lp-vs__key', t(one.row)));
+      var oldCell = row.appendChild(el('span', 'lp-vs__old'));
+      /* 狭い画面では見出しの行を消すので、どちらの話かを各セルに持たせる */
+      oldCell.setAttribute('data-label', t('compare.colOld'));
+      lines(oldCell, t(one.old));
+      var nowCell = row.appendChild(el('span', 'lp-vs__now'));
+      nowCell.setAttribute('data-label', t('compare.colNew'));
+      lines(nowCell, t(one.now));
+      table.appendChild(row);
+    });
+
+    section.appendChild(table);
+    section.appendChild(el('p', 'lp-vs__note', t('compare.note')));
+    return section;
+  }
+
   /* --- 使い方：カードで囲わず、縦罫と大きな番号だけで3つに分ける --- */
   function buildSteps() {
     var section = buildSection('landing.stepsTitle', 'landing.stepsDesc', 'lp-section--left');
@@ -223,6 +269,7 @@
       var proof = buildProof();
       if (proof) { page.appendChild(proof); }
 
+      page.appendChild(buildCompare());
       page.appendChild(buildSteps());
       page.appendChild(buildFeatures());
       page.appendChild(buildPricing());

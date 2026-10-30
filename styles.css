@@ -3364,6 +3364,105 @@ input[type='radio'] {
   color: var(--c-text-sub);
 }
 
+/* --- 外注との比較。表の罫線は引かず、列の地の違いだけで分ける --- */
+.lp-vs {
+  display: grid;
+  grid-template-columns: minmax(96px, 11em) 1fr 1fr;
+  width: 100%;
+  max-width: 880px;
+  margin: 24px 0 0;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--c-surface);
+}
+
+.lp-vs__head,
+.lp-vs__row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.lp-vs__row + .lp-vs__row,
+.lp-vs__head + .lp-vs__row { border-top: 1px solid var(--c-line-soft); }
+
+.lp-vs__corner,
+.lp-vs__col,
+.lp-vs__key,
+.lp-vs__old,
+.lp-vs__now {
+  padding: 14px 18px;
+}
+
+.lp-vs__col {
+  font-size: var(--fs-note);
+  font-weight: var(--fw-bold);
+  color: var(--c-text-sub);
+}
+
+/* エルピーヤの列だけ、上から下までひと続きの地にする。
+   行ごとに塗ると縞に見えて、列として読めない */
+.lp-vs__col--now,
+.lp-vs__now {
+  background: var(--grad-soft), var(--c-surface);
+  color: var(--c-text);
+}
+
+.lp-vs__col--now { color: var(--c-main-press); }
+
+.lp-vs__key {
+  font-size: var(--fs-note);
+  color: var(--c-text-sub);
+}
+
+.lp-vs__old {
+  font-size: var(--fs-note);
+  line-height: 1.8;
+  color: var(--c-text-sub);
+}
+
+.lp-vs__now {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  line-height: 1.75;
+}
+
+.lp-vs__note {
+  margin: 10px 0 0;
+  max-width: 880px;
+  font-size: var(--fs-note);
+  line-height: 1.7;
+  color: var(--c-text-mute);
+}
+
+/* 狭い画面では3列に割れない。見出しの行を消して、
+   「項目 → 外注 → エルピーヤ」の縦並びにする */
+@media (max-width: 720px) {
+  .lp-vs { grid-template-columns: 1fr; }
+  .lp-vs__head { display: none; }
+  .lp-vs__row { display: block; padding: 14px 16px; }
+  .lp-vs__row + .lp-vs__row { border-top: 1px solid var(--c-line-soft); }
+  .lp-vs__key,
+  .lp-vs__old,
+  .lp-vs__now { display: block; padding: 0; }
+  .lp-vs__key { font-weight: var(--fw-bold); color: var(--c-text); }
+  .lp-vs__old,
+  .lp-vs__now { padding: 8px 12px; margin-top: 6px; border-radius: var(--r-control); }
+  .lp-vs__old { background: var(--c-surface-3); }
+  /* 狭い画面では列が無いので、どちらの話か分かるように頭に名前を出す */
+  .lp-vs__old::before,
+  .lp-vs__now::before {
+    display: block;
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    letter-spacing: .02em;
+    margin-bottom: 2px;
+    color: var(--c-text-mute);
+  }
+  .lp-vs__old::before { content: attr(data-label); }
+  .lp-vs__now::before { content: attr(data-label); color: var(--c-main-press); }
+}
+
 /* --- 使い方：枠で囲わず、縦罫と番号で3つに分ける --- */
 .lp-flow {
   display: grid;
