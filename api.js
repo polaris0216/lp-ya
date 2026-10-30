@@ -1012,7 +1012,27 @@
     }
   };
 
+  /* ---------- 管理者用の集計（2026-10-30）----------
+     ボタン別の原価と、利用者ごとの使い方。原価は利用者に見せないので、
+     RPC の中で elpiya_is_admin() を見ている（管理者以外は空が返る） */
+  function costByFeature(from, to) {
+    return rpc('elpiya_admin_cost_by_feature', {
+      p_from: from || null, p_to: to || null
+    });
+  }
+
+  /* bucket: 'all' | 'month' | 'day' */
+  function usageByUser(bucket, from, to, userId) {
+    return rpc('elpiya_admin_usage_by_user', {
+      p_bucket: String(bucket || 'all'),
+      p_from: from || null, p_to: to || null,
+      p_user: userId || null
+    });
+  }
+
   api.credits = {
+    costByFeature: costByFeature,
+    usageByUser: usageByUser,
     balance: balance,
     consume: consume,
     grant: grant,

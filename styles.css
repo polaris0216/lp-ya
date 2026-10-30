@@ -4729,6 +4729,44 @@ input[type='radio'] {
 }
 .btn--primary .btn__pt { background: rgba(255,255,255,.26); }
 
+/* 管理者の値段表を括りごとに囲う（2026-10-30 要望）。
+   工程の耳と同じ並びにして、括りごとの合計も出す */
+.admin-group {
+  margin: 0 0 14px; padding: 10px 12px 4px;
+  border: 1px solid var(--c-line); border-radius: 12px;
+  background: var(--c-surface);
+}
+.admin-group__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.admin-group__no {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--c-sub); color: var(--c-white);
+  font-size: 11px; font-weight: 700;
+}
+.admin-group__name { flex: 1 1 auto; font-size: 14px; font-weight: 700; }
+.admin-group__sum { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* 売値が原価を下回っている行は、気づけるようにする */
+.admin-cost { font-variant-numeric: tabular-nums; }
+.admin-cost--under { color: var(--c-danger, #c0392b); font-weight: 700; }
+
+/* 利用状況（S22）。ユーザー × 期間の表 */
+.usage-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.usage-table th {
+  text-align: left; padding: 7px 8px; white-space: nowrap;
+  font-size: var(--fs-note); font-weight: 600; color: var(--c-text-sub);
+  border-bottom: 1px solid var(--c-line);
+}
+.usage-table td { padding: 8px; border-bottom: 1px solid var(--c-line); vertical-align: middle; }
+.usage-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.usage-wrap { overflow-x: auto; }
+/* 原価より受け取りが少ない行（赤字）は、ひと目で分かるようにする */
+.usage-table tr.is-loss td { background: color-mix(in srgb, var(--c-danger, #c0392b) 8%, transparent); }
+.usage-bar {
+  display: block; height: 6px; border-radius: 3px;
+  background: var(--c-sub); min-width: 2px;
+}
+
 /* 販売ページの公開 */
 .lp-pub__url { margin: 6px 0 0; font-size: 13px; color: var(--c-text-sub, #666); word-break: break-all; }
 .lp-pub__row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

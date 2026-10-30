@@ -86,7 +86,7 @@
   ];
 
   /* ------------------------------------------------------------------
-   * 1. 画面表（S1〜S19 と settings）
+   * 1. 画面表（S1〜S22 と settings）
    *    tab   : 下部タブバーで光らせる項目。null ならタブバーごと隠す
    *    back  : 履歴が無いときの戻り先
    *    auth  : ログイン中のユーザーが必要か
@@ -113,6 +113,9 @@
     S17: { tab: 'S17', back: 'S3', auth: true, admin: false },
     S18: { tab: 'S18', back: 'S3', auth: true, admin: true },
     S19: { tab: null, back: 'S18', auth: true, admin: true },
+    /* 利用状況（ボタン別原価・利用者ごとの費用とポイント・作っているもの）
+       2026-10-30 要望。管理者だけ */
+    S22: { tab: null, back: 'S18', auth: true, admin: true },
     settings: { tab: 'settings', back: 'S3', auth: false, admin: false }
   };
 
@@ -220,6 +223,7 @@
       'screen.S17': 'ポイント',
       'screen.S18': '管理者ダッシュボード',
       'screen.S19': '機能別価格設定',
+      'screen.S22': '利用状況',
       'screen.S20': '販売戦略分析結果',
       'screen.S21': 'LINEコンテンツ',
       'screen.settings': '設定',
@@ -330,6 +334,7 @@
       'screen.S17': 'Points',
       'screen.S18': 'Admin dashboard',
       'screen.S19': 'Feature pricing',
+      'screen.S22': 'Usage',
       'screen.S20': 'Sales strategy',
       'screen.S21': 'LINE content',
       'screen.settings': 'Settings',
@@ -440,6 +445,7 @@
       'screen.S17': '포인트',
       'screen.S18': '관리자 대시보드',
       'screen.S19': '기능별 가격 설정',
+      'screen.S22': '이용 현황',
       'screen.S20': '판매 전략 분석 결과',
       'screen.S21': 'LINE 콘텐츠',
       'screen.settings': '설정',
@@ -2309,7 +2315,7 @@
     if (!route.id) { return; }
     var meta = SCREENS[route.id];
     if (!meta) {
-      console.error('[App] 未知の画面IDです: ' + route.id + '（S1〜S19 と settings のみ）');
+      console.error('[App] 未知の画面IDです: ' + route.id + '（S1〜S22 と settings のみ）');
       replace(state.user ? 'S3' : 'S1');
       return;
     }
@@ -2377,7 +2383,7 @@
       return;
     }
     if (!SCREENS[id]) {
-      console.error('[App] registerScreen(' + id + '): 画面表にないIDです（S1〜S19 と settings のみ）。綴りを確認してください。');
+      console.error('[App] registerScreen(' + id + '): 画面表にないIDです（S1〜S22 と settings のみ）。綴りを確認してください。');
       return;
     }
     if (screens[id]) {

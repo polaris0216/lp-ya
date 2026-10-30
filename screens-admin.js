@@ -252,6 +252,19 @@
     'local.featureListDesc': ['{n}件の機能（1回あたりの消費ポイント）', '{n} features (points used per run)', '{n}개 기능(1회당 소모 포인트)'],
     'local.featureListEmpty': ['機能が登録されていません。下の入力から行を追加してください', 'No features yet. Add a row with the form below.', '등록된 기능이 없습니다. 아래 입력에서 행을 추가해 주세요'],
     'local.unsavedBadge': ['未保存', 'Unsaved', '미저장'],
+    /* 値段表の括り分けと、実測原価（2026-10-30 要望） */
+    'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
+    'local.usageLink': ['利用状況（原価・利用者ごと・作っているもの）', 'Usage (cost, per user, their work)', '이용 현황'],
+    'local.perUnit': ['単位ごと', 'per unit', '단위마다'],
+    'local.costEach': ['実測原価 {yen}円/回（{n}回ぶん）・売値 {price}円',
+      'Measured cost ¥{yen} per run (from {n} runs) · price ¥{price}',
+      '실측 원가 {yen}원/회({n}회) · 판매가 {price}원'],
+    'local.costTotalOnly': ['実測原価 合計{yen}円（回数が数えられていません）',
+      'Measured cost ¥{yen} total (runs not counted)',
+      '실측 원가 합계 {yen}원'],
+    'wfg.research': ['調べる', 'Research', '조사'],
+    'wfg.build': ['作る', 'Build', '제작'],
+    'wfg.deliver': ['届ける', 'Deliver', '전달'],
     'local.featureNameLabel': ['機能名（任意）', 'Feature name (optional)', '기능 이름(선택)'],
     'local.featureNamePlaceholder': ['例: キービジュアル生成', 'e.g. Key visual generation', '예: KV 생성'],
     'local.featureKeyPlaceholder': ['例: kv_generation', 'e.g. kv_generation', '예: kv_generation'],
@@ -805,6 +818,10 @@
       var actions = el('div', 'stack stack--group');
       actions.appendChild(button('btn btn--secondary btn--block', t('admin.featurePricingLink'), function () {
         goto('S19');
+      }));
+      /* 利用状況（2026-10-30 要望）。ボタン別の原価と、利用者ごとの使い方 */
+      actions.appendChild(button('btn btn--secondary btn--block', tl('local.usageLink'), function () {
+        goto('S22');
       }));
       actions.appendChild(button('btn btn--text btn--block', t('admin.backToDashboard'), function () {
         goto('S3');
@@ -1667,6 +1684,7 @@
     var state = {
       unitPrice: DEFAULT_UNIT_PRICE,
       rows: [],
+      cost: {},
       estimateValue: null,
       estimateSub: null,
       saveBtn: null,
@@ -1677,13 +1695,26 @@
 
     function load() {
       showLoading(root);
-      tableList('featureCredits', { order: 'created_at.asc' }).then(function (rows) {
-        build(rows || []);
-        draw();
-      }, function (err) {
-        console.error('[screens-admin] 機能別ポイントの読み込みに失敗しました', err);
-        showLoadError(root, err, load);
-      });
+      /* 値段を決めるには原価が要る（2026-10-30 要望）。
+         実測が取れなくても値段表は出す（原価の欄だけ空になる） */
+      var costs = (window.Api && Api.credits && typeof Api.credits.costByFeature === 'function')
+        ? Api.credits.costByFeature().catch(function (err) {
+            console.error('[screens-admin] ボタン別の原価を読めませんでした', err);
+            return [];
+          })
+        : Promise.resolve([]);
+      Promise.all([tableList('featureCredits', { order: 'created_at.asc' }), costs])
+        .then(function (got) {
+          state.cost = {};
+          (got[1] || []).forEach(function (r) {
+            if (r && r.feature_key) { state.cost[String(r.feature_key)] = r; }
+          });
+          build(got[0] || []);
+          draw();
+        }, function (err) {
+          console.error('[screens-admin] 機能別ポイントの読み込みに失敗しました', err);
+          showLoadError(root, err, load);
+        });
     }
 
     function build(rows) {
@@ -1700,6 +1731,12 @@
           key: key,
           name: name,
           cost: cost,
+          /* 括り（1 調べる / 2 作る / 3 届ける）と、単位ごとの値段か
+             （2026-10-30）。null の行は値段ではなく設定（為替・単価など） */
+          group: row.group_no === null || row.group_no === undefined ? null : Number(row.group_no),
+          perUnit: row.per_unit === true,
+          unitName: row.unit_name || '',
+          sort: Number(row.sort_no) || 100,
           originalName: name,
           originalCost: cost,
           active: row.is_active !== false,
@@ -1776,14 +1813,55 @@
       recalcEstimate();
     }
 
+    /* 値段表は括りごとに分けて出す（2026-10-30 要望）。
+       工程の耳と同じ並び（①調べる ②作る ③届ける）にして、
+       どの括りでいくら払うのかを足し算で読めるようにする。
+       括りの付いていない行（為替・1回の単価など）は最後に「設定」としてまとめる */
+    var GROUPS = [
+      { no: 1, key: 'wfg.research' },
+      { no: 2, key: 'wfg.build' },
+      { no: 3, key: 'wfg.deliver' }
+    ];
+
+    function rowsOfGroup(no) {
+      return state.rows.filter(function (r) { return r.group === no; })
+        .sort(function (a, b) { return a.sort - b.sort; });
+    }
+
     function listSection() {
       var body;
       if (!state.rows.length) {
         body = emptyBlock(tl('local.featureListEmpty'));
-      } else {
-        body = el('div', 'list');
-        body.appendChild(el('div', 'list__head', t('featurePricing.creditCost')));
-        state.rows.forEach(function (row) { body.appendChild(featureRow(row)); });
+        return section(t('featurePricing.list'), tl('local.featureListDesc', { n: 0 }), [body]);
+      }
+      body = el('div', 'stack');
+      GROUPS.forEach(function (g) {
+        var rows = rowsOfGroup(g.no);
+        if (!rows.length) { return; }
+        var sum = rows.reduce(function (n, r) { return n + Math.max(0, r.cost); }, 0);
+        var head = el('div', 'admin-group__head');
+        head.appendChild(el('span', 'admin-group__no', String(g.no)));
+        head.appendChild(el('span', 'admin-group__name', t(g.key)));
+        head.appendChild(el('span', 'admin-group__sum', fmtNumber(sum) + 'P'));
+        var box = el('div', 'admin-group');
+        box.appendChild(head);
+        var list = el('div', 'list');
+        rows.forEach(function (row) { list.appendChild(featureRow(row)); });
+        box.appendChild(list);
+        body.appendChild(box);
+      });
+      /* 括りの無い行（為替・1回の単価など） */
+      var others = state.rows.filter(function (r) { return r.group === null; })
+        .sort(function (a, b) { return a.sort - b.sort; });
+      if (others.length) {
+        var obox = el('div', 'admin-group');
+        var ohead = el('div', 'admin-group__head');
+        ohead.appendChild(el('span', 'admin-group__name', tl('local.settingRows')));
+        obox.appendChild(ohead);
+        var olist = el('div', 'list');
+        others.forEach(function (row) { olist.appendChild(featureRow(row)); });
+        obox.appendChild(olist);
+        body.appendChild(obox);
       }
       return section(t('featurePricing.list'), tl('local.featureListDesc', { n: fmtNumber(state.rows.length) }), [body]);
     }
@@ -1795,10 +1873,28 @@
       var bodyNode = el('div', 'list-row__body');
       var title = el('div', 'list-row__title clamp-1', row.name);
       bodyNode.appendChild(title);
-      var sub = el('div', 'list-row__sub clamp-1', row.key);
+      var sub = el('div', 'list-row__sub clamp-1',
+        row.key + (row.perUnit ? '　/　' + (row.unitName || tl('local.perUnit')) : ''));
       bodyNode.appendChild(sub);
       if (row.isNew) {
         bodyNode.appendChild(el('div', 'list-row__meta', tl('local.unsavedBadge')));
+      }
+      /* 実測の原価を値段のすぐ横に出す（2026-10-30 要望）。
+         値段を決めるのに毎回ほかの画面を開かなくてよくする */
+      var cost = state.cost[row.key];
+      if (cost) {
+        var each = cost.cost_yen_each === null || cost.cost_yen_each === undefined
+          ? null : Number(cost.cost_yen_each);
+        var note = each === null
+          ? tl('local.costTotalOnly', { yen: fmtNumber(Math.round(Number(cost.cost_yen) || 0)) })
+          : tl('local.costEach', {
+              yen: fmtNumber(Math.round(each)),
+              n: fmtNumber(Number(cost.jobs) || 0),
+              price: fmtNumber(Math.round(row.cost * state.unitPrice))
+            });
+        var meta = el('div', 'list-row__meta admin-cost'
+          + (each !== null && row.cost * state.unitPrice < each ? ' admin-cost--under' : ''), note);
+        bodyNode.appendChild(meta);
       }
       line.appendChild(bodyNode);
 
