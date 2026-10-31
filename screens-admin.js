@@ -252,6 +252,21 @@
     'local.featureListDesc': ['{n}件の機能（1回あたりの消費ポイント）', '{n} features (points used per run)', '{n}개 기능(1회당 소모 포인트)'],
     'local.featureListEmpty': ['機能が登録されていません。下の入力から行を追加してください', 'No features yet. Add a row with the form below.', '등록된 기능이 없습니다. 아래 입력에서 행을 추가해 주세요'],
     'local.unsavedBadge': ['未保存', 'Unsaved', '미저장'],
+    /* 会員登録の許可制（2026-11-01 要望） */
+    'local.pendingTitle': ['承認待ちの登録', 'Waiting for approval', '승인 대기'],
+    'local.pendingDesc': ['{n}人が待っています。許可するまで、その人はアプリの中に入れません。',
+      '{n} waiting. They cannot enter the app until you approve them.',
+      '{n}명 대기 중. 승인할 때까지 앱에 들어올 수 없습니다.'],
+    'local.pendingEmpty': ['承認待ちはいません。', 'Nobody is waiting.', '대기 중인 사람이 없습니다.'],
+    'local.pendingSince': ['登録 {d}', 'Registered {d}', '등록 {d}'],
+    'local.approve': ['許可する', 'Approve', '승인'],
+    'local.reject': ['断る', 'Reject', '거절'],
+    'local.approved': ['{name} さんを許可しました', 'Approved {name}', '{name} 님을 승인했습니다'],
+    'local.rejected': ['{name} さんを断りました', 'Rejected {name}', '{name} 님을 거절했습니다'],
+    'local.rejectConfirm': ['この登録を断りますか', 'Reject this registration?', '이 등록을 거절할까요'],
+    'local.rejectBody': ['{name} さんは今後ログインできません。あとから許可し直すこともできます。',
+      '{name} will not be able to sign in. You can approve them later.',
+      '{name} 님은 로그인할 수 없게 됩니다. 나중에 다시 승인할 수 있습니다.'],
     /* 値段表の括り分けと、実測原価（2026-10-30 要望） */
     'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
     'local.usageLink': ['利用状況（原価・利用者ごと・作っているもの）', 'Usage (cost, per user, their work)', '이용 현황'],
@@ -807,6 +822,9 @@
       stats.appendChild(statCard(t('admin.todayUsage'), fmtNumber(state.todayCredits), t('common.creditShort'), tl('local.todaySub', { n: fmtNumber(state.todayCount) })));
       wrap.appendChild(stats);
 
+      /* 承認待ちがいるなら、何より先に出す（2026-11-01 要望）。
+         待たせているあいだ、その人はアプリに入れない */
+      wrap.appendChild(pendingSection());
       wrap.appendChild(unitPriceSection());
       /* 原価は値付けの根拠なので、単価のすぐ下に置く */
       wrap.appendChild(aiCostSection());
@@ -978,6 +996,86 @@
       }
 
       return section(t('admin.creditUnitPrice'), tl('local.unitPriceDesc'), [row]);
+    }
+
+    /* ---- 承認待ち（2026-11-01 要望）----
+       会員登録は管理者の許可制。許可するまで、その人は中のデータに触れない
+       （止めているのは RLS。057_signup_approval.sql） */
+    function pendingUsers() {
+      return state.users.filter(function (u) {
+        return textOf(u && u.user_status).trim() === 'pending';
+      });
+    }
+
+    function pendingSection() {
+      var waiting = pendingUsers();
+      var body;
+      if (!waiting.length) {
+        body = emptyBlock(tl('local.pendingEmpty'));
+      } else {
+        body = el('div', 'list');
+        waiting.forEach(function (user) { body.appendChild(pendingRow(user)); });
+      }
+      return section(tl('local.pendingTitle'),
+        tl('local.pendingDesc', { n: fmtNumber(waiting.length) }), [body]);
+    }
+
+    function pendingRow(user) {
+      var wrapRow = el('div', 'stack stack--tight');
+      var line = el('div', 'list-row');
+      var bodyNode = el('div', 'list-row__body');
+      bodyNode.appendChild(el('div', 'list-row__title clamp-1', displayNameOf(user)));
+      bodyNode.appendChild(el('div', 'list-row__sub clamp-1', textOf(user.email)));
+      bodyNode.appendChild(el('div', 'list-row__meta',
+        tl('local.pendingSince', { d: fmtDate(user.created_at) || '-' })));
+      line.appendChild(bodyNode);
+
+      var ops = el('div', 'btn-row');
+      var ok = button('btn btn--primary btn--sm', tl('local.approve'), function () {
+        setStatus(user, 'active', ok, tl('local.approved', { name: displayNameOf(user) }));
+      });
+      var ng = button('btn btn--secondary btn--sm', tl('local.reject'), function () {
+        var reject = function () {
+          setStatus(user, 'suspended', ng, tl('local.rejected', { name: displayNameOf(user) }));
+        };
+        /* 確認の窓はアプリ側が持つ（他の節と同じ入口を使う） */
+        var confirmFn = needApp('confirm');
+        if (!confirmFn) { reject(); return; }
+        confirmFn({
+          title: tl('local.rejectConfirm'),
+          message: tl('local.rejectBody', { name: displayNameOf(user) }),
+          confirmLabel: tl('local.reject'),
+          danger: true,
+          onConfirm: reject
+        });
+      });
+      ops.appendChild(ok);
+      ops.appendChild(ng);
+      line.appendChild(ops);
+      wrapRow.appendChild(line);
+      return wrapRow;
+    }
+
+    /* 許可・却下はどちらも同じ RPC。状態を変えたら一覧を取り直す */
+    function setStatus(user, status, node, okMessage) {
+      var fn = creditsFn('setUserStatus');
+      if (!fn) {
+        console.error('[screens-admin] Api.credits.setUserStatus がありません');
+        toast(t('admin.saveFailed'), 'danger');
+        return;
+      }
+      node.disabled = true;
+      fn(user.id, status).then(function () {
+        user.user_status = status;
+        toast(okMessage, 'success');
+        load();
+      }).catch(function (err) {
+        node.disabled = false;
+        console.error('[screens-admin] 利用者の状態を変えられませんでした', err);
+        var detail = textOf(err && err.message);
+        if (detail.indexOf('last_admin') !== -1) { toast(t('admin.lastAdmin'), 'danger'); return; }
+        toast(t('admin.saveFailed'), 'danger');
+      });
     }
 
     /* ---- ユーザー管理 ---- */

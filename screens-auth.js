@@ -102,10 +102,11 @@
       errPwShort: 'パスワードは8文字以上で入力してください',
       errAuth: '認証情報が正しくありません',
       errStopped: 'このアカウントは現在利用できません。管理者にお問い合わせください。',
+      errPending: '登録を受け付けました。管理者の許可が下りるまでお待ちください。許可されるとこのメールアドレスでログインできます。',
       errGoogleOnly: 'このアカウントはGoogle連携でのみログインできます。「Googleで続行」をお使いください。',
       errGoogleNotReady: 'Googleログインは準備中です。メールアドレスとパスワードでログインしてください。',
       loginDone: 'ログインしました',
-      signedUpNotice: 'アカウントを作成しました。登録したメールアドレスとパスワードでログインしてください。',
+      signedUpNotice: '登録を受け付けました。管理者が許可するとログインできるようになります。許可までお待ちください。',
 
       s2Title: '新規会員登録',
       s2Lead: 'アカウントを作成',
@@ -126,11 +127,12 @@
       errNameLong: '表示名は20文字以内で入力してください',
       errPwAlnum: 'パスワードは英字と数字を含む8文字以上で入力してください',
       errEmailTaken: 'このメールアドレスは登録済みです',
-      signupNoMail: '登録するとメールアドレス宛に確認メールが届くことがあります。届いたらリンクを開いてください。',
+      signupNoMail: '登録するとメールアドレス宛に確認メールが届くことがあります。届いたらリンクを開いてください。'
+        + 'その後、管理者が許可するまでは中に入れません。他社の分析結果を扱うため、登録は許可制にしています。',
       signupConfirm: '確認メールを送りました。メール内のリンクを開いてから、ログインしてください。',
       googleRedirect: 'Googleの画面に移動します…',
-      signupDone: 'アカウントを作成しました。「ログインへ戻る」からログインしてください。',
-      signupDoneToast: 'アカウントを作成しました'
+      signupDone: '登録を受け付けました。管理者が許可すると使えるようになります。許可までお待ちください。',
+      signupDoneToast: '登録を受け付けました（管理者の許可待ち）'
     },
 
     en: {
@@ -163,10 +165,11 @@
       errPwShort: 'Your password must be at least 8 characters',
       errAuth: 'Your sign-in details are incorrect',
       errStopped: 'This account is currently unavailable. Please contact an administrator.',
+      errPending: 'Your registration was received. Please wait for an administrator to approve it.',
       errGoogleOnly: 'This account can only sign in through Google. Please use “Continue with Google”.',
       errGoogleNotReady: 'Google sign-in is not available yet. Please sign in with your email address and password.',
       loginDone: 'Signed in',
-      signedUpNotice: 'Your account was created. Sign in with the email address and password you registered.',
+      signedUpNotice: 'Your registration was received. You can sign in once an administrator approves it.',
 
       s2Title: 'Create an account',
       s2Lead: 'Create an account',
@@ -190,8 +193,8 @@
       signupNoMail: 'A confirmation email may be sent to your address. Open the link if it arrives.',
       signupConfirm: 'We sent you a confirmation email. Open the link in it, then sign in.',
       googleRedirect: 'Taking you to Google…',
-      signupDone: 'Your account was created. Tap “Back to sign in” to sign in.',
-      signupDoneToast: 'Account created'
+      signupDone: 'Your registration was received. You can sign in once an administrator approves it.',
+      signupDoneToast: 'Registration received (waiting for approval)'
     },
 
     ko: {
@@ -224,10 +227,11 @@
       errPwShort: '비밀번호는 8자 이상으로 입력해 주세요',
       errAuth: '인증 정보가 올바르지 않습니다',
       errStopped: '이 계정은 현재 사용할 수 없습니다. 관리자에게 문의해 주세요.',
+      errPending: '등록을 접수했습니다. 관리자의 승인을 기다려 주세요.',
       errGoogleOnly: '이 계정은 Google 연동으로만 로그인할 수 있습니다. “Google로 계속하기(체험용)”를 사용해 주세요.',
       errGoogleNotReady: 'Google 로그인은 준비 중입니다. 이메일 주소와 비밀번호로 로그인해 주세요.',
       loginDone: '로그인했습니다',
-      signedUpNotice: '계정을 만들었습니다. 등록한 이메일 주소와 비밀번호로 로그인해 주세요.',
+      signedUpNotice: '등록을 접수했습니다. 관리자가 승인하면 로그인할 수 있습니다.',
 
       s2Title: '신규 회원가입',
       s2Lead: '계정 만들기',
@@ -713,6 +717,12 @@
     if (paramOf(params, 'signup') === 'done' && !s.alert) {
       setAlert('S1', { kind: 'ok', key: 'signedUpNotice' }, null);
     }
+    /* 保存したセッションで開いたが、まだ許可が下りていなかったとき
+       （app.js の restoreUser がここへ送る。2026-11-01 要望） */
+    var blocked = paramOf(params, 'blocked');
+    if (blocked && !s.alert) {
+      setAlert('S1', { kind: 'danger', key: blocked === 'pending' ? 'errPending' : 'errStopped' }, null);
+    }
 
     screen.appendChild(headBlock('s1Title', 's1Lead', 's1Sub'));
 
@@ -860,8 +870,11 @@
       Api.auth.signIn(email, password)
         .then(function (user) {
           if (user && user.user_status && user.user_status !== 'active') {
-            // 停止中のアカウントはログイン状態を残さない
-            return Api.auth.signOut().then(function () { throw new AuthFail('errStopped'); });
+            /* 承認待ちと停止は、言うことが違う（2026-11-01 要望）。
+               どちらもログイン状態は残さない。残すと、次に開いたときに
+               中の画面を描こうとして空の一覧が出る */
+            var why = user.user_status === 'pending' ? 'errPending' : 'errStopped';
+            return Api.auth.signOut().then(function () { throw new AuthFail(why); });
           }
           return Api.users.update(user.id, { last_login_at: Api.today() }).catch(function (err) {
             // 最終ログイン日の記録に失敗してもログイン自体は成立させる

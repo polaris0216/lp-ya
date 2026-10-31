@@ -1149,6 +1149,17 @@
     }
     showLoading(dom.main);
     return global.Api.auth.restore().then(function (user) {
+      /* 許可が下りていない人は、保存したセッションでも中に入れない
+         （2026-11-01 要望：会員登録は管理者の許可制）。
+         ログインの画面と同じく、札を残さずに出口へ送る。
+         本当の締め出しは RLS（057）。ここは、空の一覧を見せないため */
+      if (user && user.user_status && user.user_status !== 'active') {
+        var pending = user.user_status === 'pending';
+        if (global.Api.auth.signOut) { global.Api.auth.signOut(); }
+        state.user = null;
+        replace('S1', { blocked: pending ? 'pending' : 'stopped' });
+        return null;
+      }
       if (user) { setUser(user, { silent: true }); }
       return user;
     }, function (err) {
