@@ -372,8 +372,12 @@
            枠の中には「この1枚だけ替えて」と伝える */
         build(false);
         swapInFrame(slot, url);
-        paintShelf();
-        markShelf();
+        /* 棚は作り直さない。作り直すと押したボタンごと消えたうえ、
+           markShelf() が「いま下見が出している区画」へ棚をスクロールさせるので、
+           押した場所から飛んでいた（2026-11-01 指摘:「クリックした絵に
+           変更されるのではなく、スクロールされてしまう」）。
+           印だけその場で付け替える。棚の位置は動かさない */
+        markBand(slot, url);
         /* 保存は待たない。見た目はもう変わっているし、選び直せる */
         Api.generations.update(view.gen.id, { asset_prompts: bag }).catch(function (err) {
           console.error('[screens-lp-result] 絵の選び直しを保存できません:', err);
@@ -1702,6 +1706,10 @@
             var on = shot.url === now[String(pair.sec.index) + '-1'];
             var b = el('button', 'lpr-shot' + (on ? ' lpr-shot--on' : ''));
             b.type = 'button';
+            /* どの絵のボタンかを覚えておく。選んだあと、棚を作り直さずに
+               印だけ付け替えるのに使う（2026-11-01 指摘の直し） */
+            b.setAttribute('data-url', shot.url);
+            b.setAttribute('data-n', String(pair.shots.length - i));
             b.title = on ? t('lpr.shotNow') : t('lpr.shotUse');
             b.setAttribute('aria-pressed', on ? 'true' : 'false');
             var im = el('img', 'lpr-shot__im');
@@ -1710,8 +1718,10 @@
             /* いま使っているものに印。チェックの形にして、ひと目で分かるように */
             /* 1枚しか無い区画は、選ぶ余地がないので番号も付けない */
             if (!only) { add(b, el('span', 'lpr-shot__tick', on ? '✓' : String(pair.shots.length - i))); }
-            if (!on) { b.addEventListener('click', function () { useShot(pair.sec, shot.url); }); }
-            else { b.disabled = only; }
+            /* 押すたびに付け外しするのではなく、いつでも受ける。
+               選び直しのたびにボタンを作り直していたのをやめたため */
+            b.addEventListener('click', function () { useShot(pair.sec, shot.url); });
+            if (on) { b.disabled = only; }
             add(band, b);
           });
           add(g, band);
@@ -1885,6 +1895,27 @@
       }
 
       /* 棚のうち、いま見ている区画を目立たせて、見える所まで寄せる */
+      /* 1つの区画の帯だけ、印を付け替える。棚は作り直さない・動かさない。
+         これまでは paintShelf() で全部作り直し、そのあと markShelf() が
+         棚をスクロールさせていたので、押した絵が目の前から消えていた
+         （2026-11-01 指摘）。 */
+      function markBand(slot, url) {
+        var g = shelf.querySelector('.lpr-pick[data-slot="' + slot + '"]');
+        if (!g) { return; }
+        var btns = g.querySelectorAll('.lpr-shot');
+        var only = btns.length < 2;
+        for (var i = 0; i < btns.length; i++) {
+          var b = btns[i];
+          var on = b.getAttribute('data-url') === url;
+          b.classList.toggle('lpr-shot--on', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          b.title = on ? t('lpr.shotNow') : t('lpr.shotUse');
+          b.disabled = on && only;
+          var tick = b.querySelector('.lpr-shot__tick');
+          if (tick) { tick.textContent = on ? '✓' : (b.getAttribute('data-n') || ''); }
+        }
+      }
+
       function markShelf() {
         var groups = shelf.querySelectorAll('.lpr-pick');
         var hit = null;
