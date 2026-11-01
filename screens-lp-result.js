@@ -21,8 +21,14 @@
     'lpr.lead': ['LP案を、参照ページと同じ形（本文幅712px・訴求は絵に焼き込み・余白なし）で組みます。',
       'Renders the LP draft in the same shape as the reference page (712px column, copy burned into visuals, no gaps).',
       'LP 초안을 참조 페이지와 같은 형태(본문 712px, 카피는 이미지에 새김, 여백 없음)로 조립합니다.'],
-    'lpr.build': ['HTMLを組む', 'Build HTML', 'HTML 조립'],
-    'lpr.rebuild': ['組み直す', 'Rebuild', '다시 조립'],
+    /* 2026-11-01 指摘:「組み直す」では何の機能か分からない。
+       やっているのは「いまのブロック・文字・設定からページを作る」こと。
+       作ったものが公開ページにも出るので、そこまで言う */
+    'lpr.build': ['ページを作る', 'Create the page', '페이지 만들기'],
+    'lpr.rebuild': ['最新の内容でページを作り直す', 'Rebuild the page with the latest content', '최신 내용으로 다시 만들기'],
+    'lpr.buildHint': ['文字や並びを直したら押してください。公開中のページにも、押したときの内容が出ます。',
+      'Press this after editing text or order. The published page shows what you build here.',
+      '글이나 순서를 고친 뒤 누르세요. 공개 중인 페이지에도 반영됩니다.'],
     'lpr.download': ['HTMLをダウンロード', 'Download HTML', 'HTML 다운로드'],
     'lpr.publish': ['公開する', 'Publish', '공개'],
     'lpr.unpublish': ['公開をやめる', 'Unpublish', '공개 중지'],
@@ -42,10 +48,18 @@
     'lpr.modeBoth': ['絵＋文字', 'Visual + text', '이미지＋텍스트'],
     'lpr.modeShot': ['文字（写真の上）', 'Text on photo', '사진 위 텍스트'],
     'lpr.modeCount': ['{n}ブロック', '{n} sections', '{n}개 구획'],
-    'lpr.viewSales': ['販売ページ', 'Sales page', '판매 페이지'],
+    /* 2026-11-01 指摘: 何の機能か分からない。「どちらの見え方で確かめるか」
+       だと分かるように、頭に「表示：」を付けて並べる */
+    'lpr.viewLabel': ['表示', 'Preview', '표시'],
+    'lpr.viewSales': ['公開ページの見え方', 'As published', '공개 페이지 모습'],
     'lpr.viewCanvas': ['ブロックそのまま', 'Sections only', '구획 그대로'],
-    'lpr.viewHint': ['販売ページは、公開したときに見える形です（LINE友だち追加もここに出ます）。'
-      + 'ブロックそのままは、作った絵と文字だけを縦に並べたものです。',
+    'lpr.openPublic': ['公開ページを開く', 'Open the published page', '공개 페이지 열기'],
+    'lpr.openPublicHint': ['別のタブで、公開URLの本物のページを開きます',
+      'Opens the real published page in another tab', '다른 탭에서 실제 공개 페이지를 엽니다'],
+    'lpr.publishFirst': ['先に「公開する」を押すと、本物のページを開けます',
+      'Publish first to open the real page', '먼저 "공개"를 누르면 실제 페이지를 열 수 있습니다'],
+    'lpr.viewHint': ['「公開ページの見え方」は、公開したときに人が見る形そのものです（LINE友だち追加もここに出ます）。'
+      + '「ブロックそのまま」は、作った絵と文字だけを縦に並べたものです。',
       'The sales page is what visitors see once published (including the LINE button).',
       '판매 페이지는 공개 시 보이는 형태입니다.'],
     'lpr.noSales': ['販売ページの文章がまだありません。生成プロンプトの画面で「販売ページの文章をAIに書かせる」を押してください',
@@ -1379,14 +1393,17 @@
         add(toolbar, button('btn btn--secondary', t('lpr.backToDraft'), function () {
           location.hash = '#/S12?id=' + encodeURIComponent(projectId) + '&gen=' + encodeURIComponent(view.gen.id);
         }));
-        add(toolbar, button('btn btn--primary', view.gen.generated_html ? t('lpr.rebuild') : t('lpr.build'), function () {
+        var buildBtn = button('btn btn--primary', view.gen.generated_html ? t('lpr.rebuild') : t('lpr.build'), function () {
           build(true); paint();
-        }));
+        });
+        buildBtn.title = t('lpr.buildHint');
+        add(toolbar, buildBtn);
         add(toolbar, button('btn btn--secondary', t('lpr.download'), download));
-        /* 出す形の切り替え。販売ページ（公開したときに見える形。LINEもここ）と、
-           区画そのまま（作った絵と文字を縦に並べただけ） */
+        /* 出す形の切り替え。頭に「表示：」を付けて、何を選ぶ場所なのかを示す
+           （2026-11-01 指摘: 何の機能か分からない） */
         var kind = previewKind();
         var sw = el('div', 'lpr-view');
+        add(sw, el('span', 'lpr-view__label', t('lpr.viewLabel')));
         [['sales', 'lpr.viewSales'], ['canvas', 'lpr.viewCanvas']].forEach(function (pair) {
           var b = button('btn btn--sm' + (kind === pair[0] ? ' btn--primary' : ' btn--secondary'),
             t(pair[1]), function () {
@@ -1400,6 +1417,23 @@
           add(sw, b);
         });
         add(toolbar, sw);
+
+        /* 公開URLの本物のページを別タブで開く（2026-11-01 要望）。
+           枠の中のプレビューは「同じ道具で組んだもの」だが、
+           本物かどうかは公開URLを開いてみないと分からない。
+           公開していなければ、何をすればよいかを言う */
+        var open = button('btn btn--secondary', t('lpr.openPublic'), function () {
+          var url = publicUrl();
+          if (!url) { return; }
+          window.open(url, '_blank', 'noopener');
+        });
+        if (view.gen.published_at && publicUrl()) {
+          open.title = t('lpr.openPublicHint');
+        } else {
+          open.disabled = true;
+          open.title = t('lpr.publishFirst');
+        }
+        add(toolbar, open);
 
         /* 文字を直す。区画を縦に並べた形（区画そのまま）のときだけ。
            販売ページは文章の出どころが別（content.sales）なので、ここでは触らない

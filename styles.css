@@ -5311,7 +5311,14 @@ input[type='radio'] {
 .lpr-modes__sum::before { content: '▸'; display: inline-block; transition: transform .15s; }
 .lpr-modes__box[open] .lpr-modes__sum::before { transform: rotate(90deg); }
 .lpr-modes__box .lpr-modes__title { margin: 0; font-size: 15px; font-weight: var(--fw-bold); }
-.lpr-view { display: inline-flex; gap: 4px; }
+.lpr-view { display: inline-flex; gap: 4px; align-items: center; }
+/* 「表示：」の見出し。何を選ぶ場所なのかを示す（2026-11-01 指摘） */
+.lpr-view__label {
+  margin-right: 2px;
+  font-size: var(--fs-note); font-weight: 700; color: var(--c-text-sub);
+  white-space: nowrap;
+}
+.lpr-view__label::after { content: '：'; }
 
 /* 絵の作り先の切り替え（LP案の画面）。
    並べるのはラベル・2つのボタン・説明の4つ。狭い画面では折り返す */
