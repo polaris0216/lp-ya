@@ -495,9 +495,22 @@
         return out.join('');
       }
 
+      /* その区画がその見せ方を取れるか。1か所で決める。
+         まとめて変えるとき（'*'）も、区画ごとの選び手と同じ規則で弾く。
+         弾かないと、文字版の無い区画を「文字」にして空にしてしまう
+         （2026-11-01 要望でまとめて変えられるようにしたときに効いてくる） */
+      function canMode(sec, value) {
+        if (value === 'text' || value === 'shot') { return !!sec.text; }
+        if (value === 'image') { return !!visualOf(sec); }
+        return true;   /* both は、片方が無ければ在るほうだけ出る */
+      }
+
       function setMode(index, value) {
         if (index === '*') {
-          (view.gen.sections || []).forEach(function (sec) { view.mode[String(sec.index)] = value; });
+          (view.gen.sections || []).forEach(function (sec) {
+            if (!canMode(sec, value)) { return; }
+            view.mode[String(sec.index)] = value;
+          });
         } else {
           view.mode[String(index)] = value;
         }
@@ -1591,6 +1604,11 @@
         var modes0 = modes;
         modes = open;
         add(modes, el('p', 't-note', t('lpr.modeHint')));
+        /* まとめて変える列を、一覧の頭にも置く（2026-11-01 要望）。
+           これまで写真の棚にしか無く、29ブロックを1つずつ選ばせていた。
+           中身は棚と同じ allModesRow を呼ぶ。2か所に書くと、
+           選べる中身がいつか食い違う */
+        add(modes, allModesRow());
 
         var list = el('div', 'lpr-modes__list');
         sections.forEach(function (sec) {
