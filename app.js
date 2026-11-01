@@ -3052,6 +3052,10 @@
     LANGS: LANGS,
 
     registerScreen: registerScreen,
+    /* 左の一覧を取り直す。名前を変えた・増やした・減らしたあとに呼ぶ。
+       呼ばないと、DBは変わっているのに左の名前が古いまま残る
+       （2026-11-01 指摘「名前変更しても反映されてない」） */
+    refreshProjects: loadSidebarProjects,
     meta: function (id) { return SCREENS[id] || null; },
     screenIds: function () { return Object.keys(SCREENS); },
 

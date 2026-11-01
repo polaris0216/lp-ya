@@ -94,7 +94,11 @@
     'local.resume': ['続きから（{step}）', 'Resume ({step})', '이어서 하기({step})'],
     'local.photoUploading': ['商品写真をアップロードしています…', 'Uploading product photos…', '상품 사진을 업로드하는 중…'],
     'local.photoUploaded': ['商品写真をアップロードしました', 'Product photos uploaded', '상품 사진을 업로드했습니다'],
-    'local.photoUploadFailed': ['一部の写真をアップロードできませんでした', 'Some photos could not be uploaded', '일부 사진을 업로드하지 못했습니다']
+    'local.photoUploadFailed': ['一部の写真をアップロードできませんでした', 'Some photos could not be uploaded', '일부 사진을 업로드하지 못했습니다'],
+    /* 管理者が他人のプロジェクトを開いたとき（2026-11-01 要望） */
+    'local.otherOwner': ['これは {name} さんのプロジェクトです。管理者として見ています。直すと相手の中身が変わります。',
+      'This project belongs to {name}. You are viewing it as an administrator; edits change their data.',
+      '이것은 {name} 님의 프로젝트입니다. 관리자로 보고 있으며, 수정하면 상대의 내용이 바뀝니다.']
   };
 
   function tl(key, params) {
@@ -496,6 +500,14 @@
         data.project = results[0];
         data.reports = results[1] || [];
         data.generations = results[2] || [];
+        /* 他人のものなら、持ち主の呼び名も引く（管理者だけ読める） */
+        var ownerId = textOf(data.project && data.project.users_id);
+        if (ownerId && data.user && String(data.user.id) !== ownerId && window.Api.users) {
+          window.Api.users.get(ownerId).then(function (u) {
+            data.owner = u;
+            paint();
+          }).catch(function () { /* 読めなくても画面は出す */ });
+        }
         selectProject(data.project);
         selectedProductId = hasProduct(data.project) ? String(data.project.id) : null;
         paint();
@@ -627,6 +639,17 @@
       head.appendChild(el('h2', 'screen__title', textOf(data.project.project_name) || t('common.empty')));
       head.appendChild(el('p', 'screen__lead', countsLine()));
       screen.appendChild(head);
+
+      /* 他人のプロジェクトを開いているときは、そうと分かるように出す
+         （2026-11-01 要望：管理者が一般利用者のプロジェクトを見られるように）。
+         自分のものと見分けが付かないと、うっかり書き換えてしまう */
+      var me = (window.App && App.getUser && App.getUser()) || null;
+      var owner = textOf(data.project.users_id);
+      if (me && me.id && owner && owner !== String(me.id)) {
+        var who = textOf(data.owner && (data.owner.display_name || data.owner.email)) || owner.slice(0, 8);
+        var warn = el('div', 'warn-box', tl('local.otherOwner', { name: who }));
+        screen.appendChild(warn);
+      }
 
       /* 進捗 */
       var percent = progressPercent();

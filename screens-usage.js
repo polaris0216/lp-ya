@@ -109,7 +109,7 @@
       params = params || {};
       clear(root);
 
-      var state = { bucket: 'all', user: params.user || '', features: [], usage: [], projects: [] };
+      var state = { bucket: 'all', user: params.user || '', features: [], usage: [], projects: [], owners: {} };
 
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
@@ -259,13 +259,30 @@
         }
         var q = { order: 'created_at.desc', limit: 50 };
         if (state.user) { q.eq = { users_id: state.user }; }
-        window.Api.projects.list(q).then(function (rows) {
-          state.projects = rows || [];
+        /* 誰のプロジェクトかを名前で出す。IDの頭8文字では分からない
+           （2026-11-01 要望：管理者が一般利用者のプロジェクトを見られるように） */
+        Promise.all([
+          window.Api.projects.list(q),
+          (window.Api.users && window.Api.users.list)
+            ? window.Api.users.list({ select: 'id,email,display_name', limit: 500 })
+                .catch(function () { return []; })
+            : Promise.resolve([])
+        ]).then(function (got) {
+          state.projects = got[0] || [];
+          state.owners = {};
+          (got[1] || []).forEach(function (u) { if (u && u.id) { state.owners[String(u.id)] = u; } });
           paintWorks();
         }).catch(function (err) {
           console.error('[screens-usage] プロジェクトを読めませんでした', err);
           add(workBox, el('p', 'empty', t('u.loadFailed')));
         });
+      }
+
+      /* 持ち主の呼び名。読めなければIDの頭だけ */
+      function ownerName(id) {
+        var u = state.owners && state.owners[String(id)];
+        if (!u) { return String(id || '').slice(0, 8); }
+        return u.display_name || u.email || String(id).slice(0, 8);
       }
 
       function paintWorks() {
@@ -284,7 +301,11 @@
           var name = p.project_name || p.product_name || p.name || String(p.id).slice(0, 8);
           var td = cell(tr, name);
           td.appendChild(el('div', 'list-row__sub clamp-1', p.product_name || ''));
-          cell(tr, String(p.users_id || '').slice(0, 8));
+          var who = cell(tr, ownerName(p.users_id));
+          var mail = state.owners && state.owners[String(p.users_id)];
+          if (mail && mail.email) {
+            who.appendChild(el('div', 'list-row__sub clamp-1', mail.email));
+          }
           cell(tr, String(p.created_at || '').slice(0, 10));
           var act = add(tr, el('td', 'num'));
           add(act, button('btn btn--secondary btn--sm', t('u.open'), function () {

@@ -955,9 +955,17 @@
         saveBtn.textContent = t('ops.saving');
         clearBanner();
 
-        Api.projects.update(id, { project_name: value }).then(function () {
+        /* name は project_name の旧列。片方だけ直すと、画面によって
+           古い名前が残る（2026-11-01 実測: 左は SHELBRU、中は shlebru）。
+           users / credit_transactions と同じく、ここも列が二重化している */
+        Api.projects.update(id, { project_name: value, name: value }).then(function () {
           renameDraft = { id: null, value: null };
           removeBackGuard();
+          /* 左の一覧を取り直す。これが無いと、保存できているのに
+             左の名前が古いままで「反映されていない」ように見える */
+          if (window.App && typeof window.App.refreshProjects === 'function') {
+            window.App.refreshProjects();
+          }
           toast(t('common.saved'), 'success');
           goTo('#/S3');
         }, function (err) {
