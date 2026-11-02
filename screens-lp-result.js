@@ -528,6 +528,12 @@
            （2026-10-12 利用者の指摘:「絵を選んだのに全然LPに反映されてない」。
            実測: 販売ページで見せ方を変えると、区画そのままへ飛んでいた）*/
         build(false);
+        /* 作り直したら、いじっていた区画まで戻す。
+           見せ方を変えると絵と文字が入れ替わるので、枠は作り直すしかない。
+           そのままだと下見が先頭へ戻り、毎回スクロールし直しになっていた
+           （2026-11-02 指摘）。1区画だけ変えたときに戻る先を覚えておく。
+           まとめて変えた（'*'）ときは、いま見ている区画に戻す */
+        view.goTo = index === '*' ? (view.atSlot || '') : (String(index) + '-1');
         paint();
         /* 保存は待たない。見た目はもう変わっているし、失敗しても選び直せる */
         Api.generations.update(view.gen.id, { asset_prompts: bag }).catch(function (err) {
@@ -1405,6 +1411,9 @@
       }
 
       function paint() {
+        /* 棚は作り直すので、巻いていた位置を覚えて戻す。
+           覚えないと、右の棚も毎回いちばん上へ戻る（2026-11-02 指摘） */
+        var keepShelf = shelf ? shelf.scrollTop : 0;
         paintVariants();
         clear(toolbar);
         add(toolbar, button('btn btn--secondary', t('lpr.backToDraft'), function () {
@@ -1515,6 +1524,9 @@
         paintUrlBar();
         paintModes();
         paintShelf();
+        /* 覚えておいた巻き位置に戻してから、印を付ける。
+           markShelf() は、いま下見が出している区画が画面の外なら動かす */
+        if (shelf && keepShelf) { shelf.scrollTop = keepShelf; }
         markShelf();
         frame.srcdoc = view.html;
         frame.addEventListener('load', measure, { once: true });
@@ -1577,6 +1589,7 @@
         delete bag.mode;
         view.gen.asset_prompts = bag;
         build(false);
+        view.goTo = view.atSlot || '';   /* 先頭へ戻さない（2026-11-02 指摘） */
         paint();
         Api.generations.update(view.gen.id, { asset_prompts: bag }).then(function () {
           toast(t('lpr.modeResetDone'), 'success');
