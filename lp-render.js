@@ -685,8 +685,11 @@
       + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
     out.push('<rect width="' + W + '" height="' + H + '" fill="#1E1A18"/>');
     if (src) {
+      /* 切るのは**下**から。xMidYMid（中央基準）だと上下を同じだけ落とすので、
+         絵に焼いた見出しが消える（2026-11-02 指摘）。
+         訴求は絵の上のほうに焼く決まりなので、上辺はかならず残す */
       out.push('<image href="' + escapeHtml(src) + '" x="0" y="' + bandH + '" width="' + W
-        + '" height="' + photoH + '" preserveAspectRatio="xMidYMid slice"/>');
+        + '" height="' + photoH + '" preserveAspectRatio="xMidYMin slice"/>');
     }
 
     /* 札は帯の左上。見本どおり。見出しと説明は帯の中央にそろえる */
@@ -934,8 +937,13 @@
       + '<stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient></defs>');
     out.push('<rect width="' + W + '" height="' + H + '" fill="#111"/>');
     if (src) {
+      /* 切るのは**下**から。xMidYMid（中央基準）だと上下を同じだけ落とす。
+         実測 2026-11-02: 1024x1536 の絵を 680x850 の板に入れると、
+         上下を85pxずつ落として、絵に焼いた見出し「紙漉きなし、12杯分」の
+         上半分が消えていた。訴求は絵の上のほうに焼く決まりなので、
+         上辺はかならず残す */
       out.push('<image href="' + escapeHtml(src) + '" x="0" y="0" width="' + W + '" height="' + H
-        + '" preserveAspectRatio="xMidYMid slice"/>');
+        + '" preserveAspectRatio="xMidYMin slice"/>');
     }
     if (textH) {
       /* 幕は文字の高さぶん＋ゆとり。絵の下半分までは覆わない */
