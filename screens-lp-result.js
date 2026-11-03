@@ -731,7 +731,12 @@
                   }).join('') || '<p></p>')
                   + '</div></div></section>';
               }
-              var board = LpRender.textPanel(sec, dez, 1000);
+              /* スケジュールはロードマップ図にする（2026-11-03 の求め）。
+                 節が2つ未満なら、これまでどおり文字の板 */
+              var board = (LpRender.isRoadmap && LpRender.isRoadmap(sec))
+                ? (LpRender.roadmapPanel(LpRender.roadmapSteps(sec), dez, 1000, String(sec.title || ''))
+                  || LpRender.textPanel(sec, dez, 1000))
+                : LpRender.textPanel(sec, dez, 1000);
               if (board) {
                 return '<section data-slot="' + escapeHtml(String(sec.index) + '-1') + '">'
                   + board + '</section>';

@@ -44,6 +44,7 @@
     'sales.painTitle': 'お悩みと、その解決',
     'sales.painLeft': 'いまの悩み',
     'sales.painRight': 'この商品なら',
+    'sales.roadmap': 'お届けまでの流れ',
     'sales.mailLabel': 'メールでお知らせを受け取る',
     'sales.mailBtn': '登録する',
     'sales.mailOk': '登録しました。お知らせをお送りします。',
@@ -980,6 +981,129 @@
     var plain = rows.filter(function (r) { return r.k === 'text'; }).length;
     rows.forEach(function (r) { if (r.k === 'text') { r.k = plain > 1 ? 'li' : 'p'; } });
     return { title: title, rows: rows };
+  }
+
+  /* ---- スケジュールはロードマップ図にする ----
+     2026-11-03 の求め:「スケジュールは ロードマップ図のようにしたらどう？」。
+     「ラベル：値」の行を縦に並べるだけだと、どれが先でどれが後か読めない。
+     横一本の道に節を打って、左から右へ進む形にする。
+     節が2〜5個のときだけ図にする。6個以上は1節が細くなって字が読めないので、
+     これまでどおり文字の板（textPanel）に落とす */
+  var WHEN_RE = /(20\d\d年\s?\d{1,2}月(?:[上中下]旬)?|20\d\d年|\d{1,2}月(?:[上中下]旬)?|公開(?:中|日|直後)?|募集中|終了後|即日|随時)/;
+
+  function isRoadmap(section) {
+    if (!section) { return false; }
+    return /スケジュール|ロードマップ|配送時期|お届け時期|タイムライン/.test(String(section.title || ''));
+  }
+
+  /* 1行を「いつ」と「なに」に割る。どちら側に日付が来ても拾う:
+       商品の到着：2027年1月を想定   → いつ 2027年1月 / なに 商品の到着
+       2027年1月：商品の到着         → 同じ */
+  function roadmapSteps(section) {
+    var got = readRows(section);
+    var out = [];
+    got.rows.forEach(function (r) {
+      var a = '';
+      var b = '';
+      if (r.k === 'pair') { a = String(r.a || ''); b = String(r.b || ''); }
+      else if (r.k === 'li' || r.k === 'text' || r.k === 'p') { b = String(r.a || ''); }
+      else { return; }
+      var ma = WHEN_RE.exec(a);
+      var mb = WHEN_RE.exec(b);
+      var m = ma || mb;
+      if (!m) { return; }                    /* 日付の無い行は節にしない */
+      var when = m[1];
+      /* 日付を抜いた残りが「なに」。実物は「商品の到着：2027年1月を想定」の
+         ように、言い回しが前後に残る（実測 2026-11-03 CAMPFIRE）。
+         図の節は短いほうが読めるので、言い回しだけ落とす */
+      var what = (a + ' ' + b).replace(when, ' ')
+        .replace(/[\s]+/g, ' ')
+        .replace(/(?:を|に)?\s*(?:想定|予定)(?:して(?:おります|います))?(?:です)?[。、]?\s*$/, '')
+        .replace(/^[のはをに、：:\s]+/, '')
+        .replace(/[、。\s]+$/, '')
+        .trim();
+      if (!what) { what = String(section && section.title || ''); }
+      out.push({ when: when, what: what });
+    });
+    return out.slice(0, 5);
+  }
+
+  function roadmapPanel(steps, design, width, title) {
+    var list = Array.isArray(steps) ? steps : [];
+    if (list.length < 2) { return ''; }
+    var d = design || DEFAULT_DESIGN;
+    var W = width || 1000;
+    var hot = d.accentColor || '#C98F5C';
+    var ink = d.titleColor || '#2A2A28';
+    var body = d.bodyColor || '#2A2A28';
+    var pad = Math.round(W * 0.07);
+    var headSize = Math.round(W * 0.045);
+    /* 縦に積む。横一列に並べると、スマホ幅（390px）に縮んだとき
+       1節あたり90pxしかなく、字が9pxまで落ちて読めない（実測 2026-11-03）。
+       縦なら1行に幅を使えるので、同じ板の中で字を大きくできる */
+    var whenSize = Math.round(W * 0.030);
+    var whatSize = Math.round(W * 0.034);
+    var whatStep = Math.round(whatSize * 1.45);
+    var dot = Math.round(W * 0.020);
+    var railX = pad + dot;
+    var textX = railX + dot + Math.round(W * 0.035);
+    var inner = W - textX - pad;
+    var fam = 'Hiragino Sans, Yu Gothic UI, Noto Sans JP, system-ui, sans-serif';
+    var wrapWhat = function (one) { return wrapLines(one, inner / (whatSize * 0.54)).slice(0, 3); };
+
+    var laid = list.map(function (one) {
+      var lines = wrapWhat(one.what);
+      return { lines: lines, h: whenSize + Math.round(whenSize * 0.55) + lines.length * whatStep
+        + Math.round(whatSize * 0.9) };
+    });
+    var top = pad + headSize + Math.round(headSize * 1.05);
+    var H = top + laid.reduce(function (n, x) { return n + x.h; }, 0) + pad - Math.round(whatSize * 0.9);
+
+    var out = [];
+    out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
+      + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
+    out.push('<rect width="' + W + '" height="' + H + '" fill="' + escapeHtml(d.bgColor || '#FFFFFF') + '"/>');
+    out.push('<text x="' + pad + '" y="' + (pad + headSize) + '" font-family="' + fam + '" font-size="'
+      + headSize + '" font-weight="800" fill="' + ink + '">'
+      + escapeHtml(title || t('sales.roadmap')) + '</text>');
+    out.push('<rect x="' + pad + '" y="' + (pad + headSize + Math.round(headSize * 0.35))
+      + '" width="' + Math.round(W * 0.06) + '" height="3" fill="' + hot + '"/>');
+
+    /* 節の中心をさきに出す。道はその上から下まで1本 */
+    var y = top;
+    var centers = laid.map(function (x) {
+      var at = y + Math.round(whenSize * 0.4) + Math.round(dot * 0.2);
+      y += x.h;
+      return at;
+    });
+    out.push('<rect x="' + (railX - 2) + '" y="' + centers[0] + '" width="4" height="'
+      + (centers[centers.length - 1] - centers[0]) + '" rx="2" fill="' + hot + '" fill-opacity="0.3"/>');
+
+    list.forEach(function (one, i) {
+      var cy = centers[i];
+      var last = i === list.length - 1;
+      if (last) {
+        out.push('<circle cx="' + railX + '" cy="' + cy + '" r="' + Math.round(dot * 1.5)
+          + '" fill="' + hot + '" fill-opacity="0.22"/>');
+      }
+      out.push('<circle cx="' + railX + '" cy="' + cy + '" r="' + (last ? Math.round(dot * 1.05) : dot)
+        + '" fill="' + hot + '"/>');
+      out.push('<circle cx="' + railX + '" cy="' + cy + '" r="' + Math.round(dot * 0.38)
+        + '" fill="' + escapeHtml(d.bgColor || '#FFFFFF') + '"/>');
+      out.push('<text x="' + textX + '" y="' + (cy + Math.round(whenSize * 0.36)) + '" font-family="' + fam
+        + '" font-size="' + whenSize + '" font-weight="800" fill="' + hot
+        + '" letter-spacing="0.04em">' + escapeHtml(one.when) + '</text>');
+      laid[i].lines.forEach(function (line, li) {
+        out.push('<text x="' + textX + '" y="'
+          + (cy + Math.round(whenSize * 0.36) + Math.round(whenSize * 0.55) + (li + 1) * whatStep
+            - Math.round(whatStep * 0.3))
+          + '" font-family="' + fam + '" font-size="' + whatSize + '" font-weight="'
+          + (last ? '700' : '500') + '" fill="' + (last ? ink : body) + '">'
+          + escapeHtml(line) + '</text>');
+      });
+    });
+    out.push('</svg>');
+    return out.join('');
   }
 
   function textPanel(section, design, width) {
@@ -2040,7 +2164,11 @@
       out.push('<section class="block' + (flush ? ' block--flush' : '')
         + (picOnly ? ' block--pic' : '') + '">');
       if (b.read) {
-        var board = textPanel(b.read, d, 1000);
+        /* スケジュールは図にする（2026-11-03 の求め）。
+           節が2〜5個そろわなければ、これまでどおり文字の板 */
+        var board = isRoadmap(b.read)
+          ? (roadmapPanel(roadmapSteps(b.read), d, 1000, String(b.read.title || '')) || textPanel(b.read, d, 1000))
+          : textPanel(b.read, d, 1000);
         if (board) {
           /* 札は残す。棚（生成結果の一覧）が「いまどの区画か」を
              これで知る。外すと販売ページから区画が見えなくなる */
@@ -2525,6 +2653,9 @@
     looksLikeHead: looksLikeHead,
     isReadPanel: isReadPanel,
     textPanel: textPanel,
+    roadmapPanel: roadmapPanel,
+    roadmapSteps: roadmapSteps,
+    isRoadmap: isRoadmap,
     readRows: readRows,
     pointParts: pointParts,
     pointPanel: pointPanel,
