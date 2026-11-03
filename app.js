@@ -1093,9 +1093,17 @@
     return false;
   }
 
+  /* 仕事の帯。ログインしている間だけ回す（2026-11-04） */
+  function jobBar(on) {
+    var bar = global.LpyaJobBar;
+    if (!bar) { return; }
+    if (on) { bar.start(App); } else { bar.stop(); }
+  }
+
   function setUser(user, options) {
     var opts = options || {};
     state.user = user || null;
+    jobBar(!!state.user);
     if (global.Api && global.Api.storage && isFn(global.Api.storage.set)) {
       if (user && user.id) {
         global.Api.storage.set('userId', user.id);
@@ -1150,6 +1158,7 @@
    */
 
   function logout() {
+    jobBar(false);
     // サーバー側のセッション失効を待たずに画面は戻す。トークンの破棄は必ず行われる。
     if (global.Api && global.Api.auth && isFn(global.Api.auth.signOut)) {
       global.Api.auth.signOut();
@@ -3054,6 +3063,7 @@
     global.addEventListener('elpiya:login-required', function () {
       if (!state.user && current.id === 'S1') { return; }
       state.user = null;
+      jobBar(false);
       updateAdminTab();
       clearBanner();
       /* どこを見ていたかを覚えておく。覚えないと、ログインし直したあと
@@ -3066,6 +3076,7 @@
 
     restoreUser().then(function () {
       updateAdminTab();
+      jobBar(!!state.user);
       if (!global.location.hash) {
         /* 読み込み直しでもどってきたとき（Googleログインの往復もここ）。
            期限切れで覚えた場所があれば、そこへ戻す */

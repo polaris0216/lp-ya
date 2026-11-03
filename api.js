@@ -115,7 +115,9 @@
     inquiryMessages: TABLE_PREFIX + 'inquiry_messages',
     aiUsage: TABLE_PREFIX + 'ai_usage',
     platformSelectors: TABLE_PREFIX + 'platform_selectors',
-    leads: TABLE_PREFIX + 'leads'
+    leads: TABLE_PREFIX + 'leads',
+    /* 絵の作り先の状態。読むだけ（書けるのはワーカーだけ。058） */
+    workerStatus: TABLE_PREFIX + 'worker_status'
   };
 
   /* ---------- 日本語エラーメッセージ ---------- */
@@ -791,6 +793,7 @@
          実際に止めるのはワーカーで、区切りごとに見て抜ける */
       cancel: function (jobId) { return rpc('elpiya_cancel_job', { p_job: String(jobId) }); }
     }),
+    workerStatus: makeTable(TABLES.workerStatus),
     creditTransactions: makeTable(TABLES.creditTransactions),
     featureCredits: makeTable(TABLES.featureCredits),
     coupons: makeTable(TABLES.coupons),

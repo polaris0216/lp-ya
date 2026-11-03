@@ -5587,3 +5587,88 @@ input[type='radio'] {
 
 /* 押す前に出す値段。目立たせすぎない（脅しに見える） */
 .cost-hint { margin-top: 2px; }
+
+/* ---- 仕事の帯（2026-11-04）------------------------------------------------
+   工程タブの直下に、全画面で出る。ふだんは hidden で消えている。
+   絵づくりは直近90件の平均が58分。押したあと席を立っていいかを、
+   どの画面にいても1か所で分かるようにする */
+.jobbar {
+  flex: 0 0 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0 4px;
+}
+.jobbar__row {
+  border: 1px solid var(--line, #e3e0ea);
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 12px;
+}
+.jobbar__row--done { border-color: #b9e2c6; background: #f3fbf5; }
+.jobbar__row--ng { border-color: #efc0c0; background: #fdf4f4; }
+.jobbar__row--maker { border-style: dashed; }
+.jobbar__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.jobbar__name { flex: 1 1 auto; min-width: 0; }
+/* 数字は桁をそろえる。18/29 が 9/29 になるたびに動くと、落ち着かない */
+.jobbar__count { font-variant-numeric: tabular-nums; color: #6b6676; font-weight: 600; }
+.jobbar__dot { width: 8px; height: 8px; border-radius: 50%; background: #b7b2c0; flex: 0 0 auto; }
+.jobbar__dot--ng { background: #d94a4a; }
+.jobbar__dot--old { background: #b7b2c0; }
+.jobbar__track {
+  height: 6px;
+  margin: 7px 0 6px;
+  border-radius: 3px;
+  background: #eceaf1;
+  overflow: hidden;
+}
+.jobbar__fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #7c3aed, #db2777);
+  transition: width .4s ease;
+}
+/* 段数が分からないうちは流す。0%で止めると、始まっていないように見える。
+   margin-left で動かすと、枠の外に出ている間は帯が空になり、
+   止まったように見えた（2026-11-04 実測）。translateX で左右に往復させる */
+.jobbar__fill--flow {
+  width: 40%;
+  animation: jobbar-flow 1.8s ease-in-out infinite alternate;
+}
+@keyframes jobbar-flow {
+  from { transform: translateX(0); }
+  to { transform: translateX(150%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jobbar__fill--flow { animation: none; width: 100%; opacity: .45; }
+  .jobbar__fill { transition: none; }
+}
+.jobbar__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b6676;
+}
+.jobbar__note { flex: 1 1 auto; min-width: 0; }
+.jobbar__stop {
+  flex: 0 0 auto;
+  border: 1px solid var(--line, #e3e0ea);
+  background: #fff;
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.jobbar__stop:disabled { opacity: .5; cursor: default; }
+@media (max-width: 600px) {
+  .jobbar { padding: 0; }
+  .jobbar__row { padding: 8px 10px; }
+}
