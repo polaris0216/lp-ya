@@ -522,6 +522,10 @@
     var d = design || DEFAULT_DESIGN;
     var W = width || 1000;
     var pad = Math.round(W * 0.07);
+    /* 上下の余白は左右より狭くする。板は区画の余白なしで縦に並ぶので、
+       上下に幅の7%（PCで48px）ずつ取ると、板と板のあいだが96px空く
+       （2026-11-03 指摘「セクション間の空白がまだ広い」） */
+    var padY = Math.round(W * 0.042);
     var headSize = Math.round(W * 0.045);
     var qSize = Math.round(W * 0.030);
     var aSize = Math.round(W * 0.026);
@@ -539,8 +543,8 @@
       return { ql: ql, al: al, h: ql.length * qStep + (al.length ? Math.round(aSize * 0.7) : 0) + al.length * aStep };
     });
     var gap = Math.round(aSize * 1.5);
-    var H = pad + headSize + Math.round(headSize * 1.6)
-      + rows.reduce(function (n, r) { return n + r.h + gap; }, 0) + pad;
+    var H = padY + headSize + Math.round(headSize * 1.6)
+      + rows.reduce(function (n, r) { return n + r.h + gap; }, 0) + padY;
 
     var ink = d.titleColor;
     var hot = d.accentColor;
@@ -550,7 +554,7 @@
       + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
     out.push('<rect width="' + W + '" height="' + H + '" fill="' + escapeHtml(d.bgColor || '#FFFFFF') + '"/>');
     var fam = 'Hiragino Sans, Yu Gothic UI, Noto Sans JP, system-ui, sans-serif';
-    var y = pad + headSize;
+    var y = padY + headSize;
     out.push('<text x="' + pad + '" y="' + y + '" font-family="' + fam + '" font-size="' + headSize
       + '" font-weight="800" fill="' + ink + '">' + escapeHtml(title || t('sales.faq')) + '</text>');
     /* 見出しと1問目のあいだ。詰めると札が見出しの足に重なる */
@@ -639,6 +643,10 @@
     var W = width || 1000;
     var hot = d.accentColor || '#C98F5C';
     var pad = Math.round(W * 0.07);
+    /* 上下の余白は左右より狭くする。板は区画の余白なしで縦に並ぶので、
+       上下に幅の7%（PCで48px）ずつ取ると、板と板のあいだが96px空く
+       （2026-11-03 指摘「セクション間の空白がまだ広い」） */
+    var padY = Math.round(W * 0.042);
     var headSize = Math.round(W * 0.045);
     var labSize = Math.round(W * 0.019);
     var painSize = Math.round(W * 0.027);
@@ -664,8 +672,8 @@
       var b = wrapFix(r.fix);
       return { a: a, b: b, h: Math.max(a.length * painStep, b.length * fixStep) + rowPad * 2 };
     });
-    var top = pad + headSize + Math.round(headSize * 1.0) + labSize + Math.round(labSize * 1.1);
-    var H = top + cells.reduce(function (n, r) { return n + r.h; }, 0) + Math.round(pad * 0.45);
+    var top = padY + headSize + Math.round(headSize * 1.0) + labSize + Math.round(labSize * 1.1);
+    var H = top + cells.reduce(function (n, r) { return n + r.h; }, 0) + Math.round(padY * 0.6);
 
     var fam = 'Hiragino Sans, Yu Gothic UI, Noto Sans JP, system-ui, sans-serif';
     var out = [];
@@ -683,10 +691,10 @@
     /* 見出しは左寄せ＋差し色の短い罫。ほかの板（textPanel・roadmapPanel）と
        同じ組み方にそろえる。中央寄せの見出しに丸い札を並べる形は、
        どの商品でも同じ顔になってしまう（2026-11-03 指摘「AIっぽい」） */
-    out.push('<text x="' + pad + '" y="' + (pad + headSize) + '" font-family="' + fam + '" font-size="'
+    out.push('<text x="' + pad + '" y="' + (padY + headSize) + '" font-family="' + fam + '" font-size="'
       + headSize + '" font-weight="800" fill="#FFFFFF">'
       + escapeHtml(title || t('sales.painTitle')) + '</text>');
-    out.push('<rect x="' + pad + '" y="' + (pad + headSize + Math.round(headSize * 0.35))
+    out.push('<rect x="' + pad + '" y="' + (padY + headSize + Math.round(headSize * 0.35))
       + '" width="' + Math.round(W * 0.06) + '" height="3" fill="' + hot + '"/>');
 
     var labY = top - Math.round(labSize * 0.9);
@@ -1035,6 +1043,10 @@
     var ink = d.titleColor || '#2A2A28';
     var body = d.bodyColor || '#2A2A28';
     var pad = Math.round(W * 0.07);
+    /* 上下の余白は左右より狭くする。板は区画の余白なしで縦に並ぶので、
+       上下に幅の7%（PCで48px）ずつ取ると、板と板のあいだが96px空く
+       （2026-11-03 指摘「セクション間の空白がまだ広い」） */
+    var padY = Math.round(W * 0.042);
     var headSize = Math.round(W * 0.045);
     /* 縦に積む。横一列に並べると、スマホ幅（390px）に縮んだとき
        1節あたり90pxしかなく、字が9pxまで落ちて読めない（実測 2026-11-03）。
@@ -1054,17 +1066,17 @@
       return { lines: lines, h: whenSize + Math.round(whenSize * 0.55) + lines.length * whatStep
         + Math.round(whatSize * 0.9) };
     });
-    var top = pad + headSize + Math.round(headSize * 1.05);
-    var H = top + laid.reduce(function (n, x) { return n + x.h; }, 0) + pad - Math.round(whatSize * 0.9);
+    var top = padY + headSize + Math.round(headSize * 1.05);
+    var H = top + laid.reduce(function (n, x) { return n + x.h; }, 0) + padY - Math.round(whatSize * 0.9);
 
     var out = [];
     out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
       + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
     out.push('<rect width="' + W + '" height="' + H + '" fill="' + escapeHtml(d.bgColor || '#FFFFFF') + '"/>');
-    out.push('<text x="' + pad + '" y="' + (pad + headSize) + '" font-family="' + fam + '" font-size="'
+    out.push('<text x="' + pad + '" y="' + (padY + headSize) + '" font-family="' + fam + '" font-size="'
       + headSize + '" font-weight="800" fill="' + ink + '">'
       + escapeHtml(title || t('sales.roadmap')) + '</text>');
-    out.push('<rect x="' + pad + '" y="' + (pad + headSize + Math.round(headSize * 0.35))
+    out.push('<rect x="' + pad + '" y="' + (padY + headSize + Math.round(headSize * 0.35))
       + '" width="' + Math.round(W * 0.06) + '" height="3" fill="' + hot + '"/>');
 
     /* 節の中心をさきに出す。道はその上から下まで1本 */
@@ -1111,6 +1123,11 @@
     var W = width || 1000;
     var pad = Math.round(W * 0.07);
     var inner = W - pad * 2;
+    /* 上下の余白は左右より狭くする。板は区画の余白なしで縦に並ぶので、
+       上下に幅の7%（PCで48px）ずつ取ると、板と板のあいだが96px空く
+       （2026-11-03 指摘「セクション間の空白がまだ広い」） */
+    var padY = Math.round(W * 0.042);
+
     /* よくある質問の板と同じ大きさにそろえる。絵に焼いていたときより大きい */
     var headSize = Math.round(W * 0.045);
     var hSize = Math.round(W * 0.030);
@@ -1135,14 +1152,14 @@
       var w = wrap(r.a, bodySize, inner - (r.k === 'li' ? (liX - pad) : 0));
       return { r: r, lines: w, h: w.length * step + Math.round(bodySize * 0.5) };
     });
-    var H = pad + headSize + Math.round(headSize * 1.5)
-      + laid.reduce(function (n, x) { return n + x.h; }, 0) + pad;
+    var H = padY + headSize + Math.round(headSize * 1.5)
+      + laid.reduce(function (n, x) { return n + x.h; }, 0) + padY;
 
     var out = [];
     out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
       + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
     out.push('<rect width="' + W + '" height="' + H + '" fill="' + escapeHtml(d.bgColor || '#FFFFFF') + '"/>');
-    var y = pad + headSize;
+    var y = padY + headSize;
     out.push('<text x="' + pad + '" y="' + y + '" font-family="' + fam + '" font-size="' + headSize
       + '" font-weight="800" fill="' + ink + '">' + escapeHtml(got.title) + '</text>');
     out.push('<rect x="' + pad + '" y="' + (y + Math.round(headSize * 0.45)) + '" width="'
@@ -1441,7 +1458,10 @@
          文字だけの区画の前後だけで、そこにだけ横線が出るため、
          意味のある区切りではなく引きそびれた罫線に見えていた。
          区切りは余白で付ける */
-      '.block{padding:36px 0}',
+      /* 文字だけの区画の余白。36px→20px（PCは60px→28px）に詰めた
+         （2026-11-03 指摘）。絵と絵のあいだは 0、絵と文字のあいだだけ
+         この余白が入る。くっつけると読みにくいので 0 にはしない */
+      '.block{padding:20px 0}',
       /* 絵で始まる1つ目の区画。KVのすぐ下なので、上の余白を取らない。
          .block.block--flush と2つ重ねるのは、下の @media にある
          .block{padding:60px 0} が後に来て勝ってしまうため
@@ -1528,7 +1548,7 @@
       'h1{font-size:' + Math.round(d.titleSize * 1.6) + 'px;margin-bottom:14px}',
       '.hero__copy{padding-top:44px;padding-bottom:12px}',
       '.hero__sub{font-size:' + (d.bodySize + 3) + 'px}',
-      '.block{padding:60px 0}',
+      '.block{padding:28px 0}',
       '.block h2{font-size:' + Math.round(d.titleSize * 1.05) + 'px;margin-bottom:14px}',
       '.block h3{font-size:' + Math.round(d.titleSize * 0.72) + 'px}',
       '.block p{font-size:' + (d.bodySize + 2) + 'px;margin-bottom:14px}',
@@ -2158,7 +2178,12 @@
          文章で始まる区画は、くっつくと読みにくいので余白を残す */
       var flush = i === 0 && !b.faq && !!pic(b.slot);
       /* 絵だけの区画（文字は絵に焼いてある場合も含む）は余白なしで詰める */
-      var picOnly = !b.faq && !!pic(b.slot) && (b.over || b.pains || (!b.title && !paras(b.body).length));
+      /* 上下の余白を取らない区画（2026-11-03 指摘「セクション間の空白がまだ広い」）。
+         絵だけの区画に加えて、SVGの板（よくある質問・読む区画・まとめ表）も入れる。
+         板は自分の中に余白（幅の7%＝PCで48px）を持っているので、
+         外側にも60pxを足すと、板と板のあいだが216pxも空いていた（実測） */
+      var picOnly = !!b.faq || !!b.read || !!b.pains
+        || (!!pic(b.slot) && (b.over || (!b.title && !paras(b.body).length)));
       out.push('<section class="block' + (flush ? ' block--flush' : '')
         + (picOnly ? ' block--pic' : '') + '">');
       if (b.read) {
