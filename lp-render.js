@@ -1167,6 +1167,14 @@
          .block{padding:60px 0} が後に来て勝ってしまうため
          （実測 2026-10-14: 印は付いているのに60pxのままだった） */
       '.block.block--flush{padding-top:0}',
+      /* 絵だけの区画は上下の余白を取らない（2026-11-03 指摘
+         「セクションの間にある変な白い空白はないようにして」）。
+         絵が続くところでは、下の絵の余白16px＋区画の下36px＋次の区画の上36px
+         ＝ 88px（PCは 136px）の白帯が絵と絵のあいだに出ていた。
+         訴求は絵に焼いてあるので、絵どうしは詰めて並べる。
+         文字のある区画は、くっつくと読みにくいので余白を残す */
+      '.block.block--pic{padding:0}',
+      '.block.block--pic img,.block.block--pic .bg--full{margin-bottom:0}',
       /* 絵は列の端から端まで。角も丸めない。
          実測した実物（Makuake・nowgoav.jp/lavaclip-lp）はどちらも
          絵が列いっぱいで、左右の余白も角丸も無かった。
@@ -1523,7 +1531,7 @@
          上の区画の下余白と、この塊の上余白が足し算になって空いていた。
          実測: 区画の下 36px ＋ 塊の上 22px ＝ 58px（PCは 60+30＝90px）。
          絵のすぐ下に誘いが来るほうが、流れが切れない */
-      '.block:has(+ .cta-block){padding-bottom:10px}',
+      '.block:has(+ .cta-block){padding-bottom:24px}',
       /* 1行目。見本ではロゴが本文の幅の半分ほどを占めている。
          幅で決めるのは、掲載先ごとに縦横比が違うため（高さで止めると
          横長のロゴが細い帯になる）。高さは自分からついてくる */
@@ -1552,7 +1560,7 @@
       '.cta-block__b{margin:0}',
       '@media (min-width:768px){',
       '.cta-block{margin:16px 0 22px;padding:0}',
-      '.block:has(+ .cta-block){padding-bottom:14px}',
+      '.block:has(+ .cta-block){padding-bottom:30px}',
       '.cta-block__brand{margin-bottom:10px}',
       '.cta-block__logo{width:36%}',
       '.cta-block__name{font-size:56px}',
@@ -1854,7 +1862,10 @@
          （2026-10-14 指摘「KVと第一セクションの間に空白が生じてる」）。
          文章で始まる区画は、くっつくと読みにくいので余白を残す */
       var flush = i === 0 && !b.faq && !!pic(b.slot);
-      out.push('<section class="block' + (flush ? ' block--flush' : '') + '">');
+      /* 絵だけの区画（文字は絵に焼いてある場合も含む）は余白なしで詰める */
+      var picOnly = !b.faq && !!pic(b.slot) && (b.over || (!b.title && !paras(b.body).length));
+      out.push('<section class="block' + (flush ? ' block--flush' : '')
+        + (picOnly ? ' block--pic' : '') + '">');
       if (b.faq) {
         /* よくある質問は、絵ではなく SVG の板。回答まで字が崩れずに出る */
         out.push('<div class="faq-panel">' + faqPanel(b.faq, d, 1000, b.title) + '</div>');
