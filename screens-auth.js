@@ -300,6 +300,14 @@
     window.location.hash = '#/' + screenId + (query ? '?' + query : '');
   }
 
+  /* ログインできたあとの行き先。期限切れで飛ばされたなら、見ていた場所へ戻す
+     （2026-11-04 の決め）。覚えていなければ、これまでどおりダッシュボード */
+  function goBackOrHome() {
+    var back = (typeof App.takeWhereIWas === 'function') ? App.takeWhereIWas() : '';
+    if (back) { window.location.hash = back; return; }
+    go('S3');
+  }
+
   function setHeader() {
     if (typeof App.setHeader === 'function') {
       App.setHeader({ title: APP_NAME, back: false });
@@ -888,7 +896,7 @@
           s.alert = null;
           adoptUser(updated);
           toast(t('loginDone'), 'success');
-          go('S3');
+          goBackOrHome();
         })
         .catch(function (err) {
           setBusy(false);

@@ -123,6 +123,12 @@
     network: '通信に失敗しました。ネットワーク接続を確認して、もう一度お試しください。',
     timeout: '通信に時間がかかりすぎました。電波の良い場所で、もう一度お試しください。',
     unauthorized: 'データへのアクセスが許可されませんでした。時間をおいて、もう一度お試しください。',
+    /* ログインの期限切れ。2026-11-04 まで MESSAGES に無かったので、
+       refreshSession が投げる new ApiError('loginRequired') は
+       ApiError の中で code ごと 'unknown' に落ちていた（147行）。
+       画面には「アクセスが許可されませんでした」とだけ出て、
+       なぜ押せないのかが分からなかった */
+    loginRequired: 'ログインの期限が切れました。もう一度ログインしてください。',
     notfound: '対象のデータが見つかりませんでした。画面を更新して、もう一度お試しください。',
     conflict: 'すでに同じデータが登録されています。内容を確認してください。',
     validation: '入力内容に誤りがあります。項目を確認して、もう一度お試しください。',
@@ -391,6 +397,17 @@
              「データへのアクセスが許可されませんでした」とだけ出て、
              ログイン画面にも戻らず画面が死んでいた（実測 2026-10-06 23:10） */
           return refreshSession().then(run, function (bad) { return Promise.reject(bad); });
+        }
+        /* 期限切れなのに取り直せない道が、もう1本あった（2026-11-04 実測）。
+           refresh_token が無い・取り直しの回数を使い切った場合はここへ落ち、
+           forgetSession(true) を呼ばないので画面に合図が行かない。
+           結果、「データへのアクセスが許可されませんでした」＋押しても
+           何も起きない再試行ボタンだけが残っていた。
+           ここでセッションを捨てて、ログインし直しとして投げ直す */
+        if (err.code === 'unauthorized' && session) {
+          console.warn('[Api] ログインの期限が切れています。ログイン画面へ戻します');
+          forgetSession(true);
+          return Promise.reject(new ApiError('loginRequired', err.status || 401, err.detail || ''));
         }
         logError(method, path, err);
         err.retry = function () { return request(method, path, body, options); };

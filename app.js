@@ -895,10 +895,39 @@
   }
 
   function handleError(err, retry) {
+    /* ログインの期限切れは、ここで帯を出さない。すぐ下の
+       elpiya:login-required がログイン画面へ送るので、
+       出すと「アクセスが許可されませんでした」を一瞬見せてから飛ぶことになる
+       （2026-11-04 実測。実行者には権限の問題に見えていた） */
+    if (err && err.code === 'loginRequired') {
+      console.warn('[App] ログインの期限が切れました');
+      return err;
+    }
     console.error('[App] 通信または処理に失敗しました', err);
     var again = isFn(retry) ? retry : (err && isFn(err.retry) ? function () { err.retry(); } : null);
     showBanner(messageOf(err), again);
     return err;
+  }
+
+  /* ログインが切れたときに見ていた場所。ログインし直したら、ここへ戻す。
+     置き場はタブの中だけ（sessionStorage）。別のタブの事情を持ち込まない */
+  var BACK_KEY = 'elpiya:back-to';
+  var BACK_SKIP = { S0: 1, S1: 1, S2: 1 };
+  function rememberWhereIWas() {
+    try {
+      var hash = String(global.location.hash || '');
+      var id = hash.replace('#/', '').split('?')[0];
+      if (!id || BACK_SKIP[id]) { return; }
+      global.sessionStorage.setItem(BACK_KEY, hash);
+    } catch (e) { /* 使えない環境では、ただ戻れないだけ */ }
+  }
+  function takeWhereIWas() {
+    try {
+      var hash = global.sessionStorage.getItem(BACK_KEY);
+      global.sessionStorage.removeItem(BACK_KEY);
+      var id = String(hash || '').replace('#/', '').split('?')[0];
+      return (hash && id && !BACK_SKIP[id]) ? hash : '';
+    } catch (e) { return ''; }
   }
 
   function toast(message, kind) {
@@ -3026,6 +3055,11 @@
       if (!state.user && current.id === 'S1') { return; }
       state.user = null;
       updateAdminTab();
+      clearBanner();
+      /* どこを見ていたかを覚えておく。覚えないと、ログインし直したあと
+         ダッシュボードに出て、どの案件のどの工程だったかが失われる
+         （2026-11-04 の決め）。入口の画面は覚えない */
+      rememberWhereIWas();
       toast(t('common.sessionExpired'), 'danger');
       replace('S1');
     });
@@ -3033,7 +3067,11 @@
     restoreUser().then(function () {
       updateAdminTab();
       if (!global.location.hash) {
-        replace(state.user ? 'S3' : 'S0');
+        /* 読み込み直しでもどってきたとき（Googleログインの往復もここ）。
+           期限切れで覚えた場所があれば、そこへ戻す */
+        var back = state.user ? takeWhereIWas() : '';
+        if (back) { global.location.hash = back; }
+        else { replace(state.user ? 'S3' : 'S0'); }
       }
       onHashChange();
     }, function (err) {
@@ -3097,6 +3135,7 @@
     confirm: confirmDialog,
     openModal: openModal,
     watchJob: watchJob,
+    takeWhereIWas: takeWhereIWas,
     stopJobWatch: stopWatch,
     openSheet: openSheet,
     closeModal: closeModal,
