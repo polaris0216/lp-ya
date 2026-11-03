@@ -1513,7 +1513,12 @@
     var ink = d.titleColor;
     var hot = d.accentColor;
     return [
-      '.cta-block{margin:22px 0 16px;padding:0;text-align:center}',
+      '.cta-block{margin:12px 0 16px;padding:0;text-align:center}',
+      /* 誘いの塊は、すぐ上の絵とくっつける（2026-11-03 指摘「空白が長い」）。
+         上の区画の下余白と、この塊の上余白が足し算になって空いていた。
+         実測: 区画の下 36px ＋ 塊の上 22px ＝ 58px（PCは 60+30＝90px）。
+         絵のすぐ下に誘いが来るほうが、流れが切れない */
+      '.block:has(+ .cta-block){padding-bottom:10px}',
       /* 1行目。見本ではロゴが本文の幅の半分ほどを占めている。
          幅で決めるのは、掲載先ごとに縦横比が違うため（高さで止めると
          横長のロゴが細い帯になる）。高さは自分からついてくる */
@@ -1541,7 +1546,8 @@
       /* 5行目 */
       '.cta-block__b{margin:0}',
       '@media (min-width:768px){',
-      '.cta-block{margin:30px 0 22px;padding:0}',
+      '.cta-block{margin:16px 0 22px;padding:0}',
+      '.block:has(+ .cta-block){padding-bottom:14px}',
       '.cta-block__brand{margin-bottom:10px}',
       '.cta-block__logo{width:36%}',
       '.cta-block__name{font-size:56px}',
