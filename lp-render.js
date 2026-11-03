@@ -1155,8 +1155,13 @@
       'h1{margin:0 0 10px;font-family:' + fontStack(d.titleFont) + ';font-size:' + Math.round(d.titleSize * 1.1)
         + 'px;line-height:1.35;color:' + d.titleColor + '}',
       '.hero__sub{margin:0;color:' + d.bodyColor + ';opacity:.85}',
-      '.block{padding:36px 0;border-top:1px solid rgba(0,0,0,.08)}',
-      '.block:first-of-type{border-top:0}',
+      /* 区画の区切り線は引かない（2026-11-03 指摘）。
+         このページは区画のほとんどが画面幅いっぱいの絵なので、
+         絵と絵のあいだでは線が見えない。見えるのは誘いの塊や
+         文字だけの区画の前後だけで、そこにだけ横線が出るため、
+         意味のある区切りではなく引きそびれた罫線に見えていた。
+         区切りは余白で付ける */
+      '.block{padding:36px 0}',
       /* 絵で始まる1つ目の区画。KVのすぐ下なので、上の余白を取らない。
          .block.block--flush と2つ重ねるのは、下の @media にある
          .block{padding:60px 0} が後に来て勝ってしまうため
