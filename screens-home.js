@@ -769,10 +769,24 @@
     setHeader(t('project.createTitle'), true);
 
     var lastBrandLogo = '';
+    /* メーカー情報は、変えたときだけ sales_info を送る目印 */
+    var lastMaker = '';
+    /* 空の欄は入れない。全部空ならメーカー情報そのものを消す */
+    function makerValue() {
+      var out = {};
+      ['name', 'business', 'place', 'founded'].forEach(function (k) {
+        var one = String((form.maker && form.maker[k]) || '').trim();
+        if (one) { out[k] = one; }
+      });
+      return Object.keys(out).length ? out : undefined;
+    }
     var paintBrandLogo = function () {};
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
       salesInfo: {}, brandLogo: '',
       category: '', outputLang: 'ja', cfPlatform: 'makuake', fundingGoal: '', valueProp: '', brandTone: '',
+      /* メーカー情報（2026-11-03 要望）。LPの「メーカー紹介」の区画に
+         そのまま出る。置き場は sales_info.maker（列は増やさない） */
+      maker: { name: '', business: '', place: '', founded: '' },
       refUrls: [''],
       /* 競合LPのURL（最大5件）。1件ずつ { url, outcome } で持つ。
          outcome は「達成した / 伸びなかった / 未指定」。終了後に目標金額を隠す媒体
@@ -933,6 +947,11 @@
       form.features = text(row.product_features);
       form.target = text(row.target_audience);
       form.brandTone = text(row.brand_tone);
+      var savedInfo = (row.sales_info && typeof row.sales_info === 'object') ? row.sales_info : {};
+      var savedMaker = (savedInfo.maker && typeof savedInfo.maker === 'object') ? savedInfo.maker : {};
+      form.maker = { name: text(savedMaker.name), business: text(savedMaker.business),
+        place: text(savedMaker.place), founded: text(savedMaker.founded) };
+      lastMaker = JSON.stringify(form.maker);
       /* ブランドロゴは sales_info の中にある（LP案ページの「販売の条件」と同じ置き場）。
          ほかの鍵（LINEの形など）を壊さないよう、丸ごと控えてから差し替える */
       form.salesInfo = (row.sales_info && typeof row.sales_info === 'object') ? row.sales_info : {};
@@ -1183,6 +1202,30 @@
       }, {});
       basicPanel.appendChild(makeField(t('product.fundingGoal'), fundingInput, {}).wrap);
       screen.appendChild(basicPanel);
+
+      /* メーカー情報（2026-11-03 要望:「メーカー紹介に入れる情報を入力する欄を
+         このアプリ内の適切な場所に設けて」）。
+         CAMPFIRE の4アカウント17件を読むと、メーカー名は15件・事業内容は14件・
+         所在地と設立年は9件に出ていて、どれも事実そのままの行だった。
+         AIに書かせると作り話になるところなので、ここで人が入れる。
+         空欄のままなら、LPには [メーカー確認] と出る */
+      var makerPanel = panel('product.makerPanel', 'product.makerPanelDesc');
+      var makerTop = el('div', 'row--2');
+      [['name', 'product.makerName', 'product.makerNamePlaceholder'],
+        ['business', 'product.makerBusiness', 'product.makerBusinessPlaceholder'],
+        ['place', 'product.makerPlace', 'product.makerPlacePlaceholder'],
+        ['founded', 'product.makerFounded', 'product.makerFoundedPlaceholder']
+      ].forEach(function (one) {
+        var key = one[0];
+        var input = textInput('home-create-maker-' + key, form.maker[key], t(one[2]), function (value) {
+          form.maker[key] = value;
+          markDirty();
+        }, { maxLength: 200 });
+        makerTop.appendChild(makeField(t(one[1]), input, {}).wrap);
+      });
+      makerPanel.appendChild(makerTop);
+      makerPanel.appendChild(el('p', 'field__hint', t('product.makerHint')));
+      screen.appendChild(makerPanel);
 
       /* リワード（販売）価格・数量 */
       var rewardPanel = panel('product.rewardPanel', 'product.rewardPanelDesc');
@@ -2945,8 +2988,14 @@
         image_urls: form.images.slice(),
         /* ブランドロゴ。変えたときだけ送る（undefined は cleanPayload が外す）。
            毎回送ると、別の画面が入れた LINEの形などを古い値で上書きしてしまう */
-        sales_info: form.brandLogo === lastBrandLogo ? undefined
-          : Object.assign({}, form.salesInfo, { brand_logo: form.brandLogo || undefined }),
+        /* ロゴかメーカー情報を変えたときだけ送る。毎回送ると、別の画面が
+           入れた LINEの形などを古い値で上書きしてしまう */
+        sales_info: (form.brandLogo === lastBrandLogo && JSON.stringify(form.maker) === lastMaker)
+          ? undefined
+          : Object.assign({}, form.salesInfo, {
+            brand_logo: form.brandLogo || undefined,
+            maker: makerValue()
+          }),
         /* 素材生成で AI に渡す見本。GIF も可（最初のコマを切り抜いて使う） */
         /* ☆は、この画面で変えたときだけ書く。変えていなければ列ごと送らない
            （undefined は cleanPayload が外す）。

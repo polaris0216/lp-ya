@@ -624,107 +624,104 @@
     return out.slice(0, 6);
   }
 
+  /* 字の幅のあて。全角＝1em、半角＝0.5em。打ち消し線を引く長さに使う */
+  function textWidth(line, size) {
+    var n = 0;
+    String(line || '').split('').forEach(function (ch) { n += charUnits(ch); });
+    return Math.round(n * size / 2);
+  }
+
   function painPanel(src, rows, title, design, width) {
     var list = Array.isArray(rows) ? rows : [];
     if (!list.length) { return ''; }
     var d = design || DEFAULT_DESIGN;
     var W = width || 1000;
     var hot = d.accentColor || '#C98F5C';
-    var pad = Math.round(W * 0.06);
-    var headSize = Math.round(W * 0.042);
-    var labSize = Math.round(W * 0.022);
-    var cellSize = Math.round(W * 0.028);
-    var step = Math.round(cellSize * 1.5);
-    var gap = Math.round(cellSize * 0.6);
-    var colGap = Math.round(W * 0.045);
-    /* 右は太字で場所を食うので、左より広く取る（45:55） */
-    var both = W - pad * 2 - colGap;
-    var colW = Math.round(both * 0.45);
+    var pad = Math.round(W * 0.07);
+    var headSize = Math.round(W * 0.045);
+    var labSize = Math.round(W * 0.019);
+    var painSize = Math.round(W * 0.027);
+    var fixSize = Math.round(W * 0.034);
+    var painStep = Math.round(painSize * 1.5);
+    var fixStep = Math.round(fixSize * 1.4);
+    /* 左（悩み）は小さく、右（解決）は大きいので、幅も右を広く取る */
+    var gutter = Math.round(W * 0.055);
+    var both = W - pad * 2 - gutter;
+    var colW = Math.round(both * 0.42);
     var colW2 = both - colW;
-    var mark = Math.round(cellSize * 1.4);
-    var textX = Math.round(mark + cellSize * 0.9);
-    var inner = colW - textX - Math.round(cellSize * 0.6);
-    var inner2 = colW2 - textX - Math.round(cellSize * 0.6);
-    /* 全角1字 = cellSize（charUnits は全角を2で数える）。
-       0.58 だと1字ぶん足りず、10字の行が「…にな／る」と割れていた */
-    var wrapCell = function (one) { return wrapLines(one, inner / (cellSize * 0.52)); };
-    var wrapFix = function (one) { return wrapLines(one, inner2 / (cellSize * 0.56)); };
-    var rowPad = Math.round(cellSize * 0.8);
+    var x2 = pad + colW + gutter;
+    var bar = Math.round(W * 0.004);                 /* 解決の頭に立てる細い棒 */
+    var fixX = x2 + bar + Math.round(fixSize * 0.5);
+    var wrapPain = function (one) { return wrapLines(one, colW / (painSize * 0.52)); };
+    var wrapFix = function (one) {
+      return wrapLines(one, (colW2 - (fixX - x2)) / (fixSize * 0.54));
+    };
+    var rowPad = Math.round(fixSize * 0.72);
 
     var cells = list.map(function (r) {
-      var a = wrapCell(r.pain);
+      var a = wrapPain(r.pain);
       var b = wrapFix(r.fix);
-      return { a: a, b: b, h: Math.max(a.length, b.length) * step + rowPad * 2 };
+      return { a: a, b: b, h: Math.max(a.length * painStep, b.length * fixStep) + rowPad * 2 };
     });
-    var top = pad + headSize + Math.round(headSize * 0.95) + labSize + Math.round(labSize * 0.9);
-    var H = top + cells.reduce(function (n, r) { return n + r.h + gap; }, 0) - gap + pad;
+    var top = pad + headSize + Math.round(headSize * 1.0) + labSize + Math.round(labSize * 1.1);
+    var H = top + cells.reduce(function (n, r) { return n + r.h; }, 0) + Math.round(pad * 0.45);
 
     var fam = 'Hiragino Sans, Yu Gothic UI, Noto Sans JP, system-ui, sans-serif';
-    var uid = 'p' + Math.abs(hashOf(String(src) + title + list.length)).toString(36);
     var out = [];
     out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
       + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
     out.push('<rect width="' + W + '" height="' + H + '" fill="#1A1613"/>');
     if (src) {
+      /* 切るのは下から。上に文字が焼かれている絵が回ってきても消さない
+         （burnedPanel と同じ決まり。photo-backdrop-selftest が見張っている） */
       out.push('<image href="' + escapeHtml(src) + '" x="0" y="0" width="' + W + '" height="' + H
-        /* 切るのは下から。上に文字が焼かれている絵が回ってきても消さない
-           （burnedPanel と同じ決まり。photo-backdrop-selftest が見張っている） */
         + '" preserveAspectRatio="xMidYMin slice"/>');
       /* 幕。表の字が読めるところまで落とす（写真は気配として残す） */
       out.push('<rect width="' + W + '" height="' + H + '" fill="#120E0B" fill-opacity="0.72"/>');
     }
-    var x2 = pad + colW + colGap;
-    out.push('<text x="' + Math.round(W / 2) + '" y="' + (pad + headSize) + '" font-family="' + fam
-      + '" font-size="' + headSize + '" font-weight="800" fill="#FFFFFF" text-anchor="middle">'
+    /* 見出しは左寄せ＋差し色の短い罫。ほかの板（textPanel・roadmapPanel）と
+       同じ組み方にそろえる。中央寄せの見出しに丸い札を並べる形は、
+       どの商品でも同じ顔になってしまう（2026-11-03 指摘「AIっぽい」） */
+    out.push('<text x="' + pad + '" y="' + (pad + headSize) + '" font-family="' + fam + '" font-size="'
+      + headSize + '" font-weight="800" fill="#FFFFFF">'
       + escapeHtml(title || t('sales.painTitle')) + '</text>');
-    var labY = pad + headSize + Math.round(headSize * 0.95) + labSize;
-    out.push('<text x="' + (pad + textX) + '" y="' + labY + '" font-family="' + fam + '" font-size="' + labSize
-      + '" font-weight="700" fill="#FFFFFF" fill-opacity="0.6" letter-spacing="0.12em">'
+    out.push('<rect x="' + pad + '" y="' + (pad + headSize + Math.round(headSize * 0.35))
+      + '" width="' + Math.round(W * 0.06) + '" height="3" fill="' + hot + '"/>');
+
+    var labY = top - Math.round(labSize * 0.9);
+    out.push('<text x="' + pad + '" y="' + labY + '" font-family="' + fam + '" font-size="' + labSize
+      + '" font-weight="700" fill="#FFFFFF" fill-opacity="0.45" letter-spacing="0.2em">'
       + escapeHtml(t('sales.painLeft')) + '</text>');
-    out.push('<text x="' + (x2 + textX) + '" y="' + labY + '" font-family="' + fam + '" font-size="' + labSize
-      + '" font-weight="700" fill="' + hot + '" letter-spacing="0.12em">'
+    out.push('<text x="' + fixX + '" y="' + labY + '" font-family="' + fam + '" font-size="' + labSize
+      + '" font-weight="700" fill="' + hot + '" letter-spacing="0.2em">'
       + escapeHtml(t('sales.painRight')) + '</text>');
 
     var y = top;
     cells.forEach(function (r, i) {
-      var rx = Math.round(cellSize * 0.5);
-      out.push('<rect x="' + pad + '" y="' + y + '" width="' + colW + '" height="' + r.h
-        + '" rx="' + rx + '" fill="#FFFFFF" fill-opacity="0.08"/>');
-      out.push('<rect x="' + x2 + '" y="' + y + '" width="' + colW2 + '" height="' + r.h
-        + '" rx="' + rx + '" fill="' + hot + '" fill-opacity="0.18" stroke="' + hot
-        + '" stroke-opacity="0.55"/>');
-      /* 左右をつなぐ山形。表のまんなかに置く */
-      var ay = y + Math.round(r.h / 2);
-      var aw = Math.round(colGap * 0.22);
-      out.push('<path d="M' + (pad + colW + Math.round(colGap / 2) - Math.round(aw / 2)) + ' ' + (ay - aw)
-        + ' l' + aw + ' ' + aw + ' l' + (-aw) + ' ' + aw
-        + '" stroke="' + hot + '" stroke-width="' + Math.max(3, Math.round(cellSize * 0.14))
-        + '" stroke-linecap="round" stroke-linejoin="round" fill="none"/>');
-      /* 左は×、右は○の印 */
-      var my = y + rowPad + Math.round(cellSize * 0.5);
-      var mr = Math.round(mark / 2);
-      out.push('<circle cx="' + (pad + Math.round(cellSize * 0.8) + mr) + '" cy="' + my + '" r="' + mr
-        + '" fill="#FFFFFF" fill-opacity="0.16"/>');
-      out.push('<text x="' + (pad + Math.round(cellSize * 0.8) + mr) + '" y="' + (my + Math.round(cellSize * 0.33))
-        + '" font-family="' + fam + '" font-size="' + Math.round(cellSize * 0.9)
-        + '" font-weight="800" fill="#FFFFFF" fill-opacity="0.8" text-anchor="middle">\u00d7</text>');
-      out.push('<circle cx="' + (x2 + Math.round(cellSize * 0.8) + mr) + '" cy="' + my + '" r="' + mr
-        + '" fill="' + hot + '"/>');
-      out.push('<text x="' + (x2 + Math.round(cellSize * 0.8) + mr) + '" y="' + (my + Math.round(cellSize * 0.33))
-        + '" font-family="' + fam + '" font-size="' + Math.round(cellSize * 0.9)
-        + '" font-weight="800" fill="#FFFFFF" text-anchor="middle">\u25cb</text>');
-      var ty = y + rowPad + Math.round(cellSize * 0.82);
+      /* 行の区切りは細い横罫だけ。札も枠も塗りも置かない */
+      if (i) {
+        out.push('<rect x="' + pad + '" y="' + y + '" width="' + (W - pad * 2)
+          + '" height="1" fill="#FFFFFF" fill-opacity="0.14"/>');
+      }
+      var ay = y + rowPad + Math.round(painSize * 0.85);
       r.a.forEach(function (line, li) {
-        out.push('<text x="' + (pad + textX) + '" y="' + (ty + li * step) + '" font-family="' + fam
-          + '" font-size="' + cellSize + '" fill="#FFFFFF" fill-opacity="0.88">'
-          + escapeHtml(line) + '</text>');
+        var ly = ay + li * painStep;
+        out.push('<text x="' + pad + '" y="' + ly + '" font-family="' + fam + '" font-size="' + painSize
+          + '" fill="#FFFFFF" fill-opacity="0.55">' + escapeHtml(line) + '</text>');
+        /* 悩みには打ち消し線。「これが消える」が一目で分かる */
+        out.push('<rect x="' + pad + '" y="' + (ly - Math.round(painSize * 0.3)) + '" width="'
+          + textWidth(line, painSize) + '" height="1.5" fill="#FFFFFF" fill-opacity="0.38"/>');
       });
+      var by = y + rowPad + Math.round(fixSize * 0.82);
+      /* 解決の頭に差し色の棒を1本。丸い印の代わり */
+      out.push('<rect x="' + x2 + '" y="' + (by - Math.round(fixSize * 0.82)) + '" width="' + bar
+        + '" height="' + (r.b.length * fixStep) + '" rx="' + Math.round(bar / 2) + '" fill="' + hot + '"/>');
       r.b.forEach(function (line, li) {
-        out.push('<text x="' + (x2 + textX) + '" y="' + (ty + li * step) + '" font-family="' + fam
-          + '" font-size="' + cellSize + '" font-weight="700" fill="#FFFFFF">'
+        out.push('<text x="' + fixX + '" y="' + (by + li * fixStep) + '" font-family="' + fam
+          + '" font-size="' + fixSize + '" font-weight="700" fill="#FFFFFF">'
           + escapeHtml(line) + '</text>');
       });
-      y += r.h + gap;
+      y += r.h;
     });
     out.push('</svg>');
     return out.join('');
