@@ -771,15 +771,19 @@
     var lastBrandLogo = '';
     /* メーカー情報は、変えたときだけ sales_info を送る目印 */
     var lastMaker = '';
-    /* 空の欄は入れない。全部空ならメーカー情報そのものを消す */
-    function makerValue() {
+    var lastExec = '';
+    /* 空の欄は入れない。全部空なら、その塊ごと消す */
+    function partyValue(which) {
+      var src = form[which] || {};
       var out = {};
       ['name', 'business', 'place', 'founded'].forEach(function (k) {
-        var one = String((form.maker && form.maker[k]) || '').trim();
+        var one = String(src[k] || '').trim();
         if (one) { out[k] = one; }
       });
       return Object.keys(out).length ? out : undefined;
     }
+    function makerValue() { return partyValue('maker'); }
+    function execValue() { return partyValue('exec'); }
     var paintBrandLogo = function () {};
     var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
       salesInfo: {}, brandLogo: '',
@@ -787,6 +791,8 @@
       /* メーカー情報（2026-11-03 要望）。LPの「メーカー紹介」の区画に
          そのまま出る。置き場は sales_info.maker（列は増やさない） */
       maker: { name: '', business: '', place: '', founded: '' },
+      /* 実行者情報（2026-11-03 要望）。日本で売る側。置き場は sales_info.exec */
+      exec: { name: '', business: '', place: '', founded: '' },
       refUrls: [''],
       /* 競合LPのURL（最大5件）。1件ずつ { url, outcome } で持つ。
          outcome は「達成した / 伸びなかった / 未指定」。終了後に目標金額を隠す媒体
@@ -952,6 +958,10 @@
       form.maker = { name: text(savedMaker.name), business: text(savedMaker.business),
         place: text(savedMaker.place), founded: text(savedMaker.founded) };
       lastMaker = JSON.stringify(form.maker);
+      var savedExec = (savedInfo.exec && typeof savedInfo.exec === 'object') ? savedInfo.exec : {};
+      form.exec = { name: text(savedExec.name), business: text(savedExec.business),
+        place: text(savedExec.place), founded: text(savedExec.founded) };
+      lastExec = JSON.stringify(form.exec);
       /* ブランドロゴは sales_info の中にある（LP案ページの「販売の条件」と同じ置き場）。
          ほかの鍵（LINEの形など）を壊さないよう、丸ごと控えてから差し替える */
       form.salesInfo = (row.sales_info && typeof row.sales_info === 'object') ? row.sales_info : {};
@@ -1209,23 +1219,27 @@
          所在地と設立年は9件に出ていて、どれも事実そのままの行だった。
          AIに書かせると作り話になるところなので、ここで人が入れる。
          空欄のままなら、LPには [メーカー確認] と出る */
-      var makerPanel = panel('product.makerPanel', 'product.makerPanelDesc');
-      var makerTop = el('div', 'row--2');
-      [['name', 'product.makerName', 'product.makerNamePlaceholder'],
-        ['business', 'product.makerBusiness', 'product.makerBusinessPlaceholder'],
-        ['place', 'product.makerPlace', 'product.makerPlacePlaceholder'],
-        ['founded', 'product.makerFounded', 'product.makerFoundedPlaceholder']
-      ].forEach(function (one) {
-        var key = one[0];
-        var input = textInput('home-create-maker-' + key, form.maker[key], t(one[2]), function (value) {
-          form.maker[key] = value;
-          markDirty();
-        }, { maxLength: 200 });
-        makerTop.appendChild(makeField(t(one[1]), input, {}).wrap);
+      /* 作る側（メーカー）と、売る側（実行者）。欄も出し方も同じ形にする
+         （2026-11-03 要望:「実行者情報も必要です。表示の仕方と入力欄同じく」）*/
+      [['maker', 'product.makerPanel', 'product.makerPanelDesc', 'product.makerHint'],
+        ['exec', 'product.execPanel', 'product.execPanelDesc', 'product.execHint']
+      ].forEach(function (party) {
+        var which = party[0];
+        var box = panel(party[1], party[2]);
+        var grid = el('div', 'row--2');
+        ['name', 'business', 'place', 'founded'].forEach(function (key) {
+          var cap = 'product.' + which + key.charAt(0).toUpperCase() + key.slice(1);
+          var input = textInput('home-create-' + which + '-' + key, form[which][key],
+            t(cap + 'Placeholder'), function (value) {
+              form[which][key] = value;
+              markDirty();
+            }, { maxLength: 200 });
+          grid.appendChild(makeField(t(cap), input, {}).wrap);
+        });
+        box.appendChild(grid);
+        box.appendChild(el('p', 'field__hint', t(party[3])));
+        screen.appendChild(box);
       });
-      makerPanel.appendChild(makerTop);
-      makerPanel.appendChild(el('p', 'field__hint', t('product.makerHint')));
-      screen.appendChild(makerPanel);
 
       /* リワード（販売）価格・数量 */
       var rewardPanel = panel('product.rewardPanel', 'product.rewardPanelDesc');
@@ -2990,11 +3004,13 @@
            毎回送ると、別の画面が入れた LINEの形などを古い値で上書きしてしまう */
         /* ロゴかメーカー情報を変えたときだけ送る。毎回送ると、別の画面が
            入れた LINEの形などを古い値で上書きしてしまう */
-        sales_info: (form.brandLogo === lastBrandLogo && JSON.stringify(form.maker) === lastMaker)
+        sales_info: (form.brandLogo === lastBrandLogo && JSON.stringify(form.maker) === lastMaker
+          && JSON.stringify(form.exec) === lastExec)
           ? undefined
           : Object.assign({}, form.salesInfo, {
             brand_logo: form.brandLogo || undefined,
-            maker: makerValue()
+            maker: makerValue(),
+            exec: execValue()
           }),
         /* 素材生成で AI に渡す見本。GIF も可（最初のコマを切り抜いて使う） */
         /* ☆は、この画面で変えたときだけ書く。変えていなければ列ごと送らない

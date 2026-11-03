@@ -438,6 +438,7 @@
        よくある質問のうしろ、作り手の前に、この順で並んでいた */
     { key: 'funds',   re: /資金の使い道|資金使途|ご支援金の使い道/ },
     { key: 'maker',   re: /メーカー紹介|メーカー情報|製造元/ },
+    { key: 'exec',    re: /実行者紹介|実行者情報/ },
     { key: 'ship',    re: /配送スケジュール|配送時期|お届け時期|発送スケジュール/ },
     { key: 'brand',   re: /作り手|ブランド|物語|出会い|環境|取り組み/ },
     /* 「まとめ」は入れない。「まとめ買いで気になる点」のような
@@ -451,7 +452,7 @@
 
   /* 販売ページに出す役割と、その並び（SHELBRU の順） */
   var SALES_ORDER = ['hero', 'empathy', 'intro', 'proof', 'point', 'howto',
-    'variation', 'scene', 'voice', 'spec', 'faq', 'funds', 'maker', 'ship', 'brand', 'closing'];
+    'variation', 'scene', 'voice', 'spec', 'faq', 'funds', 'maker', 'exec', 'ship', 'brand', 'closing'];
 
   function roleOf(sec) {
     var name = String((sec && sec.title) || '');
@@ -885,7 +886,7 @@
   /* 2026-11-03: CAMPFIRE の4アカウント17件を読んで足した。
      資金の使い道（8/17件）・メーカー紹介（15/17件）・配送時期（9/17件）は
      どれも「・」の箇条書きか「ラベル：値」の行で、絵に焼くと読めない */
-  var READ_RE = /よくある質問|FAQ|Q&A|Q＆A|年表|スケジュール|タイムライン|リスク|商品概要|仕様|スペック|保証|サポート|付属しない|同梱されない|資金の使い道|使い道|メーカー紹介|配送時期|お届け時期/i;
+  var READ_RE = /よくある質問|FAQ|Q&A|Q＆A|年表|スケジュール|タイムライン|リスク|商品概要|仕様|スペック|保証|サポート|付属しない|同梱されない|資金の使い道|使い道|メーカー紹介|実行者紹介|実行者情報|配送時期|お届け時期/i;
 
   function isReadPanel(section) {
     if (!section) { return false; }
