@@ -433,6 +433,11 @@
     { key: 'voice',   re: /声|レビュー|口コミ|使った人|愛用/ },
     { key: 'spec',    re: /寸法|スペック|仕様|商品概要/ },
     { key: 'faq',     re: /よくある質問|FAQ|Q&A|Q＆A/i },
+    /* CAMPFIRE の型（2026-11-03 実測の4アカウント17件）。
+       よくある質問のうしろ、作り手の前に、この順で並んでいた */
+    { key: 'funds',   re: /資金の使い道|資金使途|ご支援金の使い道/ },
+    { key: 'maker',   re: /メーカー紹介|メーカー情報|製造元/ },
+    { key: 'ship',    re: /配送スケジュール|配送時期|お届け時期|発送スケジュール/ },
     { key: 'brand',   re: /作り手|ブランド|物語|出会い|環境|取り組み/ },
     /* 「まとめ」は入れない。「まとめ買いで気になる点」のような
        共感の区画まで巻き込む（実測 2026-10-05） */
@@ -445,7 +450,7 @@
 
   /* 販売ページに出す役割と、その並び（SHELBRU の順） */
   var SALES_ORDER = ['hero', 'empathy', 'intro', 'proof', 'point', 'howto',
-    'variation', 'scene', 'voice', 'spec', 'faq', 'brand', 'closing'];
+    'variation', 'scene', 'voice', 'spec', 'faq', 'funds', 'maker', 'ship', 'brand', 'closing'];
 
   function roleOf(sec) {
     var name = String((sec && sec.title) || '');
@@ -879,7 +884,10 @@
      小さくて読みずらい」「リスクチャレンジや、商品の詳細説明を…
      セクション28のように生成して欲しい」）。
      SVG なら字は崩れず、大きさもこちらで決められる。 */
-  var READ_RE = /よくある質問|FAQ|Q&A|Q＆A|年表|スケジュール|タイムライン|リスク|商品概要|仕様|スペック|保証|サポート|付属しない|同梱されない/i;
+  /* 2026-11-03: CAMPFIRE の4アカウント17件を読んで足した。
+     資金の使い道（8/17件）・メーカー紹介（15/17件）・配送時期（9/17件）は
+     どれも「・」の箇条書きか「ラベル：値」の行で、絵に焼くと読めない */
+  var READ_RE = /よくある質問|FAQ|Q&A|Q＆A|年表|スケジュール|タイムライン|リスク|商品概要|仕様|スペック|保証|サポート|付属しない|同梱されない|資金の使い道|使い道|メーカー紹介|配送時期|お届け時期/i;
 
   function isReadPanel(section) {
     if (!section) { return false; }
@@ -1871,6 +1879,16 @@
         var qa = faqItems(sec);
         if (qa.length) { out.push({ slot: slot, title: String(sec.title || t('sales.faq')), body: '', faq: qa }); return; }
       }
+      /* 読む区画（資金の使い道・メーカー紹介・配送スケジュール・年表・リスク・
+         商品概要・保証…）は、販売ページでも SVG の板にする。
+         絵は作られない区画（asset-orders の isReadSection が外す）なので、
+         板にしないと文字だけが素で並ぶ。キャンバス（S13）はすでに板で
+         出しているので、公開ページと見た目がそろっていなかった。
+         2026-11-03: CAMPFIRE の4アカウント17件に合わせて足した */
+      if (isReadPanel(sec)) {
+        out.push({ slot: slot, title: String(sec.title || ''), body: '', read: sec });
+        return;
+      }
       /* 悩みと解決のまとめ表。絵の上に表を重ねた板にする */
       if (isPainTable(sec)) {
         var pr = painRows(sec);
@@ -2009,7 +2027,7 @@
        その区画の絵がどこにも出なくなる（実測 2026-10-05: 区画1が消えていた） */
     var blocks = allBlocks(o, sales, heroShown ? String(sales.hero.slot || '') : '');
     out.push('<div class="wrap">');
-    blocks = blocks.filter(function (b) { return pic(b.slot) || b.title || b.body || b.faq || b.pains; });
+    blocks = blocks.filter(function (b) { return pic(b.slot) || b.title || b.body || b.faq || b.pains || b.read; });
     blocks.forEach(function (b, i) {
       /* 1つ目の区画が絵で始まるなら、上の余白を取らない。
          KV（全幅の絵）のすぐ下に区画の余白（PC 60px）が入り、
@@ -2021,6 +2039,17 @@
       var picOnly = !b.faq && !!pic(b.slot) && (b.over || b.pains || (!b.title && !paras(b.body).length));
       out.push('<section class="block' + (flush ? ' block--flush' : '')
         + (picOnly ? ' block--pic' : '') + '">');
+      if (b.read) {
+        var board = textPanel(b.read, d, 1000);
+        if (board) {
+          /* 札は残す。棚（生成結果の一覧）が「いまどの区画か」を
+             これで知る。外すと販売ページから区画が見えなくなる */
+          out.push('<div class="faq-panel"' + slotAttr(b.slot) + '>' + board + '</div>');
+          out.push('</section>');
+          if (wantCall(i)) { out.push(callOut()); }
+          return;
+        }
+      }
       if (b.pains) {
         out.push(bgBox(pic(b.slot), painPanel(pic(b.slot), b.pains, b.title, d, 1000),
           slotAttr(b.slot), true));
