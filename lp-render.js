@@ -41,6 +41,9 @@
     'gen.lineButtonLabel': '友だち追加',
     'sales.spec': '商品の仕様',
     'sales.faq': 'よくある質問',
+    'sales.painTitle': 'お悩みと、その解決',
+    'sales.painLeft': 'いまの悩み',
+    'sales.painRight': 'この商品なら',
     'sales.mailLabel': 'メールでお知らせを受け取る',
     'sales.mailBtn': '登録する',
     'sales.mailOk': '登録しました。お知らせをお送りします。',
@@ -569,6 +572,152 @@
         y += r.al.length * aStep;
       }
       y += gap;
+    });
+    out.push('</svg>');
+    return out.join('');
+  }
+
+  /* ---- 悩みと解決のまとめ表 ----
+     2026-11-03 の求め:「悩みのところや悩みを解決できるところを
+     今の絵で表現するセクションとは別に、まとめた表のような絵を出せるといい。
+     その表の背景にも絵があるといい」。
+     区画ごとの絵は1つの悩みしか見せないので、読み手が全体を見渡せない。
+     ここで悩みと解決を左右に並べて一覧にする。
+     絵に描かせず、ここで組む理由は faqPanel と同じ（毎回同じ形になる）。
+     背景には、その区画の写真を敷いて暗い幕をかける */
+  var PAIN_ROW_RE = new RegExp(
+    '^[\\s\u30fb\\-\u2013\u2014\u25cf\u25cb\uff0a*0-9\uff10-\uff19.\uff0e\u3001)\uff09]*'
+    + '(?:\u60a9\u307f|\u8ab2\u984c|\u56f0\u308a\u3054\u3068|\u4e0d\u4fbf)?\\s*[:\uff1a]?\\s*'
+    + '(.+?)\\s*(?:\u2192|\u21d2|->|\u27a1)\\s*'
+    + '(?:\u89e3\u6c7a|\u89e3\u6d88|\u3053\u3046\u306a\u308b)?\\s*[:\uff1a]?\\s*(.+?)\\s*$');
+
+  function isPainTable(sec) {
+    if (!sec) { return false; }
+    if (String(sec.key || '') === 'pains') { return true; }
+    return /悩みと解決|悩み.{0,4}まとめ|まとめ表/.test(String(sec.title || ''));
+  }
+
+  /* 「悩み: ○○ → 解決: ○○」の行だけを拾う。
+     前置きや締めの一文が混ざっても、矢印の無い行は表に入らない */
+  function painRows(sec) {
+    /* 地の文と文字版の両方を見る。書き手がどちらに並べても拾えるように
+       （地の文は「1〜2文」の決まりなので、文字版へ回ることがある） */
+    var src = [(sec && sec.body) || '', (sec && sec.text) || ''].join('\n');
+    var out = [];
+    var seen = {};
+    src.split(/\n+/).forEach(function (line) {
+      var m = PAIN_ROW_RE.exec(String(line).trim());
+      if (!m) { return; }
+      var pain = m[1].trim();
+      var fix = m[2].trim();
+      if (pain.length < 2 || fix.length < 2 || seen[pain + '→' + fix]) { return; }
+      seen[pain + '→' + fix] = 1;
+      out.push({ pain: pain, fix: fix });
+    });
+    return out.slice(0, 6);
+  }
+
+  function painPanel(src, rows, title, design, width) {
+    var list = Array.isArray(rows) ? rows : [];
+    if (!list.length) { return ''; }
+    var d = design || DEFAULT_DESIGN;
+    var W = width || 1000;
+    var hot = d.accentColor || '#C98F5C';
+    var pad = Math.round(W * 0.06);
+    var headSize = Math.round(W * 0.042);
+    var labSize = Math.round(W * 0.022);
+    var cellSize = Math.round(W * 0.028);
+    var step = Math.round(cellSize * 1.5);
+    var gap = Math.round(cellSize * 0.6);
+    var colGap = Math.round(W * 0.045);
+    /* 右は太字で場所を食うので、左より広く取る（45:55） */
+    var both = W - pad * 2 - colGap;
+    var colW = Math.round(both * 0.45);
+    var colW2 = both - colW;
+    var mark = Math.round(cellSize * 1.4);
+    var textX = Math.round(mark + cellSize * 0.9);
+    var inner = colW - textX - Math.round(cellSize * 0.6);
+    var inner2 = colW2 - textX - Math.round(cellSize * 0.6);
+    /* 全角1字 = cellSize（charUnits は全角を2で数える）。
+       0.58 だと1字ぶん足りず、10字の行が「…にな／る」と割れていた */
+    var wrapCell = function (one) { return wrapLines(one, inner / (cellSize * 0.52)); };
+    var wrapFix = function (one) { return wrapLines(one, inner2 / (cellSize * 0.56)); };
+    var rowPad = Math.round(cellSize * 0.8);
+
+    var cells = list.map(function (r) {
+      var a = wrapCell(r.pain);
+      var b = wrapFix(r.fix);
+      return { a: a, b: b, h: Math.max(a.length, b.length) * step + rowPad * 2 };
+    });
+    var top = pad + headSize + Math.round(headSize * 0.95) + labSize + Math.round(labSize * 0.9);
+    var H = top + cells.reduce(function (n, r) { return n + r.h + gap; }, 0) - gap + pad;
+
+    var fam = 'Hiragino Sans, Yu Gothic UI, Noto Sans JP, system-ui, sans-serif';
+    var uid = 'p' + Math.abs(hashOf(String(src) + title + list.length)).toString(36);
+    var out = [];
+    out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H
+      + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block;width:100%;height:auto;">');
+    out.push('<rect width="' + W + '" height="' + H + '" fill="#1A1613"/>');
+    if (src) {
+      out.push('<image href="' + escapeHtml(src) + '" x="0" y="0" width="' + W + '" height="' + H
+        /* 切るのは下から。上に文字が焼かれている絵が回ってきても消さない
+           （burnedPanel と同じ決まり。photo-backdrop-selftest が見張っている） */
+        + '" preserveAspectRatio="xMidYMin slice"/>');
+      /* 幕。表の字が読めるところまで落とす（写真は気配として残す） */
+      out.push('<rect width="' + W + '" height="' + H + '" fill="#120E0B" fill-opacity="0.72"/>');
+    }
+    var x2 = pad + colW + colGap;
+    out.push('<text x="' + Math.round(W / 2) + '" y="' + (pad + headSize) + '" font-family="' + fam
+      + '" font-size="' + headSize + '" font-weight="800" fill="#FFFFFF" text-anchor="middle">'
+      + escapeHtml(title || t('sales.painTitle')) + '</text>');
+    var labY = pad + headSize + Math.round(headSize * 0.95) + labSize;
+    out.push('<text x="' + (pad + textX) + '" y="' + labY + '" font-family="' + fam + '" font-size="' + labSize
+      + '" font-weight="700" fill="#FFFFFF" fill-opacity="0.6" letter-spacing="0.12em">'
+      + escapeHtml(t('sales.painLeft')) + '</text>');
+    out.push('<text x="' + (x2 + textX) + '" y="' + labY + '" font-family="' + fam + '" font-size="' + labSize
+      + '" font-weight="700" fill="' + hot + '" letter-spacing="0.12em">'
+      + escapeHtml(t('sales.painRight')) + '</text>');
+
+    var y = top;
+    cells.forEach(function (r, i) {
+      var rx = Math.round(cellSize * 0.5);
+      out.push('<rect x="' + pad + '" y="' + y + '" width="' + colW + '" height="' + r.h
+        + '" rx="' + rx + '" fill="#FFFFFF" fill-opacity="0.08"/>');
+      out.push('<rect x="' + x2 + '" y="' + y + '" width="' + colW2 + '" height="' + r.h
+        + '" rx="' + rx + '" fill="' + hot + '" fill-opacity="0.18" stroke="' + hot
+        + '" stroke-opacity="0.55"/>');
+      /* 左右をつなぐ山形。表のまんなかに置く */
+      var ay = y + Math.round(r.h / 2);
+      var aw = Math.round(colGap * 0.22);
+      out.push('<path d="M' + (pad + colW + Math.round(colGap / 2) - Math.round(aw / 2)) + ' ' + (ay - aw)
+        + ' l' + aw + ' ' + aw + ' l' + (-aw) + ' ' + aw
+        + '" stroke="' + hot + '" stroke-width="' + Math.max(3, Math.round(cellSize * 0.14))
+        + '" stroke-linecap="round" stroke-linejoin="round" fill="none"/>');
+      /* 左は×、右は○の印 */
+      var my = y + rowPad + Math.round(cellSize * 0.5);
+      var mr = Math.round(mark / 2);
+      out.push('<circle cx="' + (pad + Math.round(cellSize * 0.8) + mr) + '" cy="' + my + '" r="' + mr
+        + '" fill="#FFFFFF" fill-opacity="0.16"/>');
+      out.push('<text x="' + (pad + Math.round(cellSize * 0.8) + mr) + '" y="' + (my + Math.round(cellSize * 0.33))
+        + '" font-family="' + fam + '" font-size="' + Math.round(cellSize * 0.9)
+        + '" font-weight="800" fill="#FFFFFF" fill-opacity="0.8" text-anchor="middle">\u00d7</text>');
+      out.push('<circle cx="' + (x2 + Math.round(cellSize * 0.8) + mr) + '" cy="' + my + '" r="' + mr
+        + '" fill="' + hot + '"/>');
+      out.push('<text x="' + (x2 + Math.round(cellSize * 0.8) + mr) + '" y="' + (my + Math.round(cellSize * 0.33))
+        + '" font-family="' + fam + '" font-size="' + Math.round(cellSize * 0.9)
+        + '" font-weight="800" fill="#FFFFFF" text-anchor="middle">\u25cb</text>');
+      var ty = y + rowPad + Math.round(cellSize * 0.82);
+      r.a.forEach(function (line, li) {
+        out.push('<text x="' + (pad + textX) + '" y="' + (ty + li * step) + '" font-family="' + fam
+          + '" font-size="' + cellSize + '" fill="#FFFFFF" fill-opacity="0.88">'
+          + escapeHtml(line) + '</text>');
+      });
+      r.b.forEach(function (line, li) {
+        out.push('<text x="' + (x2 + textX) + '" y="' + (ty + li * step) + '" font-family="' + fam
+          + '" font-size="' + cellSize + '" font-weight="700" fill="#FFFFFF">'
+          + escapeHtml(line) + '</text>');
+      });
+      y += r.h + gap;
     });
     out.push('</svg>');
     return out.join('');
@@ -1721,6 +1870,11 @@
         var qa = faqItems(sec);
         if (qa.length) { out.push({ slot: slot, title: String(sec.title || t('sales.faq')), body: '', faq: qa }); return; }
       }
+      /* 悩みと解決のまとめ表。絵の上に表を重ねた板にする */
+      if (isPainTable(sec)) {
+        var pr = painRows(sec);
+        if (pr.length) { out.push({ slot: slot, title: t('sales.painTitle'), body: '', pains: pr }); return; }
+      }
       var how = modes[String(sec.index)];
       if (how === 'image') { one = { slot: slot, title: '', body: '' }; }
       else if (how === 'text') { one = { slot: '', title: one.title, body: one.body }; }
@@ -1854,7 +2008,7 @@
        その区画の絵がどこにも出なくなる（実測 2026-10-05: 区画1が消えていた） */
     var blocks = allBlocks(o, sales, heroShown ? String(sales.hero.slot || '') : '');
     out.push('<div class="wrap">');
-    blocks = blocks.filter(function (b) { return pic(b.slot) || b.title || b.body || b.faq; });
+    blocks = blocks.filter(function (b) { return pic(b.slot) || b.title || b.body || b.faq || b.pains; });
     blocks.forEach(function (b, i) {
       /* 1つ目の区画が絵で始まるなら、上の余白を取らない。
          KV（全幅の絵）のすぐ下に区画の余白（PC 60px）が入り、
@@ -1863,9 +2017,16 @@
          文章で始まる区画は、くっつくと読みにくいので余白を残す */
       var flush = i === 0 && !b.faq && !!pic(b.slot);
       /* 絵だけの区画（文字は絵に焼いてある場合も含む）は余白なしで詰める */
-      var picOnly = !b.faq && !!pic(b.slot) && (b.over || (!b.title && !paras(b.body).length));
+      var picOnly = !b.faq && !!pic(b.slot) && (b.over || b.pains || (!b.title && !paras(b.body).length));
       out.push('<section class="block' + (flush ? ' block--flush' : '')
         + (picOnly ? ' block--pic' : '') + '">');
+      if (b.pains) {
+        out.push(bgBox(pic(b.slot), painPanel(pic(b.slot), b.pains, b.title, d, 1000),
+          slotAttr(b.slot), true));
+        out.push('</section>');
+        if (wantCall(i)) { out.push(callOut()); }
+        return;
+      }
       if (b.faq) {
         /* よくある質問は、絵ではなく SVG の板。回答まで字が崩れずに出る */
         out.push('<div class="faq-panel">' + faqPanel(b.faq, d, 1000, b.title) + '</div>');
@@ -2368,6 +2529,9 @@
     isFaq: isFaq,
     faqItems: faqItems,
     faqPanel: faqPanel,
+    painPanel: painPanel,
+    painRows: painRows,
+    isPainTable: isPainTable,
     burnedPanel: burnedPanel,
     escapeHtml: escapeHtml,
     wrapLines: wrapLines
