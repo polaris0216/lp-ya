@@ -2651,8 +2651,85 @@
       }
 
       /* 全種類・全層をまとめて積む。1つの生成物＝1つの仕事（ワーカーは3件まで同時に取る） */
+      /* 生成の手前で、足りない必須だけその場で聞く（2026-11-04 の決め）。
+         画面を戻さない。戻すと、何を押しに来たのか見失う。
+         必須はこの3つだけ。価格・リターン・ブランド色は未入力でも作れる */
+      /* 商品入力（screens-home.js の CATEGORIES）と同じ並び。
+         あちらを増やしたら、ここも足すこと */
+      var MUST_CATEGORIES = ['tech', 'appliance', 'food', 'fashion', 'bag', 'beauty',
+        'interior', 'outdoor', 'vehicle', 'baby', 'pet', 'craft', 'other'];
+
+      function missingMust() {
+        var p = view.project || {};
+        var out = [];
+        if (!p.category) { out.push('category'); }
+        if (!p.cf_platform) { out.push('cf_platform'); }
+        if (!(Array.isArray(p.targets) && p.targets.length)) { out.push('targets'); }
+        return out;
+      }
+
+      function askMust(after) {
+        var want = missingMust();
+        if (!want.length) { after(); return true; }
+        /* ターゲットは、この画面では作れない（販売戦略の工程の仕事）。
+           欄を出せるのはカテゴリと出稿媒体だけなので、それ以外は案内に回す */
+        var box = el('section', 'panel must-ask');
+        add(box, el('p', 'panel__title', t('lp.mustTitle')));
+        var patch = {};
+        if (want.indexOf('category') !== -1) {
+          var cat = el('select', 'select');
+          add(cat, el('option', '', t('lp.mustPick')));
+          MUST_CATEGORIES.forEach(function (key) {
+            var o = el('option', '', t('category.' + key));
+            o.value = key;
+            add(cat, o);
+          });
+          cat.addEventListener('change', function () { patch.category = cat.value; });
+          add(box, el('label', 'field__label', t('product.category')));
+          add(box, cat);
+        }
+        if (want.indexOf('cf_platform') !== -1) {
+          var pf = el('select', 'select');
+          add(pf, el('option', '', t('lp.mustPick')));
+          ['makuake', 'campfire', 'greenfunding', 'wadiz', 'kickstarter', 'other'].forEach(function (key) {
+            var o = el('option', '', key);
+            o.value = key;
+            add(pf, o);
+          });
+          pf.addEventListener('change', function () { patch.cf_platform = pf.value; });
+          add(box, el('label', 'field__label', t('product.cfPlatform')));
+          add(box, pf);
+        }
+        if (want.indexOf('targets') !== -1) {
+          add(box, el('p', 'field__hint', t('lp.mustTargets')));
+          add(box, button('btn btn--secondary btn--sm', t('lp.mustGoTargets'), function () {
+            location.hash = '#/S20?id=' + encodeURIComponent(projectId);
+          }));
+        }
+        var go = button('btn btn--primary', t('lp.mustSave'), function () {
+          var left = want.filter(function (k) { return k !== 'targets' && !patch[k]; });
+          if (left.length || want.indexOf('targets') !== -1) { toast(t('lp.mustLeft'), 'danger'); return; }
+          go.disabled = true;
+          Api.projects.update(projectId, patch).then(function (row) {
+            view.project = row || Object.assign({}, view.project, patch);
+            if (box.parentNode) { box.parentNode.removeChild(box); }
+            after();
+          }, function (err) {
+            go.disabled = false;
+            toast(String((err && err.message) || err), 'danger');
+          });
+        });
+        add(box, go);
+        /* 押したボタンのすぐ下に出す。画面の先頭に出すと、見つけられない */
+        var host = document.querySelector('.lp-bulk') || document.getElementById('app');
+        host.appendChild(box);
+        box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return false;
+      }
+
       function generateEverything(redo, only) {
         if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
+        if (!askMust(function () { generateEverything(redo, only); })) { return; }
         /* 二度押しで同じ仕事が重なるのを止める。
            実測 2026-10-02: 4回押されて同じ内容が4重に積まれ、57件の待ち行列になった。
            混みすぎて1枚に879秒かかっていた（ふだんは40〜60秒）。

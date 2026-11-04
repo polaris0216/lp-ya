@@ -793,6 +793,8 @@
       maker: { name: '', business: '', place: '', founded: '' },
       /* 実行者情報（2026-11-03 要望）。日本で売る側。置き場は sales_info.exec */
       exec: { name: '', business: '', place: '', founded: '' },
+      /* 2段目を人が自分で開いたか（2026-11-04）。下書きが来ていれば自動で開く */
+      restOpen: false,
       refUrls: [''],
       /* 競合LPのURL（最大5件）。1件ずつ { url, outcome } で持つ。
          outcome は「達成した / 伸びなかった / 未指定」。終了後に目標金額を隠す媒体
@@ -1107,6 +1109,29 @@
       refPanel.appendChild(refStructureHost);
       screen.appendChild(refPanel);
 
+      /* ---- ここから2段目（2026-11-04 の決め）------------------------------
+         1段目は参照URLと「下書きを作る」だけ。残りは下書きが返るまで畳む。
+         実測: 案件2件のうち ASTRAPEN_Hubble は生成0件のまま止まっていた。
+         7つのパネルが並ぶ画面は「まず全部埋めろ」に見えるが、実際は
+         参照URLを貼れば AI がほとんど埋める。その順番が画面から読めなかった。
+         自分で全部入れたい人のために、開く札も出す */
+      var rest = el('div', 'stack s4-rest');
+      var restOpen = el('div', 's4-open');
+      var restBtn = button('btn btn--text', t('s4.openRest'), function () {
+        form.restOpen = true;
+        rest.hidden = false;
+        restOpen.hidden = true;
+      });
+      restOpen.appendChild(el('p', 'field__hint', t('s4.restHint')));
+      restOpen.appendChild(restBtn);
+      screen.appendChild(restOpen);
+      screen.appendChild(rest);
+      /* 下書きが来ていれば開いたまま。来ていなければ畳む */
+      var hasDraft = !!(form.features.trim() || form.valueProp.trim()
+        || form.images.length || form.targets.length || form.restOpen);
+      rest.hidden = !hasDraft;
+      restOpen.hidden = hasDraft;
+
       /* 商品写真 */
       var photoPanel = panel('product.photoPanel', 'product.photoPanelDesc');
       photoPanel.appendChild(el('p', 'field__hint', t('s4.productShotHint')));
@@ -1148,7 +1173,7 @@
       photoPanel.appendChild(buildDropzone('home-create-images'));
       videosHost = el('div', 'stack');
       photoPanel.appendChild(videosHost);
-      screen.appendChild(photoPanel);
+      rest.appendChild(photoPanel);
 
       /* 商品カテゴリ & 基本情報 */
       var basicPanel = panel('product.basicPanel', 'product.basicPanelDesc');
@@ -1211,7 +1236,7 @@
         form.fundingGoal = value;
       }, {});
       basicPanel.appendChild(makeField(t('product.fundingGoal'), fundingInput, {}).wrap);
-      screen.appendChild(basicPanel);
+      rest.appendChild(basicPanel);
 
       /* メーカー情報（2026-11-03 要望:「メーカー紹介に入れる情報を入力する欄を
          このアプリ内の適切な場所に設けて」）。
@@ -1238,7 +1263,7 @@
         });
         box.appendChild(grid);
         box.appendChild(el('p', 'field__hint', t(party[3])));
-        screen.appendChild(box);
+        rest.appendChild(box);
       });
 
       /* リワード（販売）価格・数量 */
@@ -1254,7 +1279,7 @@
           rewardAnim = 1;
           paintRewards();
         }));
-      screen.appendChild(rewardPanel);
+      rest.appendChild(rewardPanel);
 
       /* 訴求メッセージ */
       var messagePanel = panel('product.messagePanel', 'product.messagePanelDesc');
@@ -1280,7 +1305,7 @@
         form.brandTone = value;
       }, {});
       messagePanel.appendChild(makeField(t('product.brandTone'), toneInput, {}).wrap);
-      screen.appendChild(messagePanel);
+      rest.appendChild(messagePanel);
       /* ターゲット案 A〜E */
       var targetPanel = panel('product.targetPanel', 'product.targetPanelDesc');
       targetCountNode = el('span', 'panel__count', t('product.targetCount', { n: form.targets.length }));
@@ -1304,7 +1329,7 @@
         paintTargets();
       });
       targetPanel.appendChild(targetAddButton);
-      screen.appendChild(targetPanel);
+      rest.appendChild(targetPanel);
 
       /* ブランド指定（色・フォント） */
       var brandPanel = panel('product.brandPanel', 'product.brandPanelDesc');
@@ -1401,7 +1426,7 @@
         fontGrid.appendChild(makeField(t(slot.label), select, {}).wrap);
       });
       brandPanel.appendChild(fontGrid);
-      screen.appendChild(brandPanel);
+      rest.appendChild(brandPanel);
 
 
       /* 保存は「途中保存（更新・無料）」と「完了して詳細へ」の2つ。
@@ -2317,6 +2342,9 @@
         aiTargetOrder = form.targets.slice();
         touchedAny = true;
       }
+      /* 下書きが返ったら、2段目を開く（2026-11-04）。
+         埋まった欄を見せないまま畳んでおくと、何が起きたのか分からない */
+      if (touchedAny) { form.restOpen = true; }
       if (touchedAny) { paint(); }
       return touchedAny;
     }

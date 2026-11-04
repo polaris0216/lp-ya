@@ -54,6 +54,22 @@
     'lpr.viewSales': ['公開ページの見え方', 'As published', '공개 페이지 모습'],
     'lpr.viewCanvas': ['ブロックそのまま', 'Sections only', '구획 그대로'],
     'lpr.openPublic': ['公開ページを開く', 'Open the published page', '공개 페이지 열기'],
+    /* 下見の幅（2026-11-04）。初期値はスマホ */
+    'lpr.width.phone': ['スマホ', 'Phone', '휴대폰'],
+    'lpr.width.pc': ['PC', 'Desktop', 'PC'],
+    /* A〜Eを横に並べた盤（2026-11-04） */
+    'lpr.board.variant': ['案', 'Audience', '안'],
+    'lpr.board.shots': ['絵', 'Images', '이미지'],
+    'lpr.board.public': ['公開', 'Published', '공개'],
+    'lpr.board.state': ['状態', 'State', '상태'],
+    'lpr.board.new': ['最新', 'Up to date', '최신'],
+    'lpr.board.old': ['古い', 'Outdated', '오래됨'],
+    'lpr.board.notYet': ['未', 'Not yet', '미공개'],
+    'lpr.board.redoAll': ['全案を最新にする（{n}案）', 'Bring all up to date ({n})',
+      '전체 안을 최신으로 ({n}건)'],
+    'lpr.board.redoAllNote': ['組み直しだけなのでポイントはかかりません',
+      'Rebuilding costs no points', '다시 조립만 하므로 포인트가 들지 않습니다'],
+    'lpr.board.redoneAll': ['{n}案を最新にしました', 'Brought {n} up to date', '{n}건을 최신으로 만들었습니다'],
     'lpr.openPublicHint': ['別のタブで、公開URLの本物のページを開きます',
       'Opens the real published page in another tab', '다른 탭에서 실제 공개 페이지를 엽니다'],
     'lpr.publishFirst': ['先に「公開する」を押すと、本物のページを開けます',
@@ -226,6 +242,12 @@
          そこに入れると右の見えない所へ押し出され、幅147pxに潰れて
          3行に折り返す。その高さ（153px）が帯の高さになって、
          見出しの下に大きな空白ができていた（実測 2026-10-11 利用者の指摘）*/
+      /* A〜Eを横に並べた盤（2026-11-04）。
+         これまでは案ごとに耳を押して開かないと、絵が何枚あるのか、
+         公開しているのか、公開しているものが古いのかが分からなかった。
+         デザインを直すたびに A〜E で5回おなじ操作をしていた */
+      var board = el('div', 'lpr-board');
+      add(screen, board);
       var takesBar = el('div', 'lpr-takes-bar');
       add(screen, takesBar);
       /* 公開URLの名前。会社・ブランド／商品名を人が決める
@@ -245,7 +267,13 @@
          狭い画面では棚が下に回る */
       var stage = el('div', 'lpr-stage');
       var shelf = el('aside', 'lpr-shelf');
-      var frameWrap = el('div', 'lpr-frame');
+      /* 幅の切り替え（2026-11-04）。初期値はスマホ。
+         CAMPFIRE の支援者はほぼスマホで読むのに、実行者はPC幅で見て
+         判断していた。この数日で直した「文字が切れる」「空白が広い」も、
+         スマホ幅で見ていれば先に気づけたもの */
+      var widths = el('div', 'lpr-widths');
+      add(screen, widths);
+      var frameWrap = el('div', 'lpr-frame lpr-frame--phone');
       var frame = el('iframe', 'lpr-frame__iframe');
       frame.setAttribute('title', t('lpr.title'));
       /* 中の JS を動かす。KV のスライドもメールの登録も、ページの中の
@@ -260,6 +288,33 @@
       add(stage, shelf);
       add(screen, stage);
       add(root, screen);
+
+      /* 幅の札。押した幅を覚えるのはこのタブの中だけ（別の案件にも効く） */
+      var WIDTHS = [
+        { key: 'phone', cls: 'lpr-frame--phone' },
+        { key: 'pc', cls: 'lpr-frame--pc' }
+      ];
+      function pickWidth(key) {
+        var one = WIDTHS.filter(function (w) { return w.key === key; })[0] || WIDTHS[0];
+        WIDTHS.forEach(function (w) { frameWrap.classList.remove(w.cls); });
+        frameWrap.classList.add(one.cls);
+        Array.prototype.forEach.call(widths.querySelectorAll('.lpr-widths__b'), function (b) {
+          var on = b.getAttribute('data-w') === one.key;
+          b.classList.toggle('lpr-widths__b--on', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        try { window.sessionStorage.setItem('elpiya:lpWidth', one.key); } catch (e) { /* 無くても動く */ }
+      }
+      WIDTHS.forEach(function (w) {
+        var b = el('button', 'lpr-widths__b', t('lpr.width.' + w.key));
+        b.type = 'button';
+        b.setAttribute('data-w', w.key);
+        b.addEventListener('click', function () { pickWidth(w.key); });
+        add(widths, b);
+      });
+      var kept = '';
+      try { kept = window.sessionStorage.getItem('elpiya:lpWidth') || ''; } catch (e) { kept = ''; }
+      pickWidth(kept === 'pc' ? 'pc' : 'phone');
 
       /* 指定が無ければ、生成プロンプト（lp_brief）の最新を出す。無ければ従来の LP案 */
       /* スクロールを見張る。描き直しのたびに付け外しすると漏れるので、
@@ -651,6 +706,27 @@
         });
       }
 
+      /* いまの材料の指紋（2026-11-04）。組んだHTMLの先頭に書いておき、
+         公開ページが古いかどうかをこれで見分ける */
+      function stampNow(gen) {
+        var g = gen || view.gen;
+        if (!g || !window.LpRender || typeof LpRender.stampOf !== 'function') { return ''; }
+        var made = (g.asset_prompts && g.asset_prompts.made) || {};
+        var modes = (view.gen === g) ? (view.mode || {}) : ((g.content && g.content.modes) || {});
+        return LpRender.stampOf({ sections: g.sections || [], assets: made, modes: modes });
+      }
+
+      /* 公開しているHTMLが、いまの材料で組まれたものか */
+      function staleOf(gen) {
+        var g = gen || view.gen;
+        if (!g || !g.generated_html) { return false; }
+        if (!window.LpRender || typeof LpRender.stampIn !== 'function') { return false; }
+        var had = LpRender.stampIn(g.generated_html);
+        /* 指紋を入れる前に組んだものは、古いとは言い切らない（嘘をつかない） */
+        if (!had) { return false; }
+        return had !== stampNow(g);
+      }
+
       function build(save) {
         if (!window.LpRender || typeof LpRender.buildDraftHtml !== 'function') {
           console.error('[screens-lp-result] LpRender.buildDraftHtml がありません。lp-render.js を確認してください。');
@@ -659,7 +735,9 @@
         if (previewKind() === 'sales' && typeof LpRender.buildSalesHtml === 'function') {
           var made = buildSales();
           if (made) {
-            view.html = made;
+            /* 組んだときの材料を、先頭に1行で残す。これで「古い」が分かる */
+            view.html = (typeof LpRender.withStamp === 'function')
+              ? LpRender.withStamp(made, stampNow()) : made;
             if (save) { saveHtml(); }
             return;
           }
@@ -1093,7 +1171,7 @@
           view.siblings = use.sort(function (a, b) {
             return String(a.variant_label || '').localeCompare(String(b.variant_label || ''));
           });
-          loadShotCounts(paint);
+          loadShotCounts(function () { loadBoard(paint); });
         }).catch(function (err) {
           console.error('[screens-lp-result] 他の層を読めませんでした:', err);
           view.siblings = [];
@@ -1175,6 +1253,106 @@
           console.error('[screens-lp-result] 層を切り替えられませんでした:', err);
           toast(String(err && err.message || err), 'danger');
         });
+      }
+
+      /* 盤の材料。層ごとに「いちばん使える案」1本だけを、必要な列で読む。
+         generated_html は運ばない。指紋は 059 の生成列（html_stamp）で足りる */
+      function loadBoard(done) {
+        var labels = Object.keys(view.takes || {});
+        var ids = [];
+        labels.forEach(function (L) {
+          var takes = (view.takes[L] || []);
+          var best = bestTake(takes);
+          if (best && best.id) { ids.push(best.id); }
+        });
+        if (!ids.length) { view.board = []; if (done) { done(); } return; }
+        Api.generations.list({
+          in: { id: ids },
+          select: 'id,variant_label,sections,asset_prompts,public_url_slug,published_at,html_stamp',
+          order: false, limit: ids.length
+        }).then(function (rows) {
+          view.board = (Array.isArray(rows) ? rows : []).slice().sort(function (a, b) {
+            return String(a.variant_label || '').localeCompare(String(b.variant_label || ''));
+          });
+        }, function (err) {
+          console.error('[screens-lp-result] 盤の材料を読めませんでした:', err);
+          view.board = [];
+        }).then(function () { if (done) { done(); } });
+      }
+
+      /* 盤。行＝層、列＝絵・公開・状態 */
+      function paintBoard() {
+        clear(board);
+        var rows = view.board || [];
+        if (rows.length < 2) { return; }      /* 1層しか無いなら並べる意味がない */
+
+        var table = el('table', 'lpr-board__t');
+        var head = el('tr', '');
+        [t('lpr.board.variant'), t('lpr.board.shots'), t('lpr.board.public'), t('lpr.board.state')]
+          .forEach(function (name) { add(head, el('th', '', name)); });
+        add(table, head);
+
+        var stale = [];
+        rows.forEach(function (g) {
+          var made = (g.asset_prompts && g.asset_prompts.made) || {};
+          var total = (g.sections || []).length;
+          var have = Object.keys(made).length;
+          var old = !!(g.html_stamp && g.html_stamp !== stampNow(g));
+          if (old) { stale.push(g); }
+          var tr = el('tr', String(g.variant_label || '-') === String(view.gen.variant_label || '-')
+            ? 'lpr-board__here' : '');
+          add(tr, el('td', 'lpr-board__v', String(g.variant_label || '-')));
+          add(tr, el('td', 'lpr-board__n', have + ' / ' + total));
+          add(tr, el('td', '', g.public_url_slug ? t('lpr.live') : t('lpr.board.notYet')));
+          var mark = el('span', 'lpr-board__tag '
+            + (!g.public_url_slug ? 'lpr-board__tag--none' : (old ? 'lpr-board__tag--old' : 'lpr-board__tag--new')),
+            !g.public_url_slug ? t('lpr.board.notYet') : (old ? t('lpr.board.old') : t('lpr.board.new')));
+          var td = el('td', '');
+          add(td, mark);
+          add(tr, td);
+          tr.addEventListener('click', function () {
+            if (String(g.variant_label || '-') === String(view.gen.variant_label || '-')) { return; }
+            switchVariant(g.id);
+          });
+          add(table, tr);
+        });
+        add(board, table);
+
+        if (stale.length) {
+          var go = button('btn btn--secondary btn--sm', t('lpr.board.redoAll', { n: stale.length }),
+            function () { redoAll(stale.slice()); });
+          add(board, go);
+          add(board, el('p', 't-note', t('lpr.board.redoAllNote')));
+        }
+      }
+
+      /* 全案を最新にする。HTMLの組み直しはAIを使わないので0P。
+         1本ずつ、開いている案を切り替えずに組んで保存する */
+      function redoAll(list) {
+        if (!list.length) { return; }
+        var keep = view.gen;
+        var done = 0;
+        function step() {
+          if (!list.length) {
+            view.gen = keep;
+            toast(t('lpr.board.redoneAll', { n: done }), 'success');
+            loadBoard(paintBoard);
+            return;
+          }
+          var one = list.shift();
+          Api.generations.get(one.id).then(function (full) {
+            view.gen = full;
+            build(true);
+            done += 1;
+            view.gen = keep;
+            step();
+          }, function (err) {
+            console.error('[screens-lp-result] 作り直せませんでした:', err);
+            view.gen = keep;
+            step();
+          });
+        }
+        step();
       }
 
       /* 層の耳。1層しか無い回では出さない（押せない耳は邪魔） */
@@ -1419,6 +1597,7 @@
         /* 棚は作り直すので、巻いていた位置を覚えて戻す。
            覚えないと、右の棚も毎回いちばん上へ戻る（2026-11-02 指摘） */
         var keepShelf = shelf ? shelf.scrollTop : 0;
+        paintBoard();
         paintVariants();
         clear(toolbar);
         add(toolbar, button('btn btn--secondary', t('lpr.backToDraft'), function () {

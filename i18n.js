@@ -474,6 +474,17 @@
        推測で短く言うと、待てたはずの人を不安にさせる */
     'eta.about': ['ふつう{a}分ほどで終わります。閉じても進みます。',
       'Usually about {a} min. You can close this.', '보통 {a}분 정도 걸립니다. 닫아도 됩니다.'],
+    /* 生成の手前で足りない必須だけ聞く（2026-11-04） */
+    'lp.mustTitle': ['作る前に、これだけ教えてください', 'Before we start, just these',
+      '시작하기 전에 이것만 알려주세요'],
+    'lp.mustPick': ['選んでください', 'Choose…', '선택하세요'],
+    'lp.mustSave': ['この内容で作る', 'Save and start', '이 내용으로 시작'],
+    'lp.mustLeft': ['まだ埋まっていない欄があります', 'Some fields are still empty',
+      '아직 비어 있는 항목이 있습니다'],
+    'lp.mustTargets': ['ターゲット層がまだ決まっていません。販売戦略の工程で決めてから戻ってきてください。',
+      'No audiences yet. Set them in the strategy step, then come back.',
+      '타깃층이 아직 없습니다. 판매 전략 공정에서 정한 뒤 돌아오세요.'],
+    'lp.mustGoTargets': ['販売戦略へ', 'Go to strategy', '판매 전략으로'],
     /* 工程の点と、残高との差（2026-11-04） */
     'wf.state.done': ['済み', 'Done', '완료'],
     'wf.state.busy': ['作業中', 'Working', '작업 중'],
@@ -527,6 +538,11 @@
       'These are expressions often questioned under Japanese advertising and pharmaceutical law. This is not a legal judgement.',
       '일본 표시법·약기법에서 지적되기 쉬운 표현입니다. 위법 판정이 아닙니다.'],
     /* メーカー情報（2026-11-03 要望）。LPの「メーカー紹介」の区画にそのまま出る */
+    /* 商品入力を2段に（2026-11-04）。1段目は参照URLと下書きだけ */
+    's4.openRest': ['自分で入力する', 'Fill it in myself', '직접 입력하기'],
+    's4.restHint': ['参照URLを貼って「AI自動分析」を押すと、下の項目はほとんど自動で埋まります。先に自分で入れたいときはこちら。',
+      'Paste a reference URL and run the AI analysis — most fields below fill in by themselves. Prefer to type them yourself? Open here.',
+      '참고 URL을 붙여넣고 AI 자동 분석을 누르면 아래 항목은 대부분 자동으로 채워집니다. 직접 입력하려면 여기를 여세요.'],
     'product.makerPanel': ['メーカー情報', 'Manufacturer', '제조사 정보'],
     'product.makerPanelDesc': ['LPの「メーカー紹介」の区画にそのまま出ます。AIには書かせない、事実の欄です。',
       'Printed as-is in the "Manufacturer" block of the LP. Facts only — the AI never fills these in.',

@@ -1282,6 +1282,53 @@
     return h;
   }
 
+  /* ---- 組んだときの材料の指紋（2026-11-04）----
+     公開したページが「いまの中身で組んだものか」を見分ける。
+     generations に更新時刻の列が無いので、日付では比べられない。
+     組んだHTMLの先頭に <!--lpya-stamp:xxx--> を書いておき、
+     いまの材料から出した指紋と違えば「古い」。
+
+     入れるのは、ページの見た目を変えるものだけ:
+       ① 区画の文（title / body / text / prompt）
+       ② 使っている素材のURL
+       ③ 見せ方の設定（modes）
+       ④ この組み立て器の版（?v=）
+     ポイント残高や閲覧数のような、中身と関係ないものは入れない */
+  var RENDER_V = (function () {
+    try {
+      var src = (document.currentScript && document.currentScript.src) || '';
+      var m = /[?&]v=([0-9a-z]+)/.exec(src);
+      return m ? m[1] : '';
+    } catch (e) { return ''; }
+  }());
+
+  function stampOf(options) {
+    var o = options || {};
+    var parts = [];
+    asArray(o.sections).forEach(function (sec) {
+      if (!sec) { return; }
+      parts.push([sec.index, sec.title, sec.body, sec.text, sec.prompt].join('\u0001'));
+    });
+    var assets = o.assets || {};
+    Object.keys(assets).sort().forEach(function (k) { parts.push(k + '=' + assets[k]); });
+    var modes = o.modes || {};
+    Object.keys(modes).sort().forEach(function (k) { parts.push('m:' + k + '=' + modes[k]); });
+    parts.push('v:' + (o.v || RENDER_V));
+    return Math.abs(hashOf(parts.join('\u0002'))).toString(36);
+  }
+
+  /* 組んだHTMLの先頭に指紋を書く。すでに付いていれば差し替える */
+  function withStamp(html, stamp) {
+    var body = String(html || '').replace(/^<!--lpya-stamp:[0-9a-z]*-->\s*/, '');
+    if (!stamp) { return body; }
+    return '<!--lpya-stamp:' + stamp + '-->' + body;
+  }
+
+  function stampIn(html) {
+    var m = /^<!--lpya-stamp:([0-9a-z]*)-->/.exec(String(html || ''));
+    return m ? m[1] : '';
+  }
+
   /* 絵に載せきれなかった本文を、下に小さく添える（makuake の一行キャプション）。
      載せた行数ぶんは飛ばす */
   function panelRest(body, width) {
@@ -2716,6 +2763,9 @@
     painPanel: painPanel,
     painRows: painRows,
     isPainTable: isPainTable,
+    stampOf: stampOf,
+    withStamp: withStamp,
+    stampIn: stampIn,
     burnedPanel: burnedPanel,
     escapeHtml: escapeHtml,
     wrapLines: wrapLines

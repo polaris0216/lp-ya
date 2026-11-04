@@ -5730,3 +5730,58 @@ input[type='radio'] {
   margin: 5px 0 2px;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- 下見の幅（2026-11-04）。初期値はスマホ ---------------------------- */
+.lpr-widths { display: flex; gap: 6px; margin: 0 0 8px; }
+.lpr-widths__b {
+  border: 1px solid var(--line, #e3e0ea);
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.lpr-widths__b--on { background: var(--accent, #7c3aed); border-color: var(--accent, #7c3aed); color: #fff; }
+/* スマホ幅は実寸390pxで中央に置く。枠だけ細くしても、中のページは
+   自分の幅で組まれるので、これで実機と同じ折り返しになる */
+.lpr-frame--phone .lpr-frame__iframe { width: 390px; margin: 0 auto; }
+.lpr-frame--pc .lpr-frame__iframe { width: 100%; }
+
+/* ---- A〜Eを横に並べた盤（2026-11-04）----------------------------------- */
+.lpr-board { margin: 0 0 10px; }
+.lpr-board__t {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.lpr-board__t th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b6676;
+  padding: 0 8px 4px 0;
+}
+.lpr-board__t td { padding: 6px 8px 6px 0; border-top: 1px solid var(--line, #e3e0ea); }
+.lpr-board__t tr:not(:first-child) { cursor: pointer; }
+.lpr-board__here td { background: #f6f3fd; }
+.lpr-board__v { font-weight: 700; }
+.lpr-board__n { color: #6b6676; }
+.lpr-board__tag {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.lpr-board__tag--new { background: #e4f5ea; color: #1f7a48; }
+.lpr-board__tag--old { background: #fdf0d9; color: #96631a; }
+.lpr-board__tag--none { background: #efedf2; color: #6b6676; }
+
+/* ---- 商品入力の2段目（2026-11-04）------------------------------------- */
+.s4-open { margin: 0 0 18px; text-align: center; }
+.s4-open .field__hint { margin: 0 0 6px; }
+
+/* 生成の手前で聞く欄。押したボタンのすぐ下に出す */
+.must-ask { border: 2px solid var(--accent, #7c3aed); margin-top: 12px; }
+.must-ask .select { margin: 0 0 12px; }
