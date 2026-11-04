@@ -21,7 +21,9 @@
 <script>
 (function () {
   'use strict';
-  var SUPABASE_URL = 'https://yyxbtoekzarbsrtdqwzn.supabase.co';
+  /* 自分のドメイン。Cloudflare Worker が Supabase へ渡す（2026-11-04）。
+     戻すときはこの1行を 'https://yyxbtoekzarbsrtdqwzn.supabase.co' に戻す */
+  var SUPABASE_URL = 'https://api.lpya.net';
   var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5eGJ0b2VremFyYnNydGRxd3puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjgzMDgsImV4cCI6MjEwMjA0NDMwOH0.XVA9w7vpdo0vv1q9mvbofNs6AWMLUf95OSzq2bSbYUk';
 
   function rpc(name, args) {

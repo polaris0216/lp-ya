@@ -83,8 +83,18 @@
 (function (global) {
   'use strict';
 
-  /* ---------- 接続情報 ---------- */
-  var SUPABASE_URL = 'https://yyxbtoekzarbsrtdqwzn.supabase.co';
+  /* ---------- 接続情報 ----------
+     住所は api.lpya.net（自分のドメイン）。Cloudflare Worker が1枚挟まっていて、
+     そこから Supabase へ渡している（cloudflare/api-proxy/worker.js）。
+
+     なぜ挟むか（2026-11-04）:
+       ブラウザの通信に yyxbtoekzarbsrtdqwzn.supabase.co が出ていた。
+       Supabase に自分のドメインを向けるには月$10のアドオンが要るが、
+       ttalkkak-ai.com と同じで「サーバーを1枚挟む」だけなら無料でできる。
+
+     戻し方: 下の1行を元の住所に戻すだけ。旧住所も生きているので、
+     Worker を消す必要も無い。 */
+  var SUPABASE_URL = 'https://api.lpya.net';
   var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5eGJ0b2VremFyYnNydGRxd3puIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjgzMDgsImV4cCI6MjEwMjA0NDMwOH0.XVA9w7vpdo0vv1q9mvbofNs6AWMLUf95OSzq2bSbYUk';
   var REST_BASE = SUPABASE_URL + '/rest/v1/';
   var AUTH_BASE = SUPABASE_URL + '/auth/v1/';
