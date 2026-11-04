@@ -117,7 +117,9 @@
     platformSelectors: TABLE_PREFIX + 'platform_selectors',
     leads: TABLE_PREFIX + 'leads',
     /* 絵の作り先の状態。読むだけ（書けるのはワーカーだけ。058） */
-    workerStatus: TABLE_PREFIX + 'worker_status'
+    workerStatus: TABLE_PREFIX + 'worker_status',
+    /* アプリ全体の小さな設定。公開してよい値だけ（061） */
+    appSettings: TABLE_PREFIX + 'app_settings'
   };
 
   /* ---------- 日本語エラーメッセージ ---------- */
@@ -794,6 +796,7 @@
       cancel: function (jobId) { return rpc('elpiya_cancel_job', { p_job: String(jobId) }); }
     }),
     workerStatus: makeTable(TABLES.workerStatus),
+    appSettings: makeTable(TABLES.appSettings),
     creditTransactions: makeTable(TABLES.creditTransactions),
     featureCredits: makeTable(TABLES.featureCredits),
     coupons: makeTable(TABLES.coupons),

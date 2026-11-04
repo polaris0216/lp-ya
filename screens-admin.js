@@ -136,6 +136,18 @@
     ],
     'local.reload': ['再読み込み', 'Reload', '다시 불러오기'],
     'local.unitPriceSub': ['1ポイントあたりの円', 'Yen per point', '포인트당 엔'],
+    /* 広告の札（2026-11-04） */
+    'local.adTagTitle': ['広告の札（AdMax）', 'Ad tag (AdMax)', '광고 태그(AdMax)'],
+    'local.adTagDesc': ['生成中のポップアップに出ます。空にすると何も出ません。',
+      'Shown in the progress popup. Leave empty to show nothing.',
+      '생성 중 팝업에 표시됩니다. 비우면 아무것도 나오지 않습니다.'],
+    'local.adTagPlaceholder': ['<script src="https://adm.shinobi.jp/s/..."></script>',
+      '<script src="https://adm.shinobi.jp/s/..."></script>',
+      '<script src="https://adm.shinobi.jp/s/..."></script>'],
+    'local.adTagWarn': ['顧客のLP（公開ページ）には出ません。ここはアプリの画面だけです。',
+      'Never shown on customer LPs. This is the app UI only.',
+      '고객 LP(공개 페이지)에는 나오지 않습니다. 앱 화면에만 표시됩니다.'],
+    'local.adTagSaved': ['広告の札を保存しました', 'Ad tag saved', '광고 태그를 저장했습니다'],
     'local.unitPriceDesc': [
       '保存するとポイント購入画面の表示価格に反映されます',
       'Saving updates the prices shown on the purchase screen',
@@ -750,7 +762,8 @@
       todayCount: 0,
       couponType: 'credit',
       selectors: [],        // 収集設定（KV/LP × プラットフォーム）
-      selectorsBusy: false
+      selectorsBusy: false,
+      adTag: ''             // 広告の札（061 の app_settings）
     };
 
     load();
@@ -766,6 +779,9 @@
         tableList('platformSelectors', { order: 'platform.asc' }),
         /* AIの使用量。読めなくても管理画面は開けるようにする（原価は飾り） */
         tableList('aiUsage', { order: 'created_at.desc', limit: AI_USAGE_LIMIT })
+          .catch(function () { return []; }),
+        /* 広告の札。読めなくても管理画面は開ける */
+        tableList('appSettings', { eq: { key: 'admax_tag' }, order: false, limit: 1 })
           .catch(function () { return []; })
       ]).then(function (results) {
         var featureRows = results[0] || [];
@@ -786,6 +802,7 @@
         applyToday(results[2] || []);
         state.inquiries = results[3] || [];
         state.coupons = results[4] || [];
+        state.adTag = String((results[7] && results[7][0] && results[7][0].value) || '');
         state.selectors = results[5] || [];
         state.aiUsage = results[6] || [];
         draw();
@@ -826,6 +843,7 @@
          待たせているあいだ、その人はアプリに入れない */
       wrap.appendChild(pendingSection());
       wrap.appendChild(unitPriceSection());
+      wrap.appendChild(adTagSection());
       /* 原価は値付けの根拠なので、単価のすぐ下に置く */
       wrap.appendChild(aiCostSection());
       wrap.appendChild(usersSection());
@@ -943,6 +961,36 @@
     }
 
     /* ---- クレジット単価 ---- */
+    /* 広告の札（2026-11-04 要望）。生成中のポップアップに出る。
+       空のあいだは何も出ない。顧客のLPには ads.js が出さない */
+    function adTagSection() {
+      var box = el('div', 'stack');
+      var area = el('textarea', 'textarea');
+      area.rows = 4;
+      area.value = String(state.adTag || '');
+      area.setAttribute('placeholder', tl('local.adTagPlaceholder'));
+      box.appendChild(area);
+      box.appendChild(el('p', 'field__hint', tl('local.adTagWarn')));
+      var saveLabel = tl('local.save');
+      var saveBtn = button('btn btn--primary', saveLabel, function () {
+        busy(saveBtn, true, tl('local.saving'), saveLabel);
+        var value = String(area.value || '').trim();
+        tableUpdate('appSettings', 'admax_tag', { value: value, updated_at: new Date().toISOString() })
+          .then(function () {
+            busy(saveBtn, false, tl('local.saving'), saveLabel);
+            state.adTag = value;
+            if (window.LpyaAds && typeof window.LpyaAds._reset === 'function') { window.LpyaAds._reset(); }
+            toast(tl('local.adTagSaved'), 'success');
+          }, function (err) {
+            busy(saveBtn, false, tl('local.saving'), saveLabel);
+            console.error('[screens-admin] 広告の札を保存できませんでした', err);
+            toast(t('admin.saveFailed'), 'danger');
+          });
+      });
+      box.appendChild(saveBtn);
+      return section(tl('local.adTagTitle'), tl('local.adTagDesc'), [box]);
+    }
+
     function unitPriceSection() {
       var input = numberInput(state.unitPrice, { min: 1, max: MAX_UNIT_PRICE, id: uid('unit-price') });
       var priceField = field(t('admin.priceLabel'), input, tl('local.currentUnitPrice', { price: fmtNumber(state.unitPrice) }));

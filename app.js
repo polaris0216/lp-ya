@@ -2241,6 +2241,13 @@
       panel.appendChild(wEl('p', 'jobwatch__msg t-sub', t('job.alsoRunning', { n: background.length })));
     }
 
+    /* 広告（2026-11-04 要望）。小さくした窓には出さない（画面の邪魔になる）。
+       出してよい面かどうかは ads.js が自分で確かめる。
+       顧客のLP（view.html／pre-launch.net）には何があっても出ない */
+    if (!watch.mini && global.LpyaAds && typeof global.LpyaAds.slot === 'function') {
+      global.LpyaAds.slot(panel, 'jobwatch');
+    }
+
     if (!watch.mini) {
     var urls = (opts.urls || []);
     if (urls.length) {

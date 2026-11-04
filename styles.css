@@ -5817,3 +5817,24 @@ input[type='radio'] {
 /* 生成の手前で聞く欄。押したボタンのすぐ下に出す */
 .must-ask { border: 2px solid var(--accent, #7c3aed); margin-top: 12px; }
 .must-ask .select { margin: 0 0 12px; }
+
+/* ---- 広告の枠（2026-11-04）------------------------------------------------
+   出るのはアプリの中だけ。顧客のLPには ads.js が出さない */
+.ad-slot {
+  margin: 12px 0 0;
+  padding: 8px;
+  border: 1px solid var(--line, #e3e0ea);
+  border-radius: 10px;
+  background: #fafafa;
+  text-align: center;
+  overflow: hidden;
+}
+.ad-slot__label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 10px;
+  letter-spacing: .18em;
+  color: #9b96a6;
+}
+.ad-slot__in { max-width: 100%; }
+.ad-slot__in img, .ad-slot__in iframe { max-width: 100%; }
