@@ -55,15 +55,16 @@
     'lp.section': ['ブロック {n}', 'Section {n}', '구획 {n}'],
     'lp.prompt': ['生成プロンプト', 'Prompt', '생성 프롬프트'],
     'lp.gen': ['このブロックを生成', 'Generate this section', '이 구획 생성'],
-    'lp.via': ['絵の作り先', 'Where images are made', '그림 생성처'],
-    'lp.viaBrowser': ['ChatGPTの画面', 'ChatGPT (browser)', 'ChatGPT 화면'],
-    'lp.viaApi': ['OpenAI API', 'OpenAI API', 'OpenAI API'],
-    'lp.viaBrowserHint': ['追加の料金はかかりません。ただし回数制限があり、当たると数時間止まります',
-      'No extra charge, but there is a usage limit; hitting it stops generation for hours.',
-      '추가 요금은 없습니다. 다만 횟수 제한이 있어 걸리면 몇 시간 멈춥니다'],
-    'lp.viaApiHint': ['1枚およそ $0.06〜0.08 かかります。回数制限は無く、速く作れます',
-      'About $0.06–0.08 per image. No usage limit, and faster.',
-      '1장당 약 $0.06~0.08. 횟수 제한이 없고 빠릅니다'],
+    /* 2026-11-04: 絵だけでなく文章もここで決まるようになった */
+    'lp.via': ['生成の作り先（絵と文章）', 'Where things are made', '생성 경로(그림·문장)'],
+    'lp.viaBrowser': ['CLI＆ブラウザ', 'CLI & browser', 'CLI·브라우저'],
+    'lp.viaApi': ['API', 'API', 'API'],
+    'lp.viaBrowserHint': ['絵は ChatGPT の画面、文章は Claude Code。追加の料金はかかりませんが、回数制限に当たると数時間止まります',
+      'Images in the ChatGPT window, text with Claude Code. No extra charge, but hitting the usage limit stops generation for hours.',
+      '그림은 ChatGPT 화면, 문장은 Claude Code. 추가 요금은 없지만 횟수 제한에 걸리면 몇 시간 멈춥니다'],
+    'lp.viaApiHint': ['絵は OpenAI API、文章は Anthropic API。回数制限は無く速いかわりに、絵1枚およそ $0.06〜0.08 と文章ぶんの従量課金がかかります',
+      'Images via the OpenAI API, text via the Anthropic API. No usage limit and faster, but about $0.06–0.08 per image plus metered text.',
+      '그림은 OpenAI API, 문장은 Anthropic API. 횟수 제한이 없고 빠른 대신 장당 약 $0.06~0.08과 문장 종량 요금이 듭니다'],
     'lp.viaApiOn': ['これからは OpenAI API で作ります（1枚 $0.06〜0.08）',
       'Now generating with the OpenAI API ($0.06–0.08 per image)',
       '이제 OpenAI API로 만듭니다($0.06~0.08/장)'],
@@ -1185,7 +1186,14 @@
             if (on) { return; }
             var node = e && e.currentTarget;
             if (node) { node.disabled = true; }
-            Api.projects.update(projectId, { image_via: one[0] }).then(function (row) {
+            /* 絵と文章をまとめて切り替える（2026-11-04 要望）。
+               片方だけ変えられると、絵はAPIなのに文章はCLIという
+               中途半端な状態になり、どちらの経路で作ったのか追えない。
+                 chatgpt … 絵=ChatGPTの画面 ／ 文章=Claude Code（CLI）
+                 api     … 絵=OpenAI API   ／ 文章=Anthropic API */
+            Api.projects.update(projectId,
+              { image_via: one[0], text_via: one[0] === 'api' ? 'api' : 'cli' }
+            ).then(function (row) {
               view.project = row;
               toast(t(one[0] === 'api' ? 'lp.viaApiOn' : 'lp.viaBrowserOn'), 'success');
               paint();

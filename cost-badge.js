@@ -85,6 +85,18 @@
     return (app && typeof app.getBalance === 'function') ? Number(app.getBalance()) || 0 : null;
   }
 
+  /* 無制限で使える人は、残高と比べない（2026-11-04）。
+     DBの引き落とし（055 のトリガ）は elpiya_has_unlimited を見て 0 を引くので、
+     残高はそのまま残る。それを見て「足りません」と塞ぐと、
+     実際には押せる人のボタンを画面だけが止めてしまう */
+  function unlimited() {
+    const app = global.App;
+    const user = (app && typeof app.getUser === 'function') ? app.getUser() : null;
+    const api = global.Api && global.Api.credits;
+    if (!user || !api || typeof api.hasUnlimited !== 'function') { return false; }
+    return !!api.hasUnlimited(user);
+  }
+
   function say(key, params) {
     const app = global.App;
     return (app && typeof app.t === 'function') ? app.t(key, params) : key;
@@ -120,6 +132,8 @@
     btn.classList.remove('btn--short');
     if (btn.dataset) { delete btn.dataset.lpyaShort; }
     if (have === null || !one.points) { return; }
+    /* 無制限の人には、不足額も「生成後の残高」も出さない。どちらも嘘になる */
+    if (unlimited()) { return; }
 
     if (one.points > have) {
       /* 足りないボタンは沈める。押させてから怒るのはやめる */
