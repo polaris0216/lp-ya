@@ -353,10 +353,11 @@
   /* 読み物（2026-11-04）。中身は lp-ya/read/ に置いた素のHTML。
      tools/build-site.mjs が site/*.html から組む。
      app.lpya.net でも www.lpya.net でも、同じ場所から同じものが出る */
+  /* 2026-11-04 指摘で、薬機法・景表法と事例は取り下げた。
+     元の文章は site/ に残してあるので、戻すときは build-site.mjs の
+     一覧と、ここと、app.js の HEADER_NAV に綴りを足すだけでよい */
   var READS = [
-    { href: 'read/guide.html', key: 'landing.readGuide' },
-    { href: 'read/compliance.html', key: 'landing.readCompliance' },
-    { href: 'read/cases.html', key: 'landing.readCases' }
+    { href: 'read/guide.html', key: 'landing.readGuide' }
   ];
 
   function buildReads() {

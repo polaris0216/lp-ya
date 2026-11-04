@@ -1252,9 +1252,7 @@
      読みもの3本は別ページ（read/*.html）なので素の <a>。
      ログイン・会員登録は画面なのでハッシュで移る */
   var HEADER_NAV = [
-    { href: 'read/guide.html', key: 'nav.guide' },
-    { href: 'read/compliance.html', key: 'nav.compliance' },
-    { href: 'read/cases.html', key: 'nav.cases' }
+    { href: 'read/guide.html', key: 'nav.guide' }
   ];
 
   function renderHeaderNav(route) {
