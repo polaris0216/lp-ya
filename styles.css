@@ -334,7 +334,7 @@ table { border-collapse: collapse; width: 100%; }
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: 10px;
+  margin-right: 6px;
   min-width: 0;
 }
 
@@ -3418,7 +3418,8 @@ input[type='radio'] {
    できるのは大きさだけ。各社の条件で色とデザインの加工は禁じられている
    （グレースケールに揃えるのは規約違反になる） */
 .lp-proof__logo[data-platform='kickstarter'],
-.lp-proof__logo[data-platform='indiegogo'] { height: 26px; }
+.lp-proof__logo[data-platform='indiegogo'],
+.lp-proof__logo[data-platform='campfire-mark'] { height: 26px; }
 
 /* wadiz は小文字だが、字面が高さいっぱいまで埋まる（下に伸びる字が無い）ので
    総大文字と同じ扱いにする */

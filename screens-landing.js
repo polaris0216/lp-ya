@@ -41,7 +41,7 @@
      商品入力のKVプリセットと URL の言語判定も同じ顔ぶれ（screens-home.js） */
   var PLATFORMS = [
     { id: 'makuake', name: 'Makuake' },
-    { id: 'campfire', name: 'CAMPFIRE' },
+    { id: 'campfire-mark', name: 'CAMPFIRE' },
     { id: 'greenfunding', name: 'GREENFUNDING' },
     { id: 'machiya', name: 'Machi-ya' },
     { id: 'kickstarter', name: 'Kickstarter' },
