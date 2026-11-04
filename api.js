@@ -599,6 +599,21 @@
     // 設定前は false を返すだけで、画面遷移しない（呼び出し側が案内を出す）。
     googleEnabled: function () { return GOOGLE_LOGIN_ENABLED; },
 
+    /* Googleのボタン（google-signin.js）から渡ってくる IDトークンで入る。
+       飛ばす方式と違い、Googleの画面に supabase.co が出ない。
+       検証は Supabase 側が Google の公開鍵で行う。ここでは素通し */
+    signInWithGoogleIdToken: function (idToken) {
+      var token = String(idToken || '');
+      if (!token) { return Promise.reject(new ApiError('unknown')); }
+      return request('POST', 'token?grant_type=id_token',
+        { provider: 'google', id_token: token },
+        { base: AUTH_BASE, noAuth: true, autoRetry: 0 })
+        .then(function (data) {
+          saveSession(data);
+          return myProfile();
+        });
+    },
+
     signInWithGoogle: function (redirectTo) {
       if (!GOOGLE_LOGIN_ENABLED) { return false; }
       var back = redirectTo || (global.location.origin + global.location.pathname);

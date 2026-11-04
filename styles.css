@@ -327,6 +327,16 @@ table { border-collapse: collapse; width: 100%; }
 
 .app-header__spacer { flex: 1 1 auto; }
 
+/* Googleが描くボタンの入れ物。中身はGoogleのiframeなので、
+   こちらは真ん中に置くだけ（中の見た目は触れない決まり） */
+.auth-gsi {
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+}
+
+.auth-gsi:empty { display: none; }
+
 /* --- 上のメニュー（S0 だけ）。読みもの3本とログイン・会員登録 ---
    ヘッダーは高さ決め打ち・折り返し無しなので、ここも1行に収める。
    幅が足りない端末では読みもの3本を隠す（本文の「読みもの」節から行ける） */

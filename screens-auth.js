@@ -713,6 +713,53 @@
     Api.auth.signInWithGoogle();
   }
 
+  /* --- Googleの公式ボタン（小窓方式。2026-11-04） ---
+     飛ばす方式だと、Googleの画面に redirect_uri のドメイン
+     （…supabase.co）がそのまま出る。小窓方式には redirect_uri が無いので、
+     出るのはアプリ名と、いま開いているドメインだけになる。
+     済んだあとの扱いは、メール＋パスワードのログインとそろえる */
+  function finishGoogle(screenId, idToken) {
+    setAlert(screenId, null, null);
+    rerender();
+    Api.auth.signInWithGoogleIdToken(idToken)
+      .then(function (user) {
+        if (user && user.user_status && user.user_status !== 'active') {
+          var why = user.user_status === 'pending' ? 'errPending' : 'errStopped';
+          return Api.auth.signOut().then(function () { throw new AuthFail(why); });
+        }
+        return Api.users.update(user.id, { last_login_at: Api.today() }).catch(function (err) {
+          console.warn('[screens-auth.js] last_login_at を更新できませんでした', err);
+          return user;
+        });
+      })
+      .then(function (updated) {
+        adoptUser(updated);
+        toast(t('loginDone'), 'success');
+        goBackOrHome();
+      })
+      .catch(function (err) {
+        showFailure(screenId, err, null);
+        rerender();
+      });
+  }
+
+  /* host にGoogleのボタンを作る。作れなければ fallback() を呼ぶ
+     （遮断されている環境では、これまでの飛ばす方式を出す） */
+  function mountGoogleButton(host, screenId, fallback) {
+    var g = window.LpyaGoogle;
+    if (!g || !Api || !Api.auth || typeof Api.auth.signInWithGoogleIdToken !== 'function') {
+      fallback();
+      return;
+    }
+    g.mount(host, function (token) {
+      finishGoogle(screenId, token);
+    }, function (err) {
+      console.warn('[screens-auth.js] Googleのボタンで失敗しました', err);
+      setAlert(screenId, { kind: 'auth', key: 'errUnknown' }, null);
+      rerender();
+    }).then(function (ok) { if (!ok) { fallback(); } }, function () { fallback(); });
+  }
+
   /* =========================================================
      7. S1 ログイン
      ========================================================= */
@@ -789,6 +836,10 @@
       startGoogle('S1');
     });
     googleBtn.disabled = !!s.busy;
+    /* 既定はGoogleの公式ボタン。作れなかったときだけ、上の自前ボタンを出す */
+    var gsiHost = el('div', 'auth-gsi');
+    googleBtn.hidden = true;
+    mountGoogleButton(gsiHost, 'S1', function () { googleBtn.hidden = false; });
 
     var signupBtn = makeButton('btn--text btn--block', t('signupLink'), function () {
       if (s.busy) { return; }
@@ -796,6 +847,7 @@
     });
 
     buttons.appendChild(loginBtn);
+    buttons.appendChild(gsiHost);
     buttons.appendChild(googleBtn);
     buttons.appendChild(signupBtn);
     screen.appendChild(buttons);
@@ -1018,6 +1070,9 @@
       startGoogle('S2');
     });
     googleBtn.disabled = !!s.busy;
+    var gsiHost = el('div', 'auth-gsi');
+    googleBtn.hidden = true;
+    mountGoogleButton(gsiHost, 'S2', function () { googleBtn.hidden = false; });
 
     var backBtn = makeButton(s.done ? 'btn--primary btn--block' : 'btn--text btn--block', t('backToLogin'), function () {
       if (s.busy) { return; }
@@ -1027,6 +1082,7 @@
     });
 
     buttons.appendChild(registerBtn);
+    buttons.appendChild(gsiHost);
     buttons.appendChild(googleBtn);
     buttons.appendChild(backBtn);
     screen.appendChild(buttons);
