@@ -3226,12 +3226,39 @@ input[type='radio'] {
 
 .lp-hero__title {
   margin: 0;
-  max-width: 15em;
+  max-width: 17em;
   font-family: var(--font-title);
-  font-size: clamp(30px, 4.6vw, 48px);
+  font-size: clamp(25px, 4.6vw, 48px);
   font-weight: var(--fw-bold);
   line-height: 1.26;
   letter-spacing: -.02em;
+}
+
+/* 見出しの中で1語だけ立てる印。蛍光ペンのように文字の足元に敷く。
+   文字そのものを塗らないのは、映像の上で白のままのほうが読めるから。
+   ここはグラデーションを使ってよい数少ない場所（面ではなく細い印） */
+.lp-hero__mark {
+  position: relative;
+  white-space: nowrap;
+}
+
+.lp-hero__mark::after {
+  content: '';
+  position: absolute;
+  left: -.06em;
+  right: -.06em;
+  bottom: .04em;
+  height: .22em;
+  border-radius: 2px;
+  background: var(--grad-main);
+  z-index: -1;
+}
+
+/* 印は文字の後ろへ。重ね順を作らないと、敷いた帯が文字を覆う */
+.lp-hero__title { isolation: isolate; }
+
+@media (max-width: 600px) {
+  .lp-hero__mark::after { height: .2em; }
 }
 
 .lp-hero__lead {

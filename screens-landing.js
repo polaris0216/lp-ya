@@ -130,12 +130,18 @@
     return node;
   }
 
-  /* 見出しの「、」で改行させる（2行ヘッドライン） */
+  /* 見出し。\n で改行し、[[…]] で囲んだところに印を敷く。
+     どの語を立てるかは言語ごとに違う（日本語の「押すだけ」と英語の one click は
+     文中の位置が違う）ので、置き場所は文言側に持たせる */
   function headline(text) {
     var node = el('h1', 'lp-hero__title');
     String(text).split('\n').forEach(function (line, index) {
       if (index > 0) { node.appendChild(el('br')); }
-      node.appendChild(document.createTextNode(line));
+      line.split(/\[\[(.+?)\]\]/).forEach(function (part, at) {
+        if (!part) { return; }
+        /* split の奇数番が [[ ]] の中身 */
+        node.appendChild(at % 2 ? el('span', 'lp-hero__mark', part) : document.createTextNode(part));
+      });
     });
     return node;
   }
