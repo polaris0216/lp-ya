@@ -186,33 +186,47 @@
     return hero;
   }
 
-  /* --- 掲載先ロゴ。ロゴが1枚も無い環境では帯ごと出さない --- */
+  /* --- 掲載先ロゴ。ロゴが1枚も無い環境では帯ごと出さない ---
+     電光板のように右から左へ流す（2026-11-04 指摘）。
+     途切れずに回すため、同じ並びを2回入れて -50% まで動かす。 */
   function buildProof() {
     var logos = window.LPYA_PLATFORM_LOGOS || {};
     var strip = el('section', 'lp-proof');
-    var row = el('div', 'lp-proof__row');
     var found = 0;
 
-    PLATFORMS.forEach(function (platform) {
-      var logo = logos[platform.id];
-      if (!logo || !logo.src) { return; }
-      var img = el('img', 'lp-proof__logo');
-      img.src = logo.src;
-      img.alt = platform.name;
-      /* 大きさの光学補正をCSS側でやるため、どの社かを持たせる。
-         色を変える加工は各社の条件で禁じられているので、できるのは大きさだけ */
-      img.setAttribute('data-platform', platform.id);
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      row.appendChild(img);
-      found += 1;
-    });
+    function makeRun() {
+      var run = el('div', 'lp-proof__run');
+      PLATFORMS.forEach(function (platform) {
+        var logo = logos[platform.id];
+        if (!logo || !logo.src) { return; }
+        var img = el('img', 'lp-proof__logo');
+        img.src = logo.src;
+        img.alt = platform.name;
+        /* 大きさの光学補正をCSS側でやるため、どの社かを持たせる。
+           色を変える加工は各社の条件で禁じられているので、できるのは大きさだけ */
+        img.setAttribute('data-platform', platform.id);
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        run.appendChild(img);
+        found += 1;
+      });
+      return run;
+    }
 
+    var first = makeRun();
     if (!found) { return null; }
 
     strip.appendChild(el('span', 'lp-proof__label', t('landing.platforms')));
-    strip.appendChild(row);
-    strip.appendChild(el('p', 'lp-proof__note', t('landing.ctaNote')));
+    var track = el('div', 'lp-proof__row');
+    track.appendChild(first);
+    /* 2本目は読み上げに要らない（同じものの繰り返し） */
+    var clone = makeRun();
+    clone.setAttribute('aria-hidden', 'true');
+    track.appendChild(clone);
+
+    var belt = el('div', 'lp-proof__belt');
+    belt.appendChild(track);
+    strip.appendChild(belt);
     return strip;
   }
 

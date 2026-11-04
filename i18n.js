@@ -132,13 +132,12 @@
     'landing.lead': ['売れている競合LPのURLを入れるだけ。勝ちパターンを読み解いて、クラファンLP・自社LP・キービジュアル・Meta広告・LINEコンテンツをまとめて作ります。', 'Just paste the URLs of competitor pages that sell. We read the winning pattern and produce your crowdfunding page, own LP, key visual, Meta ads and LINE content together.', '팔리는 경쟁 상세페이지 URL만 넣으세요. 승리 패턴을 읽어 크라우드펀딩 페이지·자사 LP·KV·메타광고·LINE 콘텐츠를 한 번에 만듭니다.'],
     'landing.ctaStart': ['無料で始める', 'Start free', '무료로 시작하기'],
     'landing.ctaLogin': ['ログイン', 'Log in', '로그인'],
-    'landing.ctaNote': ['登録時にお試しポイント付き。カード登録は不要です。', 'Trial points on sign-up. No card required.', '가입 시 체험 포인트 제공. 카드 등록 불필요.'],
 
     /* 外注との比較。金額と納期は変わりうるので、文言をここに集めてある。
        エルピーヤ側の所要時間は job-eta.js の実測（中央値52分）から「1時間ほど」。
        推測で短く言わない（短く言うと、待てたはずの人を不安にさせる） */
     'compare.title': ['外注に出すより、速くて安い。', 'Faster and cheaper than outsourcing.', '외주보다 빠르고 저렴합니다.'],
-    'compare.desc': ['制作会社やフリーランスに頼むときとの違いです。', 'How it compares with an agency or a freelance designer.', '제작사나 프리랜서에게 맡길 때와의 차이입니다.'],
+    'compare.desc': ['いつまで外注でストレスを感じますか？', 'How much longer will outsourcing cost you?', '언제까지 외주로 스트레스를 받으시겠습니까?'],
     'compare.colOld': ['外注', 'Outsourcing', '외주'],
     'compare.colNew': ['エルピーヤ', 'Elpiya', '엘피야'],
     'compare.rowCost': ['費用', 'Cost', '비용'],
@@ -188,6 +187,10 @@
     'landing.featAbDesc': ['LPを2案公開して、閲覧数とCTAクリックを並べて見られます。', 'Publish two variants and compare views and CTA clicks side by side.', '2안을 공개하고 조회수·CTA 클릭을 나란히 볼 수 있습니다.'],
 
     /* 読み物への入口（2026-11-04）。中身は lp-ya/read/ */
+    /* 上のメニュー用の短い名前。読みものの題はそのままでは長すぎる */
+    'nav.guide': ['作り方ガイド', 'Guide', '만드는 법'],
+    'nav.compliance': ['薬機法・景表法', 'Compliance', '약사법·표시광고법'],
+    'nav.cases': ['事例', 'Cases', '사례'],
     'landing.readLabel': ['読みもの', 'Reading', '읽을거리'],
     'landing.readTitle': ['作る前に、数えた話。', 'What we counted before building.', '만들기 전에, 세어본 이야기.'],
     'landing.readGuide': ['クラファンLPの最初の1枚は、どう作るか（122枚を数えた）',

@@ -225,12 +225,13 @@ table { border-collapse: collapse; width: 100%; }
      唯一の合図で、消すと進行中と停止中が見分けられない（実測: macOS の
      「視差効果を減らす」を入れている端末で、受付待ちのバーが完全な静止画に
      見え、動いていないと受け取られた）。下の方で ゆっくり・薄く し直す */
-  *:not(.jobwatch__fill) {
+  *:not(.jobwatch__fill):not(.lp-proof__row) {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
   }
   .jobwatch__fill { transition: none !important; }
+  /* 掲載先ロゴの電光板も除く。理由は .lp-proof__row のところに書いた */
 }
 
 /* -----------------------------------------------------------------------------
@@ -325,6 +326,43 @@ table { border-collapse: collapse; width: 100%; }
 .app-header__brand svg { color: var(--c-main); }
 
 .app-header__spacer { flex: 1 1 auto; }
+
+/* --- 上のメニュー（S0 だけ）。読みもの3本とログイン・会員登録 ---
+   ヘッダーは高さ決め打ち・折り返し無しなので、ここも1行に収める。
+   幅が足りない端末では読みもの3本を隠す（本文の「読みもの」節から行ける） */
+.app-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  min-width: 0;
+}
+
+.app-header__link {
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--c-text-sub);
+  text-decoration: none;
+  font-size: var(--fs-note);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+}
+
+.app-header__link:hover { background: var(--c-surface-3); color: var(--c-text); }
+
+/* グラデーションは1画面1点の決め（トークンの注記）。
+   ヒーローの主ボタンが使っているので、ここは単色で立てる */
+.app-header__link--cta {
+  background: var(--c-main);
+  color: var(--c-white);
+  padding-inline: 14px;
+}
+
+.app-header__link--cta:hover { background: var(--c-main-press); color: var(--c-white); }
+
+@media (max-width: 760px) {
+  .app-header__nav .app-header__link:not(.app-header__link--cta):not([href^='#']) { display: none; }
+}
 
 .app-header__account {
   display: flex;
@@ -3314,35 +3352,65 @@ input[type='radio'] {
   border: none;
 }
 
-/* --- 掲載先：ロゴだけ並べる。肩書きや業種名は付けない --- */
+/* --- 掲載先：ロゴだけ並べる。肩書きや業種名は付けない ---
+   電光板のように右から左へ流す（2026-11-04 指摘）。
+   .lp-proof__belt が窓、.lp-proof__row が流れる帯、__run が同じ並び1本。
+   同じ並びを2本入れて -50% まで動かすので、継ぎ目が出ない */
 .lp-proof {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   padding-block: 28px 0;
 }
 
 .lp-proof__label {
-  font-size: var(--fs-note);
+  font-family: var(--font-title);
+  font-size: var(--fs-sub);
   font-weight: var(--fw-bold);
-  color: var(--c-text-sub);
+  color: var(--c-text);
+  letter-spacing: .02em;
+}
+
+/* 窓。両端は地の色で溶かして、切れ端が見えないようにする */
+.lp-proof__belt {
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
 
 .lp-proof__row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 16px 36px;
+  width: max-content;
+  animation: lp-proof-run 26s linear infinite;
 }
 
+.lp-proof__run {
+  display: flex;
+  align-items: center;
+  gap: 56px;
+  padding-right: 56px;
+}
+
+@keyframes lp-proof-run {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ponytail: ここは prefers-reduced-motion で止めていない。
+   「電光板のように流して」が名指しの要望で、頼んだ本人の端末が
+   その設定（動きを減らす）になっているため、止めると誰も見られない。
+   点滅せず、向きが変わらず、26秒かけて一定速度で動くだけの飾りなので、
+   目が回る類の動きではないと判断した。
+   気分が悪いという声が出たら、ここを @media で止める。 */
+
 .lp-proof__logo {
-  height: 22px;
+  height: 34px;
   width: auto;
-  max-width: 150px;
+  max-width: 230px;
   object-fit: contain;
-  opacity: .78;
+  opacity: .9;
 }
 
 /* 光学補正。総大文字のワードマーク（Kickstarter・Indiegogo）は、
@@ -3350,17 +3418,11 @@ input[type='radio'] {
    できるのは大きさだけ。各社の条件で色とデザインの加工は禁じられている
    （グレースケールに揃えるのは規約違反になる） */
 .lp-proof__logo[data-platform='kickstarter'],
-.lp-proof__logo[data-platform='indiegogo'] { height: 17px; }
+.lp-proof__logo[data-platform='indiegogo'] { height: 26px; }
 
 /* wadiz は小文字だが、字面が高さいっぱいまで埋まる（下に伸びる字が無い）ので
    総大文字と同じ扱いにする */
-.lp-proof__logo[data-platform='wadiz'] { height: 19px; }
-
-.lp-proof__note {
-  margin: 0;
-  font-size: var(--fs-note);
-  color: var(--c-text-sub);
-}
+.lp-proof__logo[data-platform='wadiz'] { height: 29px; }
 
 /* --- 節の見出し --- */
 .lp-section {

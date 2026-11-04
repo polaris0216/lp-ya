@@ -544,6 +544,7 @@
     sidebarBackdrop: null,
     sidebarRefresh: null,
     account: null,
+    headerNav: null,
     headerProject: null,
     tabAdmin: null,
     toast: null,
@@ -1247,6 +1248,43 @@
     return node;
   }
 
+  /* 上のメニュー。S0（集客の面の顔）だけに出す。
+     読みもの3本は別ページ（read/*.html）なので素の <a>。
+     ログイン・会員登録は画面なのでハッシュで移る */
+  var HEADER_NAV = [
+    { href: 'read/guide.html', key: 'nav.guide' },
+    { href: 'read/compliance.html', key: 'nav.compliance' },
+    { href: 'read/cases.html', key: 'nav.cases' }
+  ];
+
+  function renderHeaderNav(route) {
+    if (!dom.headerNav) { return; }
+    clear(dom.headerNav);
+    var show = route && route.id === 'S0';
+    dom.headerNav.hidden = !show;
+    if (!show) { return; }
+
+    HEADER_NAV.forEach(function (one) {
+      var a = document.createElement('a');
+      a.className = 'app-header__link';
+      a.href = one.href;
+      a.textContent = t(one.key);
+      dom.headerNav.appendChild(a);
+    });
+
+    /* ログインしているなら、入口の2つは要らない */
+    if (state.user) { return; }
+    [['S1', 'screen.S1', 'app-header__link'],
+     ['S2', 'screen.S2', 'app-header__link app-header__link--cta']
+    ].forEach(function (pair) {
+      var a = document.createElement('a');
+      a.className = pair[2];
+      a.href = '#/' + pair[0];
+      a.textContent = t(pair[1]);
+      dom.headerNav.appendChild(a);
+    });
+  }
+
   function renderAccount() {
     if (!dom.account) { return; }
     clear(dom.account);
@@ -1483,6 +1521,7 @@
     }
     renderSidebarNav(meta.tab);
     renderWorkflowTabs(route);
+    renderHeaderNav(route);
     renderAccount();
     closeSidebar();
   }
@@ -3090,6 +3129,7 @@
     dom.sidebarBackdrop = byId('sidebar-backdrop');
     dom.sidebarRefresh = byId('sidebar-refresh');
     dom.account = byId('header-account');
+    dom.headerNav = byId('header-nav');
     dom.headerProject = byId('header-project');
     dom.toast = byId('toast-root');
     dom.modal = byId('modal-root');
