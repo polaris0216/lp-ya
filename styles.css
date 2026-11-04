@@ -3227,6 +3227,10 @@ input[type='radio'] {
 .lp-hero__title {
   margin: 0;
   max-width: 17em;
+  /* 折り返すときは行の長さをそろえる。和文はどこでも折れるので、
+     放っておくと「…デザインま／で。」のように1〜2字だけが次の行に落ちる
+     （実測 375px）。対応していないブラウザでは今までどおり折れるだけ */
+  text-wrap: balance;
   font-family: var(--font-title);
   font-size: clamp(25px, 4.6vw, 48px);
   font-weight: var(--fw-bold);

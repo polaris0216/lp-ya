@@ -128,7 +128,7 @@
     /* [[…]] のところに印が敷かれる（screens-landing.js の headline）。
        「クリックだけで」とは書かない。すぐ下の3ステップの1つ目が「商品を入力」で、
        同じページの中で食い違う。入れたあとは押すだけ、が実際のところ */
-    'landing.title': ['競合分析からデザインまで。\n商品を入れたら、[[押すだけ]]。', 'From analysis to design.\nAdd your product, then [[press]].', '경쟁사 분석부터 디자인까지.\n상품만 넣으면 [[누르기만]].'],
+    'landing.title': ['競合分析からLPデザインまで。\n[[ポチッと]]押すだけ。', 'From analysis to LP design.\nJust [[one click]].', '경쟁사 분석부터 LP 디자인까지.\n[[딸깍]] 누르기만.'],
     'landing.lead': ['売れている競合LPのURLを入れるだけ。勝ちパターンを読み解いて、クラファンLP・自社LP・キービジュアル・Meta広告・LINEコンテンツをまとめて作ります。', 'Just paste the URLs of competitor pages that sell. We read the winning pattern and produce your crowdfunding page, own LP, key visual, Meta ads and LINE content together.', '팔리는 경쟁 상세페이지 URL만 넣으세요. 승리 패턴을 읽어 크라우드펀딩 페이지·자사 LP·KV·메타광고·LINE 콘텐츠를 한 번에 만듭니다.'],
     'landing.ctaStart': ['無料で始める', 'Start free', '무료로 시작하기'],
     'landing.ctaLogin': ['ログイン', 'Log in', '로그인'],
