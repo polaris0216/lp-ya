@@ -2521,6 +2521,15 @@
 
   function onHashChange() {
     var hash = global.location.hash || '';
+    /* 集客の面では #/S0 という住所を残さない（2026-11-04 指摘）。
+       ロゴの戻り先が href="#/S0" なので、押すと住所に付いてしまう。
+       中身は同じ画面なので、住所からハッシュだけ落として描き直す */
+    if (isFrontDoor() && (hash === '#/S0' || hash === '#/' || hash === '#')) {
+      try {
+        global.history.replaceState(null, '', global.location.pathname + global.location.search);
+        hash = '';
+      } catch (e) { /* 住所を直せない環境では、そのまま S0 を描く */ }
+    }
     var route = parseRoute(hash);
     if (!route.id) {
       /* 集客の面（www.lpya.net / lpya.net）は、URLを汚さずに案内の画面を出す。
