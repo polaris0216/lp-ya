@@ -22,8 +22,8 @@
      版が空に見えて「前回と同じ」と判定される（実測 2026-10-30） -->
 <link rel="preload" as="image" href="hero-bg.jpg">
 <link rel="preload" as="video" href="hero-bg.mp4" type="video/mp4">
-<link rel="stylesheet" href="assets/fonts/fonts.css?v=20261104d">
-<link rel="stylesheet" href="styles.css?v=20261104d">
+<link rel="stylesheet" href="assets/fonts/fonts.css?v=20261104e">
+<link rel="stylesheet" href="styles.css?v=20261104e">
 </head>
 <body>
 
@@ -108,10 +108,16 @@
         <!-- プロジェクトの工程タブ（商品入力〜生成結果）。app.js が中身を描く。
              出ているあいだは見出しと入れ替わり、同じ行に収まる -->
         <nav id="workflow-tabs" class="wtabs" hidden></nav>
-        <!-- いま走っている仕事の帯。工程タブの直下に、全画面で出る -->
-        <div id="jobbar-root" class="jobbar" hidden></div>
         <div id="header-action" class="app-header__action"></div>
       </div>
+
+      <!-- いま走っている仕事の帯。工程タブの「下の行」に出す。
+           2026-11-04: はじめ .app-subhead の中に入れたが、あそこは
+           見出し・耳・右のボタンを横に並べる flex の行で、
+           幅100%の帯を混ぜると耳が幅ゼロに潰れて消えた
+           （利用者の指摘「タブみみメニューがないのは分かりづらい」）。
+           行の外に出して、独立した1本にする -->
+      <div id="jobbar-root" class="jobbar" hidden></div>
 
       <div id="banner-root" class="banner-root"></div>
 
@@ -142,36 +148,36 @@
   **JS か CSS を変更したら、この日付+英字をまとめて1つ上げてから push すること**
   （styles.css の分も含めて全部同じ値にする）。
 -->
-<script defer src="i18n.js?v=20261104d"></script>
-<script defer src="api.js?v=20261104d"></script>
-<script defer src="app.js?v=20261104d"></script>
-<script defer src="platform-logos.js?v=20261104d"></script>
-<script defer src="screens-landing.js?v=20261104d"></script>
-<script defer src="screens-auth.js?v=20261104d"></script>
-<script defer src="screens-home.js?v=20261104d"></script>
-<script defer src="screens-project-ops.js?v=20261104d"></script>
-<script defer src="screens-project.js?v=20261104d"></script>
-<script defer src="screens-analysis.js?v=20261104d"></script>
-<script defer src="zip.js?v=20261104d"></script>
-<script defer src="lp-render.js?v=20261104d"></script>
-<script defer src="brief-stamp.js?v=20261104d"></script>
-<script defer src="screens-lp.js?v=20261104d"></script>
-<script defer src="screens-lp-result.js?v=20261104d"></script>
-<script defer src="line-layouts.js?v=20261104d"></script>
-<script defer src="workflow-state.js?v=20261104d"></script>
-<script defer src="job-eta.js?v=20261104d"></script>
-<script defer src="jobbar.js?v=20261104d"></script>
-<script defer src="friendly-error.js?v=20261104d"></script>
-<script defer src="cost-badge.js?v=20261104d"></script>
-<script defer src="pricing.js?v=20261104d"></script>
-<script defer src="compliance.js?v=20261104d"></script>
-<script defer src="compliance-panel.js?v=20261104d"></script>
-<script defer src="shot-carousel.js?v=20261104d"></script>
-<script defer src="line-pick.js?v=20261104d"></script>
-<script defer src="screens-line.js?v=20261104d"></script>
-<script defer src="screens-credit.js?v=20261104d"></script>
-<script defer src="screens-admin.js?v=20261104d"></script>
-<script defer src="screens-usage.js?v=20261104d"></script>
+<script defer src="i18n.js?v=20261104e"></script>
+<script defer src="api.js?v=20261104e"></script>
+<script defer src="app.js?v=20261104e"></script>
+<script defer src="platform-logos.js?v=20261104e"></script>
+<script defer src="screens-landing.js?v=20261104e"></script>
+<script defer src="screens-auth.js?v=20261104e"></script>
+<script defer src="screens-home.js?v=20261104e"></script>
+<script defer src="screens-project-ops.js?v=20261104e"></script>
+<script defer src="screens-project.js?v=20261104e"></script>
+<script defer src="screens-analysis.js?v=20261104e"></script>
+<script defer src="zip.js?v=20261104e"></script>
+<script defer src="lp-render.js?v=20261104e"></script>
+<script defer src="brief-stamp.js?v=20261104e"></script>
+<script defer src="screens-lp.js?v=20261104e"></script>
+<script defer src="screens-lp-result.js?v=20261104e"></script>
+<script defer src="line-layouts.js?v=20261104e"></script>
+<script defer src="workflow-state.js?v=20261104e"></script>
+<script defer src="job-eta.js?v=20261104e"></script>
+<script defer src="jobbar.js?v=20261104e"></script>
+<script defer src="friendly-error.js?v=20261104e"></script>
+<script defer src="cost-badge.js?v=20261104e"></script>
+<script defer src="pricing.js?v=20261104e"></script>
+<script defer src="compliance.js?v=20261104e"></script>
+<script defer src="compliance-panel.js?v=20261104e"></script>
+<script defer src="shot-carousel.js?v=20261104e"></script>
+<script defer src="line-pick.js?v=20261104e"></script>
+<script defer src="screens-line.js?v=20261104e"></script>
+<script defer src="screens-credit.js?v=20261104e"></script>
+<script defer src="screens-admin.js?v=20261104e"></script>
+<script defer src="screens-usage.js?v=20261104e"></script>
 
 </body>
 </html>

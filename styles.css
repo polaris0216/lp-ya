@@ -5592,13 +5592,18 @@ input[type='radio'] {
    工程タブの直下に、全画面で出る。ふだんは hidden で消えている。
    絵づくりは直近90件の平均が58分。押したあと席を立っていいかを、
    どの画面にいても1か所で分かるようにする */
+/* 工程タブの行の「外」に置く。中に入れると、見出し・耳・右のボタンを
+   横に並べる flex に混ざって、耳が幅ゼロに潰れる（2026-11-04 実測） */
 .jobbar {
-  flex: 0 0 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 6px 0 0;
-  padding: 0 4px;
+  margin: 0;
+  /* 本文（.app-main）と左右をそろえる */
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 8px var(--sp-screen) 0;
 }
 .jobbar__row {
   border: 1px solid var(--line, #e3e0ea);

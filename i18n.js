@@ -503,12 +503,13 @@
       '{name}: {n} done, {ng} failed', '{name}: {n}건 완료 ({ng}건 실패)'],
     'jobbar.notifyOk': ['{name}ができました', '{name} is ready', '{name}이(가) 완성되었습니다'],
     'jobbar.notifyNg': ['{name}を作れませんでした', 'Could not make {name}', '{name}을(를) 만들지 못했습니다'],
-    'jobbar.makerNg': ['絵の作り先につながっていません。管理者にお知らせください',
-      'The image maker is not reachable. Please tell the administrator.',
-      '이미지 생성처에 연결되어 있지 않습니다. 관리자에게 알려주세요'],
-    'jobbar.makerStale': ['絵の作り先の状態が分かりません（10分以上、確認できていません）',
-      'The image maker state is unknown (not checked for over 10 minutes)',
-      '이미지 생성처 상태를 알 수 없습니다 (10분 이상 확인되지 않음)'],
+    /* 2026-11-04 指摘「この表現が何を意味しているか分かりずらい。何？」。
+       「作り先」はこちらの言葉だったので、読む人の言葉に直した。
+       また「分かりません」は出さないことにした（知らないことを警告にしない） */
+    'jobbar.makerNg': ['いま新しい絵を作れません', 'New images cannot be made right now',
+      '지금은 새 이미지를 만들 수 없습니다'],
+    'jobbar.recheck': ['もう一度ためす', 'Try again', '다시 시도'],
+    'jobbar.rechecking': ['ためしています…', 'Trying…', '시도하는 중…'],
     /* 帯に出す仕事の名前。鍵は feature_key */
     'job.kind.lp_section': ['絵', 'Images', '이미지'],
     'job.kind.lp_brief': ['LP案', 'LP draft', 'LP 초안'],

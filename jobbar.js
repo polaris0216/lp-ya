@@ -41,7 +41,6 @@
   /* 絵の作り先の状態（058 の1行）。読むだけ。10分より古ければ灰色 */
   var maker = null;
   var makerAt = 0;
-  var STALE_MS = 10 * 60 * 1000;
 
   function t(key, params) {
     return (App && typeof App.t === 'function') ? App.t(key, params) : key;
@@ -216,21 +215,46 @@
     return row;
   }
 
-  /* 作り先の信号。緑のときは何も出さない（ふだん黙っているのが仕事）。
-     ng なら赤、確認が10分より古ければ灰色。どちらでもボタンは押せるままにする
-     （ワーカーが生きているのに表だけ古い場合に、全員が詰むため） */
+  /* 絵を作れないときだけ出す（2026-11-04 指摘「この表現が何を意味しているか
+     分かりずらい。何？」）。
+
+     もとは「絵の作り先の状態が分かりません（10分以上、確認できていません）」と
+     出していた。これは2つの意味でまずかった:
+       ① 「作り先」はこちらの言葉で、読む人には何のことか分からない
+       ② 出ていたのは **まだ一度も確かめていない** 状態で、
+          悪いことは何も起きていない。知らないことを警告として出すと、
+          直しようのない不安だけが画面に残る
+     だから **こちらが「作れない」と知っているときだけ** 出す。
+     知らないときは黙る。実際に作れなければ、押したあとに
+     自動のやり直し（最大3回）とポイントの返金が受け止める。 */
   function makerRow() {
-    if (!maker) { return null; }
-    var checked = maker.checked_at ? new Date(maker.checked_at).getTime() : 0;
-    var stale = !checked || (Date.now() - checked > STALE_MS);
-    if (maker.state === 'ok' && !stale) { return null; }
-    var bad = maker.state === 'ng';
-    var row = el('div', 'jobbar__row jobbar__row--maker' + (bad ? ' jobbar__row--ng' : ''));
+    if (!maker || maker.state !== 'ng') { return null; }
+    var row = el('div', 'jobbar__row jobbar__row--maker jobbar__row--ng');
     var head = el('div', 'jobbar__head');
-    head.appendChild(el('span', 'jobbar__dot' + (bad ? ' jobbar__dot--ng' : ' jobbar__dot--old')));
-    head.appendChild(el('span', 'jobbar__name',
-      bad ? (maker.note || t('jobbar.makerNg')) : t('jobbar.makerStale')));
+    head.appendChild(el('span', 'jobbar__dot jobbar__dot--ng'));
+    head.appendChild(el('span', 'jobbar__name', t('jobbar.makerNg')));
     row.appendChild(head);
+
+    var foot = el('div', 'jobbar__foot');
+    /* 作り先が書いた一言（「ログインが切れています」など）。
+       直す人への手がかりなので、そのまま出す */
+    foot.appendChild(el('span', 'jobbar__note', String(maker.note || '')));
+    var again = el('button', 'jobbar__stop', t('jobbar.recheck'));
+    again.type = 'button';
+    again.addEventListener('click', function () {
+      again.disabled = true;
+      again.textContent = t('jobbar.rechecking');
+      var uid = (global.Api.auth && typeof global.Api.auth.userId === 'function')
+        ? global.Api.auth.userId() : null;
+      global.Api.generationJobs.insert({
+        feature_key: 'worker_check', status: 'pending', users_id: uid, payload: {}
+      }).then(function () { makerAt = 0; poll(); }, function () {
+        again.disabled = false;
+        again.textContent = t('jobbar.recheck');
+      });
+    });
+    foot.appendChild(again);
+    row.appendChild(foot);
     return row;
   }
 
