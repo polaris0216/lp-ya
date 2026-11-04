@@ -3425,6 +3425,23 @@ input[type='radio'] {
    総大文字と同じ扱いにする */
 .lp-proof__logo[data-platform='wadiz'] { height: 29px; }
 
+/* --- 足元。読みものの列とは別。目立たせない --- */
+.lp-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 24px;
+  padding-block: 32px 24px;
+}
+
+.lp-foot__link {
+  color: var(--c-text-mute);
+  text-decoration: none;
+  font-size: var(--fs-note);
+}
+
+.lp-foot__link:hover { color: var(--c-text-sub); text-decoration: underline; }
+
 /* --- 節の見出し --- */
 .lp-section {
   display: flex;

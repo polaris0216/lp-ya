@@ -375,6 +375,21 @@
     return sec;
   }
 
+  /* 足元。プライバシーポリシーと利用規約は、読みものの列には混ぜない
+     （読みものではないため）。ここから行ければ十分 */
+  function buildFoot() {
+    var foot = el('footer', 'lp-foot');
+    [['read/privacy.html', 'foot.privacy'], ['read/terms.html', 'foot.terms']]
+      .forEach(function (one) {
+        var a = document.createElement('a');
+        a.className = 'lp-foot__link';
+        a.href = one[0];
+        a.textContent = t(one[1]);
+        foot.appendChild(a);
+      });
+    return foot;
+  }
+
   App.registerScreen('S0', {
     render: function (root) {
       clear(root);
@@ -391,6 +406,7 @@
       page.appendChild(buildReads());
       page.appendChild(buildPricing());
       page.appendChild(buildFinalCta());
+      page.appendChild(buildFoot());
 
       root.appendChild(page);
     }

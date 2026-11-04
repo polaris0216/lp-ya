@@ -188,6 +188,8 @@
 
     /* 読み物への入口（2026-11-04）。中身は lp-ya/read/ */
     /* 上のメニュー用の短い名前。読みものの題はそのままでは長すぎる */
+    'foot.privacy': ['プライバシーポリシー', 'Privacy policy', '개인정보처리방침'],
+    'foot.terms': ['利用規約', 'Terms of service', '이용약관'],
     'nav.guide': ['作り方ガイド', 'Guide', '만드는 법'],
     'nav.compliance': ['薬機法・景表法', 'Compliance', '약사법·표시광고법'],
     'nav.cases': ['事例', 'Cases', '사례'],
