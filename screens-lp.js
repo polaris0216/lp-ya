@@ -860,7 +860,7 @@
         one.disabled = !mineLeft || anyBusy;
         /* AIを使うボタンには値段を出す（2026-10-30 要望）。
            払うのはDBの引き金（055）。ここは知らせるためだけ */
-        stampCost(one, 'lp_section', mineLeft);
+        stampCost(one, 'lp_section', mineLeft, true);
         add(toolbar, one);
 
         var oneRedo = button('btn btn--secondary', t('lp.genOneRedo'), function () {
@@ -869,7 +869,7 @@
         });
         oneRedo.title = t('lp.genOneRedoHint');
         oneRedo.disabled = anyBusy;
-        stampCost(oneRedo, 'lp_section', (view.gen.sections || []).length);
+        stampCost(oneRedo, 'lp_section', (view.gen.sections || []).length, true);
         add(toolbar, oneRedo);
 
         var all = button('btn btn--primary lp-bulk__btn',
@@ -897,11 +897,11 @@
         var motionBtn = button('btn btn--secondary', t('lp.makeAssets'), function (e) {
           startAssets(e.currentTarget);
         });
-        stampCost(motionBtn, 'lp_assets', motionSlots().length);
+        stampCost(motionBtn, 'lp_assets', motionSlots().length, true);
         add(toolbar, motionBtn);
         all.title = t('lp.genAllHint');
-        stampCost(all, 'lp_section', remaining);
-        stampCost(allRedo, 'lp_section', batchPlan.reduce(function (x, y) { return x + y.all; }, 0));
+        stampCost(all, 'lp_section', remaining, true);
+        stampCost(allRedo, 'lp_section', batchPlan.reduce(function (x, y) { return x + y.all; }, 0), true);
         add(bulkBar, all);
         add(bulkBar, allRedo);
         /* 全部ではなく、選んだターゲットだけ作る口（2026-10-29 要望）。
@@ -1593,10 +1593,13 @@
         });
       }
 
-      /* 値段の札。単価表が読めていないあいだは何も出さない */
-      function stampCost(btn, featureKey, units) {
+      /* 値段の札。単価表が読めていないあいだは何も出さない。
+         big を付けたボタンには「生成後の残高」も添える（2026-11-04）。
+         1区画8Pのような小さいボタンにも出すと札だらけになるので、
+         まとめて動く大きいボタンだけに付ける */
+      function stampCost(btn, featureKey, units, big) {
         if (window.LpyaCost && typeof window.LpyaCost.stamp === 'function') {
-          window.LpyaCost.stamp(btn, featureKey, units);
+          window.LpyaCost.stamp(btn, featureKey, units, { big: !!big });
         }
       }
 
@@ -2641,7 +2644,7 @@
         go.disabled = !picked.length || anyBusy;
         stampCost(go, 'lp_section', rows.filter(function (g) {
           return picked.indexOf(String(g.variant_label || '-')) !== -1;
-        }).reduce(function (n, g) { return n + missingOf(g).length; }, 0));
+        }).reduce(function (n, g) { return n + missingOf(g).length; }, 0), true);
         add(wrap, go);
         add(wrap, el('p', 'lp-bulk__note', t('lp.genPickedHint')));
         return wrap;

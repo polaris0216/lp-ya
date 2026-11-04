@@ -91,6 +91,28 @@
 
   /* i18n.js の辞書に無い、このファイルだけの文言。並びは [日本語, English, 한국어] */
   var LOCAL = {
+    /* つぎにやること（2026-11-04）。この案件で次に押すものを1つだけ出す */
+    'local.nextTitle': ['つぎにやること', 'Next up', '다음에 할 일'],
+    'local.nextGo': ['ひらく', 'Open', '열기'],
+    'local.nextinput': ['商品の基本情報（カテゴリと出稿媒体）がまだ入っていません',
+      'The basics (category and platform) are not filled in yet',
+      '상품 기본 정보(카테고리·게시처)가 아직 입력되지 않았습니다'],
+    'local.nextreport': ['競合のLPをまだ分析していません',
+      'No competitor analysis yet', '경쟁 LP를 아직 분석하지 않았습니다'],
+    'local.nexttargets': ['ターゲット層がまだ決まっていません',
+      'No audiences chosen yet', '타깃층이 아직 정해지지 않았습니다'],
+    'local.nextbrief': ['LP案をまだ作っていません',
+      'The LP draft has not been written yet', 'LP 초안을 아직 만들지 않았습니다'],
+    'local.nextShots': ['{v}案の絵が {n}枚 足りません',
+      '{n} images missing for audience {v}', '{v}안 이미지가 {n}장 부족합니다'],
+    'local.nextpublish': ['LPをまだ公開していません',
+      'The LP is not published yet', 'LP를 아직 공개하지 않았습니다'],
+    'local.nextline': ['LINEのコンテンツをまだ作っていません',
+      'No LINE content yet', 'LINE 콘텐츠를 아직 만들지 않았습니다'],
+    'local.nextDone': ['この案件は6つの工程をすべて終えています',
+      'All six steps are done for this project', '이 프로젝트는 6개 공정을 모두 마쳤습니다'],
+    'local.nextOpenPage': ['公開ページを開く', 'Open the public page', '공개 페이지 열기'],
+    'local.nextOpenLine': ['LINEコンテンツを見る', 'See the LINE content', 'LINE 콘텐츠 보기'],
     'local.resume': ['続きから（{step}）', 'Resume ({step})', '이어서 하기({step})'],
     'local.photoUploading': ['商品写真をアップロードしています…', 'Uploading product photos…', '상품 사진을 업로드하는 중…'],
     'local.photoUploaded': ['商品写真をアップロードしました', 'Product photos uploaded', '상품 사진을 업로드했습니다'],
@@ -492,14 +514,28 @@
              要る列だけに絞る。読んでいたのに使っていなかった */
           window.Api.generations.list({
             eq: { projects_id: String(projectId) },
-            select: 'id,feature_key,variant_label,created_at,asset_prompts',
+            /* sections と public_url_slug は「つぎにやること」の判定に要る
+               （2026-11-04）。本文（generated_html）は重いので取らない */
+            select: 'id,feature_key,variant_label,created_at,asset_prompts,sections,public_url_slug',
             limit: 50
-          })
+          }),
+          /* いま走っている仕事。作業中の工程を「つぎ」に出さないため */
+          (function () {
+            var uid = (window.Api.auth && typeof window.Api.auth.userId === 'function')
+              ? window.Api.auth.userId() : null;
+            if (!uid) { return Promise.resolve([]); }
+            return window.Api.generationJobs.list({
+              eq: { users_id: uid, projects_id: String(projectId) },
+              in: { status: ['pending', 'processing'] },
+              select: 'id,feature_key', order: false, limit: 40
+            }).catch(function () { return []; });
+          }())
         ]);
       }).then(function (results) {
         data.project = results[0];
         data.reports = results[1] || [];
         data.generations = results[2] || [];
+        data.jobs = results[3] || [];
         /* 他人のものなら、持ち主の呼び名も引く（管理者だけ読める） */
         var ownerId = textOf(data.project && data.project.users_id);
         if (ownerId && data.user && String(data.user.id) !== ownerId && window.Api.users) {
@@ -628,6 +664,48 @@
       return row;
     }
 
+    /* つぎにやること。全部済んでいたら出口を2つ出す。
+       走っているものがあるときは出さない（工程タブの下の帯が面倒を見る） */
+    function buildNextCard() {
+      if (!window.LpyaFlow) { return null; }
+      var ctx = { project: data.project, reports: data.reports,
+        gens: data.generations, jobs: data.jobs || [] };
+      var next = window.LpyaFlow.nextOf(ctx);
+      if (!next || next.kind === 'busy') { return null; }
+
+      var box = el('section', 'nextcard');
+      box.appendChild(el('p', 'nextcard__eyebrow', tl('local.nextTitle')));
+
+      if (next.kind === 'done') {
+        box.appendChild(el('p', 'nextcard__text', tl('local.nextDone')));
+        var row = el('div', 'btn-row');
+        if (next.slug) {
+          var open = el('button', 'btn btn--primary', tl('local.nextOpenPage'));
+          open.type = 'button';
+          open.addEventListener('click', function () {
+            window.open('view.html?lp=' + encodeURIComponent(next.slug), '_blank', 'noopener');
+          });
+          row.appendChild(open);
+        }
+        var line = el('button', 'btn btn--secondary', tl('local.nextOpenLine'));
+        line.type = 'button';
+        line.addEventListener('click', function () { go('S21', 'id=' + encodeURIComponent(projectId)); });
+        row.appendChild(line);
+        box.appendChild(row);
+        return box;
+      }
+
+      var text = next.kind === 'shots'
+        ? tl('local.nextShots', { v: next.label, n: next.n })
+        : tl('local.' + String(next.key || '').replace('next.', 'next'));
+      box.appendChild(el('p', 'nextcard__text', text));
+      var btn = el('button', 'btn btn--primary', tl('local.nextGo'));
+      btn.type = 'button';
+      btn.addEventListener('click', function () { go(next.step, 'id=' + encodeURIComponent(projectId)); });
+      box.appendChild(btn);
+      return box;
+    }
+
     function paint() {
       clearBanner();
       clear(root);
@@ -639,6 +717,12 @@
       head.appendChild(el('h2', 'screen__title', textOf(data.project.project_name) || t('common.empty')));
       head.appendChild(el('p', 'screen__lead', countsLine()));
       screen.appendChild(head);
+
+      /* つぎにやること（2026-11-04）。この案件で次に押すものを1つだけ出す。
+         8日・144生成という使い方だと、再開のたびに「で、どこからだっけ」が
+         起きていた。判定は workflow-state.js が1か所で持つ */
+      var nextCard = buildNextCard();
+      if (nextCard) { screen.appendChild(nextCard); }
 
       /* 他人のプロジェクトを開いているときは、そうと分かるように出す
          （2026-11-01 要望：管理者が一般利用者のプロジェクトを見られるように）。

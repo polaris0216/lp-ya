@@ -5672,3 +5672,61 @@ input[type='radio'] {
   .jobbar { padding: 0; }
   .jobbar__row { padding: 8px 10px; }
 }
+
+/* ---- 工程の点と、つぎにやること、残高との差（2026-11-04）---------------- */
+.wtabs__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: 6px;
+  flex: 0 0 auto;
+  background: #d6d2dd;
+}
+.wtabs__dot--done { background: #2e9e63; }
+.wtabs__dot--busy { background: #e0a22a; }
+.wtabs__dot--todo { background: #d6d2dd; }
+
+.nextcard {
+  border: 2px solid var(--accent, #7c3aed);
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px 16px;
+  margin: 0 0 18px;
+}
+.nextcard__eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  color: var(--accent, #7c3aed);
+}
+.nextcard__text { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+
+/* 払えないボタンは沈める。押させてから怒るのはやめる */
+.btn--short { opacity: .45; }
+.cost-short {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 2px;
+  padding: 7px 12px;
+  border: 1px solid #efd9a8;
+  border-radius: 10px;
+  background: #fdf7e9;
+  font-size: 13px;
+}
+.cost-short__go {
+  margin-left: auto;
+  border: 0;
+  border-radius: 8px;
+  background: #d9922a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.cost-after {
+  margin: 5px 0 2px;
+  font-variant-numeric: tabular-nums;
+}

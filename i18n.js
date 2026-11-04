@@ -474,6 +474,14 @@
        推測で短く言うと、待てたはずの人を不安にさせる */
     'eta.about': ['ふつう{a}分ほどで終わります。閉じても進みます。',
       'Usually about {a} min. You can close this.', '보통 {a}분 정도 걸립니다. 닫아도 됩니다.'],
+    /* 工程の点と、残高との差（2026-11-04） */
+    'wf.state.done': ['済み', 'Done', '완료'],
+    'wf.state.busy': ['作業中', 'Working', '작업 중'],
+    'wf.state.todo': ['まだ', 'Not yet', '아직'],
+    'cost.short': ['あと {n}P 足りません', '{n}P short', '{n}P 부족합니다'],
+    'cost.topup': ['ポイントを追加', 'Add points', '포인트 추가'],
+    'cost.after': ['残高 {a}P → 生成後 {b}P', 'Balance {a}P → {b}P after',
+      '잔액 {a}P → 생성 후 {b}P'],
     /* 仕事の帯（2026-11-04）。工程タブの直下に、全画面で出る */
     'jobbar.working': ['作っています', 'Working…', '만들고 있습니다'],
     'jobbar.cancel': ['中止', 'Stop', '중지'],

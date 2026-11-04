@@ -1718,6 +1718,51 @@
     if (row && row.classList) { row.classList.toggle('app-subhead--tabs', !!on); }
   }
 
+  /* ------------------------------------------------------------------
+   * 10b-2. 工程の状態（2026-11-04）
+   *   「済・作業中・まだ」の判定は lp-ya/workflow-state.js が1か所で持つ。
+   *   ここはその材料を集めて配るだけ。耳の点と、つぎにやることのカードが読む。
+   * ------------------------------------------------------------------ */
+  var flowCache = { id: '', at: 0, ctx: null, loading: null };
+  var FLOW_FRESH_MS = 20000;
+
+  function loadFlow(projectId, force) {
+    var id = String(projectId || '');
+    if (!id || !global.Api) { return Promise.resolve(null); }
+    var fresh = flowCache.id === id && flowCache.ctx
+      && (Date.now() - flowCache.at < FLOW_FRESH_MS) && !force;
+    if (fresh) { return Promise.resolve(flowCache.ctx); }
+    if (flowCache.loading && flowCache.id === id && !force) { return flowCache.loading; }
+    flowCache.id = id;
+    var userId = (global.Api.auth && isFn(global.Api.auth.userId)) ? global.Api.auth.userId() : null;
+    flowCache.loading = Promise.all([
+      global.Api.projects.get(id).catch(function () { return null; }),
+      global.Api.analysisReports.list({ eq: { projects_id: id }, select: 'id', limit: 1 })
+        .catch(function () { return []; }),
+      /* 絵がそろったかを見るので sections と made が要る。
+         本文（generated_html）は重いので取らない */
+      global.Api.generations.list({
+        eq: { projects_id: id },
+        select: 'id,feature_key,variant_label,sections,asset_prompts,public_url_slug',
+        order: 'created_at.desc', limit: 40
+      }).catch(function () { return []; }),
+      userId ? global.Api.generationJobs.list({
+        eq: { users_id: userId, projects_id: id },
+        in: { status: ['pending', 'processing'] },
+        select: 'id,feature_key', order: false, limit: 40
+      }).catch(function () { return []; }) : Promise.resolve([])
+    ]).then(function (got) {
+      flowCache.ctx = { project: got[0], reports: got[1], gens: got[2], jobs: got[3] };
+      flowCache.at = Date.now();
+      flowCache.loading = null;
+      emit('flow', flowCache.ctx);
+      return flowCache.ctx;
+    }, function () { flowCache.loading = null; return null; });
+    return flowCache.loading;
+  }
+
+  function flowNow() { return flowCache.ctx; }
+
   function renderWorkflowTabs(route) {
     var host = dom.workflowTabs;
     if (!host) { return; }
@@ -1770,7 +1815,9 @@
           title: step.pending ? t('wf.pending') : null
         }, [
           el('span', { class: 'wtabs__no' }, [String(index + 1)]),
-          el('span', { class: 'wtabs__label' }, [t(step.labelKey)])
+          el('span', { class: 'wtabs__label' }, [t(step.labelKey)]),
+          /* 済・作業中・まだ の点。状態が読めるまでは何も言わない灰色 */
+          el('span', { class: 'wtabs__dot', 'data-step': step.id }, [])
         ]);
         if (!active && !step.pending) {
           tab.addEventListener('click', function () { navigate(step.id, { id: projectId }); });
@@ -1779,6 +1826,24 @@
       });
       box.appendChild(row);
       host.appendChild(box);
+    });
+
+    /* 点は材料がそろってから塗る。読めないあいだは灰色のまま */
+    paintFlowDots(flowNow());
+    loadFlow(projectId).then(paintFlowDots);
+  }
+
+  var FLOW_DOT = { done: 'wtabs__dot--done', busy: 'wtabs__dot--busy', todo: 'wtabs__dot--todo' };
+
+  function paintFlowDots(ctx) {
+    if (!ctx || !global.LpyaFlow || !dom.workflowTabs) { return; }
+    var st = global.LpyaFlow.stateOf(ctx);
+    var dots = dom.workflowTabs.querySelectorAll('.wtabs__dot');
+    Array.prototype.forEach.call(dots, function (dot) {
+      var step = dot.getAttribute('data-step');
+      var kind = st[step] || 'todo';
+      dot.className = 'wtabs__dot ' + (FLOW_DOT[kind] || FLOW_DOT.todo);
+      dot.setAttribute('title', t('wf.state.' + kind));
     });
   }
 
@@ -3147,6 +3212,8 @@
     openModal: openModal,
     watchJob: watchJob,
     takeWhereIWas: takeWhereIWas,
+    loadFlow: loadFlow,
+    flowNow: flowNow,
     stopJobWatch: stopWatch,
     openSheet: openSheet,
     closeModal: closeModal,
