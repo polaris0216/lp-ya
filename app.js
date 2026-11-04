@@ -1093,6 +1093,13 @@
     return false;
   }
 
+  /* 集客の面かどうか。www.lpya.net と lpya.net がそれ。
+     app.lpya.net と、手元（localhost）は道具の面 */
+  function isFrontDoor() {
+    var host = String(global.location.hostname || '').toLowerCase();
+    return host === 'www.lpya.net' || host === 'lpya.net';
+  }
+
   /* 仕事の帯。ログインしている間だけ回す（2026-11-04） */
   function jobBar(on) {
     var bar = global.LpyaJobBar;
@@ -3154,6 +3161,11 @@
            期限切れで覚えた場所があれば、そこへ戻す */
         var back = state.user ? takeWhereIWas() : '';
         if (back) { global.location.hash = back; }
+        /* 集客の面（www.lpya.net / lpya.net）は、ログインしていても
+           まず案内の画面を出す。そこへ来る人は道具を使いに来たのではなく、
+           何ができるのかを見に来ている（2026-11-04 の決め）。
+           道具の面（app.lpya.net）は、これまでどおり中へ入る */
+        else if (isFrontDoor()) { replace('S0'); }
         else { replace(state.user ? 'S3' : 'S0'); }
       }
       onHashChange();

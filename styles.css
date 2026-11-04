@@ -5842,3 +5842,30 @@ input[type='radio'] {
 }
 .ad-slot__in { max-width: 100%; }
 .ad-slot__in img, .ad-slot__in iframe { max-width: 100%; }
+
+/* ---- S0 の読み物への入口（2026-11-04）------------------------------------
+   中身は lp-ya/read/ の素のHTML。app.lpya.net でも www.lpya.net でも同じ */
+.lp-reads { max-width: 980px; margin: 0 auto; padding: 56px 20px; }
+.lp-reads__eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  color: var(--c-accent, #c2338f);
+}
+.lp-reads__title { margin: 0 0 22px; font-size: 28px; font-weight: 700; }
+.lp-reads__row { display: grid; gap: 12px; }
+.lp-reads__card {
+  display: block;
+  padding: 16px 18px;
+  border: 1px solid var(--line, #e3e0ea);
+  border-radius: 14px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.lp-reads__card:hover { border-color: var(--c-accent, #c2338f); }
+@media (min-width: 760px) { .lp-reads__row { grid-template-columns: repeat(3, 1fr); } }

@@ -187,6 +187,18 @@
     'landing.featAb': ['A/Bテスト', 'A/B testing', 'A/B 테스트'],
     'landing.featAbDesc': ['LPを2案公開して、閲覧数とCTAクリックを並べて見られます。', 'Publish two variants and compare views and CTA clicks side by side.', '2안을 공개하고 조회수·CTA 클릭을 나란히 볼 수 있습니다.'],
 
+    /* 読み物への入口（2026-11-04）。中身は lp-ya/read/ */
+    'landing.readLabel': ['読みもの', 'Reading', '읽을거리'],
+    'landing.readTitle': ['作る前に、数えた話。', 'What we counted before building.', '만들기 전에, 세어본 이야기.'],
+    'landing.readGuide': ['クラファンLPの最初の1枚は、どう作るか（122枚を数えた）',
+      'How to make the first image of a crowdfunding page (we counted 122)',
+      '크라우드펀딩 LP의 첫 장은 어떻게 만드나 (122장을 세다)'],
+    'landing.readCompliance': ['クラファンLPで書くと危ない表現（薬機法・景表法）',
+      'Phrases that get you in trouble on a crowdfunding page',
+      '크라우드펀딩 LP에서 위험한 표현 (약기법·표시법)'],
+    'landing.readCases': ['1本のLPができるまで（実際にかかった時間）',
+      'From URL to a finished page: how long it actually takes',
+      '한 장의 LP가 완성되기까지 (실제 소요 시간)'],
     'landing.pricingLabel': ['料金', 'Pricing', '요금'],
     'landing.pricingTitle': ['必要な分だけ、ポイントで。', 'Pay only for what you generate.', '필요한 만큼만, 포인트로.'],
     'landing.pricingDesc': ['月額の縛りはありません。使った機能の分だけポイントが減ります。', 'No monthly lock-in. Points are spent per feature you use.', '월 구독 약정 없음. 사용한 기능만큼 포인트가 차감됩니다.'],

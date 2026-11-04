@@ -336,6 +336,31 @@
     return band;
   }
 
+  /* 読み物（2026-11-04）。中身は lp-ya/read/ に置いた素のHTML。
+     tools/build-site.mjs が site/*.html から組む。
+     app.lpya.net でも www.lpya.net でも、同じ場所から同じものが出る */
+  var READS = [
+    { href: 'read/guide.html', key: 'landing.readGuide' },
+    { href: 'read/compliance.html', key: 'landing.readCompliance' },
+    { href: 'read/cases.html', key: 'landing.readCases' }
+  ];
+
+  function buildReads() {
+    var sec = el('section', 'lp-reads');
+    sec.appendChild(el('p', 'lp-reads__eyebrow', t('landing.readLabel')));
+    sec.appendChild(el('h2', 'lp-reads__title', t('landing.readTitle')));
+    var row = el('div', 'lp-reads__row');
+    READS.forEach(function (one) {
+      var a = document.createElement('a');
+      a.className = 'lp-reads__card';
+      a.href = one.href;
+      a.textContent = t(one.key);
+      row.appendChild(a);
+    });
+    sec.appendChild(row);
+    return sec;
+  }
+
   App.registerScreen('S0', {
     render: function (root) {
       clear(root);
@@ -349,6 +374,7 @@
       page.appendChild(buildCompare());
       page.appendChild(buildSteps());
       page.appendChild(buildFeatures());
+      page.appendChild(buildReads());
       page.appendChild(buildPricing());
       page.appendChild(buildFinalCta());
 
