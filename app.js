@@ -2484,6 +2484,17 @@
     var hash = global.location.hash || '';
     var route = parseRoute(hash);
     if (!route.id) {
+      /* 集客の面（www.lpya.net / lpya.net）は、URLを汚さずに案内の画面を出す。
+         replace('S0') だと住所が https://www.lpya.net/#/S0 になり、
+         配った先で見栄えが悪い（2026-11-04 指摘「/#/S0 は出ないように」）。
+         ここは location を触らず、描くだけにする */
+      if (isFrontDoor()) {
+        current = { id: 'S0', params: {} };
+        lastHash = '';
+        stack = [''];
+        render(true);
+        return;
+      }
       replace(state.user ? 'S3' : 'S1');
       return;
     }
@@ -3164,9 +3175,9 @@
         /* 集客の面（www.lpya.net / lpya.net）は、ログインしていても
            まず案内の画面を出す。そこへ来る人は道具を使いに来たのではなく、
            何ができるのかを見に来ている（2026-11-04 の決め）。
+           描くのは下の onHashChange（住所を書き換えないため）。
            道具の面（app.lpya.net）は、これまでどおり中へ入る */
-        else if (isFrontDoor()) { replace('S0'); }
-        else { replace(state.user ? 'S3' : 'S0'); }
+        else if (!isFrontDoor()) { replace(state.user ? 'S3' : 'S0'); }
       }
       onHashChange();
     }, function (err) {
