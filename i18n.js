@@ -895,7 +895,7 @@
     'admin.userManagement': ['ユーザー管理', 'User management', '사용자 관리'],
     'admin.userStatusActive': ['有効', 'Active', '활성'],
     'admin.userStatusSuspended': ['停止', 'Suspended', '정지'],
-    'admin.grantCredit': ['ポイントを付与', 'Grant points', '포인트 지급'],
+    'admin.grantCredit': ['ポイントを増やす・減らす', 'Add or deduct points', '포인트 증감'],
     'admin.grantUnlimited': ['無制限利用権を付与', 'Grant unlimited access', '무제한 이용권 지급'],
     'admin.inquiries': ['お問い合わせ', 'Inquiries', '문의 관리'],
     'admin.inquiryStatus.pending': ['未対応', 'Pending', '미대응'],

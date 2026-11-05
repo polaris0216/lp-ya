@@ -204,7 +204,7 @@
     ],
     'local.statusChanged': ['{name} を{status}にしました', '{name} is now {status}', '{name} 님을 {status} 상태로 변경했습니다'],
     'local.statusChangeFailed': ['状態の切り替えに失敗しました', 'Failed to change the status', '상태 변경에 실패했습니다'],
-    'local.grantCreditLabel': ['付与するポイント', 'Points to grant', '지급할 포인트'],
+    'local.grantCreditLabel': ['増減するポイント', 'Points to add or deduct', '증감할 포인트'],
     'local.grantUnlimitedLabel': ['無制限利用の日数', 'Days of unlimited access', '무제한 이용 일수'],
     'local.grantAction': ['付与', 'Grant', '지급'],
     'local.grantAmountInvalid': ['1以上の整数を入力してください', 'Please enter a whole number of 1 or more', '1 이상의 정수를 입력해 주세요'],
@@ -217,6 +217,19 @@
     ],
     'local.grantFailed': ['付与に失敗しました', 'The grant failed', '지급에 실패했습니다'],
     'local.grantMemo': ['管理画面からの付与', 'Granted from the admin screen', '관리 화면에서 지급'],
+    'local.deductAction': ['減らす', 'Deduct', '차감'],
+    'local.deductCreditDone': [
+      '{name} から{n}ポイントを減らしました',
+      'Deducted {n} points from {name}',
+      '{name} 님에게서 {n} 포인트을 차감했습니다'
+    ],
+    'local.deductFailed': ['減算に失敗しました', 'The deduction failed', '차감에 실패했습니다'],
+    'local.deductMemo': ['管理画面からの減算', 'Deducted from the admin screen', '관리 화면에서 차감'],
+    'local.deductShortage': [
+      '残高が足りません（いまの残高 {n}ポイント）',
+      'Not enough balance (currently {n} points)',
+      '잔액이 부족합니다(현재 {n} 포인트)'
+    ],
     'local.couponSection': ['クーポン発行', 'Issue coupon', '쿠폰 발행'],
     'local.couponSectionDesc': [
       'ポイントまたは月間無制限利用のクーポンを発行します',
@@ -1247,10 +1260,15 @@
       var creditInput = numberInput('', { min: 1, max: MAX_GRANT_CREDIT, placeholder: '100' });
       var creditField = field(tl('local.grantCreditLabel'), creditInput);
       var creditLabel = tl('local.grantAction');
-      var creditBtn = button('btn btn--secondary', creditLabel, function () { grantCredit(); });
+      var creditBtn = button('btn btn--secondary', creditLabel, function () { grantCredit(1); });
+      /* 減らすのも同じ入口（elpiya_apply_credit）。負の数を渡すだけで、
+         残高より多く引けないことは DB 側が見ている。 */
+      var deductLabel = tl('local.deductAction');
+      var deductBtn = button('btn btn--secondary', deductLabel, function () { grantCredit(-1); });
       var creditRow = el('div', 'row--input-action');
       creditRow.appendChild(creditField);
       creditRow.appendChild(creditBtn);
+      creditRow.appendChild(deductBtn);
       modal.appendChild(el('p', 'modal__body', t('admin.grantCredit')));
       modal.appendChild(creditRow);
 
@@ -1286,7 +1304,11 @@
 
       open(modal, {});
 
-      function grantCredit() {
+      /* sign: 1 = 付与、-1 = 減算。入れる数は同じ欄から取る。 */
+      function grantCredit(sign) {
+        var minus = sign < 0;
+        var btn = minus ? deductBtn : creditBtn;
+        var label = minus ? deductLabel : creditLabel;
         var amount = intOf(creditInput.value);
         if (!(amount >= 1) || amount > MAX_GRANT_CREDIT) {
           setFieldError(creditField, creditInput, tl('local.grantAmountInvalid'));
@@ -1299,16 +1321,24 @@
           toast(tl('local.apiMissing', { name: 'Api.credits.grant' }), 'danger');
           return;
         }
-        busy(creditBtn, true, tl('local.processing'), creditLabel);
-        grant(user.id, amount, tl('local.grantMemo')).then(function () {
+        busy(btn, true, tl('local.processing'), label);
+        grant(user.id, minus ? -amount : amount,
+          tl(minus ? 'local.deductMemo' : 'local.grantMemo')).then(function () {
           closeModal();
-          toast(tl('local.grantCreditDone', { name: displayNameOf(user), n: fmtNumber(amount) }), 'success');
+          toast(tl(minus ? 'local.deductCreditDone' : 'local.grantCreditDone',
+            { name: displayNameOf(user), n: fmtNumber(amount) }), 'success');
           load();
         }, function (err) {
-          busy(creditBtn, false, tl('local.processing'), creditLabel);
-          console.error('[screens-admin] ポイントの付与に失敗しました', err);
-          toast(tl('local.grantFailed'), 'danger');
-          handleError(err, grantCredit);
+          busy(btn, false, tl('local.processing'), label);
+          console.error('[screens-admin] ポイントの増減に失敗しました', err);
+          // 残高より多く引こうとしたときは、DB が insufficient を返す。
+          // 「失敗しました」だけだと理由が分からないので、残高を出す。
+          if (err && err.code === 'insufficient') {
+            toast(tl('local.deductShortage', { n: fmtNumber(err.balance) }), 'danger');
+            return;
+          }
+          toast(tl(minus ? 'local.deductFailed' : 'local.grantFailed'), 'danger');
+          handleError(err, function () { grantCredit(sign); });
         });
       }
 
