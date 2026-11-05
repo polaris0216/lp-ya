@@ -90,6 +90,8 @@
   /* AIの使用量。月ごとに合計するだけなので、直近ぶんが読めれば足りる */
   var AI_USAGE_LIMIT = 1000;
   var TX_SCAN_LIMIT = 300;                         // 本日の消費を数えるために読む履歴の上限
+  /* ponytail: 売上は直近200件の購入から数える。件数が増えたら SQL 側で合計を出す */
+  var PURCHASE_LIMIT = 200;                        // 売上の集計と一覧に読む購入の上限
   var MAX_FEATURE_KEY_LENGTH = 40;
   var MAX_FEATURE_NAME_LENGTH = 40;
   var MAX_CREDIT_COST = 100000;
@@ -230,6 +232,26 @@
       'Not enough balance (currently {n} points)',
       '잔액이 부족합니다(현재 {n} 포인트)'
     ],
+    'local.tabUsers': ['会員・ポイント', 'Members', '회원·포인트'],
+    'local.tabSales': ['決済・売上', 'Payments', '결제·매출'],
+    'local.tabCost': ['使用量・原価', 'Usage', '사용량·원가'],
+    'local.tabPricing': ['料金設定', 'Pricing', '요금 설정'],
+    'local.tabCoupons': ['クーポン', 'Coupons', '쿠폰'],
+    'local.tabInquiries': ['問い合わせ', 'Inquiries', '문의'],
+    'local.tabSettings': ['設定', 'Settings', '설정'],
+    'local.salesTitle': ['決済・売上', 'Payments', '결제·매출'],
+    'local.salesDesc': [
+      'Stripe の決済が確定したぶんだけが並びます（直近{n}件）',
+      'Only confirmed Stripe payments are listed (latest {n})',
+      'Stripe 결제가 확정된 건만 표시됩니다(최근 {n}건)'
+    ],
+    'local.salesTotal': ['総売上', 'Total revenue', '총 매출'],
+    'local.salesMonth': ['今月の売上', 'This month', '이번 달 매출'],
+    'local.salesCount': ['購入件数', 'Payments', '결제 건수'],
+    'local.salesCountSub': ['今月 {n}件', '{n} this month', '이번 달 {n}건'],
+    'local.salesEmpty': ['まだ購入がありません', 'No payments yet', '아직 결제가 없습니다'],
+    'local.salesRefund': ['返金', 'Refund', '환불'],
+    'local.salesPoints': ['{n}ポイント', '{n} points', '{n} 포인트'],
     'local.couponSection': ['クーポン発行', 'Issue coupon', '쿠폰 발행'],
     'local.couponSectionDesc': [
       'ポイントまたは月間無制限利用のクーポンを発行します',
@@ -770,6 +792,8 @@
       unitRowId: null,
       featureCount: 0,
       users: [],
+      purchases: [],
+      tab: 'users',
       inquiries: [],
       coupons: [],
       todayCredits: 0,
@@ -790,6 +814,10 @@
         tableList('creditTransactions', { order: 'created_at.desc', limit: TX_SCAN_LIMIT }),
         tableList('inquiries', { order: 'created_at.desc', limit: INQUIRY_LIMIT }),
         tableList('coupons', { order: 'created_at.desc', limit: COUPON_LIMIT }),
+        /* 売上。purchase の行だけを別に読む（本日分の集計は直近300件しか見ないため） */
+        tableList('creditTransactions', {
+          eq: { transaction_type: 'purchase' }, order: 'created_at.desc', limit: PURCHASE_LIMIT
+        }).catch(function () { return []; }),
         tableList('platformSelectors', { order: 'platform.asc' }),
         /* AIの使用量。読めなくても管理画面は開けるようにする（原価は飾り） */
         tableList('aiUsage', { order: 'created_at.desc', limit: AI_USAGE_LIMIT })
@@ -816,9 +844,10 @@
         applyToday(results[2] || []);
         state.inquiries = results[3] || [];
         state.coupons = results[4] || [];
-        state.adTag = String((results[7] && results[7][0] && results[7][0].value) || '');
-        state.selectors = results[5] || [];
-        state.aiUsage = results[6] || [];
+        state.purchases = results[5] || [];
+        state.adTag = String((results[8] && results[8][0] && results[8][0].value) || '');
+        state.selectors = results[6] || [];
+        state.aiUsage = results[7] || [];
         draw();
       }, function (err) {
         console.error('[screens-admin] 管理データの読み込みに失敗しました', err);
@@ -853,32 +882,117 @@
       stats.appendChild(statCard(t('admin.todayUsage'), fmtNumber(state.todayCredits), t('common.creditShort'), tl('local.todaySub', { n: fmtNumber(state.todayCount) })));
       wrap.appendChild(stats);
 
-      /* 承認待ちがいるなら、何より先に出す（2026-11-01 要望）。
-         待たせているあいだ、その人はアプリに入れない */
-      wrap.appendChild(pendingSection());
-      wrap.appendChild(unitPriceSection());
-      wrap.appendChild(adTagSection());
-      /* 原価は値付けの根拠なので、単価のすぐ下に置く */
-      wrap.appendChild(aiCostSection());
-      wrap.appendChild(usersSection());
-      wrap.appendChild(couponSection());
-      wrap.appendChild(inquiriesSection());
-      wrap.appendChild(selectorsSection());
+      /* 1枚に全部を縦積みすると、承認待ちを見るだけで何度もスクロールすることになる。
+         用がある面だけ出す（TTALKKAK の管理画面と同じ並べ方）。 */
+      wrap.appendChild(tabBar());
+
+      var body = el('div', 'stack stack--group');
+      sectionsOf(state.tab).forEach(function (node) {
+        if (node) { body.appendChild(node); }
+      });
+      wrap.appendChild(body);
 
       var actions = el('div', 'stack stack--group');
-      actions.appendChild(button('btn btn--secondary btn--block', t('admin.featurePricingLink'), function () {
-        goto('S19');
-      }));
-      /* 利用状況（2026-10-30 要望）。ボタン別の原価と、利用者ごとの使い方 */
-      actions.appendChild(button('btn btn--secondary btn--block', tl('local.usageLink'), function () {
-        goto('S22');
-      }));
       actions.appendChild(button('btn btn--text btn--block', t('admin.backToDashboard'), function () {
         goto('S3');
       }));
       wrap.appendChild(actions);
 
       root.appendChild(wrap);
+    }
+
+    /* 面の並び。TTALKKAK 側（회원·크레딧／결제·환불／사용량·비용／요금 설정／…）に合わせてある */
+    var TABS = [
+      { key: 'users', label: 'local.tabUsers' },
+      { key: 'sales', label: 'local.tabSales' },
+      { key: 'cost', label: 'local.tabCost' },
+      { key: 'pricing', label: 'local.tabPricing' },
+      { key: 'coupons', label: 'local.tabCoupons' },
+      { key: 'inquiries', label: 'local.tabInquiries' },
+      { key: 'settings', label: 'local.tabSettings' }
+    ];
+
+    function tabBar() {
+      var bar = el('div', 'tabs');
+      TABS.forEach(function (tab) {
+        var cls = 'tabs__item' + (state.tab === tab.key ? ' tabs__item--active' : '');
+        bar.appendChild(button(cls, tl(tab.label), function () {
+          state.tab = tab.key;
+          draw();
+        }));
+      });
+      return bar;
+    }
+
+    function sectionsOf(key) {
+      if (key === 'sales') { return [salesSection()]; }
+      if (key === 'cost') {
+        return [aiCostSection(), button('btn btn--secondary btn--block', tl('local.usageLink'), function () {
+          goto('S22');
+        })];
+      }
+      if (key === 'pricing') {
+        return [unitPriceSection(), button('btn btn--secondary btn--block', t('admin.featurePricingLink'), function () {
+          goto('S19');
+        })];
+      }
+      if (key === 'coupons') { return [couponSection()]; }
+      if (key === 'inquiries') { return [inquiriesSection()]; }
+      if (key === 'settings') { return [adTagSection(), selectorsSection()]; }
+      /* 既定は会員。承認待ちは、待たせているあいだ相手がアプリに入れないので先頭に出す */
+      return [pendingSection(), usersSection()];
+    }
+
+    /* ---- 決済・売上 ---- */
+    function salesSection() {
+      var rows = state.purchases || [];
+      var thisMonth = new Date().toISOString().slice(0, 7);   // aiCostSection と同じく UTC の年月で揃える
+      var total = 0, month = 0, monthCount = 0;
+      rows.forEach(function (row) {
+        var yen = Math.round(Number(row.amount_yen) || 0);
+        total += yen;
+        if (String(row.created_at || '').slice(0, 7) === thisMonth) {
+          month += yen;
+          monthCount += 1;
+        }
+      });
+
+      var stats = el('div', 'stat-grid');
+      stats.appendChild(statCard(tl('local.salesTotal'), fmtYen(total), '', tl('local.salesDesc', { n: fmtNumber(PURCHASE_LIMIT) })));
+      stats.appendChild(statCard(tl('local.salesMonth'), fmtYen(month), '', tl('local.salesCountSub', { n: fmtNumber(monthCount) })));
+      stats.appendChild(statCard(tl('local.salesCount'), fmtNumber(rows.length), '', ''));
+
+      var children = [stats];
+      if (!rows.length) {
+        children.push(emptyBlock(tl('local.salesEmpty')));
+        return section(tl('local.salesTitle'), '', children);
+      }
+
+      /* 誰の購入かは、読み込み済みの利用者一覧から引く（別に取りに行かない） */
+      var mailOf = {};
+      (state.users || []).forEach(function (user) {
+        mailOf[String(user.id)] = textOf(user.email).trim() || displayNameOf(user);
+      });
+
+      var list = el('div', 'list');
+      rows.forEach(function (row) {
+        var yen = Math.round(Number(row.amount_yen) || 0);
+        var points = Math.round(Number(row.credit_amount) || 0);
+        var item = el('div', 'list-row');
+        var bodyNode = el('div', 'list-row__body');
+        bodyNode.appendChild(el('div', 'list-row__title clamp-1',
+          mailOf[String(row.users_id)] || String(row.users_id || '').slice(0, 8)));
+        bodyNode.appendChild(el('div', 'list-row__sub clamp-2',
+          fmtDate(row.created_at) + ' ・ ' + tl('local.salesPoints', { n: fmtNumber(Math.abs(points)) })
+          + (points < 0 ? ' ・ ' + tl('local.salesRefund') : '')));
+        item.appendChild(bodyNode);
+        var meta = el('div', 'list-row__meta');
+        meta.appendChild(el('span', yen < 0 ? 'num t-danger' : 'num', fmtYen(yen)));
+        item.appendChild(meta);
+        list.appendChild(item);
+      });
+      children.push(list);
+      return section(tl('local.salesTitle'), '', children);
     }
 
 
