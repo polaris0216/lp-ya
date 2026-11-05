@@ -587,6 +587,7 @@
         if (justPaid) {
           justPaid = false;
           toast(tl('local.paidPending'), 'success');
+          waitForPurchase(balanceOf(), 5);
         }
       }).catch(function (err) {
         if (err && err.code === 'noUser') {
@@ -609,6 +610,19 @@
         state.history = sortHistory(results[1] || []);
         paint();
       });
+    }
+
+    /* 決済ページから戻った直後。付与は Stripe の webhook 経由なので、
+     * 戻った時点ではまだ増えていない。残高が増えるまで数回だけ見に行く。
+     * 増えなければそのまま（画面を開き直せば出る）。 */
+    function waitForPurchase(before, left) {
+      if (left <= 0) { return; }
+      window.setTimeout(function () {
+        if (!mounted || mounted.id !== 'S17' || !state.user) { return; }
+        reload().then(function () {
+          if (balanceOf() <= before) { waitForPurchase(before, left - 1); }
+        }).catch(function () { /* 通信が失敗しても画面は壊さない */ });
+      }, 3000);
     }
 
     function txTypeLabel(row) {
