@@ -307,6 +307,7 @@
       'The save failed partway through. Please reopen this screen and check the rows.',
       '일부 행만 저장된 상태에서 실패했습니다. 화면을 다시 열어 내용을 확인해 주세요.'
     ],
+    'local.save': ['保存', 'Save', '저장'],
     'local.saving': ['保存中…', 'Saving…', '저장 중…'],
     'local.processing': ['処理中…', 'Working…', '처리 중…'],
     'local.backToAdmin': ['管理画面へ戻る', 'Back to admin', '관리 화면으로 돌아가기'],
