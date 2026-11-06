@@ -39,12 +39,13 @@
       'Rows where income is below the per-run cost are shown in red.',
       '1회 원가보다 수입이 적은 행은 빨갛게 나옵니다.'],
     'u.byUser': ['利用者ごとの使い方', 'Usage per user', '이용자별 사용'],
-    'u.byUserDesc': ['全期間・月ごと・日ごとで切り替えられます。', 'Switch between all time, monthly and daily.', '전체·월별·일별로 바꿀 수 있습니다.'],
+    'u.byUserDesc': ['全期間・年ごと・月ごと・日ごとで切り替えられます。', 'Switch between all time, yearly, monthly and daily.', '전체·연도별·월별·일별로 바꿀 수 있습니다.'],
     'u.works': ['利用者が作っているもの', 'What users are making', '이용자가 만들고 있는 것'],
     'u.worksDesc': ['プロジェクトを選ぶと、入れた商品情報と作った生成物を確かめられます。',
       'Pick a project to see the product details and what was generated.',
       '프로젝트를 고르면 상품 정보와 생성물을 확인할 수 있습니다.'],
     'u.all': ['全期間', 'All time', '전체'],
+    'u.year': ['年ごと', 'Yearly', '연도별'],
     'u.month': ['月ごと', 'Monthly', '월별'],
     'u.day': ['日ごと', 'Daily', '일별'],
     'u.feature': ['ボタン', 'Button', '버튼'],
@@ -182,13 +183,51 @@
           var gotYen = inEach === null ? null : inEach * unitPrice();
           var loss = each !== null && gotYen !== null && gotYen < each;
           var tr = add(tbody, el('tr', loss ? 'is-loss' : ''));
-          cell(tr, String(r.feature_key || ''));
+          /* feature_key のままでは読めない（lp_brief と出る。2026-11-07 指摘）。
+             feature_credits の名前を出し、綴りは下に小さく添える
+             （記録を追うときは綴りのほうが要るため） */
+          var key = String(r.feature_key || '');
+          var nameCell = cell(tr, featureName(key));
+          if (key && featureName(key) !== key) {
+            nameCell.appendChild(el('div', 'list-row__sub clamp-1', key));
+          }
           cell(tr, num(r.jobs || r.calls), 'num');
           cell(tr, each === null ? '—' : yen(each), 'num');
           cell(tr, yen(r.cost_yen), 'num');
           cell(tr, gotYen === null ? '—' : yen(gotYen), 'num');
           cell(tr, num(r.points) + 'P', 'num');
         });
+      }
+
+      /* ---- ボタンの名前。feature_key は人に見せる綴りではない ---- */
+      var featureNames = {};
+      function featureName(key) {
+        return featureNames[key] || key;
+      }
+      if (window.Api && window.Api.credits && typeof window.Api.credits.featureCosts === 'function') {
+        window.Api.credits.featureCosts().then(function (rows) {
+          (rows || []).forEach(function (row) {
+            var k = String(row.feature_key || '').trim();
+            var nm = String(row.feature_name || '').trim();
+            if (k && nm) { featureNames[k] = nm; }
+          });
+          paintFeatures();
+        }).catch(function (err) {
+          /* 名前が引けなくても綴りは出る。表そのものは出せる */
+          console.warn('[screens-usage] ボタンの名前を読めませんでした', err);
+        });
+      }
+
+      /* ---- 期間の見せ方。単位に合わせて切る ----
+         サーバーは date_trunc した日付を返すので、月でまとめても
+         2026-10-01 と出ていた（2026-11-07 指摘）。月は 2026-10、
+         年は 2026 まで落とす。日はそのまま */
+      function periodLabel(value) {
+        var text = value ? String(value) : '';
+        if (!text) { return '—'; }
+        if (state.bucket === 'year') { return text.slice(0, 4); }
+        if (state.bucket === 'month') { return text.slice(0, 7); }
+        return text;
       }
 
       /* ポイント1点が何円か。読めないあいだは10円（000 の初期値） */
@@ -207,7 +246,7 @@
         add(userBox, el('p', 'section__desc', t('u.byUserDesc')));
 
         var tabs = add(userBox, el('div', 'usage-tabs'));
-        [['all', 'u.all'], ['month', 'u.month'], ['day', 'u.day']].forEach(function (one) {
+        [['all', 'u.all'], ['year', 'u.year'], ['month', 'u.month'], ['day', 'u.day']].forEach(function (one) {
           var on = state.bucket === one[0];
           var b = button('btn btn--sm ' + (on ? 'btn--primary' : 'btn--secondary'), t(one[1]), function () {
             if (state.bucket === one[0]) { return; }
@@ -238,7 +277,7 @@
           var who = r.display_name || r.email || String(r.users_id || '').slice(0, 8);
           var td = cell(tr, who);
           td.appendChild(el('div', 'list-row__sub clamp-1', r.email || ''));
-          if (state.bucket !== 'all') { cell(tr, r.bucket ? String(r.bucket) : '—'); }
+          if (state.bucket !== 'all') { cell(tr, periodLabel(r.bucket)); }
           cell(tr, num(r.jobs), 'num');
           cell(tr, yen(cost), 'num');
           cell(tr, num(r.points) + 'P', 'num');
