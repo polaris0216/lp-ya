@@ -80,13 +80,21 @@
     return ['ja', 'en', 'ko'].indexOf(code) === -1 ? 0 : ['ja', 'en', 'ko'].indexOf(code);
   }
 
-  function t(key) {
+  /* params を渡すと {name} を差し替える。
+     対応していないころに t('u.rateNote', { rate: … }) を書いてしまい、
+     画面に「1USD={rate}円」と出た（2026-11-07） */
+  function t(key, params) {
     var row = LOCAL[key];
     if (!row) {
       console.error('[screens-usage] 辞書に ' + key + ' がありません');
       return key;
     }
-    return row[localeIndex()] || row[0];
+    var text = row[localeIndex()] || row[0];
+    if (!params) { return text; }
+    return String(text).replace(/\{(\w+)\}/g, function (whole, name) {
+      return Object.prototype.hasOwnProperty.call(params, name)
+        ? String(params[name]) : whole;
+    });
   }
 
   function el(tag, cls, text) {
