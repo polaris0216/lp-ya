@@ -1775,6 +1775,13 @@
           [emptyBlock(tl('local.aiCostEmpty'))]);
       }
 
+      /* 円はドルに為替を掛けた結果でしかない。どの為替かは RPC が返す */
+      var aiRate = 0;
+      function yenOfUsd(v) {
+        if (!aiRate) { return ''; }
+        return '¥' + fmtNumber(Math.round((Number(v) || 0) * aiRate));
+      }
+
       /* 月ごとにまとめ、その中をAI別に並べる */
       var order = [];
       var byMonth = {};
@@ -1786,6 +1793,7 @@
         var usd = Number(row.usd) || 0;
         m.usd += usd;
         m.cli += Number(row.cli_usd) || 0;
+        if (!aiRate && Number(row.usd_jpy) > 0) { aiRate = Number(row.usd_jpy); }
         m.lines.push({
           provider: textOf(row.provider) || '-',
           kind: textOf(row.kind),
@@ -1810,6 +1818,7 @@
         head.appendChild(headBody);
         var headMeta = el('div', 'list-row__meta');
         headMeta.appendChild(el('span', 'num', '$' + m.usd.toFixed(2)));
+        headMeta.appendChild(el('span', 'usage-yen', yenOfUsd(m.usd)));
         head.appendChild(headMeta);
         list.appendChild(head);
 
@@ -1833,6 +1842,7 @@
           row.appendChild(body);
           var meta = el('div', 'list-row__meta');
           meta.appendChild(el('span', 'num', '$' + line.usd.toFixed(2)));
+          meta.appendChild(el('span', 'usage-yen', yenOfUsd(line.usd)));
           row.appendChild(meta);
           list.appendChild(row);
         });

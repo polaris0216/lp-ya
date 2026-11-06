@@ -48,6 +48,12 @@
     'u.year': ['年ごと', 'Yearly', '연도별'],
     'u.month': ['月ごと', 'Monthly', '월별'],
     'u.day': ['日ごと', 'Daily', '일별'],
+    'u.rateNote': ['AI原価はドル建てです。円は 1USD={rate}円 で換算しています（管理 → ポイントの値段 → 設定 で変えられます）。',
+      'AI cost is billed in USD. Yen is converted at 1 USD = {rate} JPY (editable in Admin > Point pricing > Settings).',
+      'AI 원가는 달러 기준입니다. 엔화는 1USD={rate}엔으로 환산했습니다(관리 → 포인트 가격 → 설정에서 변경).'],
+    'u.rateUnset': ['為替が設定されていないため、円は 0 と出ます。管理 → ポイントの値段 → 設定 の「為替 1USD=何円 ×100」を入れてください。',
+      'No exchange rate is set, so yen shows as 0. Set it in Admin > Point pricing > Settings.',
+      '환율이 설정되지 않아 엔화가 0으로 표시됩니다. 관리 → 포인트 가격 → 설정에서 입력해 주세요.'],
     'u.feature': ['ボタン', 'Button', '버튼'],
     'u.runs': ['回数', 'Runs', '횟수'],
     'u.costEach': ['原価/回', 'Cost each', '원가/회'],
@@ -102,6 +108,23 @@
     return n.toLocaleString('ja-JP');
   }
   function yen(v) { return '¥' + num(Math.round(Number(v) || 0)); }
+
+  /* AIの請求はドル建て。円は管理者が入れた為替を掛けた結果でしかないので、
+     **ドルを先に出し、円はその下に換算として添える**（2026-11-07 要望）。
+     小さい額が 0 に丸まらないよう、$1 未満は小数4桁まで出す */
+  function usd(v) {
+    var n = Number(v) || 0;
+    if (n !== 0 && Math.abs(n) < 0.01) { return '$' + n.toFixed(4); }
+    return '$' + n.toFixed(2);
+  }
+
+  /* 右そろえのセルに「$x.xx」と「¥y」を2段で入れる */
+  function moneyCell(row, usdValue, yenValue) {
+    var td = cell(row, '', 'num');
+    td.appendChild(el('div', '', usd(usdValue)));
+    td.appendChild(el('div', 'usage-yen', yen(yenValue)));
+    return td;
+  }
 
   function cell(row, text, cls) { return add(row, el('td', cls || '', text)); }
 
@@ -163,6 +186,7 @@
         clear(featureBox);
         add(featureBox, el('h3', 'section__title', t('u.byFeature')));
         add(featureBox, el('p', 'section__desc', t('u.byFeatureDesc')));
+        add(featureBox, el('p', 'section__desc', rateNote()));
         if (!state.features.length) {
           add(featureBox, el('p', 'empty', t('u.empty')));
           return;
@@ -192,11 +216,30 @@
             nameCell.appendChild(el('div', 'list-row__sub clamp-1', key));
           }
           cell(tr, num(r.jobs || r.calls), 'num');
-          cell(tr, each === null ? '—' : yen(each), 'num');
-          cell(tr, yen(r.cost_yen), 'num');
+          if (each === null) { cell(tr, '—', 'num'); }
+          else { moneyCell(tr, r.cost_usd_each, each); }
+          moneyCell(tr, r.cost_usd, r.cost_yen);
           cell(tr, gotYen === null ? '—' : yen(gotYen), 'num');
           cell(tr, num(r.points) + 'P', 'num');
         });
+      }
+
+      /* ---- 換算に使った為替 ----
+         円はドルに為替を掛けた結果でしかない。どの為替で換算したかを
+         出さないと、請求書（ドル）と突き合わせられない。
+         為替そのものは S19 の「設定」の括りで管理者が直せる */
+      function currentRate() {
+        var rows = (state.features || []).concat(state.usage || []);
+        for (var i = 0; i < rows.length; i += 1) {
+          var r = Number(rows[i] && rows[i].usd_jpy);
+          if (r > 0) { return r; }
+        }
+        return 0;
+      }
+
+      function rateNote() {
+        var r = currentRate();
+        return r > 0 ? t('u.rateNote', { rate: r.toFixed(2) }) : t('u.rateUnset');
       }
 
       /* ---- ボタンの名前。feature_key は人に見せる綴りではない ---- */
@@ -279,7 +322,7 @@
           td.appendChild(el('div', 'list-row__sub clamp-1', r.email || ''));
           if (state.bucket !== 'all') { cell(tr, periodLabel(r.bucket)); }
           cell(tr, num(r.jobs), 'num');
-          cell(tr, yen(cost), 'num');
+          moneyCell(tr, r.cost_usd, cost);
           cell(tr, num(r.points) + 'P', 'num');
           cell(tr, yen(got - cost), 'num');
         });

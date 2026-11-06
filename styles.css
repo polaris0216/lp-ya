@@ -342,6 +342,15 @@ table { border-collapse: collapse; width: 100%; }
 
 .list-row--sub .num { color: var(--c-text-sub); }
 
+/* ドルの下に添える円。원가はドル建てなので、円は換算であることが
+   見た目でも分かるように一段落とす（2026-11-07） */
+.usage-yen {
+  display: block;
+  font-size: var(--fs-note);
+  color: var(--c-text-mute);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Googleが描くボタンの入れ物。中身はGoogleのiframeなので、
    こちらは真ん中に置くだけ（中の見た目は触れない決まり） */
 .auth-gsi {
