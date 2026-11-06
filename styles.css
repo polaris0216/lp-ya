@@ -327,6 +327,21 @@ table { border-collapse: collapse; width: 100%; }
 
 .app-header__spacer { flex: 1 1 auto; }
 
+/* 月の下にぶら下がるAI別の行。月の行と同じ重さで並べると、
+   どれが合計でどれが内訳か分からなくなる（2026-11-06） */
+.list-row--sub {
+  padding-left: 32px;
+  background: var(--c-surface-2);
+}
+
+.list-row--sub .list-row__title {
+  font-size: var(--fs-note);
+  font-weight: var(--fw-medium);
+  color: var(--c-text-sub);
+}
+
+.list-row--sub .num { color: var(--c-text-sub); }
+
 /* Googleが描くボタンの入れ物。中身はGoogleのiframeなので、
    こちらは真ん中に置くだけ（中の見た目は触れない決まり） */
 .auth-gsi {
