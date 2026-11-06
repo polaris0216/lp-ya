@@ -5384,6 +5384,18 @@ input[type='radio'] {
 .admin-group__sum { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* 売値が原価を下回っている行は、気づけるようにする */
 .admin-cost { font-variant-numeric: tabular-nums; }
+/* 原価は行の文のなかで直す（2026-11-06）。数字の居場所に入力欄を置く。
+   行の高さを変えないように、.input の min-height を外して詰める */
+.admin-cost__input {
+  width: 5.5em;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 6px;
+  margin: 0 2px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  vertical-align: baseline;
+}
 .admin-cost--under { color: var(--c-danger, #c0392b); font-weight: 700; }
 
 /* 利用状況（S22）。ユーザー × 期間の表 */

@@ -97,6 +97,10 @@
   var MAX_FEATURE_KEY_LENGTH = 40;
   var MAX_FEATURE_NAME_LENGTH = 40;
   var MAX_CREDIT_COST = 100000;
+  /* 手で入れる原価（1回あたりの円）の上限 */
+  var MAX_COST_YEN = 1000000;
+  /* 文言の {yen} を入力欄に差し替えるための目印（画面には出ない） */
+  var YEN_SLOT = '\u0001';
   var MAX_UNIT_PRICE = 100000;
   var MAX_GRANT_CREDIT = 100000;
   var MAX_GRANT_DAYS = 365;
@@ -349,6 +353,19 @@
     'local.costTotalOnly': ['実測原価 合計{yen}円（回数が数えられていません）',
       'Measured cost ¥{yen} total (runs not counted)',
       '실측 원가 합계 {yen}원'],
+    /* 原価を自分で測って入れる（2026-11-06 要望） */
+    'local.costManualEach': ['原価 {yen}円/回（自分で入れた値）・売値 {price}円',
+      'Cost ¥{yen} per run (entered by you) · price ¥{price}',
+      '원가 {yen}원/회(직접 입력) · 판매가 {price}원'],
+    'local.costManualLabel': ['測った原価（1回あたりの円）', 'Measured cost (yen per run)', '측정한 원가(1회당 엔)'],
+    'local.costAsk': ['原価 {yen}円/回（未入力）・売値 {price}円',
+      'Cost ¥{yen} per run (not entered) · price ¥{price}',
+      '원가 {yen}원/회(미입력) · 판매가 {price}원'],
+    'local.costManualHint': ['入れると、この値が原価として使われます（利用状況のボタン別原価にも出ます）。空にすると実測の計算に戻ります。',
+      'When set, this is used as the cost (also on the usage screen). Clear it to go back to the measured calculation.',
+      '입력하면 이 값이 원가로 쓰입니다. 비우면 실측 계산으로 돌아갑니다.'],
+    'local.costManualPlaceholder': ['例: 3.5', 'e.g. 3.5', '예: 3.5'],
+    'local.costManualInvalid': ['原価は0以上の数で入れてください', 'Enter the cost as a number of 0 or more', '원가는 0 이상의 숫자로 입력해 주세요'],
     'wfg.research': ['調べる', 'Research', '조사'],
     'wfg.build': ['作る', 'Build', '제작'],
     'wfg.deliver': ['届ける', 'Deliver', '전달'],
@@ -627,7 +644,8 @@
     var node = el('input', 'input');
     node.type = 'number';
     node.inputMode = 'numeric';
-    node.step = '1';
+    node.step = o.step ? String(o.step) : '1';
+    if (o.step && o.step !== '1') { node.inputMode = 'decimal'; }
     node.min = o.min === undefined ? '0' : String(o.min);
     if (o.max !== undefined) { node.max = String(o.max); }
     node.value = (value === null || value === undefined) ? '' : String(value);
@@ -2188,8 +2206,14 @@
           perUnit: row.per_unit === true,
           unitName: row.unit_name || '',
           sort: Number(row.sort_no) || 100,
+          /* 手で入れた原価（1回あたりの円）。null は「実測の計算を使う」 */
+          costManual: row.cost_yen_each_manual === null || row.cost_yen_each_manual === undefined
+            ? null : Number(row.cost_yen_each_manual),
           originalName: name,
           originalCost: cost,
+          originalCostManual: row.cost_yen_each_manual === null || row.cost_yen_each_manual === undefined
+            ? null : Number(row.cost_yen_each_manual),
+          costManualError: '',
           active: row.is_active !== false,
           isNew: false,
           error: ''
@@ -2331,22 +2355,11 @@
         bodyNode.appendChild(el('div', 'list-row__meta', tl('local.unsavedBadge')));
       }
       /* 実測の原価を値段のすぐ横に出す（2026-10-30 要望）。
-         値段を決めるのに毎回ほかの画面を開かなくてよくする */
-      var cost = state.cost[row.key];
-      if (cost) {
-        var each = cost.cost_yen_each === null || cost.cost_yen_each === undefined
-          ? null : Number(cost.cost_yen_each);
-        var note = each === null
-          ? tl('local.costTotalOnly', { yen: fmtNumber(Math.round(Number(cost.cost_yen) || 0)) })
-          : tl('local.costEach', {
-              yen: fmtNumber(Math.round(each)),
-              n: fmtNumber(Number(cost.jobs) || 0),
-              price: fmtNumber(Math.round(row.cost * state.unitPrice))
-            });
-        var meta = el('div', 'list-row__meta admin-cost'
-          + (each !== null && row.cost * state.unitPrice < each ? ' admin-cost--under' : ''), note);
-        bodyNode.appendChild(meta);
-      }
+         値段を決めるのに毎回ほかの画面を開かなくてよくする。
+         自分で測った原価を入れたら、そちらを使う（2026-11-06 要望） */
+      var cost = state.cost[row.key] || null;
+      var meta = el('div', 'list-row__meta admin-cost', '');
+      bodyNode.appendChild(meta);
       line.appendChild(bodyNode);
 
       var input = numberInput(row.cost, { min: 0, max: MAX_CREDIT_COST, narrow: true });
@@ -2358,6 +2371,57 @@
       error.hidden = true;
       wrap.appendChild(error);
 
+      /* 原価はこの行の中でそのまま直せるようにする（2026-11-06 要望）。
+         別の欄を下に置くと、どの行の原価なのか目で追えなくなる。
+         空のままなら実測の計算（placeholder に出ている値）を使う */
+      var costInput = numberInput(row.costManual, {
+        min: 0, max: MAX_COST_YEN, step: '0.1',
+        placeholder: tl('local.costManualPlaceholder')
+      });
+      costInput.className = 'input input--sm admin-cost__input';
+      costInput.setAttribute('aria-label', row.name + ' ' + tl('local.costManualLabel'));
+      costInput.title = tl('local.costManualHint');
+      var metaPre = document.createTextNode('');
+      var metaPost = document.createTextNode('');
+      meta.appendChild(metaPre);
+      meta.appendChild(costInput);
+      meta.appendChild(metaPost);
+      /* 回数が数えられていないときだけ、実測の合計を下に出す */
+      var costNote = el('div', 'list-row__meta admin-cost', '');
+      costNote.hidden = true;
+      bodyNode.appendChild(costNote);
+
+      /* 原価の行を描き直す。売値（ポイント）を直したときも呼ぶ。
+         入力欄そのものは作り直さない（打っている最中に消えてしまう） */
+      function paintCost() {
+        var manual = row.costManual === null || row.costManual === undefined
+          ? null : Number(row.costManual);
+        var measured = cost && cost.cost_yen_each !== null && cost.cost_yen_each !== undefined
+          ? Number(cost.cost_yen_each) : null;
+        var each = manual !== null ? manual : measured;
+        var price = Math.round(row.cost * state.unitPrice);
+        var key = manual !== null ? 'local.costManualEach'
+          : (measured !== null ? 'local.costEach' : 'local.costAsk');
+        /* 言語で語順が変わるので、{yen} の場所で切って入力欄を挟む */
+        var parts = tl(key, {
+          yen: YEN_SLOT,
+          n: fmtNumber(cost ? Number(cost.jobs) || 0 : 0),
+          price: fmtNumber(price)
+        }).split(YEN_SLOT);
+        metaPre.nodeValue = parts[0] || '';
+        metaPost.nodeValue = parts.length > 1 ? parts[1] : '';
+        /* 空のときは実測の値を薄く出す。そのまま打てば上書きになる */
+        costInput.placeholder = manual === null && measured !== null
+          ? String(Math.round(measured * 10) / 10)
+          : tl('local.costManualPlaceholder');
+        meta.classList.toggle('admin-cost--under', each !== null && price < each);
+        var totalOnly = measured === null && cost && Number(cost.cost_yen) ? true : false;
+        costNote.textContent = totalOnly
+          ? tl('local.costTotalOnly', { yen: fmtNumber(Math.round(Number(cost.cost_yen) || 0)) }) : '';
+        costNote.hidden = !totalOnly;
+      }
+      paintCost();
+
       input.addEventListener('input', function () {
         var value = intOf(input.value);
         var ok = !isNaN(value) && value >= 0 && value <= MAX_CREDIT_COST;
@@ -2368,9 +2432,27 @@
           row.error = t('featurePricing.creditCostInvalid');
         }
         input.classList.toggle('input--error', !ok);
-        error.textContent = row.error;
-        error.hidden = !row.error;
+        error.textContent = row.error || row.costManualError;
+        error.hidden = !error.textContent;
+        paintCost();
         recalcEstimate();
+      });
+
+      costInput.addEventListener('input', function () {
+        var raw = textOf(costInput.value).trim();
+        if (!raw) {
+          row.costManual = null;
+          row.costManualError = '';
+        } else {
+          var value = Number(raw);
+          var ok = isFinite(value) && value >= 0 && value <= MAX_COST_YEN;
+          row.costManualError = ok ? '' : tl('local.costManualInvalid');
+          if (ok) { row.costManual = value; }
+        }
+        costInput.classList.toggle('input--error', !!row.costManualError);
+        error.textContent = row.error || row.costManualError;
+        error.hidden = !error.textContent;
+        paintCost();
       });
 
       return wrap;
@@ -2460,7 +2542,7 @@
       if (state.saving) { return; }
 
       var invalid = false;
-      state.rows.forEach(function (row) { if (row.error) { invalid = true; } });
+      state.rows.forEach(function (row) { if (row.error || row.costManualError) { invalid = true; } });
       if (invalid) {
         toast(t('featurePricing.creditCostInvalid'), 'danger');
         return;
@@ -2472,7 +2554,8 @@
           jobs.push({ row: row, kind: 'insert' });
           return;
         }
-        if (row.cost !== row.originalCost || row.name !== row.originalName) {
+        if (row.cost !== row.originalCost || row.name !== row.originalName
+            || row.costManual !== row.originalCostManual) {
           jobs.push({ row: row, kind: 'update' });
         }
       });
@@ -2496,6 +2579,8 @@
             return tableUpdate('featureCredits', job.row.id, {
               feature_name: job.row.name,
               credit_cost: job.row.cost,
+              /* null を送ると実測の計算に戻る（063） */
+              cost_yen_each_manual: job.row.costManual === undefined ? null : job.row.costManual,
               is_active: job.row.active !== false
             }).then(function () { saved += 1; });
           }
@@ -2503,6 +2588,7 @@
             feature_key: job.row.key,
             feature_name: job.row.name || job.row.key,
             credit_cost: job.row.cost,
+            cost_yen_each_manual: job.row.costManual === undefined ? null : job.row.costManual,
             is_active: true
           }).then(function () { saved += 1; });
         });
