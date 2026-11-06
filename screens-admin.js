@@ -81,6 +81,8 @@
   }
 
   /* ---------- 定数 ---------- */
+  var MAX_PLANS = 9;                               // 購入画面が並べる上限（Edge Function と同じ数）
+  var PLANS_KEY = 'purchase_plans';                // app_settings の行（062）
   var UNIT_PRICE_KEY = 'credit_unit_price';        // feature_credits に置く単価専用の行
   var UNIT_PRICE_NAME = 'ポイント単価（円）';
   var DEFAULT_UNIT_PRICE = 10;                     // 1クレジット = 10円
@@ -156,6 +158,29 @@
       '저장하면 포인트 구매 화면의 표시 가격에 반영됩니다'
     ],
     'local.todaySub': ['本日 {n}件の消費', '{n} charges today', '오늘 {n}건 소비'],
+    /* 購入プラン（2026-11-06 要望）。購入画面に並ぶカードをここで作る */
+    'local.plansTitle': ['購入プラン', 'Purchase plans', '구매 플랜'],
+    'local.plansDesc': [
+      '購入画面に並ぶカードです。{max}件まで作れます',
+      'The cards shown on the purchase screen. Up to {max}.',
+      '구매 화면에 늘어서는 카드입니다. {max}개까지 만들 수 있습니다'
+    ],
+    'local.plansPoints': ['ポイント数', 'Points', '포인트 수'],
+    'local.plansYen': ['金額（円）', 'Price (yen)', '금액(엔)'],
+    'local.plansAdd': ['プランを追加', 'Add a plan', '플랜 추가'],
+    'local.plansFull': ['プランは{max}件までです', 'Up to {max} plans', '플랜은 {max}개까지입니다'],
+    'local.plansInvalid': [
+      'ポイント数と金額は1以上の数字で入れてください',
+      'Points and price must be 1 or more',
+      '포인트 수와 금액은 1 이상으로 입력해 주세요'
+    ],
+    'local.plansEmpty': [
+      'プランがありません。追加すると購入画面に並びます',
+      'No plans yet. Add one and it appears on the purchase screen.',
+      '플랜이 없습니다. 추가하면 구매 화면에 표시됩니다'
+    ],
+    'local.plansSaved': ['購入プランを保存しました', 'Purchase plans saved', '구매 플랜을 저장했습니다'],
+    'local.plansPerPoint': ['1ポイントあたり {yen}', '{yen} per point', '포인트당 {yen}'],
     'local.userSectionDesc': ['登録 {n}人（新しい順）', '{n} registered users (newest first)', '등록 {n}명(최신순)'],
     'local.usersEmpty': ['登録ユーザーがいません', 'No registered users yet', '등록된 사용자가 없습니다'],
     'local.userNameFallback': ['名称未設定', 'No name', '이름 없음'],
@@ -763,6 +788,29 @@
     return found || key;
   }
 
+  /* 購入プランの JSON を読む。壊れた行で管理画面が開かなくなるほうが困るので、
+     読めない値は黙って捨てる（捨てたことは console に残す）。
+     同じ判定を stripe-checkout も持っている。金額を決めるのは向こう。 */
+  function parsePlans(value) {
+    var raw;
+    try {
+      raw = JSON.parse(String(value || '[]'));
+    } catch (err) {
+      console.error('[screens-admin] purchase_plans が JSON として読めません', err);
+      return [];
+    }
+    if (!Array.isArray(raw)) { return []; }
+    var out = [];
+    raw.forEach(function (item) {
+      var credits = Math.round(Number(item && item.credits));
+      var yen = Math.round(Number(item && item.yen));
+      if (!(credits > 0) || !(yen > 0)) { return; }
+      if (out.length >= MAX_PLANS) { return; }
+      out.push({ id: textOf(item && item.id).trim(), credits: credits, yen: yen });
+    });
+    return out;
+  }
+
   function unitPriceOf(rows) {
     var price = DEFAULT_UNIT_PRICE;
     (rows || []).forEach(function (row) {
@@ -801,7 +849,8 @@
       couponType: 'credit',
       selectors: [],        // 収集設定（KV/LP × プラットフォーム）
       selectorsBusy: false,
-      adTag: ''             // 広告の札（061 の app_settings）
+      adTag: '',            // 広告の札（061 の app_settings）
+      plans: []             // 購入プラン（062 の app_settings）。[{ id, credits, yen }]
     };
 
     load();
@@ -824,6 +873,9 @@
           .catch(function () { return []; }),
         /* 広告の札。読めなくても管理画面は開ける */
         tableList('appSettings', { eq: { key: 'admax_tag' }, order: false, limit: 1 })
+          .catch(function () { return []; }),
+        /* 購入プラン。読めなくても管理画面は開ける（購入は Edge Function の既定で動く） */
+        tableList('appSettings', { eq: { key: PLANS_KEY }, order: false, limit: 1 })
           .catch(function () { return []; })
       ]).then(function (results) {
         var featureRows = results[0] || [];
@@ -846,6 +898,7 @@
         state.coupons = results[4] || [];
         state.purchases = results[5] || [];
         state.adTag = String((results[8] && results[8][0] && results[8][0].value) || '');
+        state.plans = parsePlans(results[9] && results[9][0] && results[9][0].value);
         state.selectors = results[6] || [];
         state.aiUsage = results[7] || [];
         draw();
@@ -932,7 +985,7 @@
         })];
       }
       if (key === 'pricing') {
-        return [unitPriceSection(), button('btn btn--secondary btn--block', t('admin.featurePricingLink'), function () {
+        return [unitPriceSection(), plansSection(), button('btn btn--secondary btn--block', t('admin.featurePricingLink'), function () {
           goto('S19');
         })];
       }
@@ -1117,6 +1170,113 @@
       });
       box.appendChild(saveBtn);
       return section(tl('local.adTagTitle'), tl('local.adTagDesc'), [box]);
+    }
+
+    /* ---- 購入プラン（2026-11-06 要望）----
+       購入画面（S17）に並ぶカード。金額の出どころは app_settings の1行で、
+       stripe-checkout も同じ行を読む。画面に金額を送らせない約束は変えていない。 */
+    function plansSection() {
+      var draft = state.plans.map(function (plan) {
+        return { id: plan.id, credits: plan.credits, yen: plan.yen };
+      });
+
+      var host = el('div', 'stack');
+      var addBtn = button('btn btn--secondary btn--block', tl('local.plansAdd'), function () {
+        if (draft.length >= MAX_PLANS) {
+          toast(tl('local.plansFull', { max: MAX_PLANS }), 'danger');
+          return;
+        }
+        draft.push({ id: '', credits: 100, yen: 1000 });
+        paintRows();
+      });
+
+      var saveLabel = t('admin.save');
+      var saveBtn = button('btn btn--primary btn--block', saveLabel, function () { save(); });
+
+      function paintRows() {
+        clearNode(host);
+        if (!draft.length) {
+          host.appendChild(emptyBlock(tl('local.plansEmpty')));
+        }
+        draft.forEach(function (plan, index) {
+          host.appendChild(planRow(plan, index));
+        });
+        addBtn.disabled = draft.length >= MAX_PLANS;
+      }
+
+      function planRow(plan, index) {
+        var row = el('div', 'plan-edit');
+
+        var credits = numberInput(plan.credits, { min: 1, max: 100000, id: uid('plan-credits') });
+        credits.addEventListener('input', function () {
+          plan.credits = intOf(credits.value);
+          paintHint();
+        });
+        row.appendChild(field(tl('local.plansPoints'), credits));
+
+        var yen = numberInput(plan.yen, { min: 1, max: 10000000, id: uid('plan-yen') });
+        yen.addEventListener('input', function () {
+          plan.yen = intOf(yen.value);
+          paintHint();
+        });
+        var yenField = field(tl('local.plansYen'), yen);
+        row.appendChild(yenField);
+
+        /* 1ポイントあたりを出す。これが無いと、まとめ買いが得になっているか
+           管理者が暗算することになる */
+        var hint = el('p', 'field__hint num');
+        yenField.appendChild(hint);
+        function paintHint() {
+          var c = Number(plan.credits), y = Number(plan.yen);
+          hint.textContent = (c > 0 && y > 0)
+            ? tl('local.plansPerPoint', { yen: fmtYen(Math.round((y / c) * 10) / 10) })
+            : '';
+        }
+        paintHint();
+
+        row.appendChild(button('btn btn--text', t('common.delete'), function () {
+          draft.splice(index, 1);
+          paintRows();
+        }));
+
+        return row;
+      }
+
+      function save() {
+        var bad = draft.some(function (plan) {
+          return !(plan.credits >= 1) || !(plan.yen >= 1);
+        });
+        if (bad) {
+          toast(tl('local.plansInvalid'), 'danger');
+          return;
+        }
+
+        var value = JSON.stringify(draft.slice(0, MAX_PLANS).map(function (plan, index) {
+          return {
+            /* id は購入のときに画面から送られてくる鍵。作り直すと、
+               決済ページを開いたまま管理者が保存した人の購入が落ちる */
+            id: plan.id || ('p' + Date.now().toString(36) + index),
+            credits: Math.round(plan.credits),
+            yen: Math.round(plan.yen)
+          };
+        }));
+
+        busy(saveBtn, true, tl('local.saving'), saveLabel);
+        tableUpdate('appSettings', PLANS_KEY, { value: value, updated_at: new Date().toISOString() })
+          .then(function () {
+            busy(saveBtn, false, tl('local.saving'), saveLabel);
+            state.plans = parsePlans(value);
+            toast(tl('local.plansSaved'), 'success');
+          }, function (err) {
+            busy(saveBtn, false, tl('local.saving'), saveLabel);
+            console.error('[screens-admin] 購入プランを保存できませんでした', err);
+            toast(t('admin.saveFailed'), 'danger');
+          });
+      }
+
+      paintRows();
+      return section(tl('local.plansTitle'), tl('local.plansDesc', { max: MAX_PLANS }),
+        [host, addBtn, saveBtn]);
     }
 
     function unitPriceSection() {
@@ -2373,4 +2533,28 @@
   App.registerScreen('S19', {
     render: function (root) { renderFeaturePricing(root); }
   });
+
+  /* 通信なしの自己チェック（開発時にコンソールから ScreensAdmin._selfTest()）。
+     購入プランの読み取りだけ見る。ここが緩むと、壊れた行がそのまま金額になる */
+  window.ScreensAdmin = {
+    _selfTest: function () {
+      function assert(ok, name) {
+        if (!ok) { throw new Error('[screens-admin] 自己チェック失敗: ' + name); }
+      }
+      assert(parsePlans('[]').length === 0, '空');
+      assert(parsePlans('こわれている').length === 0, 'JSONでない');
+      assert(parsePlans('{"credits":100}').length === 0, '配列でない');
+      assert(parsePlans('[{"id":"a","credits":100,"yen":1200}]')[0].yen === 1200, '正しい行');
+      assert(parsePlans('[{"id":"a","credits":0,"yen":1200}]').length === 0, 'ポイント0は捨てる');
+      assert(parsePlans('[{"id":"a","credits":100,"yen":-1}]').length === 0, 'マイナス円は捨てる');
+      assert(parsePlans('[{"id":"a","credits":"ごひゃく","yen":1200}]').length === 0, '数でないものは捨てる');
+
+      var many = [];
+      for (var i = 0; i < 12; i += 1) { many.push({ id: 'p' + i, credits: 100, yen: 1000 }); }
+      assert(parsePlans(JSON.stringify(many)).length === MAX_PLANS, '9件で止める');
+
+      console.log('[screens-admin] 自己チェック OK');
+      return true;
+    }
+  };
 })(window, document);

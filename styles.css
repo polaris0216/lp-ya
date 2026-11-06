@@ -5962,3 +5962,41 @@ input[type='radio'] {
 }
 .lp-reads__card:hover { border-color: var(--c-accent, #c2338f); }
 @media (min-width: 760px) { .lp-reads__row { grid-template-columns: repeat(3, 1fr); } }
+
+/* ------------------------------------------------------------
+   購入プラン（S17）と、その編集欄（S19 料金設定）。
+   管理者が最大9枚まで作るので、カードは小さく並べる。
+   ------------------------------------------------------------ */
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+}
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.plan:hover { border-color: var(--c-main); }
+.plan--on { border-color: var(--c-main); background: var(--c-main-weak); }
+.plan__points { font-size: 13px; color: var(--c-text-sub); }
+.plan__yen { font-size: 19px; font-weight: var(--fw-bold); line-height: 1.25; }
+.plan__unit { font-size: 11px; color: var(--c-text-mute); }
+
+/* 編集欄は「ポイント数／金額／削除」の1行。狭いときは縦に折る */
+.plan-edit {
+  display: flex;
+  align-items: flex-start;   /* 金額だけ1ポイント単価の行が付くので、下揃えだと段がずれる */
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--c-line-soft);
+}
+.plan-edit .field { flex: 1 1 110px; min-width: 0; }
+.plan-edit .btn--text { flex: 0 0 auto; margin-top: 26px; }   /* ラベル1行ぶん下げて入力欄に並べる */
+@media (max-width: 480px) { .plan-edit { flex-wrap: wrap; } }

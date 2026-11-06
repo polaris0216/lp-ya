@@ -709,7 +709,11 @@
   }
 
   /* ---------- 表ごとのCRUD ---------- */
-  function makeTable(table) {
+  /* pk は行を1本に絞る列。既定は id。app_settings のように
+     id を持たない表（主キーが key）があるので、ここで選べるようにする。
+     合わせていないと ?id=eq.… を投げて PostgREST が 400 を返す。 */
+  function makeTable(table, pk) {
+    var keyCol = pk || 'id';
     function list(options) {
       return retriable(function () {
         return request('GET', table + buildQuery(listParams(options)), null, {}).then(function (data) {
@@ -729,7 +733,9 @@
       var bad = requireId(table, id);
       if (bad) { return Promise.reject(bad); }
       return retriable(function () {
-        return first({ eq: { id: id }, order: false }).then(function (row) {
+        var where = {};
+        where[keyCol] = id;
+        return first({ eq: where, order: false }).then(function (row) {
           if (!row) {
             var err = new ApiError('notfound', 404, table + ' id=' + id);
             console.error('[Api] ' + table + ' に id=' + id + ' の行がありません');
@@ -758,7 +764,9 @@
       if (bad) { return Promise.reject(bad); }
       var payload = cleanPayload(patch);
       return retriable(function () {
-        var path = table + buildQuery({ id: 'eq.' + id, select: '*' });
+        var query = { select: '*' };
+        query[keyCol] = 'eq.' + id;
+        var path = table + buildQuery(query);
         return request('PATCH', path, payload, { prefer: 'return=representation' }).then(function (data) {
           var updated = firstRow(data);
           if (!updated) {
@@ -775,14 +783,16 @@
       var bad = requireId(table, id);
       if (bad) { return Promise.reject(bad); }
       return retriable(function () {
-        return request('DELETE', table + buildQuery({ id: 'eq.' + id }), null, {}).then(function () { return true; });
+        var where = {};
+        where[keyCol] = 'eq.' + id;
+        return request('DELETE', table + buildQuery(where), null, {}).then(function () { return true; });
       });
     }
 
     // ponytail: 件数は取得した行を数えるだけ。数万件になったら Prefer: count=exact に切り替える。
     function count(options) {
       var opts = shallow(options);
-      opts.select = 'id';
+      opts.select = keyCol;
       opts.order = false;
       return list(opts).then(function (rows) { return rows.length; });
     }
@@ -821,7 +831,8 @@
       cancel: function (jobId) { return rpc('elpiya_cancel_job', { p_job: String(jobId) }); }
     }),
     workerStatus: makeTable(TABLES.workerStatus),
-    appSettings: makeTable(TABLES.appSettings),
+    /* app_settings の主キーは key（id 列は無い） */
+    appSettings: makeTable(TABLES.appSettings, 'key'),
     creditTransactions: makeTable(TABLES.creditTransactions),
     featureCredits: makeTable(TABLES.featureCredits),
     coupons: makeTable(TABLES.coupons),

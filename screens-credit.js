@@ -79,6 +79,7 @@
   var UNIT_PRICE_KEY = 'credit_unit_price';   // a2f58db45_feature_credits に置く単価専用の行（機能一覧からは除く）
   var CREATE_FEATURE_KEY = 'project_create';  // 作成は無料になったが、旧データの行が残るので一覧からは外す
   var HISTORY_LIMIT = 50;
+  var MAX_PLANS = 9;                          // 並べる上限。Edge Function も同じ数で切る
   var MAX_COUPON_LENGTH = 32;
 
   /* 機能別の既定クレジット。a2f58db45_feature_credits に行があればそちらを優先する。
@@ -702,19 +703,19 @@
         return;
       }
 
-      state.plans.forEach(function (plan, index) {
+      /* 9枚まで並ぶので、1枚ずつは小さく。縦積みだと購入ボタンまで遠くなる */
+      var grid = el('div', 'plan-grid');
+      state.plans.slice(0, MAX_PLANS).forEach(function (plan, index) {
         var selected = index === state.planIndex;
-        var card = el('button', selected ? 'card card--soft' : 'card');
+        var card = el('button', selected ? 'plan plan--on' : 'plan');
         card.type = 'button';
         card.setAttribute('aria-pressed', selected ? 'true' : 'false');
 
-        var top = el('span', 'row row--between');
-        top.appendChild(el('span', 'card__label', tl('local.purchaseCredits', { n: formatNumber(plan.credits) })));
-        if (selected) { top.appendChild(el('span', 'badge badge--ok', t('common.ok'))); }
-        card.appendChild(top);
-
-        card.appendChild(el('span', 'card__value num', formatYen(planYen(plan))));
-        card.appendChild(el('span', 'card__sub num', tl('local.perCredit') + ' ' + formatYen(planUnitYen(plan))));
+        card.appendChild(el('span', 'plan__points num',
+          tl('local.purchaseCredits', { n: formatNumber(plan.credits) })));
+        card.appendChild(el('span', 'plan__yen num', formatYen(planYen(plan))));
+        card.appendChild(el('span', 'plan__unit num',
+          tl('local.perCredit') + ' ' + formatYen(planUnitYen(plan))));
 
         card.addEventListener('click', function () {
           state.planIndex = index;
@@ -722,8 +723,9 @@
           updateBuyButton();
         });
 
-        nodes.planHost.appendChild(card);
+        grid.appendChild(card);
       });
+      nodes.planHost.appendChild(grid);
     }
 
     function purchase() {
