@@ -1474,6 +1474,27 @@
     });
   }
 
+  /* 左の一覧は Api.projects の写しでしかない。作った・消したあとに
+     取り直さないと、DBは変わっているのに左だけ古いまま残る。
+     呼ぶ側に任せていたら、5か所のうち3か所（作成・複製・S7の削除）で
+     呼び忘れていた。写しを持っている側で取り直す。
+     update を含めないのは、本文の自動保存でも呼ばれて一覧を毎回引き直すため。
+     名前の書き換えは S6 が自分で refreshProjects を呼んでいる。 */
+  function watchProjectChanges() {
+    var table = global.Api && global.Api.projects;
+    if (!table) { return; }
+    ['insert', 'remove'].forEach(function (name) {
+      var original = table[name];
+      if (typeof original !== 'function') { return; }
+      table[name] = function () {
+        return original.apply(table, arguments).then(function (result) {
+          loadSidebarProjects();
+          return result;
+        });
+      };
+    });
+  }
+
   function openSidebar() {
     if (!dom.shell) { return; }
     dom.shell.classList.add('app-shell--sidebar-open');
@@ -3158,6 +3179,7 @@
     if (dom.sidebarRefresh) {
       dom.sidebarRefresh.addEventListener('click', loadSidebarProjects);
     }
+    watchProjectChanges();
     on('user', function () { renderAccount(); renderSidebarNav(null); loadSidebarProjects(); });
     on('balance', renderAccount);
     on('route', renderSidebarProjects);
