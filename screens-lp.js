@@ -922,10 +922,11 @@
           var etaTxt = window.LpyaJobEta.hint('lp_section', t);
           if (etaTxt) { add(bulkBar, el('p', 'field__hint', etaTxt)); }
         }
-        if (window.LpyaCost) {
-          window.LpyaCost.attach(bulkBar, 'crowdfunding_lp',
-            { t: t, count: isArray(view.gen.sections) ? view.gen.sections.length : 0 });
-        }
+        /* ここに「この生成は60ポイント（絵を28枚つくります）」と出していたが、
+           60P は crowdfunding_lp という**引かれない古い行**の値だった。
+           実際に引かれるのは lp_section 8P×枚数で、28枚なら224P。
+           4分の1に見せていたうえ、すぐ上の2つのボタンが正しい額を出しているので、
+           この行は消した（2026-11-08）。値段はボタンに付ける決まり */
         add(bulkBar, viaSwitch());
         var done = doneCount();
         var total = (view.gen.sections || []).length;
