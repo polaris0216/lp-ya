@@ -97,7 +97,8 @@
   var MAX_FEATURE_NAME_LENGTH = 40;
   var MAX_CREDIT_COST = 100000;
   /* 手で入れる原価（1回あたりの円）の上限 */
-  var MAX_COST_YEN = 1000000;
+  /* 手で入れる原価はUSD。1回 1万ドルを超える原価は打ち間違い */
+  var MAX_COST_USD = 10000;
   /* 文言の {yen} を入力欄に差し替えるための目印（画面には出ない） */
   var YEN_SLOT = '\u0001';
   var MAX_UNIT_PRICE = 100000;
@@ -350,25 +351,29 @@
     'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
     'local.usageLink': ['利用状況（原価・利用者ごと・作っているもの）', 'Usage (cost, per user, their work)', '이용 현황'],
     'local.perUnit': ['単位ごと', 'per unit', '단위마다'],
-    'local.costEach': ['実測原価 {yen}円/回（{n}回ぶん）・売値 {price}円',
-      'Measured cost ¥{yen} per run (from {n} runs) · price ¥{price}',
-      '실측 원가 {yen}원/회({n}회) · 판매가 {price}원'],
-    'local.costTotalOnly': ['実測原価 合計{yen}円（回数が数えられていません）',
-      'Measured cost ¥{yen} total (runs not counted)',
-      '실측 원가 합계 {yen}원'],
+    'local.costEach': ['実測原価 ${yen}/回{jpy}（{n}回ぶん）・売値 {price}円',
+      'Measured cost ${yen} per run{jpy} (from {n} runs) · price ¥{price}',
+      '실측 원가 ${yen}/회{jpy}({n}회) · 판매가 {price}원'],
+    'local.costTotalOnly': ['実測原価 合計${yen}{jpy}（回数が数えられていません）',
+      'Measured cost ${yen} total{jpy} (runs not counted)',
+      '실측 원가 합계 ${yen}{jpy}'],
     /* 原価を自分で測って入れる（2026-11-06 要望） */
-    'local.costManualEach': ['原価 {yen}円/回（自分で入れた値）・売値 {price}円',
-      'Cost ¥{yen} per run (entered by you) · price ¥{price}',
-      '원가 {yen}원/회(직접 입력) · 판매가 {price}원'],
-    'local.costManualLabel': ['測った原価（1回あたりの円）', 'Measured cost (yen per run)', '측정한 원가(1회당 엔)'],
-    'local.costAsk': ['原価 {yen}円/回（未入力）・売値 {price}円',
-      'Cost ¥{yen} per run (not entered) · price ¥{price}',
-      '원가 {yen}원/회(미입력) · 판매가 {price}원'],
-    'local.costManualHint': ['入れると、この値が原価として使われます（利用状況のボタン別原価にも出ます）。空にすると実測の計算に戻ります。',
-      'When set, this is used as the cost (also on the usage screen). Clear it to go back to the measured calculation.',
-      '입력하면 이 값이 원가로 쓰입니다. 비우면 실측 계산으로 돌아갑니다.'],
-    'local.costManualPlaceholder': ['例: 3.5', 'e.g. 3.5', '예: 3.5'],
+    'local.costManualEach': ['原価 ${yen}/回{jpy}（自分で入れた値）・売値 {price}円',
+      'Cost ${yen} per run{jpy} (entered by you) · price ¥{price}',
+      '원가 ${yen}/회{jpy}(직접 입력) · 판매가 {price}원'],
+    'local.costManualLabel': ['測った原価（1回あたりのUSD）', 'Measured cost (USD per run)', '측정한 원가(1회당 USD)'],
+    'local.costAsk': ['原価 ${yen}/回{jpy}（未入力）・売値 {price}円',
+      'Cost ${yen} per run{jpy} (not entered) · price ¥{price}',
+      '원가 ${yen}/회{jpy}(미입력) · 판매가 {price}원'],
+    'local.costManualHint': ['1回あたりのUSDで入れてください。入れると、この値が原価として使われます（利用状況のボタン別原価にも出ます）。空にすると実測の計算に戻ります。円は為替を掛けて出しています。',
+      'Enter USD per run. When set, this is used as the cost (also on the usage screen). Clear it to go back to the measured calculation. Yen is converted with the exchange rate.',
+      '1회당 USD로 입력해 주세요. 입력하면 이 값이 원가로 쓰입니다. 비우면 실측 계산으로 돌아갑니다. 엔화는 환율을 곱해 표시합니다.'],
+    'local.costManualPlaceholder': ['例: 0.03', 'e.g. 0.03', '예: 0.03'],
     'local.costManualInvalid': ['原価は0以上の数で入れてください', 'Enter the cost as a number of 0 or more', '원가는 0 이상의 숫자로 입력해 주세요'],
+    'local.costYenSuffix': ['（¥{n}）', ' (¥{n})', '(¥{n})'],
+    'local.costRateNote': ['原価はUSDで入れます。円は 1USD={rate}円 で換算しています（下の「為替 1USD=何円 ×100」で変えられます）。',
+      'Costs are entered in USD. Yen is converted at 1 USD = {rate} JPY (change it in the exchange-rate row below).',
+      '원가는 USD로 입력합니다. 엔화는 1USD={rate}엔으로 환산했습니다(아래 환율 행에서 변경).'],
     'wfg.research': ['調べる', 'Research', '조사'],
     'wfg.build': ['作る', 'Build', '제작'],
     'wfg.deliver': ['届ける', 'Deliver', '전달'],
@@ -2274,12 +2279,12 @@
           unitName: row.unit_name || '',
           sort: Number(row.sort_no) || 100,
           /* 手で入れた原価（1回あたりの円）。null は「実測の計算を使う」 */
-          costManual: row.cost_yen_each_manual === null || row.cost_yen_each_manual === undefined
-            ? null : Number(row.cost_yen_each_manual),
+          costManual: row.cost_usd_each_manual === null || row.cost_usd_each_manual === undefined
+            ? null : Number(row.cost_usd_each_manual),
           originalName: name,
           originalCost: cost,
-          originalCostManual: row.cost_yen_each_manual === null || row.cost_yen_each_manual === undefined
-            ? null : Number(row.cost_yen_each_manual),
+          originalCostManual: row.cost_usd_each_manual === null || row.cost_usd_each_manual === undefined
+            ? null : Number(row.cost_usd_each_manual),
           costManualError: '',
           active: row.is_active !== false,
           isNew: false,
@@ -2355,6 +2360,18 @@
       recalcEstimate();
     }
 
+    /* 原価の円換算に使う為替。costByFeature（RPC）が返す値をそのまま使う。
+       画面で feature_credits から拾い直すと、保存前の編集中の値を
+       掛けてしまい、表示と計算がずれる */
+    function costRate() {
+      var rows = state.cost ? Object.keys(state.cost) : [];
+      for (var i = 0; i < rows.length; i += 1) {
+        var r = Number(state.cost[rows[i]] && state.cost[rows[i]].usd_jpy);
+        if (r > 0) { return r; }
+      }
+      return 0;
+    }
+
     /* 値段表は括りごとに分けて出す（2026-10-30 要望）。
        工程の耳と同じ並び（①調べる ②作る ③届ける）にして、
        どの括りでいくら払うのかを足し算で読めるようにする。
@@ -2405,6 +2422,11 @@
         obox.appendChild(olist);
         body.appendChild(obox);
       }
+      var rate = costRate();
+      if (rate) {
+        var note = el('p', 'field__hint', tl('local.costRateNote', { rate: rate.toFixed(2) }));
+        body.insertBefore(note, body.firstChild);
+      }
       return section(t('featurePricing.list'), tl('local.featureListDesc', { n: fmtNumber(state.rows.length) }), [body]);
     }
 
@@ -2442,7 +2464,7 @@
          別の欄を下に置くと、どの行の原価なのか目で追えなくなる。
          空のままなら実測の計算（placeholder に出ている値）を使う */
       var costInput = numberInput(row.costManual, {
-        min: 0, max: MAX_COST_YEN, step: '0.1',
+        min: 0, max: MAX_COST_USD, step: '0.0001',
         placeholder: tl('local.costManualPlaceholder')
       });
       costInput.className = 'input input--sm admin-cost__input';
@@ -2460,11 +2482,26 @@
 
       /* 原価の行を描き直す。売値（ポイント）を直したときも呼ぶ。
          入力欄そのものは作り直さない（打っている最中に消えてしまう） */
+      /* 原価はUSDで持つ。円は為替を掛けた結果なので、ドルの後ろに添える */
+      function usdText(v) {
+        var n = Number(v) || 0;
+        if (n !== 0 && Math.abs(n) < 0.01) { return n.toFixed(4); }
+        return n.toFixed(2);
+      }
+
+      function jpySuffix(usdValue) {
+        var rate = costRate();
+        if (!rate) { return ''; }
+        return tl('local.costYenSuffix', {
+          n: fmtNumber(Math.round((Number(usdValue) || 0) * rate))
+        });
+      }
+
       function paintCost() {
         var manual = row.costManual === null || row.costManual === undefined
           ? null : Number(row.costManual);
-        var measured = cost && cost.cost_yen_each !== null && cost.cost_yen_each !== undefined
-          ? Number(cost.cost_yen_each) : null;
+        var measured = cost && cost.cost_usd_each !== null && cost.cost_usd_each !== undefined
+          ? Number(cost.cost_usd_each) : null;
         var each = manual !== null ? manual : measured;
         var price = Math.round(row.cost * state.unitPrice);
         var key = manual !== null ? 'local.costManualEach'
@@ -2472,6 +2509,7 @@
         /* 言語で語順が変わるので、{yen} の場所で切って入力欄を挟む */
         var parts = tl(key, {
           yen: YEN_SLOT,
+          jpy: each === null ? '' : jpySuffix(each),
           n: fmtNumber(cost ? Number(cost.jobs) || 0 : 0),
           price: fmtNumber(price)
         }).split(YEN_SLOT);
@@ -2479,12 +2517,17 @@
         metaPost.nodeValue = parts.length > 1 ? parts[1] : '';
         /* 空のときは実測の値を薄く出す。そのまま打てば上書きになる */
         costInput.placeholder = manual === null && measured !== null
-          ? String(Math.round(measured * 10) / 10)
+          ? usdText(measured)
           : tl('local.costManualPlaceholder');
-        meta.classList.toggle('admin-cost--under', each !== null && price < each);
-        var totalOnly = measured === null && cost && Number(cost.cost_yen) ? true : false;
+        /* 赤くするのは円どうしで比べる（売値は円、原価はドル） */
+        var eachYen = each === null ? null : each * (costRate() || 0);
+        meta.classList.toggle('admin-cost--under', eachYen !== null && price < eachYen);
+        var totalOnly = measured === null && cost && Number(cost.cost_usd) ? true : false;
         costNote.textContent = totalOnly
-          ? tl('local.costTotalOnly', { yen: fmtNumber(Math.round(Number(cost.cost_yen) || 0)) }) : '';
+          ? tl('local.costTotalOnly', {
+              yen: usdText(cost.cost_usd),
+              jpy: jpySuffix(cost.cost_usd)
+            }) : '';
         costNote.hidden = !totalOnly;
       }
       paintCost();
@@ -2512,7 +2555,7 @@
           row.costManualError = '';
         } else {
           var value = Number(raw);
-          var ok = isFinite(value) && value >= 0 && value <= MAX_COST_YEN;
+          var ok = isFinite(value) && value >= 0 && value <= MAX_COST_USD;
           row.costManualError = ok ? '' : tl('local.costManualInvalid');
           if (ok) { row.costManual = value; }
         }
@@ -2647,7 +2690,7 @@
               feature_name: job.row.name,
               credit_cost: job.row.cost,
               /* null を送ると実測の計算に戻る（063） */
-              cost_yen_each_manual: job.row.costManual === undefined ? null : job.row.costManual,
+              cost_usd_each_manual: job.row.costManual === undefined ? null : job.row.costManual,
               is_active: job.row.active !== false
             }).then(function () { saved += 1; });
           }
@@ -2655,7 +2698,7 @@
             feature_key: job.row.key,
             feature_name: job.row.name || job.row.key,
             credit_cost: job.row.cost,
-            cost_yen_each_manual: job.row.costManual === undefined ? null : job.row.costManual,
+            cost_usd_each_manual: job.row.costManual === undefined ? null : job.row.costManual,
             is_active: true
           }).then(function () { saved += 1; });
         });
