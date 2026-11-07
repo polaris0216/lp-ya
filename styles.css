@@ -342,6 +342,36 @@ table { border-collapse: collapse; width: 100%; }
 
 .list-row--sub .num { color: var(--c-text-sub); }
 
+/* 1つのボタンで何が走るか。括りの見出しのすぐ下に置く（2026-11-08）。
+   行の並びと同じ重さにすると、どれが「1回ぶん」なのか分からなくなる */
+.admin-bundle {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--c-main-weak);
+}
+
+.admin-bundle__title {
+  font-size: var(--fs-note);
+  font-weight: var(--fw-bold);
+  color: var(--c-text);
+}
+
+.admin-bundle__parts {
+  margin-top: 4px;
+  font-size: var(--fs-note);
+  color: var(--c-text-sub);
+  line-height: 1.9;
+}
+
+.admin-bundle__sum {
+  margin-top: 4px;
+  font-size: var(--fs-note);
+  font-weight: var(--fw-bold);
+  color: var(--c-main-press);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ドルの下に添える円。원가はドル建てなので、円は換算であることが
    見た目でも分かるように一段落とす（2026-11-07） */
 .usage-yen {

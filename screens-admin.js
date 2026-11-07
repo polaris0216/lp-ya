@@ -348,6 +348,14 @@
       '{name} will not be able to sign in. You can approve them later.',
       '{name} 님은 로그인할 수 없게 됩니다. 나중에 다시 승인할 수 있습니다.'],
     /* 値段表の括り分けと、実測原価（2026-10-30 要望） */
+    /* 1つのボタンで複数の機能が走る組み合わせ（2026-11-08 指摘） */
+    'local.bundleTitle': ['「{name}」を1回押すと', 'One press of "{name}"', '"{name}"를 한 번 누르면'],
+    'local.bundleIfRef': ['（参考URLがあるとき）', ' (when a reference URL is given)', '(참고 URL이 있을 때)'],
+    'local.bundlePer': ['×{unit}の数', ' x number of {unit}', '×{unit} 수'],
+    'local.bundleExample': ['→ 競合URL1本なら {one}P、3本なら {three}P',
+      '→ {one}P with one competitor URL, {three}P with three',
+      '→ 경쟁 URL 1개면 {one}P, 3개면 {three}P'],
+    'local.bundleAiRun': ['AI自動分析', 'Analyse with AI', 'AI 자동 분석'],
     'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
     'local.usageLink': ['利用状況（原価・利用者ごと・作っているもの）', 'Usage (cost, per user, their work)', '이용 현황'],
     'local.perUnit': ['単位ごと', 'per unit', '단위마다'],
@@ -2376,6 +2384,59 @@
        工程の耳と同じ並び（①調べる ②作る ③届ける）にして、
        どの括りでいくら払うのかを足し算で読めるようにする。
        括りの付いていない行（為替・1回の単価など）は最後に「設定」としてまとめる */
+    /* 画面の上では1つのボタンでも、中では複数の機能が続けて走る（2026-11-08 指摘）。
+       内訳だけ並べても「1回押すといくらか」が読めない。
+       並びの元は screens-home.js の stampRunCost()。
+       片方だけ直すとずれるので、usage-screen-selftest.mjs で見張っている */
+    var BUNDLES = [{
+      group: 1,
+      nameKey: 'local.bundleAiRun',
+      parts: [
+        { key: 'product_autofill',    noteKey: 'local.bundleIfRef' },
+        { key: 'competitor_analysis', per: true },
+        { key: 'target_proposal' }
+      ]
+    }];
+
+    /* その組み合わせを1回走らせたときの言い方と、例の金額 */
+    function bundleNode(groupNo) {
+      var bundle = null;
+      BUNDLES.forEach(function (b) { if (b.group === groupNo) { bundle = b; } });
+      if (!bundle) { return null; }
+
+      var found = 0;
+      var pieces = [];
+      var onePerUnit = 0;    /* ×本数 で効く分 */
+      var fixed = 0;         /* 本数に関わらずかかる分 */
+      bundle.parts.forEach(function (part) {
+        var row = null;
+        state.rows.forEach(function (r) { if (r.key === part.key) { row = r; } });
+        if (!row) { return; }
+        found += 1;
+        var points = Number(row.cost) || 0;
+        var text = row.name + ' ' + fmtNumber(points) + 'P';
+        if (part.per) {
+          text += tl('local.bundlePer', { unit: row.unitName || tl('local.perUnit') });
+          onePerUnit += points;
+        } else {
+          fixed += points;
+        }
+        if (part.noteKey) { text += tl(part.noteKey); }
+        pieces.push(text);
+      });
+      if (found !== bundle.parts.length) { return null; }
+
+      var box = el('div', 'admin-bundle');
+      box.appendChild(el('div', 'admin-bundle__title',
+        tl('local.bundleTitle', { name: tl(bundle.nameKey) })));
+      box.appendChild(el('div', 'admin-bundle__parts', pieces.join('　＋　')));
+      box.appendChild(el('div', 'admin-bundle__sum', tl('local.bundleExample', {
+        one: fmtNumber(fixed + onePerUnit),
+        three: fmtNumber(fixed + onePerUnit * 3)
+      })));
+      return box;
+    }
+
     var GROUPS = [
       { no: 1, key: 'wfg.research' },
       { no: 2, key: 'wfg.build' },
@@ -2404,6 +2465,8 @@
         head.appendChild(el('span', 'admin-group__sum', fmtNumber(sum) + 'P'));
         var box = el('div', 'admin-group');
         box.appendChild(head);
+        var bundle = bundleNode(g.no);
+        if (bundle) { box.appendChild(bundle); }
         var list = el('div', 'list');
         rows.forEach(function (row) { list.appendChild(featureRow(row)); });
         box.appendChild(list);
