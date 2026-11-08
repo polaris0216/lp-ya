@@ -712,6 +712,22 @@
   /* pk は行を1本に絞る列。既定は id。app_settings のように
      id を持たない表（主キーが key）があるので、ここで選べるようにする。
      合わせていないと ?id=eq.… を投げて PostgREST が 400 を返す。 */
+  /* いまどの面で動いているか（070）。
+       www   … www.lpya.net / lpya.net（お客さんが来る面）
+       app   … app.lpya.net（道具の面）
+       local … 手元
+       other … それ以外。想定外として印を残す
+     ここを増やすときは、ワーカーの LPYA_API_ORIGINS の説明も直すこと */
+  function originOf() {
+    var host = '';
+    try { host = String(global.location.hostname || '').toLowerCase(); } catch (e) { host = ''; }
+    if (host === 'www.lpya.net' || host === 'lpya.net') { return 'www'; }
+    if (host === 'app.lpya.net') { return 'app'; }
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1'
+        || host === '' || /\.local$/.test(host)) { return 'local'; }
+    return 'other';
+  }
+
   function makeTable(table, pk) {
     var keyCol = pk || 'id';
     function list(options) {
@@ -825,6 +841,15 @@
     analysisReports: makeTable(TABLES.analysisReports),
     generations: makeTable(TABLES.generations),
     generationJobs: Object.assign(makeTable(TABLES.generationJobs), {
+      /* 仕事を積むときに「どの面から来たか」を必ず書く（070）。
+         ネット版だけ AI を API にするために、ワーカーが使う。
+         画面側に書かせると、仕事を積む口が7か所あるので必ず抜ける。
+         ここで1回だけ付ける */
+      insert: function (row) {
+        var one = row || {};
+        if (!one.origin) { one = Object.assign({}, one, { origin: originOf() }); }
+        return makeTable(TABLES.generationJobs).insert(one);
+      },
       /* 走っている生成を止める申し出。status は画面から書けないので
          （005 で update ポリシーを作っていない）、関数を通す。
          実際に止めるのはワーカーで、区切りごとに見て抜ける */
