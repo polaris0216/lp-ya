@@ -85,6 +85,13 @@
   var PLANS_KEY = 'purchase_plans';                // app_settings の行（062）
   var UNIT_PRICE_KEY = 'credit_unit_price';        // feature_credits に置く単価専用の行
   var UNIT_PRICE_NAME = 'ポイント単価（円）';
+  /* 為替。S18（料金設定の欄）と S19（値段表から外す判定）の両方が使うので、
+     画面の関数の中ではなくここに置く。
+     2026-11-08 に S18 の中で宣言してしまい、S19 が ReferenceError で
+     まるごと描けなくなった（「この画面が消えた」）*/
+  var RATE_KEY = 'usdjpy_x100';
+  var RATE_NAME = '為替 1USD=何円 ×100';
+  var MAX_RATE = 100000;   /* 1USD=1000円。これを超えるのは打ち間違い */
   var DEFAULT_UNIT_PRICE = 10;                     // 1クレジット = 10円
   var USER_LIMIT = 50;
   var INQUIRY_LIMIT = 50;
@@ -1424,9 +1431,6 @@
        持ち方は ×100 の整数のまま（DBの credit_cost が integer なので）。
        画面では 157.47 と入れて、保存のときに100倍する。
        ×100 のまま入れさせると、157.47 と打った人の為替が 1.57円になる */
-    var RATE_KEY = 'usdjpy_x100';
-    var RATE_NAME = '為替 1USD=何円 ×100';
-    var MAX_RATE = 100000;   /* 1USD=1000円。これを超えるのは打ち間違い */
 
     /* S18（管理者ダッシュボード）は state.rateRow、
        S19（値段表）は state.rows。どちらから開いても同じ行を指す */
