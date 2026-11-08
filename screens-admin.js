@@ -365,6 +365,25 @@
     'local.bundleCostHint': ['このボタン1回ぶんの原価をUSDで入れられます。空にすると、中で走る機能の実測を足した額を使います。',
       'Enter the USD cost of one press. Leave it empty to use the sum of the measured costs of the features it runs.',
       '이 버튼 1회분의 원가를 USD로 입력할 수 있습니다. 비우면 내부 기능의 실측 합계를 사용합니다.'],
+    /* AIの鍵と、どのAIを使うか（2026-11-09 要望） */
+    'local.aiTitle': ['AIの鍵と、使うAI', 'AI keys and which AI to use', 'AI 키와 사용할 AI'],
+    'local.aiDesc': ['鍵は本体を残さず、末尾4文字だけ控えます（Supabase Vault）。写真の生成は OpenAI だけ、文章は Claude か DeepSeek を選べます。',
+      'Keys are stored in Supabase Vault; only the last 4 characters are kept here. Images use OpenAI only; text can use Claude or DeepSeek.',
+      '키는 Supabase Vault에 저장하고, 여기에는 끝 4자리만 남깁니다. 이미지는 OpenAI만, 문장은 Claude 또는 DeepSeek을 고를 수 있습니다.'],
+    'local.aiPickTitle': ['文章を作るAI', 'AI for text', '문장 생성 AI'],
+    'local.aiPickDesc': ['切り替えると、次に積む仕事から変わります。走っている仕事はそのままです。',
+      'Takes effect for jobs queued after the change. Running jobs are not affected.',
+      '변경 후 쌓이는 작업부터 적용됩니다. 실행 중인 작업은 그대로입니다.'],
+    'local.aiKeyLabel': ['{name} の鍵', '{name} key', '{name} 키'],
+    'local.aiKeyPlaceholder': ['sk-… を貼り付け', 'Paste sk-…', 'sk-… 붙여넣기'],
+    'local.aiKeySet': ['入っています（末尾 {tail}・{when} 更新）', 'Set (ends {tail}, updated {when})', '등록됨(끝 {tail}, {when} 갱신)'],
+    'local.aiKeyNone': ['まだ入っていません', 'Not set yet', '아직 없습니다'],
+    'local.aiKeyClear': ['消す', 'Clear', '삭제'],
+    'local.aiKeySaved': ['鍵を入れました', 'Key saved', '키를 저장했습니다'],
+    'local.aiKeyCleared': ['鍵を消しました', 'Key cleared', '키를 삭제했습니다'],
+    'local.aiImageNote': ['写真の生成は OpenAI だけです。この鍵が無いと、絵はブラウザ経由のままになります。',
+      'Images use OpenAI only. Without this key, images keep going through the browser.',
+      '이미지는 OpenAI만 사용합니다. 이 키가 없으면 이미지는 브라우저 경유로 유지됩니다.'],
     'local.rateTitle': ['為替（AI原価の円換算）', 'Exchange rate (for AI cost in yen)', '환율(AI 원가 엔화 환산)'],
     'local.rateDesc': ['AIの請求はドル建てです。原価を円で出すときに、この値を掛けます。',
       'AI is billed in USD. This rate converts the cost to yen.',
@@ -687,7 +706,9 @@
   function textInput(value, options) {
     var o = options || {};
     var node = el('input', 'input');
-    node.type = 'text';
+    /* 鍵を打つ欄は伏せ字にする（2026-11-09）。肩越しに読まれるのを防ぐ。
+       autocomplete='off' と合わせて、ブラウザにも覚えさせない */
+    node.type = o.password ? 'password' : 'text';
     node.value = textOf(value);
     if (o.placeholder) { node.placeholder = o.placeholder; }
     if (o.id) { node.id = o.id; }
@@ -955,6 +976,12 @@
           .catch(function () { return []; }),
         /* 購入プラン。読めなくても管理画面は開ける（購入は Edge Function の既定で動く） */
         tableList('appSettings', { eq: { key: PLANS_KEY }, order: false, limit: 1 })
+          .catch(function () { return []; }),
+        /* AIの鍵の状態（本体は返らない。入っているか・末尾4文字だけ） */
+        (Api.providerKeys && typeof Api.providerKeys.state === 'function'
+          ? Api.providerKeys.state('service') : Promise.resolve([]))
+          .catch(function () { return []; }),
+        tableList('appSettings', { eq: { key: 'text_provider' }, order: false, limit: 1 })
           .catch(function () { return []; })
       ]).then(function (results) {
         var featureRows = results[0] || [];
@@ -962,6 +989,10 @@
         state.unitRowId = unitPriceRowId(featureRows);
         /* 為替は料金設定の耳にも出す（2026-11-08）。S18 では state.rows を
            作っていないので、この行だけここで控える */
+        /* AIの鍵と、どのAIで文章を作るか（2026-11-09）。
+           読めなくても管理画面は開けるようにする */
+        state.providerKeys = results[10] || [];
+        state.textProvider = String((results[11] && results[11][0] && results[11][0].value) || 'claude');
         state.rateRow = null;
         featureRows.forEach(function (row) {
           if (textOf(row.feature_key).trim() === 'usdjpy_x100') {
@@ -1078,7 +1109,7 @@
       }
       if (key === 'coupons') { return [couponSection()]; }
       if (key === 'inquiries') { return [inquiriesSection()]; }
-      if (key === 'settings') { return [adTagSection(), selectorsSection()]; }
+      if (key === 'settings') { return [aiSection(), adTagSection(), selectorsSection()]; }
       /* 既定は会員。承認待ちは、待たせているあいだ相手がアプリに入れないので先頭に出す */
       return [pendingSection(), usersSection()];
     }
@@ -1419,6 +1450,116 @@
       }
 
       return section(t('admin.creditUnitPrice'), tl('local.unitPriceDesc'), [row]);
+    }
+
+    /* ---- AIの鍵と、使うAI（2026-11-09 要望）----
+       鍵の本体はここにもDBにも残らない。Vault に入れ、戻ってくるのは
+       「入っているか・末尾4文字・いつ入れたか」だけ（051 の作りを 071 で広げた）。
+
+       写真は OpenAI だけ。文章は Claude か DeepSeek を選ぶ。
+       切り替えは app_settings の text_provider に書く */
+    var AI_PROVIDERS = [
+      { key: 'openai', name: 'OpenAI', use: 'image' },
+      { key: 'anthropic', name: 'Claude（Anthropic）', use: 'text' },
+      { key: 'deepseek', name: 'DeepSeek', use: 'text' }
+    ];
+    var TEXT_PROVIDERS = [
+      { value: 'claude', label: 'Claude' },
+      { value: 'deepseek', label: 'DeepSeek' }
+    ];
+
+    function aiSection() {
+      var box = el('div', 'stack');
+
+      /* どのAIで文章を作るか */
+      var pickWrap = el('div', 'field');
+      pickWrap.appendChild(el('span', 'field__label', tl('local.aiPickTitle')));
+      var chips = el('div', 'chips');
+      TEXT_PROVIDERS.forEach(function (one) {
+        var on = String(state.textProvider || 'claude') === one.value;
+        var chip = button('chip' + (on ? ' chip--selected' : ''), one.label, function () {
+          if (on) { return; }
+          tableUpdate('appSettings', 'text_provider',
+            { value: one.value, updated_at: new Date().toISOString() })
+            .then(function () {
+              state.textProvider = one.value;
+              toast(t('admin.saveSuccess'), 'success');
+              draw();
+            }, function (err) {
+              console.error('[screens-admin] 文章のAIを切り替えられませんでした', err);
+              toast(t('admin.saveFailed'), 'danger');
+            });
+        });
+        chips.appendChild(chip);
+      });
+      pickWrap.appendChild(chips);
+      pickWrap.appendChild(el('p', 'field__hint', tl('local.aiPickDesc')));
+      box.appendChild(pickWrap);
+
+      /* 会社ごとの鍵 */
+      AI_PROVIDERS.forEach(function (prov) {
+        var now = null;
+        (state.providerKeys || []).forEach(function (r) {
+          if (String(r.provider) === prov.key) { now = r; }
+        });
+
+        var input = textInput('', {
+          placeholder: tl('local.aiKeyPlaceholder'), maxLength: 200, password: true
+        });
+        var hint = now && now.has_key
+          ? tl('local.aiKeySet', {
+              tail: String(now.tail || '????'),
+              when: String(now.updated_at || '').slice(0, 10)
+            })
+          : tl('local.aiKeyNone');
+        var f = field(tl('local.aiKeyLabel', { name: prov.name }), input, hint);
+
+        var saveLabel = t('admin.save');
+        var saveBtn = button('btn btn--primary', saveLabel, function () {
+          var value = String(input.value || '').trim();
+          if (!value) { setFieldError(f, input, tl('local.aiKeyPlaceholder')); return; }
+          setFieldError(f, input, '');
+          busy(saveBtn, true, tl('local.saving'), saveLabel);
+          Api.providerKeys.set(prov.key, value, 'service').then(function () {
+            input.value = '';                    /* 打った鍵を画面に残さない */
+            toast(tl('local.aiKeySaved'), 'success');
+            load();
+          }, function (err) {
+            busy(saveBtn, false, tl('local.saving'), saveLabel);
+            console.error('[screens-admin] 鍵を入れられませんでした', err);
+            setFieldError(f, input, errorText(err));
+          });
+        });
+
+        var row = el('div', 'row--input-action');
+        row.appendChild(f);
+        row.appendChild(saveBtn);
+        box.appendChild(row);
+
+        if (now && now.has_key) {
+          var clear = button('btn btn--text btn--sm', tl('local.aiKeyClear'), function () {
+            Api.providerKeys.set(prov.key, '', 'service').then(function () {
+              toast(tl('local.aiKeyCleared'), 'success');
+              load();
+            }, function (err) {
+              console.error('[screens-admin] 鍵を消せませんでした', err);
+              toast(t('admin.saveFailed'), 'danger');
+            });
+          });
+          box.appendChild(clear);
+        }
+        if (prov.use === 'image') {
+          box.appendChild(el('p', 'field__hint', tl('local.aiImageNote')));
+        }
+      });
+
+      return section(tl('local.aiTitle'), tl('local.aiDesc'), [box]);
+    }
+
+    /* 鍵を入れる欄が返す言い分を、そのまま出す（形が違う・短すぎる など） */
+    function errorText(err) {
+      var m = String((err && (err.message || err.hint)) || '').trim();
+      return m || t('admin.saveFailed');
     }
 
     /* ---- 為替（2026-11-08 要望「為替レート設定するところはどこにある？」）----

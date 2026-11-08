@@ -1114,6 +1114,23 @@
     });
   }
 
+  /* AIの鍵（071）。本体はDBに残らず Vault に入る。
+     画面に返ってくるのは「入っているか・末尾4文字・いつ入れたか」だけ。
+     p_scope: 'me'（自分の鍵）/ 'service'（運営の鍵。管理者のみ） */
+  api.providerKeys = {
+    set: function (provider, keyText, scope) {
+      return rpc('elpiya_set_provider_key', {
+        p_provider: String(provider || ''),
+        p_key: String(keyText === undefined || keyText === null ? '' : keyText),
+        p_scope: scope === 'service' ? 'service' : 'me'
+      });
+    },
+    state: function (scope) {
+      return rpc('elpiya_provider_key_state', { p_scope: scope === 'service' ? 'service' : 'me' })
+        .then(function (rows) { return rows || []; });
+    }
+  };
+
   api.credits = {
     costByFeature: costByFeature,
     usageByUser: usageByUser,
