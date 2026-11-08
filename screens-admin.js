@@ -2718,9 +2718,13 @@
         box.appendChild(list);
         body.appendChild(box);
       });
-      /* 括りの無い行（為替・1回の単価など） */
-      var others = state.rows.filter(function (r) { return r.group === null; })
-        .sort(function (a, b) { return a.sort - b.sort; });
+      /* 括りの無い行（Claude のトークン単価など）。
+         為替だけは「管理 → 料金設定」に自分の欄ができたので、ここには出さない
+         （2026-11-08。2か所にあると、どちらが効くのか分からなくなる。
+          しかもこちらは消費ポイントの欄を間借りしていて「売値 157,470円」と出る） */
+      var others = state.rows.filter(function (r) {
+        return r.group === null && r.key !== RATE_KEY;
+      }).sort(function (a, b) { return a.sort - b.sort; });
       if (others.length) {
         var obox = el('div', 'admin-group');
         var ohead = el('div', 'admin-group__head');
