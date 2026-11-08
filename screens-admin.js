@@ -349,13 +349,17 @@
       '{name} 님은 로그인할 수 없게 됩니다. 나중에 다시 승인할 수 있습니다.'],
     /* 値段表の括り分けと、実測原価（2026-10-30 要望） */
     /* 1つのボタンで複数の機能が走る組み合わせ（2026-11-08 指摘） */
-    'local.bundleTitle': ['「{name}」を1回押すと', 'One press of "{name}"', '"{name}"를 한 번 누르면'],
     'local.bundleIfRef': ['（参考URLがあるとき）', ' (when a reference URL is given)', '(참고 URL이 있을 때)'],
-    'local.bundlePer': ['×{unit}の数', ' x number of {unit}', '×{unit} 수'],
-    'local.bundleExample': ['→ 競合URL1本なら {one}P、3本なら {three}P',
-      '→ {one}P with one competitor URL, {three}P with three',
-      '→ 경쟁 URL 1개면 {one}P, 3개면 {three}P'],
     'local.bundleAiRun': ['AI自動分析', 'Analyse with AI', 'AI 자동 분석'],
+    'local.bundlePrice': ['売値 {p}P（{yen}円）／1回', 'Price {p}P (¥{yen}) per press', '판매가 {p}P({yen}원)/1회'],
+    'local.bundleCostEach': ['実測原価 ${yen}/回{jpy}（{n}つの機能の合計）',
+      'Measured cost ${yen} per press{jpy} (sum of {n} features)',
+      '실측 원가 ${yen}/회{jpy}({n}개 기능 합계)'],
+    'local.bundleCostHint': ['このボタン1回ぶんの原価をUSDで入れられます。空にすると、中で走る機能の実測を足した額を使います。',
+      'Enter the USD cost of one press. Leave it empty to use the sum of the measured costs of the features it runs.',
+      '이 버튼 1회분의 원가를 USD로 입력할 수 있습니다. 비우면 내부 기능의 실측 합계를 사용합니다.'],
+    'local.bundleShow': ['中で走る{n}つの機能を見る', 'Show the {n} features it runs', '내부 {n}개 기능 보기'],
+    'local.bundleHide': ['内訳を閉じる', 'Hide the breakdown', '내역 닫기'],
     'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
     'local.usageLink': ['利用状況（原価・利用者ごと・作っているもの）', 'Usage (cost, per user, their work)', '이용 현황'],
     'local.perUnit': ['単位ごと', 'per unit', '단위마다'],
@@ -2390,6 +2394,9 @@
        片方だけ直すとずれるので、usage-screen-selftest.mjs で見張っている */
     var BUNDLES = [{
       group: 1,
+      /* ボタンそのものを表す行（068）。ここではポイントを引かない。
+         使うのは名前と、手で入れた原価だけ */
+      key: 'ai_autorun',
       nameKey: 'local.bundleAiRun',
       parts: [
         { key: 'product_autofill',    noteKey: 'local.bundleIfRef' },
@@ -2398,44 +2405,147 @@
       ]
     }];
 
-    /* その組み合わせを1回走らせたときの言い方と、例の金額 */
-    function bundleNode(groupNo) {
-      var bundle = null;
-      BUNDLES.forEach(function (b) { if (b.group === groupNo) { bundle = b; } });
-      if (!bundle) { return null; }
+    /* 原価はUSDで持つ。円は為替を掛けた結果なので、ドルの後ろに添える。
+       束ねた行と内訳の行の両方が使うので、ここに1つだけ置く */
+    function usdText(v) {
+      var n = Number(v) || 0;
+      if (n !== 0 && Math.abs(n) < 0.01) { return n.toFixed(4); }
+      return n.toFixed(2);
+    }
 
-      var found = 0;
-      var pieces = [];
-      var onePerUnit = 0;    /* ×本数 で効く分 */
-      var fixed = 0;         /* 本数に関わらずかかる分 */
-      bundle.parts.forEach(function (part) {
-        var row = null;
-        state.rows.forEach(function (r) { if (r.key === part.key) { row = r; } });
-        if (!row) { return; }
-        found += 1;
-        var points = Number(row.cost) || 0;
-        var text = row.name + ' ' + fmtNumber(points) + 'P';
-        if (part.per) {
-          text += tl('local.bundlePer', { unit: row.unitName || tl('local.perUnit') });
-          onePerUnit += points;
-        } else {
-          fixed += points;
-        }
-        if (part.noteKey) { text += tl(part.noteKey); }
-        pieces.push(text);
+    function jpySuffix(usdValue) {
+      var rate = costRate();
+      if (!rate) { return ''; }
+      return tl('local.costYenSuffix', {
+        n: fmtNumber(Math.round((Number(usdValue) || 0) * rate))
       });
-      if (found !== bundle.parts.length) { return null; }
+    }
+
+    function bundleOf(groupNo) {
+      var found = null;
+      BUNDLES.forEach(function (b) { if (b.group === groupNo) { found = b; } });
+      return found;
+    }
+
+    function rowOf(key) {
+      var found = null;
+      state.rows.forEach(function (r) { if (r.key === key) { found = r; } });
+      return found;
+    }
+
+    /* ボタン1個ぶんの行。中で走る機能は畳んでおく（2026-11-08 要望
+       「最初は『AI自動分析』ボタン1個しかない。ボタン1個に内訳入らない」）。
+       ポイントの引き方は変えていないので、内訳の値段はここから開いて直せる */
+    function bundleNode(groupNo) {
+      var bundle = bundleOf(groupNo);
+      if (!bundle) { return null; }
+      var self = rowOf(bundle.key);
+      var members = bundle.parts.map(function (part) {
+        return { part: part, row: rowOf(part.key) };
+      }).filter(function (x) { return !!x.row; });
+      if (!self || members.length !== bundle.parts.length) { return null; }
 
       var box = el('div', 'admin-bundle');
-      box.appendChild(el('div', 'admin-bundle__title',
-        tl('local.bundleTitle', { name: tl(bundle.nameKey) })));
-      box.appendChild(el('div', 'admin-bundle__parts', pieces.join('　＋　')));
-      box.appendChild(el('div', 'admin-bundle__sum', tl('local.bundleExample', {
-        one: fmtNumber(fixed + onePerUnit),
-        three: fmtNumber(fixed + onePerUnit * 3)
-      })));
+
+      /* 見出しと、1回ぶんの売値 */
+      var head = el('div', 'admin-bundle__head');
+      head.appendChild(el('span', 'admin-bundle__name', self.name));
+      var priceText = el('span', 'admin-bundle__price', '');
+      head.appendChild(priceText);
+      box.appendChild(head);
+
+      /* 原価。自動の合計と、手で入れた額の両方を扱う */
+      var meta = el('div', 'list-row__meta admin-cost', '');
+      var costInput = numberInput(self.costManual, {
+        min: 0, max: MAX_COST_USD, step: '0.0001',
+        placeholder: tl('local.costManualPlaceholder')
+      });
+      costInput.className = 'input input--sm admin-cost__input';
+      costInput.setAttribute('aria-label', self.name + ' ' + tl('local.costManualLabel'));
+      costInput.title = tl('local.bundleCostHint');
+      var pre = document.createTextNode('');
+      var post = document.createTextNode('');
+      meta.appendChild(pre);
+      meta.appendChild(costInput);
+      meta.appendChild(post);
+      box.appendChild(meta);
+
+      /* 内訳。既定は畳む */
+      var open = false;
+      var toggle = button('btn btn--text btn--sm admin-bundle__toggle', '', function () {
+        open = !open;
+        inner.hidden = !open;
+        toggle.textContent = tl(open ? 'local.bundleHide' : 'local.bundleShow',
+          { n: fmtNumber(members.length) });
+      });
+      var inner = el('div', 'admin-bundle__inner');
+      inner.hidden = true;
+      box.appendChild(toggle);
+      box.appendChild(inner);
+      members.forEach(function (m) { inner.appendChild(featureRow(m.row)); });
+      toggle.textContent = tl('local.bundleShow', { n: fmtNumber(members.length) });
+
+      /* 1回ぶんを数える。競合LPはURLの本数で変わるので、1本のときで出す */
+      function sums() {
+        var points = 0;
+        var usd = 0;
+        var measured = true;
+        members.forEach(function (m) {
+          points += Number(m.row.cost) || 0;
+          var c = state.cost[m.row.key];
+          var each = c && c.cost_usd_each !== null && c.cost_usd_each !== undefined
+            ? Number(c.cost_usd_each) : null;
+          if (each === null) { measured = false; } else { usd += each; }
+        });
+        return { points: points, usd: usd, measured: measured };
+      }
+
+      function paintBundle() {
+        var sum = sums();
+        priceText.textContent = tl('local.bundlePrice', {
+          p: fmtNumber(sum.points),
+          yen: fmtNumber(Math.round(sum.points * state.unitPrice))
+        });
+
+        var manual = self.costManual === null || self.costManual === undefined
+          ? null : Number(self.costManual);
+        var each = manual !== null ? manual : (sum.measured ? sum.usd : null);
+        var key = manual !== null ? 'local.costManualEach'
+          : (sum.measured ? 'local.bundleCostEach' : 'local.costAsk');
+        var parts = tl(key, {
+          yen: YEN_SLOT,
+          jpy: each === null ? '' : jpySuffix(each),
+          n: fmtNumber(members.length),
+          price: fmtNumber(Math.round(sum.points * state.unitPrice))
+        }).split(YEN_SLOT);
+        pre.nodeValue = parts[0] || '';
+        post.nodeValue = parts.length > 1 ? parts[1] : '';
+        costInput.placeholder = manual === null && sum.measured
+          ? usdText(sum.usd) : tl('local.costManualPlaceholder');
+        var eachYen = each === null ? null : each * (costRate() || 0);
+        var priceYen = sum.points * state.unitPrice;
+        meta.classList.toggle('admin-cost--under', eachYen !== null && priceYen < eachYen);
+      }
+
+      costInput.addEventListener('input', function () {
+        var raw = String(costInput.value || '').trim();
+        if (!raw) {
+          self.costManual = null;
+        } else {
+          var value = Number(raw);
+          if (isFinite(value) && value >= 0 && value <= MAX_COST_USD) { self.costManual = value; }
+        }
+        paintBundle();
+      });
+
+      /* 内訳の値段を直したら、上の合計も動かす */
+      bundleRepaint = paintBundle;
+      paintBundle();
       return box;
     }
+
+    /* 内訳の行が値段を直したときに呼ぶ（束ねた行の合計を描き直す） */
+    var bundleRepaint = null;
 
     var GROUPS = [
       { no: 1, key: 'wfg.research' },
@@ -2443,8 +2553,19 @@
       { no: 3, key: 'wfg.deliver' }
     ];
 
+    /* 束ねた行の中に入れる機能と、ボタンそのものの行は、
+       一覧の本体には出さない（出すと同じ行が2回並ぶ） */
+    function insideBundle(key) {
+      var hit = false;
+      BUNDLES.forEach(function (b) {
+        if (b.key === key) { hit = true; }
+        b.parts.forEach(function (part) { if (part.key === key) { hit = true; } });
+      });
+      return hit;
+    }
+
     function rowsOfGroup(no) {
-      return state.rows.filter(function (r) { return r.group === no; })
+      return state.rows.filter(function (r) { return r.group === no && !insideBundle(r.key); })
         .sort(function (a, b) { return a.sort - b.sort; });
     }
 
@@ -2457,15 +2578,17 @@
       body = el('div', 'stack');
       GROUPS.forEach(function (g) {
         var rows = rowsOfGroup(g.no);
-        if (!rows.length) { return; }
-        var sum = rows.reduce(function (n, r) { return n + Math.max(0, r.cost); }, 0);
+        var bundle = bundleNode(g.no);
+        if (!rows.length && !bundle) { return; }
+        /* 括りの合計は、束ねた行の中の機能も数える（画面から隠れていても引かれる） */
+        var sum = state.rows.filter(function (r) { return r.group === g.no; })
+          .reduce(function (n, r) { return n + Math.max(0, r.cost); }, 0);
         var head = el('div', 'admin-group__head');
         head.appendChild(el('span', 'admin-group__no', String(g.no)));
         head.appendChild(el('span', 'admin-group__name', t(g.key)));
         head.appendChild(el('span', 'admin-group__sum', fmtNumber(sum) + 'P'));
         var box = el('div', 'admin-group');
         box.appendChild(head);
-        var bundle = bundleNode(g.no);
         if (bundle) { box.appendChild(bundle); }
         var list = el('div', 'list');
         rows.forEach(function (row) { list.appendChild(featureRow(row)); });
@@ -2545,21 +2668,6 @@
 
       /* 原価の行を描き直す。売値（ポイント）を直したときも呼ぶ。
          入力欄そのものは作り直さない（打っている最中に消えてしまう） */
-      /* 原価はUSDで持つ。円は為替を掛けた結果なので、ドルの後ろに添える */
-      function usdText(v) {
-        var n = Number(v) || 0;
-        if (n !== 0 && Math.abs(n) < 0.01) { return n.toFixed(4); }
-        return n.toFixed(2);
-      }
-
-      function jpySuffix(usdValue) {
-        var rate = costRate();
-        if (!rate) { return ''; }
-        return tl('local.costYenSuffix', {
-          n: fmtNumber(Math.round((Number(usdValue) || 0) * rate))
-        });
-      }
-
       function paintCost() {
         var manual = row.costManual === null || row.costManual === undefined
           ? null : Number(row.costManual);
@@ -2608,6 +2716,7 @@
         error.textContent = row.error || row.costManualError;
         error.hidden = !error.textContent;
         paintCost();
+        if (bundleRepaint) { bundleRepaint(); }
         recalcEstimate();
       });
 

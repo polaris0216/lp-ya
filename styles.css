@@ -351,25 +351,37 @@ table { border-collapse: collapse; width: 100%; }
   background: var(--c-main-weak);
 }
 
-.admin-bundle__title {
-  font-size: var(--fs-note);
+.admin-bundle__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-bundle__name {
+  font-size: var(--fs-body);
   font-weight: var(--fw-bold);
   color: var(--c-text);
 }
 
-.admin-bundle__parts {
-  margin-top: 4px;
-  font-size: var(--fs-note);
-  color: var(--c-text-sub);
-  line-height: 1.9;
-}
-
-.admin-bundle__sum {
-  margin-top: 4px;
+.admin-bundle__price {
   font-size: var(--fs-note);
   font-weight: var(--fw-bold);
   color: var(--c-main-press);
   font-variant-numeric: tabular-nums;
+}
+
+/* 内訳は畳んでおく。ボタンは1つなので、既定では見せない（2026-11-08） */
+.admin-bundle__toggle {
+  margin-top: 2px;
+  padding-left: 0;
+}
+
+.admin-bundle__inner {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--c-line);
 }
 
 /* ドルの下に添える円。원가はドル建てなので、円は換算であることが
