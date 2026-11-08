@@ -41,7 +41,7 @@
     S20: ['target_proposal'],
     S12: ['lp_brief', 'lp_section', 'lp_assets', 'kv', 'meta_ads'],
     S13: ['sales_copy'],
-    S21: ['line_brief', 'line_copy']
+    S21: ['line_brief', 'line_copy', 'line_assets']
   };
 
   function arr(x) { return Array.isArray(x) ? x : []; }

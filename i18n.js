@@ -541,6 +541,7 @@
     'job.kind.product_cutouts': ['商品の切り抜き', 'Product cutouts', '상품 누끼'],
     'job.kind.line_brief': ['LINEコンテンツ', 'LINE content', 'LINE 콘텐츠'],
     'job.kind.line_copy': ['LINEの文章', 'LINE copy', 'LINE 문장'],
+    'job.kind.line_assets': ['LINEの絵', 'LINE images', 'LINE 이미지'],
     'job.kind.kv': ['キービジュアル', 'Key visual', '키 비주얼'],
     'job.kind.meta_ads': ['メタ広告', 'Meta ads', '메타 광고'],
     'eta.wide': ['ふつう{a}分ほど。混み合うと{b}分かかることがあります。閉じても進みます。',

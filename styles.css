@@ -342,6 +342,13 @@ table { border-collapse: collapse; width: 100%; }
 
 .list-row--sub .num { color: var(--c-text-sub); }
 
+/* 「1回押すといくら」。実測原価の行の下に、薄く添える（2026-11-08） */
+.admin-press {
+  font-size: var(--fs-note);
+  color: var(--c-main-press);
+  font-variant-numeric: tabular-nums;
+}
+
 /* 1つのボタンで何が走るか。括りの見出しのすぐ下に置く（2026-11-08）。
    行の並びと同じ重さにすると、どれが「1回ぶん」なのか分からなくなる */
 .admin-bundle {

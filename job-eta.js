@@ -19,6 +19,8 @@
   /* 単位は分。2026-10-25 に a2f58db45_generation_jobs から測った値 */
   const ETA = {
     lp_section:          { p50: 9,  p90: 106, note: 'many' },
+    /* LINEの絵。作り方は lp_section と同じなので、測り直すまで同じ値を使う（069） */
+    line_assets:         { p50: 9,  p90: 106, note: 'many' },
     competitor_analysis: { p50: 24, p90: 30 },
     product_autofill:    { p50: 10, p90: 12 },
     lp_brief:            { p50: 9,  p90: 13 },

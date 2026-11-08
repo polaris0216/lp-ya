@@ -358,6 +358,9 @@
     'local.bundleCostHint': ['このボタン1回ぶんの原価をUSDで入れられます。空にすると、中で走る機能の実測を足した額を使います。',
       'Enter the USD cost of one press. Leave it empty to use the sum of the measured costs of the features it runs.',
       '이 버튼 1회분의 원가를 USD로 입력할 수 있습니다. 비우면 내부 기능의 실측 합계를 사용합니다.'],
+    'local.pressExample': ['→ 1回押して{n}{unit}なら {p}P（{yen}円）・原価 ${usd}',
+      '→ one press of {n} {unit}: {p}P (¥{yen}), cost ${usd}',
+      '→ 한 번에 {n}{unit}이면 {p}P({yen}원)·원가 ${usd}'],
     'local.bundleShow': ['中で走る{n}つの機能を見る', 'Show the {n} features it runs', '내부 {n}개 기능 보기'],
     'local.bundleHide': ['内訳を閉じる', 'Hide the breakdown', '내역 닫기'],
     'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
@@ -2421,6 +2424,21 @@
       });
     }
 
+    /* ×個数で走るボタンに「1回押すといくら」を出すための、例に使う数。
+       何枚作るかは案件ごとに違うので、**前提つきの額**として出す
+       （2026-11-08 要望。前提を隠して1つの額だけ出すと嘘になる）。
+       数の出どころ:
+         lp_section  … LPは区画が平均28枚（screens-lp.js の注記と同じ）
+         line_assets … LINEは層ごとに数枚。実測が溜まるまで6枚
+         lp_assets   … 動く絵は1本ずつ押す作りだが、まとめると数本
+         competitor_analysis / product_cutouts … 1本・1枚が普通 */
+    var PRESS_EXAMPLE = {
+      lp_section: 28,
+      line_assets: 6,
+      lp_assets: 3,
+      product_cutouts: 3
+    };
+
     function bundleOf(groupNo) {
       var found = null;
       BUNDLES.forEach(function (b) { if (b.group === groupNo) { found = b; } });
@@ -2665,6 +2683,10 @@
       var costNote = el('div', 'list-row__meta admin-cost', '');
       costNote.hidden = true;
       bodyNode.appendChild(costNote);
+      /* 「このボタンを1回押すといくら」。×個数で走るものだけ出す */
+      var pressNote = el('div', 'list-row__meta admin-press', '');
+      pressNote.hidden = true;
+      bodyNode.appendChild(pressNote);
 
       /* 原価の行を描き直す。売値（ポイント）を直したときも呼ぶ。
          入力欄そのものは作り直さない（打っている最中に消えてしまう） */
@@ -2700,6 +2722,21 @@
               jpy: jpySuffix(cost.cost_usd)
             }) : '';
         costNote.hidden = !totalOnly;
+
+        /* ×個数で走るボタンは、1回押すといくらかを前提つきで出す */
+        var n = PRESS_EXAMPLE[row.key];
+        if (n && each !== null) {
+          pressNote.textContent = tl('local.pressExample', {
+            n: fmtNumber(n),
+            unit: row.unitName || tl('local.perUnit'),
+            p: fmtNumber(row.cost * n),
+            yen: fmtNumber(Math.round(row.cost * n * state.unitPrice)),
+            usd: usdText(each * n)
+          });
+          pressNote.hidden = false;
+        } else {
+          pressNote.hidden = true;
+        }
       }
       paintCost();
 

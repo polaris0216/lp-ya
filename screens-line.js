@@ -6,7 +6,8 @@
  * 生成ページを追加して、リッチメニューやリッチメッセージ、
  * ラインメッセージ文章など生成できるように」）:
  *   1. 形を選ぶ   … リッチメニュー・リッチメッセージの寸法（販売の条件と同じ鍵）
- *   2. 絵を作る   … line_brief（区画を書く）→ lp_section（1枚ずつ絵にする）
+ *   2. 絵を作る   … line_brief（区画を書く）→ line_assets（1枚ずつ絵にする）
+ *                   作り方は LP の lp_section と同じ。069 で鍵だけ分けた
  *   3. 文章を作る … line_copy（送る場面ごとの文を書く）
  *
  * 絵の作り方は LP・KV・広告と同じ仕組みに乗せてある（生成物＋区画＋asset_prompts）。
@@ -778,7 +779,9 @@
         startPoll();
         Promise.all(targets.map(function (g) {
           return Api.generationJobs.insert({
-            feature_key: 'lp_section',
+            /* 069 で LP のブロックと鍵を分けた。届けるの括りで値段と原価を
+               別々に設定できるようにするため（2026-11-08 要望） */
+            feature_key: 'line_assets',
             status: 'pending',
             projects_id: projectId,
             users_id: userId(),
@@ -811,10 +814,11 @@
           paint();
         });
       });
-      /* LINEの絵も lp_section の仕組みで作る。値段はその枚数ぶん
+      /* LINEの絵は LP の区画と同じ仕組みで作るが、鍵は line_assets に分けてある
+         （069）。値段はその枚数ぶん
          （2026-10-30 要望：AIを使うボタンには必ず値段を出す） */
       if (window.LpyaCost) {
-        window.LpyaCost.stamp(all, 'lp_section', names.reduce(function (n, L) {
+        window.LpyaCost.stamp(all, 'line_assets', names.reduce(function (n, L) {
           var g = view.layers[L];
           return n + ((g && isArray(g.sections)) ? g.sections.length : 0);
         }, 0));
@@ -825,7 +829,7 @@
          言わないと「固まった」と思って押し直される。
          値段も、知らずに押すと5層×2枚＝10枚ぶん一気に進む */
       if (window.LpyaJobEta) {
-        var eta = window.LpyaJobEta.hint('lp_section', t);
+        var eta = window.LpyaJobEta.hint('line_assets', t);
         if (eta) { add(box, el('p', 'field__hint', eta)); }
       }
 
@@ -949,12 +953,12 @@
           add(card, dl);
         }
         var b = button('btn btn--primary btn--sm', url ? tl('line.remake') : tl('line.make'), function () {
-          queue('lp_section',
+          queue('line_assets',
             { generation_id: view.brief.id, feature_key: 'line_brief',
               sections: [sec.index], force: !!url },
             'line.briefDone', b);
         });
-        if (window.LpyaCost) { window.LpyaCost.stamp(b, 'lp_section', 1); }
+        if (window.LpyaCost) { window.LpyaCost.stamp(b, 'line_assets', 1); }
         add(card, b);
         add(grid, card);
       });
