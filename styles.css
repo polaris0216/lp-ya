@@ -342,6 +342,11 @@ table { border-collapse: collapse; width: 100%; }
 
 .list-row--sub .num { color: var(--c-text-sub); }
 
+/* 自動保存の印（2026-11-09）。既定は「未保存」の注意色のまま。
+   済んだら落ち着いた色、失敗したら危険色にする */
+.form-actions__mark--ok { color: var(--c-success); }
+.form-actions__mark--bad { color: var(--c-danger); }
+
 /* 「1回押すといくら」。実測原価の行の下に、薄く添える（2026-11-08） */
 .admin-press {
   font-size: var(--fs-note);

@@ -2458,7 +2458,51 @@
     return projectId ? { id: projectId } : null;
   }
 
+  /* ---- 未保存の歯止め（2026-11-09 要望）----
+     これまで、打った中身は「保存」を押さないと消えた。しかも
+       ・タブを閉じる  → 警告なしで消える
+       ・画面を移る    → 警告なしで消える
+     画面ごとに書くと必ず抜けるので、**持ち主を1つだけ覚える**形にする。
+     画面は入るときに App.guardUnsaved(関数) を呼び、出るときに
+     App.guardUnsaved(null) で外す。関数は「未保存ならtrue」を返す。 */
+  var unsavedGuard = null;
+
+  function guardUnsaved(fn) {
+    unsavedGuard = typeof fn === 'function' ? fn : null;
+  }
+
+  function hasUnsaved() {
+    if (!unsavedGuard) { return false; }
+    try { return !!unsavedGuard(); } catch (e) { return false; }
+  }
+
+  /* タブを閉じる・再読み込み。ブラウザの決まりで、文面は選べない */
+  global.addEventListener('beforeunload', function (e) {
+    if (!hasUnsaved()) { return; }
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  });
+
   function navigate(id, params) {
+    /* 画面を移る前に聞く。押した本人が「はい」と言えば、そのまま移って捨てる */
+    if (hasUnsaved()) {
+      confirmDialog({
+        title: t('common.unsavedTitle'),
+        message: t('common.unsavedBody'),
+        confirmLabel: t('common.unsavedLeave'),
+        danger: true
+      }).then(function (ok) {
+        if (!ok) { return; }
+        unsavedGuard = null;      /* 捨てると決めたので、もう止めない */
+        navigateNow(id, params);
+      });
+      return;
+    }
+    navigateNow(id, params);
+  }
+
+  function navigateNow(id, params) {
     var target = hashFor(id, params);
     if (global.location.hash === target) {
       render(true);
@@ -2499,6 +2543,10 @@
     if (!dom.main) { return; }
     var route = current;
     if (!route.id) { return; }
+    /* 画面を描き直すたびに未保存の見張りを外す。
+       要る画面は、自分の render の中でもう一度登録する。
+       画面ごとに外させると必ず忘れ、関係ない画面で「破棄しますか？」が出る */
+    unsavedGuard = null;
     var meta = SCREENS[route.id];
     if (!meta) {
       console.error('[App] 未知の画面IDです: ' + route.id + '（S1〜S22 と settings のみ）');
@@ -3273,6 +3321,7 @@
     screenIds: function () { return Object.keys(SCREENS); },
 
     navigate: navigate,
+    guardUnsaved: guardUnsaved,
     replace: replace,
     back: back,
     hashFor: hashFor,

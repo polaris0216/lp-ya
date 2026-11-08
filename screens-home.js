@@ -3278,13 +3278,84 @@
 
     function paintSaveState() {
       if (!dirtyMark) { return; }
+      if (autoState === 'saving') {
+        dirtyMark.textContent = t('project.autoSaving');
+        dirtyMark.className = 'form-actions__mark';
+        dirtyMark.hidden = false;
+        return;
+      }
+      if (autoState === 'failed') {
+        dirtyMark.textContent = t('project.autoFailed');
+        dirtyMark.className = 'form-actions__mark form-actions__mark--bad';
+        dirtyMark.hidden = false;
+        return;
+      }
+      if (autoState === 'saved' && !dirty) {
+        dirtyMark.textContent = t('project.autoSaved');
+        dirtyMark.className = 'form-actions__mark form-actions__mark--ok';
+        dirtyMark.hidden = false;
+        return;
+      }
+      dirtyMark.textContent = t('project.unsavedMark');
+      dirtyMark.className = 'form-actions__mark';
       dirtyMark.hidden = !dirty;
     }
 
-    /* 入力のたびに「未保存」を立てる */
+    /* ---- 入力したら自動で保存する（2026-11-09 要望）----
+       これまでは「保存」を押さずにタブを閉じると、打った商品情報が
+       警告も出ずに全部消えた。目印は出ていたが、気づかなければ止められない。
+
+       作り: 打ち終わって2.5秒静かになったら保存する。
+       ・validate() は通さない（途中の未入力で止めると、自動保存の意味がない）
+       ・画面は動かさない（submitCreate は保存後に次の画面へ進むが、こちらは残る）
+       ・失敗しても黙らない。印を「保存できていません」に変える */
+    var AUTOSAVE_MS = 2500;
+    var autoTimer = null;
+    var autoBusy = false;
+    var autoState = '';    /* '' / 'saving' / 'saved' / 'failed' */
+
+    function scheduleAutosave() {
+      if (!projectId) { return; }   /* まだ作られていない案件は、作成を押すまで待つ */
+      if (autoTimer) { clearTimeout(autoTimer); }
+      autoTimer = setTimeout(runAutosave, AUTOSAVE_MS);
+    }
+
+    function runAutosave() {
+      autoTimer = null;
+      if (!dirty || autoBusy || busy || !projectId || !apiReady()) { return; }
+      autoBusy = true;
+      autoState = 'saving';
+      paintSaveState();
+      /* 送った時点の中身を覚えておく。保存中に打ち足した分を
+         「保存済み」にしてしまわないため */
+      var sending = formPayload();
+      window.Api.projects.update(projectId, sending).then(function () {
+        autoBusy = false;
+        /* 保存中に増えた変更が無ければ、未保存を下ろす */
+        if (JSON.stringify(formPayload()) === JSON.stringify(sending)) {
+          dirty = false;
+          autoState = 'saved';
+        } else {
+          autoState = '';
+          scheduleAutosave();
+        }
+        paintSaveState();
+      }, function (err) {
+        autoBusy = false;
+        autoState = 'failed';
+        console.error('[screens-home] 自動保存に失敗しました', err);
+        paintSaveState();
+        /* 一度だけ置き直す。つながり待ちのことが多い */
+        scheduleAutosave();
+      });
+    }
+
+    /* 入力のたびに「未保存」を立て、自動保存を置き直す */
     function markDirty() {
       dirty = true;
+      autoState = '';
       paintSaveState();
+      scheduleAutosave();
     }
 
     function submitCreate() {
@@ -3311,6 +3382,12 @@
         console.error('[screens-home] プロジェクトの保存に失敗しました', err);
         toast(errorMessage(err, 'project.saveFailed'), 'danger');
       });
+    }
+
+    /* 未保存のまま離れるのを止める（2026-11-09）。
+       自動保存があっても、通信が切れていれば残らない。最後の砦として置く */
+    if (typeof App.guardUnsaved === 'function') {
+      App.guardUnsaved(function () { return dirty; });
     }
 
     load();

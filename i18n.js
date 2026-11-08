@@ -95,6 +95,7 @@
     'common.yen': ['円', 'yen', '엔'],
     'common.unsavedTitle': ['変更を破棄しますか？', 'Discard changes?', '변경 사항을 취소할까요?'],
     'common.unsavedBody': ['保存していない変更は失われます', 'Unsaved changes will be lost', '저장하지 않은 변경 사항은 사라집니다'],
+    'common.unsavedLeave': ['破棄して移動', 'Discard and leave', '취소하고 이동'],
     'common.discard': ['破棄', 'Discard', '취소하고 나가기'],
     'common.keepEditing': ['編集を続ける', 'Keep editing', '계속 편집'],
 
@@ -668,6 +669,9 @@
     'project.saveFailed': ['保存に失敗しました', 'Failed to save', '저장에 실패했습니다'],
     'project.editing': ['編集中', 'Editing', '편집 중'],
     'project.unsavedMark': ['未保存の変更があります', 'You have unsaved changes', '저장하지 않은 변경이 있습니다'],
+    'project.autoSaving': ['自動保存しています…', 'Saving…', '자동 저장 중…'],
+    'project.autoSaved': ['自動保存しました', 'Saved automatically', '자동 저장했습니다'],
+    'project.autoFailed': ['自動保存できていません。通信を確かめてください', 'Could not save automatically. Check your connection.', '자동 저장하지 못했습니다. 연결을 확인해 주세요'],
     'project.finish': ['完了して詳細へ', 'Finish and open the project', '완료하고 상세로'],
     // 国内クラファンのモノ系3社（Makuake / CAMPFIRE / GREENFUNDING）の共通項から、
     // LPの型が実際に変わる粒度で13個に絞ったもの。寄付型・興行系は扱わない。
