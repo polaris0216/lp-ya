@@ -358,6 +358,18 @@
     'local.bundleCostHint': ['このボタン1回ぶんの原価をUSDで入れられます。空にすると、中で走る機能の実測を足した額を使います。',
       'Enter the USD cost of one press. Leave it empty to use the sum of the measured costs of the features it runs.',
       '이 버튼 1회분의 원가를 USD로 입력할 수 있습니다. 비우면 내부 기능의 실측 합계를 사용합니다.'],
+    'local.rateTitle': ['為替（AI原価の円換算）', 'Exchange rate (for AI cost in yen)', '환율(AI 원가 엔화 환산)'],
+    'local.rateDesc': ['AIの請求はドル建てです。原価を円で出すときに、この値を掛けます。',
+      'AI is billed in USD. This rate converts the cost to yen.',
+      'AI는 달러로 청구됩니다. 원가를 엔화로 표시할 때 이 값을 곱합니다.'],
+    'local.rateLabel': ['1USD = 何円', '1 USD in JPY', '1USD = 몇 엔'],
+    'local.rateNow': ['現在 1USD={rate}円', 'Now 1 USD = {rate} JPY', '현재 1USD={rate}엔'],
+    'local.rateUnset': ['まだ入っていません。入れるまで原価の円表示は0になります。',
+      'Not set yet. Yen costs show as 0 until you set it.',
+      '아직 입력되지 않았습니다. 입력할 때까지 엔화 원가는 0으로 표시됩니다.'],
+    'local.rateInvalid': ['為替は 0.01〜1000 の数で入れてください（例: 157.47）',
+      'Enter a rate between 0.01 and 1000 (e.g. 157.47)',
+      '환율은 0.01~1000 사이의 숫자로 입력해 주세요(예: 157.47)'],
     'local.pressExample': ['→ 1回押して{unit}なら {p}P（{yen}円）・原価 ${usd}',
       '→ one press of {unit}: {p}P (¥{yen}), cost ${usd}',
       '→ 한 번에 {unit}이면 {p}P({yen}원)·원가 ${usd}'],
@@ -941,6 +953,14 @@
         var featureRows = results[0] || [];
         state.unitPrice = unitPriceOf(featureRows);
         state.unitRowId = unitPriceRowId(featureRows);
+        /* 為替は料金設定の耳にも出す（2026-11-08）。S18 では state.rows を
+           作っていないので、この行だけここで控える */
+        state.rateRow = null;
+        featureRows.forEach(function (row) {
+          if (textOf(row.feature_key).trim() === 'usdjpy_x100') {
+            state.rateRow = { id: row.id, cost: Number(row.credit_cost) || 0 };
+          }
+        });
         /* キーのままでは管理者に読めない（crowdfunding_lp と出る）。
            feature_name を引けるように控えておく */
         state.featureNames = {};
@@ -1045,7 +1065,7 @@
         })];
       }
       if (key === 'pricing') {
-        return [unitPriceSection(), plansSection(), button('btn btn--secondary btn--block', t('admin.featurePricingLink'), function () {
+        return [unitPriceSection(), rateSection(), plansSection(), button('btn btn--secondary btn--block', t('admin.featurePricingLink'), function () {
           goto('S19');
         })];
       }
@@ -1392,6 +1412,80 @@
       }
 
       return section(t('admin.creditUnitPrice'), tl('local.unitPriceDesc'), [row]);
+    }
+
+    /* ---- 為替（2026-11-08 要望「為替レート設定するところはどこにある？」）----
+       置き場は feature_credits の usdjpy_x100 で前からあったが、
+       値段表のいちばん下の「設定（値段ではない行）」に紛れていて、
+       **4階層＋2回のスクロール**の奥だった。しかも消費ポイントの欄を
+       間借りしているので「売値 157,470円」と出ていて、設定値に見えなかった。
+       原価の円換算はここだけで決まるので、ポイント単価の隣に出す。
+
+       持ち方は ×100 の整数のまま（DBの credit_cost が integer なので）。
+       画面では 157.47 と入れて、保存のときに100倍する。
+       ×100 のまま入れさせると、157.47 と打った人の為替が 1.57円になる */
+    var RATE_KEY = 'usdjpy_x100';
+    var RATE_NAME = '為替 1USD=何円 ×100';
+    var MAX_RATE = 100000;   /* 1USD=1000円。これを超えるのは打ち間違い */
+
+    /* S18（管理者ダッシュボード）は state.rateRow、
+       S19（値段表）は state.rows。どちらから開いても同じ行を指す */
+    function rateRow() {
+      var found = null;
+      (state.rows || []).forEach(function (r) {
+        if (r.key === RATE_KEY) { found = { id: r.id, cost: Number(r.cost) || 0 }; }
+      });
+      return found || state.rateRow || null;
+    }
+
+    function rateSection() {
+      var row = rateRow();
+      var now = row ? (Number(row.cost) || 0) / 100 : 0;
+      var input = numberInput(now || '', {
+        min: 0.01, max: MAX_RATE / 100, step: '0.01', id: uid('usdjpy')
+      });
+      var rateField = field(tl('local.rateLabel'), input,
+        now ? tl('local.rateNow', { rate: now.toFixed(2) }) : tl('local.rateUnset'));
+
+      var saveLabel = t('admin.save');
+      var saveBtn = button('btn btn--primary', saveLabel, function () { save(); });
+      var line = el('div', 'row--input-action');
+      line.appendChild(rateField);
+      line.appendChild(saveBtn);
+
+      input.addEventListener('input', function () { setFieldError(rateField, input, ''); });
+
+      function save() {
+        var value = Number(String(input.value || '').trim());
+        if (!(value > 0) || value * 100 > MAX_RATE) {
+          setFieldError(rateField, input, tl('local.rateInvalid'));
+          input.focus();
+          return;
+        }
+        setFieldError(rateField, input, '');
+        busy(saveBtn, true, tl('local.saving'), saveLabel);
+        /* 画面は 157.47、DBは 15747。ここが唯一の変換点 */
+        var stored = Math.round(value * 100);
+        var done = function () { toast(t('admin.saveSuccess'), 'success'); load(); };
+        var fail = function (err) {
+          busy(saveBtn, false, tl('local.saving'), saveLabel);
+          console.error('[screens-admin] 為替の保存に失敗しました', err);
+          toast(t('admin.saveFailed'), 'danger');
+          handleError(err, save);
+        };
+        var current = rateRow();
+        if (current && current.id) {
+          tableUpdate('featureCredits', current.id, { credit_cost: stored, is_active: true })
+            .then(done, fail);
+          return;
+        }
+        tableInsert('featureCredits', {
+          feature_key: RATE_KEY, feature_name: RATE_NAME,
+          credit_cost: stored, is_active: true
+        }).then(done, fail);
+      }
+
+      return section(tl('local.rateTitle'), tl('local.rateDesc'), [line]);
     }
 
     /* ---- 承認待ち（2026-11-01 要望）----
