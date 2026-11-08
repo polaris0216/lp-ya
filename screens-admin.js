@@ -358,9 +358,9 @@
     'local.bundleCostHint': ['このボタン1回ぶんの原価をUSDで入れられます。空にすると、中で走る機能の実測を足した額を使います。',
       'Enter the USD cost of one press. Leave it empty to use the sum of the measured costs of the features it runs.',
       '이 버튼 1회분의 원가를 USD로 입력할 수 있습니다. 비우면 내부 기능의 실측 합계를 사용합니다.'],
-    'local.pressExample': ['→ 1回押して{n}{unit}なら {p}P（{yen}円）・原価 ${usd}',
-      '→ one press of {n} {unit}: {p}P (¥{yen}), cost ${usd}',
-      '→ 한 번에 {n}{unit}이면 {p}P({yen}원)·원가 ${usd}'],
+    'local.pressExample': ['→ 1回押して{unit}なら {p}P（{yen}円）・原価 ${usd}',
+      '→ one press of {unit}: {p}P (¥{yen}), cost ${usd}',
+      '→ 한 번에 {unit}이면 {p}P({yen}원)·원가 ${usd}'],
     'local.bundleShow': ['中で走る{n}つの機能を見る', 'Show the {n} features it runs', '내부 {n}개 기능 보기'],
     'local.bundleHide': ['内訳を閉じる', 'Hide the breakdown', '내역 닫기'],
     'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
@@ -2439,6 +2439,17 @@
       product_cutouts: 3
     };
 
+    /* 単位の言い方に数を入れる。単位名には「1」が含まれているので
+       （1本 / 1枚 / ブロック1枚 / 絵1枚）、その「1」を数に差し替える。
+       数をただ前に付けると「31本」「28ブロック1枚」になった（2026-11-08 実測） */
+    function countWith(unitName, n) {
+      var unit = textOf(unitName).trim();
+      var num = fmtNumber(n);
+      if (!unit) { return num + tl('local.perUnit'); }
+      if (unit.indexOf('1') !== -1) { return unit.replace('1', num); }
+      return num + unit;
+    }
+
     function bundleOf(groupNo) {
       var found = null;
       BUNDLES.forEach(function (b) { if (b.group === groupNo) { found = b; } });
@@ -2728,7 +2739,7 @@
         if (n && each !== null) {
           pressNote.textContent = tl('local.pressExample', {
             n: fmtNumber(n),
-            unit: row.unitName || tl('local.perUnit'),
+            unit: countWith(row.unitName, n),
             p: fmtNumber(row.cost * n),
             yen: fmtNumber(Math.round(row.cost * n * state.unitPrice)),
             usd: usdText(each * n)
