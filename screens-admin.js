@@ -89,6 +89,10 @@
      画面の関数の中ではなくここに置く。
      2026-11-08 に S18 の中で宣言してしまい、S19 が ReferenceError で
      まるごと描けなくなった（「この画面が消えた」）*/
+  /* 単価の行の名前（073 がこの形で会社ごとの単価を引く）。
+     どの会社を知っているかの台帳としても使う */
+  var AI_RATE_RE = /^(.+)_(in|out|cw|cr)_usd_per_mtok_x1000$/;
+
   var RATE_KEY = 'usdjpy_x100';
   var RATE_NAME = '為替 1USD=何円 ×100';
   var MAX_RATE = 100000;   /* 1USD=1000円。これを超えるのは打ち間違い */
@@ -402,6 +406,14 @@
     'local.bundleShow': ['中で走る{n}つの機能を見る', 'Show the {n} features it runs', '내부 {n}개 기능 보기'],
     'local.bundleHide': ['内訳を閉じる', 'Hide the breakdown', '내역 닫기'],
     'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
+    /* ボタン×AIの会社ごとの原価（2026-11-09 要望）。会社で原価が1桁ちがう */
+    'local.byProviderTitle': ['AIごとの原価', 'Cost per AI', 'AI별 원가'],
+    'local.byProviderMeasured': ['実測 ${usd}/呼出（{n}呼出）', 'measured ${usd}/call ({n} calls)', '실측 ${usd}/호출({n}회)'],
+    'local.byProviderNone': ['実測なし', 'not measured yet', '실측 없음'],
+    'local.byProviderManual': ['手入力', 'entered', '직접 입력'],
+    'local.byProviderHint': ['会社ごとに、1回あたりの原価をUSDで入れられます。空のままなら実測（呼び出しの平均）が出ます。',
+      'Enter the USD cost per run for each AI. Left empty, the measured average per call is shown.',
+      'AI별로 1회당 원가를 USD로 입력할 수 있습니다. 비우면 실측 평균이 표시됩니다.'],
     'local.usageLink': ['利用状況（原価・利用者ごと・作っているもの）', 'Usage (cost, per user, their work)', '이용 현황'],
     'local.perUnit': ['単位ごと', 'per unit', '단위마다'],
     'local.costEach': ['実測原価 ${yen}/回{jpy}（{n}回ぶん）・売値 {price}円',
@@ -497,6 +509,7 @@
     chatgpt: 'ChatGPT（画像）',
     openai: 'OpenAI',
     claude: 'Claude（文章）',
+    deepseek: 'DeepSeek（文章）',
     gemini: 'Gemini',
     replicate: 'Replicate'
   };
@@ -2480,6 +2493,11 @@
       unitPrice: DEFAULT_UNIT_PRICE,
       rows: [],
       cost: {},
+      /* 会社ごとの原価（074）。measured[key][provider] = 実測の行、
+         manual[key + '|' + provider] = 手で入れた行（id つき） */
+      byProvider: {},
+      manualProvider: {},
+      providerDirty: {},
       estimateValue: null,
       estimateSub: null,
       saveBtn: null,
@@ -2498,11 +2516,39 @@
             return [];
           })
         : Promise.resolve([]);
-      Promise.all([tableList('featureCredits', { order: 'created_at.asc' }), costs])
+      /* 会社ごとの原価（074）。読めなくても値段表は出す */
+      var byProvider = (window.Api && Api.credits && typeof Api.credits.costByProvider === 'function')
+        ? Api.credits.costByProvider().catch(function (err) {
+            console.error('[screens-admin] 会社ごとの原価を読めませんでした', err);
+            return [];
+          })
+        : Promise.resolve([]);
+      var manual = tableList('featureProviderCosts', { order: 'created_at.asc' }).catch(function (err) {
+        console.error('[screens-admin] 会社ごとの手入力原価を読めませんでした', err);
+        return [];
+      });
+      Promise.all([tableList('featureCredits', { order: 'created_at.asc' }), costs, byProvider, manual])
         .then(function (got) {
           state.cost = {};
           (got[1] || []).forEach(function (r) {
             if (r && r.feature_key) { state.cost[String(r.feature_key)] = r; }
+          });
+          state.byProvider = {};
+          (got[2] || []).forEach(function (r) {
+            if (!r || !r.feature_key) { return; }
+            var k = String(r.feature_key);
+            if (!state.byProvider[k]) { state.byProvider[k] = {}; }
+            state.byProvider[k][String(r.provider || '').toLowerCase()] = r;
+          });
+          state.manualProvider = {};
+          state.providerDirty = {};
+          (got[3] || []).forEach(function (r) {
+            if (!r || !r.feature_key) { return; }
+            state.manualProvider[String(r.feature_key) + '|' + String(r.provider || '').toLowerCase()] = {
+              id: r.id,
+              usd: r.usd_each_manual === null || r.usd_each_manual === undefined
+                ? null : Number(r.usd_each_manual)
+            };
           });
           build(got[0] || []);
           draw();
@@ -2888,6 +2934,89 @@
       return section(t('featurePricing.list'), tl('local.featureListDesc', { n: fmtNumber(state.rows.length) }), [body]);
     }
 
+    /* 画面に出すAIの会社。単価の行がある会社（＝原価を計算できる会社）に、
+       そのボタンで実際に使った会社と、手で入れた会社を足す */
+    function providersFor(key) {
+      var seen = {};
+      var out = [];
+      function add(p) {
+        var name = String(p || '').toLowerCase();
+        if (!name || seen[name]) { return; }
+        seen[name] = true;
+        out.push(name);
+      }
+      state.rows.forEach(function (r) {
+        var m = AI_RATE_RE.exec(r.key);
+        if (m) { add(m[1]); }
+      });
+      var measured = state.byProvider[key] || {};
+      Object.keys(measured).forEach(add);
+      Object.keys(state.manualProvider).forEach(function (k) {
+        var cut = k.indexOf('|');
+        if (cut > 0 && k.slice(0, cut) === key) { add(k.slice(cut + 1)); }
+      });
+      return out;
+    }
+
+    function providerManual(key, provider) {
+      if (Object.prototype.hasOwnProperty.call(state.providerDirty, key + '|' + provider)) {
+        return state.providerDirty[key + '|' + provider];
+      }
+      var saved = state.manualProvider[key + '|' + provider];
+      return saved ? saved.usd : null;
+    }
+
+    /* ボタン1行の下に、会社ごとの原価を並べる（2026-11-09 要望）。
+       同じボタンでも Claude と DeepSeek では桁が違うので、1つの欄には入らない */
+    function providerCostBlock(row) {
+      var list = providersFor(row.key);
+      if (!list.length) { return null; }
+      var box = el('div', 'admin-byai');
+      box.appendChild(el('div', 'admin-byai__head', tl('local.byProviderTitle')));
+      list.forEach(function (provider) {
+        var one = el('div', 'admin-byai__row');
+        one.appendChild(el('span', 'admin-byai__name', providerName(provider)));
+
+        var seen = (state.byProvider[row.key] || {})[provider] || null;
+        var calls = seen ? Number(seen.calls) || 0 : 0;
+        var measuredEach = seen && !seen.manual
+          && seen.cost_usd_each !== null && seen.cost_usd_each !== undefined
+          ? Number(seen.cost_usd_each) : null;
+        one.appendChild(el('span', 'admin-byai__measured', measuredEach === null
+          ? tl('local.byProviderNone')
+          : tl('local.byProviderMeasured', { usd: usdText(measuredEach), n: fmtNumber(calls) })));
+
+        var input = numberInput(providerManual(row.key, provider), {
+          min: 0, max: MAX_COST_USD, step: '0.0001',
+          placeholder: measuredEach === null ? tl('local.costManualPlaceholder') : usdText(measuredEach)
+        });
+        input.className = 'input input--sm admin-cost__input';
+        input.setAttribute('aria-label',
+          row.name + ' ' + providerName(provider) + ' ' + tl('local.costManualLabel'));
+        var wrapIn = el('span', 'admin-byai__input');
+        wrapIn.appendChild(document.createTextNode('$'));
+        wrapIn.appendChild(input);
+        one.appendChild(wrapIn);
+
+        input.addEventListener('input', function () {
+          var raw = textOf(input.value).trim();
+          var ok = true;
+          if (!raw) {
+            state.providerDirty[row.key + '|' + provider] = null;
+          } else {
+            var usd = Number(raw);
+            ok = isFinite(usd) && usd >= 0 && usd <= MAX_COST_USD;
+            if (ok) { state.providerDirty[row.key + '|' + provider] = usd; }
+          }
+          input.classList.toggle('input--error', !ok);
+        });
+        box.appendChild(one);
+      });
+      var hint = el('p', 'field__hint', tl('local.byProviderHint'));
+      box.appendChild(hint);
+      return box;
+    }
+
     function featureRow(row) {
       var wrap = el('div', 'stack stack--tight');
       var line = el('div', 'list-row');
@@ -2941,6 +3070,11 @@
       var pressNote = el('div', 'list-row__meta admin-press', '');
       pressNote.hidden = true;
       bodyNode.appendChild(pressNote);
+      /* 会社ごとの原価は、ボタンの行にだけ出す（設定の行には関係がない） */
+      if (row.group !== null && row.group !== undefined) {
+        var byAi = providerCostBlock(row);
+        if (byAi) { bodyNode.appendChild(byAi); }
+      }
 
       /* 原価の行を描き直す。売値（ポイント）を直したときも呼ぶ。
          入力欄そのものは作り直さない（打っている最中に消えてしまう） */
@@ -3133,7 +3267,24 @@
         }
       });
 
-      if (!jobs.length) {
+      /* 会社ごとの原価（074）。変えた升だけ書く */
+      var aiJobs = [];
+      Object.keys(state.providerDirty).forEach(function (k) {
+        var cut = k.indexOf('|');
+        if (cut < 1) { return; }
+        var want = state.providerDirty[k];
+        var saved = state.manualProvider[k];
+        var before = saved ? saved.usd : null;
+        if (want === before) { return; }
+        aiJobs.push({
+          id: saved ? saved.id : null,
+          featureKey: k.slice(0, cut),
+          provider: k.slice(cut + 1),
+          usd: want
+        });
+      });
+
+      if (!jobs.length && !aiJobs.length) {
         toast(tl('local.nothingToSave'));
         goto('S18', null, true);
         return;
@@ -3163,6 +3314,24 @@
             credit_cost: job.row.cost,
             cost_usd_each_manual: job.row.costManual === undefined ? null : job.row.costManual,
             is_active: true
+          }).then(function () { saved += 1; });
+        });
+      });
+
+      aiJobs.forEach(function (job) {
+        chain = chain.then(function () {
+          if (job.id) {
+            return tableUpdate('featureProviderCosts', job.id, {
+              usd_each_manual: job.usd,
+              updated_at: new Date().toISOString()
+            }).then(function () { saved += 1; });
+          }
+          /* 空のまま保存したときは、行そのものを作らない */
+          if (job.usd === null || job.usd === undefined) { return null; }
+          return tableInsert('featureProviderCosts', {
+            feature_key: job.featureKey,
+            provider: job.provider,
+            usd_each_manual: job.usd
           }).then(function () { saved += 1; });
         });
       });

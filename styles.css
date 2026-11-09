@@ -5462,6 +5462,20 @@ input[type='radio'] {
 .admin-group__sum { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 /* 売値が原価を下回っている行は、気づけるようにする */
 .admin-cost { font-variant-numeric: tabular-nums; }
+/* ボタン1行の下に出す、会社ごとの原価（074）。行の文字と左端をそろえる */
+.admin-byai { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--c-line-soft); }
+.admin-byai__head { font-size: var(--fs-note); font-weight: var(--fw-bold); margin-bottom: 4px; }
+.admin-byai__row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 2px 0; font-size: var(--fs-note);
+}
+.admin-byai__name { min-width: 9em; font-weight: var(--fw-bold); }
+.admin-byai__measured { flex: 1 1 auto; color: var(--c-text-sub, #6b6480); font-variant-numeric: tabular-nums; }
+.admin-byai__input { white-space: nowrap; }
+@media (max-width: 480px) {
+  .admin-byai__name { min-width: 0; }
+  .admin-byai__measured { flex-basis: 100%; }
+}
 /* 原価は行の文のなかで直す（2026-11-06）。数字の居場所に入力欄を置く。
    行の高さを変えないように、.input の min-height を外して詰める */
 .admin-cost__input {

@@ -120,6 +120,7 @@
     generationJobs: TABLE_PREFIX + 'generation_jobs',
     creditTransactions: TABLE_PREFIX + 'credit_transactions',
     featureCredits: TABLE_PREFIX + 'feature_credits',
+    featureProviderCosts: TABLE_PREFIX + 'feature_provider_costs',
     coupons: TABLE_PREFIX + 'coupons',
     inquiries: TABLE_PREFIX + 'inquiries',
     inquiryMessages: TABLE_PREFIX + 'inquiry_messages',
@@ -860,6 +861,8 @@
     appSettings: makeTable(TABLES.appSettings, 'key'),
     creditTransactions: makeTable(TABLES.creditTransactions),
     featureCredits: makeTable(TABLES.featureCredits),
+    /* ボタン×AIの会社ごとの原価（074）。読み書きとも管理者だけ */
+    featureProviderCosts: makeTable(TABLES.featureProviderCosts),
     coupons: makeTable(TABLES.coupons),
     inquiries: makeTable(TABLES.inquiries),
     inquiryMessages: makeTable(TABLES.inquiryMessages),
@@ -1105,6 +1108,13 @@
     });
   }
 
+  /* 同じボタンでも会社で原価が違う。会社ごとの実測と、手で入れた値（074） */
+  function costByProvider(from, to) {
+    return rpc('elpiya_admin_cost_by_provider', {
+      p_from: from || null, p_to: to || null
+    });
+  }
+
   /* bucket: 'all' | 'month' | 'day' */
   function usageByUser(bucket, from, to, userId) {
     return rpc('elpiya_admin_usage_by_user', {
@@ -1133,6 +1143,7 @@
 
   api.credits = {
     costByFeature: costByFeature,
+    costByProvider: costByProvider,
     usageByUser: usageByUser,
     balance: balance,
     consume: consume,
