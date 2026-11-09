@@ -89,30 +89,6 @@
      画面の関数の中ではなくここに置く。
      2026-11-08 に S18 の中で宣言してしまい、S19 が ReferenceError で
      まるごと描けなくなった（「この画面が消えた」）*/
-  /* AIごとのトークン単価の行。名前で引いているので（073）、
-     この形の4行を足せば、新しいAIの原価もそのまま出る */
-  var AI_RATE_RE = /^(.+)_(in|out|cw|cr)_usd_per_mtok_x1000$/;
-  var AI_RATE_PARTS = [
-    { part: 'in',  key: 'local.rateIn' },
-    { part: 'out', key: 'local.rateOut' },
-    { part: 'cw',  key: 'local.rateCw' },
-    { part: 'cr',  key: 'local.rateCr' }
-  ];
-  function aiRateOf(key) {
-    var m = AI_RATE_RE.exec(String(key || ''));
-    return m ? { provider: m[1], part: m[2] } : null;
-  }
-  function aiRatePartKey(part) {
-    var found = 'local.rateIn';
-    AI_RATE_PARTS.forEach(function (p) { if (p.part === part) { found = p.key; } });
-    return found;
-  }
-  function aiRateOrder(part) {
-    var n = 0;
-    AI_RATE_PARTS.forEach(function (p, i) { if (p.part === part) { n = i; } });
-    return n;
-  }
-
   var RATE_KEY = 'usdjpy_x100';
   var RATE_NAME = '為替 1USD=何円 ×100';
   var MAX_RATE = 100000;   /* 1USD=1000円。これを超えるのは打ち間違い */
@@ -426,27 +402,6 @@
     'local.bundleShow': ['中で走る{n}つの機能を見る', 'Show the {n} features it runs', '내부 {n}개 기능 보기'],
     'local.bundleHide': ['内訳を閉じる', 'Hide the breakdown', '내역 닫기'],
     'local.settingRows': ['設定（値段ではない行）', 'Settings (not prices)', '설정(가격이 아닌 행)'],
-    /* AIごとのトークン単価（2026-11-09 要望）。会社で料金が違うので、会社ごとに入れる */
-    'local.aiRates': ['AIごとの単価', 'Price per AI', 'AI별 단가'],
-    'local.aiRateHint': ['AIは会社ごとに料金が違います。100万トークンあたりのUSDで入れてください。入れた単価で、その会社で作ったぶんの原価を計算します。公表値が変わったらここを直すだけです。',
-      'Each AI company charges differently. Enter USD per 1M tokens; costs for work done on that company are calculated with these rates.',
-      'AI 회사마다 요금이 다릅니다. 100만 토큰당 USD로 입력해 주세요.'],
-    'local.aiRateUnit': ['USD / 100万tok', 'USD / 1M tok', 'USD / 100만tok'],
-    'local.rateIn': ['入力', 'Input', '입력'],
-    'local.rateOut': ['出力', 'Output', '출력'],
-    'local.rateCw': ['キャッシュ書込', 'Cache write', '캐시 쓰기'],
-    'local.rateCr': ['キャッシュ読出', 'Cache read', '캐시 읽기'],
-    'local.rateInvalid': ['単価は0以上の数で入れてください', 'Enter the rate as a number of 0 or more', '단가는 0 이상의 숫자로 입력해 주세요'],
-    'local.aiRateName': ['{name} {part}100万tokあたりUSD×1000', '{name} {part} USD per 1M tok x1000', '{name} {part} 100만tok당 USD×1000'],
-    'local.addAiLabel': ['AIを増やす（英小文字）', 'Add an AI (lowercase)', 'AI 추가(영소문자)'],
-    'local.addAiHint': ['ワーカーが記録する会社名と同じにしてください（claude / deepseek / openai など）。入力・出力・キャッシュの4行ができます。',
-      'Use the same name the worker records (claude / deepseek / openai …). Four rows are created.',
-      '워커가 기록하는 회사명과 같게 해주세요. 4개 행이 만들어집니다.'],
-    'local.addAiPlaceholder': ['例: openai', 'e.g. openai', '예: openai'],
-    'local.addAi': ['このAIの単価欄を作る', 'Create rate rows for this AI', '이 AI의 단가 행 만들기'],
-    'local.addAiInvalid': ['英小文字と数字、_ だけで、15文字までにしてください', 'Lowercase letters, digits and _ only, up to 15 characters', '영소문자/숫자/_ 15자까지'],
-    'local.addAiDup': ['そのAIの単価欄はもうあります', 'That AI already has rate rows', '이미 있습니다'],
-    'local.addAiDone': ['{name} の単価欄を作りました。入れて保存してください', 'Created rate rows for {name}. Fill them in and save.', '{name}의 단가 행을 만들었습니다'],
     'local.usageLink': ['利用状況（原価・利用者ごと・作っているもの）', 'Usage (cost, per user, their work)', '이용 현황'],
     'local.perUnit': ['単位ごと', 'per unit', '단위마다'],
     'local.costEach': ['実測原価 ${yen}/回{jpy}（{n}回ぶん）・売値 {price}円',
@@ -542,7 +497,6 @@
     chatgpt: 'ChatGPT（画像）',
     openai: 'OpenAI',
     claude: 'Claude（文章）',
-    deepseek: 'DeepSeek（文章）',
     gemini: 'Gemini',
     replicate: 'Replicate'
   };
@@ -2913,15 +2867,9 @@
          為替だけは「管理 → 料金設定」に自分の欄ができたので、ここには出さない
          （2026-11-08。2か所にあると、どちらが効くのか分からなくなる。
           しかもこちらは消費ポイントの欄を間借りしていて「売値 157,470円」と出る） */
-      var others = [];
-      var aiRows = [];
-      state.rows.filter(function (r) {
+      var others = state.rows.filter(function (r) {
         return r.group === null && r.key !== RATE_KEY;
-      }).sort(function (a, b) { return a.sort - b.sort; })
-        .forEach(function (r) { (aiRateOf(r.key) ? aiRows : others).push(r); });
-      /* AIごとの単価は、会社ごとに括って出す（2026-11-09 要望）。
-         設定の行に混ざっていると、どれがどの会社の料金なのか読めない */
-      body.appendChild(aiRateSection(aiRows));
+      }).sort(function (a, b) { return a.sort - b.sort; });
       if (others.length) {
         var obox = el('div', 'admin-group');
         var ohead = el('div', 'admin-group__head');
@@ -2938,129 +2886,6 @@
         body.insertBefore(note, body.firstChild);
       }
       return section(t('featurePricing.list'), tl('local.featureListDesc', { n: fmtNumber(state.rows.length) }), [body]);
-    }
-
-    /* ---- AIごとの単価（会社で料金が違う。073 で名前から引いている）---- */
-    function aiRateSection(rows) {
-      var wrap = el('div', 'stack');
-      var head = el('div', 'admin-group__head');
-      head.appendChild(el('span', 'admin-group__name', tl('local.aiRates')));
-      head.appendChild(el('span', 'admin-group__sum', tl('local.aiRateUnit')));
-      wrap.appendChild(head);
-      wrap.appendChild(el('p', 'field__hint', tl('local.aiRateHint')));
-
-      var byProvider = {};
-      var order = [];
-      rows.forEach(function (r) {
-        var p = aiRateOf(r.key).provider;
-        if (!byProvider[p]) { byProvider[p] = []; order.push(p); }
-        byProvider[p].push(r);
-      });
-      order.forEach(function (p) {
-        var box = el('div', 'admin-group');
-        var phead = el('div', 'admin-group__head');
-        phead.appendChild(el('span', 'admin-group__name', providerName(p)));
-        box.appendChild(phead);
-        var list = el('div', 'list');
-        byProvider[p].sort(function (a, b) {
-          return aiRateOrder(aiRateOf(a.key).part) - aiRateOrder(aiRateOf(b.key).part);
-        }).forEach(function (row) { list.appendChild(rateRow(row)); });
-        box.appendChild(list);
-        wrap.appendChild(box);
-      });
-      wrap.appendChild(addAiBox());
-      return wrap;
-    }
-
-    /* 画面はUSD、しまうのは ×1000 の整数（credit_cost が整数のため） */
-    function rateRow(row) {
-      var wrap = el('div', 'stack stack--tight');
-      var line = el('div', 'list-row');
-      var info = aiRateOf(row.key) || { provider: '', part: 'in' };
-
-      var bodyNode = el('div', 'list-row__body');
-      bodyNode.appendChild(el('div', 'list-row__title clamp-1', tl(aiRatePartKey(info.part))));
-      bodyNode.appendChild(el('div', 'list-row__sub clamp-1', row.key));
-      if (row.isNew) {
-        bodyNode.appendChild(el('div', 'list-row__meta', tl('local.unsavedBadge')));
-      }
-      line.appendChild(bodyNode);
-
-      var input = numberInput(row.cost / 1000, {
-        min: 0, max: MAX_CREDIT_COST / 1000, step: '0.01', narrow: true
-      });
-      input.setAttribute('aria-label',
-        providerName(info.provider) + ' ' + tl(aiRatePartKey(info.part)) + ' ' + tl('local.aiRateUnit'));
-      line.appendChild(input);
-      wrap.appendChild(line);
-
-      var error = el('p', 'field__error', '');
-      error.hidden = true;
-      wrap.appendChild(error);
-
-      input.addEventListener('input', function () {
-        var raw = textOf(input.value).trim();
-        var usd = Number(raw);
-        var ok = raw !== '' && isFinite(usd) && usd >= 0 && usd * 1000 <= MAX_CREDIT_COST;
-        if (ok) {
-          row.cost = Math.round(usd * 1000);
-          row.error = '';
-        } else {
-          row.error = tl('local.rateInvalid');
-        }
-        input.classList.toggle('input--error', !ok);
-        error.textContent = row.error;
-        error.hidden = !row.error;
-        recalcEstimate();
-      });
-
-      return wrap;
-    }
-
-    /* 新しいAIの単価欄を作る。4行できれば、原価の計算はSQLを触らずに動く（073） */
-    function addAiBox() {
-      var nameInput = textInput('', { placeholder: tl('local.addAiPlaceholder'), maxLength: 15 });
-      var fieldNode = field(tl('local.addAiLabel'), nameInput, tl('local.addAiHint'));
-      var btn = button('btn btn--secondary btn--block', tl('local.addAi'), function () {
-        var name = textOf(nameInput.value).trim().toLowerCase();
-        if (!/^[a-z][a-z0-9_]{1,14}$/.test(name)) {
-          setFieldError(fieldNode, nameInput, tl('local.addAiInvalid'));
-          nameInput.focus();
-          return;
-        }
-        if (findRow(name + '_in_usd_per_mtok_x1000')) {
-          setFieldError(fieldNode, nameInput, tl('local.addAiDup'));
-          nameInput.focus();
-          return;
-        }
-        setFieldError(fieldNode, nameInput, '');
-        AI_RATE_PARTS.forEach(function (p, i) {
-          state.rows.push({
-            id: null,
-            key: name + '_' + p.part + '_usd_per_mtok_x1000',
-            name: tl('local.aiRateName', { name: providerName(name), part: tl(p.key) }),
-            cost: 0,
-            group: null,
-            perUnit: false,
-            unitName: '',
-            sort: 900 + i,
-            costManual: null,
-            originalName: '',
-            originalCost: -1,
-            originalCostManual: null,
-            costManualError: '',
-            active: true,
-            isNew: true,
-            error: ''
-          });
-        });
-        toast(tl('local.addAiDone', { name: providerName(name) }), 'success');
-        draw();
-      });
-      var box = el('div', 'stack stack--group');
-      box.appendChild(fieldNode);
-      box.appendChild(btn);
-      return box;
     }
 
     function featureRow(row) {
