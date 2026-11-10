@@ -1537,6 +1537,9 @@
       /* サイドバーを隠すのはログイン前の3画面だけ。tab の有無で判断すると
          S10 のような下層画面でもナビごと消えてしまう */
       dom.shell.classList.toggle('app-shell--no-nav', meta.nav === false);
+      /* 最初の1枚を描き終えた。ここから枠を出してよい（2026-11-10）。
+         HTMLは枠なしで始まるので、これを外すまでは左メニューが出ない */
+      dom.shell.classList.remove('app-shell--booting');
     }
     renderSidebarNav(meta.tab);
     renderWorkflowTabs(route);
@@ -3261,6 +3264,13 @@
     applyI18n(document);
 
     wireChrome();
+    /* 伏せたまま戻ってこない場合の逃げ道（2026-11-10）。
+       最初の1枚を描けば applyChrome が外すが、その前に JS が止まると
+       画面が白いままになる。5秒で必ず出す。
+       「一瞬ちらつく」より「ずっと白い」ほうがはるかに悪い */
+    global.setTimeout(function () {
+      if (dom.shell) { dom.shell.classList.remove('app-shell--booting'); }
+    }, 5000);
     global.addEventListener('hashchange', onHashChange);
     global.addEventListener('unhandledrejection', onUnhandledRejection);
     /* ログインの期限が切れて取り直せなかったとき。api.js がセッションを捨てて

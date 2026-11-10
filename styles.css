@@ -751,6 +751,17 @@ table { border-collapse: collapse; width: 100%; }
 .app-shell--no-nav #sidebar-toggle,
 .app-shell--no-nav .app-header__account { display: none; }
 
+/* 読み込み中（2026-11-10 指摘「一瞬作業画面がうつる」）。
+   HTMLは枠なしで始まり、最初の1枚を描いたときに外す。
+   中身の入れ物も伏せておく。空の白い箱が一瞬見えるのを防ぐ */
+.app-shell--booting .sidebar,
+.app-shell--booting .sidebar__backdrop,
+.app-shell--booting #sidebar-toggle,
+.app-shell--booting .app-header__account,
+.app-shell--booting .app-subhead { display: none; }
+
+.app-shell--booting #app { visibility: hidden; }
+
 /* --- 通信失敗バナーの置き場 --- */
 .banner-root {
   max-width: var(--content-max);
