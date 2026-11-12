@@ -130,7 +130,9 @@
     /* 絵の作り先の状態。読むだけ（書けるのはワーカーだけ。058） */
     workerStatus: TABLE_PREFIX + 'worker_status',
     /* アプリ全体の小さな設定。公開してよい値だけ（061） */
-    appSettings: TABLE_PREFIX + 'app_settings'
+    appSettings: TABLE_PREFIX + 'app_settings',
+    /* モデルごとの単価（078）。原価なので管理者だけ */
+    aiModelRates: TABLE_PREFIX + 'ai_model_rates'
   };
 
   /* ---------- 日本語エラーメッセージ ---------- */
@@ -863,6 +865,8 @@
     featureCredits: makeTable(TABLES.featureCredits),
     /* ボタン×AIの会社ごとの原価（074）。読み書きとも管理者だけ */
     featureProviderCosts: makeTable(TABLES.featureProviderCosts),
+    /* モデルごとの単価（078）。主キーは model */
+    aiModelRates: makeTable(TABLES.aiModelRates, 'model'),
     coupons: makeTable(TABLES.coupons),
     inquiries: makeTable(TABLES.inquiries),
     inquiryMessages: makeTable(TABLES.inquiryMessages),

@@ -402,9 +402,23 @@
       '변경 후 쌓이는 작업부터 적용됩니다.'],
     /* ひと続きの字で書く。+ でつなぐと、3言語そろっているかの自己チェックが
        数を取り違える（2026-11-13、実測） */
-    'local.modelCostNote': ['替えると、次に積む仕事から変わります。原価の計算は会社ごとに1つの単価表を使うので、モデルを替えたら「機能別ポイント価格設定」の単価（100万tokあたりUSD）も合わせて直してください。',
-      'Takes effect for jobs queued after the change. Cost is computed from one rate table per company, so after changing the model also update the per-million-token USD rates in the pricing screen.',
-      '변경 후 쌓이는 작업부터 적용됩니다. 원가는 회사별로 하나의 단가표로 계산하므로, 모델을 바꾸면 요금 설정의 100만 토큰당 USD 단가도 함께 고쳐주세요.'],
+    'local.modelCostNote': ['替えると、次に積む仕事から変わります。原価はこの下の「モデル別の単価」で計算します。一覧に無いモデルを打ったときは、そこに単価も入れてください（入れるまでは会社の単価で計算します）。',
+      'Takes effect for jobs queued after the change. Cost is computed from the per-model rates below. If you typed a model that is not listed, add its rates there too (until then the company rate is used).',
+      '변경 후 쌓이는 작업부터 적용됩니다. 원가는 아래의 모델별 단가로 계산합니다. 목록에 없는 모델을 입력했다면 거기에 단가도 넣어주세요(넣기 전에는 회사 단가로 계산합니다).'],
+    'local.mrTitle': ['モデル別の単価（USD / 100万トークン）', 'Per-model rates (USD / 1M tokens)', '모델별 단가(USD / 100만 토큰)'],
+    'local.mrDesc': ['原価はこの単価で計算します。行が無いモデルは会社の単価に落ちます。公式の値段表が変わったら、ここを直してください。',
+      'Cost is computed from these rates. A model with no row falls back to the company rate. Update here when the official price list changes.',
+      '원가는 이 단가로 계산합니다. 행이 없는 모델은 회사 단가로 내려갑니다. 공식 가격표가 바뀌면 여기를 고쳐주세요.'],
+    'local.mrIn': ['入力', 'Input', '입력'],
+    'local.mrOut': ['出力', 'Output', '출력'],
+    'local.mrCw': ['キャッシュ書込', 'Cache write', '캐시 쓰기'],
+    'local.mrCr': ['キャッシュ読出', 'Cache read', '캐시 읽기'],
+    'local.mrNote': ['出どころ: {note}', 'Source: {note}', '출처: {note}'],
+    'local.mrNew': ['まだ単価が入っていません（会社の単価で計算しています）',
+      'No rates yet (falling back to the company rate)',
+      '아직 단가가 없습니다(회사 단가로 계산 중)'],
+    'local.mrInvalid': ['0以上の数で入れてください', 'Enter a number of 0 or more', '0 이상의 수로 입력하세요'],
+    'local.mrEmpty': ['単価を入れるモデルがまだありません', 'No models to price yet', '단가를 넣을 모델이 아직 없습니다'],
     'local.rateTitle': ['為替（AI原価の円換算）', 'Exchange rate (for AI cost in yen)', '환율(AI 원가 엔화 환산)'],
     'local.rateDesc': ['AIの請求はドル建てです。原価を円で出すときに、この値を掛けます。',
       'AI is billed in USD. This rate converts the cost to yen.',
@@ -1016,7 +1030,10 @@
         tableList('appSettings', {
           in: { key: ['text_provider', 'claude_model', 'deepseek_model', 'image_model'] },
           order: false
-        }).catch(function () { return []; })
+        }).catch(function () { return []; }),
+        /* モデルごとの単価（078）。読めなくても管理画面は開ける */
+        tableList('aiModelRates', { order: 'model.asc' })
+          .catch(function () { return []; })
       ]).then(function (results) {
         var featureRows = results[0] || [];
         state.unitPrice = unitPriceOf(featureRows);
@@ -1031,6 +1048,7 @@
           state.appSettings[textOf(r.key)] = textOf(r.value);
         });
         state.textProvider = String(state.appSettings.text_provider || 'claude');
+        state.modelRates = results[12] || [];
         state.rateRow = null;
         featureRows.forEach(function (row) {
           if (textOf(row.feature_key).trim() === 'usdjpy_x100') {
@@ -1147,7 +1165,9 @@
       }
       if (key === 'coupons') { return [couponSection()]; }
       if (key === 'inquiries') { return [inquiriesSection()]; }
-      if (key === 'settings') { return [aiSection(), adTagSection(), selectorsSection()]; }
+      if (key === 'settings') {
+        return [aiSection(), modelRateSection(), adTagSection(), selectorsSection()];
+      }
       /* 既定は会員。承認待ちは、待たせているあいだ相手がアプリに入れないので先頭に出す */
       return [pendingSection(), usersSection()];
     }
@@ -1703,6 +1723,118 @@
         if (r.key === RATE_KEY) { found = { id: r.id, cost: Number(r.cost) || 0 }; }
       });
       return found || state.rateRow || null;
+    }
+
+    /* ---- モデル別の単価（2026-11-13 要望「モデルごとの単価表も作って」）----
+       会社ごとに1つの単価では、Claude の中の差（Opus は Haiku の5倍）を
+       計算に入れられない。行が無いモデルは会社の単価に落ちる（078）。
+       単価は USD / 100万トークン を **そのまま** 入れる（×1000 はしない）*/
+    var RATE_COLS = [
+      { col: 'in_usd_per_mtok',  label: 'local.mrIn' },
+      { col: 'out_usd_per_mtok', label: 'local.mrOut' },
+      { col: 'cw_usd_per_mtok',  label: 'local.mrCw' },
+      { col: 'cr_usd_per_mtok',  label: 'local.mrCr' }
+    ];
+    var MAX_MTOK_USD = 1000;   /* 100万tokで1000ドルを超えるのは打ち間違い */
+
+    /* 画面に出すモデル … 単価の行があるもの＋いま選ばれているもの。
+       「その他（直接入力）」で打った名前も拾うので、打った直後から単価を入れられる */
+    function modelsForRates() {
+      var seen = {};
+      var out = [];
+      function add(model, provider) {
+        var name = String(model || '').trim();
+        if (!name || seen[name.toLowerCase()]) { return; }
+        seen[name.toLowerCase()] = true;
+        out.push({ model: name, provider: provider || '' });
+      }
+      (state.modelRates || []).forEach(function (r) { add(r.model, r.provider); });
+      AI_PROVIDERS.forEach(function (prov) {
+        if (prov.use !== 'text') { return; }   /* 写真は1枚いくらで、トークンでは数えない */
+        add(String((state.appSettings || {})[prov.setting] || ''),
+          prov.key === 'anthropic' ? 'claude' : prov.key);
+      });
+      return out;
+    }
+
+    function modelRateRow(one) {
+      var now = null;
+      (state.modelRates || []).forEach(function (r) {
+        if (String(r.model).toLowerCase() === one.model.toLowerCase()) { now = r; }
+      });
+
+      var wrap = el('div', 'stack stack--tight');
+      var head = el('div', 'list-row__title clamp-1', one.model);
+      wrap.appendChild(head);
+      wrap.appendChild(el('div', 'list-row__meta',
+        now ? tl('local.mrNote', { note: textOf(now.note) || '-' }) : tl('local.mrNew')));
+
+      var inputs = {};
+      var grid = el('div', 'admin-rate-grid');
+      RATE_COLS.forEach(function (c) {
+        var value = now && now[c.col] !== null && now[c.col] !== undefined ? Number(now[c.col]) : '';
+        var node = numberInput(value === '' ? '' : value, {
+          min: 0, max: MAX_MTOK_USD, step: '0.001', id: uid('mr')
+        });
+        inputs[c.col] = node;
+        grid.appendChild(field(tl(c.label), node, ''));
+      });
+      wrap.appendChild(grid);
+
+      var saveLabel = t('admin.save');
+      var saveBtn = button('btn btn--primary btn--sm', saveLabel, function () { save(); });
+      wrap.appendChild(saveBtn);
+
+      function save() {
+        var patch = { provider: one.provider || '', updated_at: new Date().toISOString() };
+        var bad = false;
+        RATE_COLS.forEach(function (c) {
+          var raw = String(inputs[c.col].value || '').trim();
+          /* 空欄は null（＝分からない）で送る。0 にすると「この料金は無い」の
+             意味になり、会社の単価に落ちなくなる（078） */
+          if (raw === '') {
+            setFieldError(inputs[c.col].parentNode, inputs[c.col], '');
+            patch[c.col] = null;
+            return;
+          }
+          var num = Number(raw);
+          if (!isFinite(num) || num < 0 || num > MAX_MTOK_USD) {
+            setFieldError(inputs[c.col].parentNode, inputs[c.col], tl('local.mrInvalid'));
+            bad = true;
+            return;
+          }
+          setFieldError(inputs[c.col].parentNode, inputs[c.col], '');
+          patch[c.col] = num;
+        });
+        if (bad) { return; }
+        busy(saveBtn, true, tl('local.saving'), saveLabel);
+        var done = function () { toast(t('admin.saveSuccess'), 'success'); load(); };
+        var fail = function (err) {
+          busy(saveBtn, false, tl('local.saving'), saveLabel);
+          console.error('[screens-admin] モデルの単価を保存できませんでした', err);
+          toast(t('admin.saveFailed'), 'danger');
+        };
+        if (now) {
+          tableUpdate('aiModelRates', now.model, patch).then(done, fail);
+          return;
+        }
+        patch.model = one.model;
+        tableInsert('aiModelRates', patch).then(done, fail);
+      }
+
+      return wrap;
+    }
+
+    function modelRateSection() {
+      var models = modelsForRates();
+      var body;
+      if (!models.length) {
+        body = emptyBlock(tl('local.mrEmpty'));
+      } else {
+        body = el('div', 'list');
+        models.forEach(function (one) { body.appendChild(modelRateRow(one)); });
+      }
+      return section(tl('local.mrTitle'), tl('local.mrDesc'), [body]);
     }
 
     function rateSection() {
