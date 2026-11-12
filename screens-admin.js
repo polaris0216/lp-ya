@@ -388,6 +388,23 @@
     'local.aiImageNote': ['写真の生成は OpenAI だけです。この鍵が無いと、絵はブラウザ経由のままになります。',
       'Images use OpenAI only. Without this key, images keep going through the browser.',
       '이미지는 OpenAI만 사용합니다. 이 키가 없으면 이미지는 브라우저 경유로 유지됩니다.'],
+    'local.modelLabel': ['{name} のモデル', '{name} model', '{name} 모델'],
+    'local.modelDefault': ['指定しない（既定のまま）', 'Leave unset (use default)', '지정하지 않음(기본값)'],
+    'local.modelOther': ['その他（直接入力）', 'Other (type it in)', '기타(직접 입력)'],
+    'local.modelOtherPlaceholder': ['モデル名を打つ（例 claude-opus-5）',
+      'Type the model name (e.g. claude-opus-5)', '모델명을 입력(예: claude-opus-5)'],
+    'local.modelBest': ['いちばん賢い・高い', 'most capable, costliest', '가장 똑똑·고가'],
+    'local.modelBalanced': ['標準', 'standard', '표준'],
+    'local.modelFast': ['速い・安い', 'fast and cheap', '빠름·저가'],
+    'local.modelNoImage': ['画像を読めない', 'cannot read images', '이미지를 읽지 못함'],
+    'local.modelHint': ['替えると、次に積む仕事から変わります。',
+      'Takes effect for jobs queued after the change.',
+      '변경 후 쌓이는 작업부터 적용됩니다.'],
+    /* ひと続きの字で書く。+ でつなぐと、3言語そろっているかの自己チェックが
+       数を取り違える（2026-11-13、実測） */
+    'local.modelCostNote': ['替えると、次に積む仕事から変わります。原価の計算は会社ごとに1つの単価表を使うので、モデルを替えたら「機能別ポイント価格設定」の単価（100万tokあたりUSD）も合わせて直してください。',
+      'Takes effect for jobs queued after the change. Cost is computed from one rate table per company, so after changing the model also update the per-million-token USD rates in the pricing screen.',
+      '변경 후 쌓이는 작업부터 적용됩니다. 원가는 회사별로 하나의 단가표로 계산하므로, 모델을 바꾸면 요금 설정의 100만 토큰당 USD 단가도 함께 고쳐주세요.'],
     'local.rateTitle': ['為替（AI原価の円換算）', 'Exchange rate (for AI cost in yen)', '환율(AI 원가 엔화 환산)'],
     'local.rateDesc': ['AIの請求はドル建てです。原価を円で出すときに、この値を掛けます。',
       'AI is billed in USD. This rate converts the cost to yen.',
@@ -994,8 +1011,12 @@
         (Api.providerKeys && typeof Api.providerKeys.state === 'function'
           ? Api.providerKeys.state('service') : Promise.resolve([]))
           .catch(function () { return []; }),
-        tableList('appSettings', { eq: { key: 'text_provider' }, order: false, limit: 1 })
-          .catch(function () { return []; })
+        /* どの会社で文章を作るか＋どのモデルで動かすか（077）。
+           1回で取る。読めなくても管理画面は開ける */
+        tableList('appSettings', {
+          in: { key: ['text_provider', 'claude_model', 'deepseek_model', 'image_model'] },
+          order: false
+        }).catch(function () { return []; })
       ]).then(function (results) {
         var featureRows = results[0] || [];
         state.unitPrice = unitPriceOf(featureRows);
@@ -1005,7 +1026,11 @@
         /* AIの鍵と、どのAIで文章を作るか（2026-11-09）。
            読めなくても管理画面は開けるようにする */
         state.providerKeys = results[10] || [];
-        state.textProvider = String((results[11] && results[11][0] && results[11][0].value) || 'claude');
+        state.appSettings = {};
+        (results[11] || []).forEach(function (r) {
+          state.appSettings[textOf(r.key)] = textOf(r.value);
+        });
+        state.textProvider = String(state.appSettings.text_provider || 'claude');
         state.rateRow = null;
         featureRows.forEach(function (row) {
           if (textOf(row.feature_key).trim() === 'usdjpy_x100') {
@@ -1471,15 +1496,98 @@
 
        写真は OpenAI だけ。文章は Claude か DeepSeek を選ぶ。
        切り替えは app_settings の text_provider に書く */
+    /* models … 管理者が選べるモデル（077）。note は訳の鍵で、
+       「賢い・高い」などの目印を出すためだけのもの。
+       setting は app_settings の行の名前。
+       **新しいモデルが出たらここに足す。** 足さなくても
+       「その他（直接入力）」で打てるので、リリースを待たなくてよい */
     var AI_PROVIDERS = [
-      { key: 'openai', name: 'OpenAI', use: 'image' },
-      { key: 'anthropic', name: 'Claude（Anthropic）', use: 'text' },
-      { key: 'deepseek', name: 'DeepSeek', use: 'text' }
+      { key: 'openai', name: 'OpenAI', use: 'image', setting: 'image_model', models: [
+        { value: 'gpt-image-2', note: 'local.modelBalanced' },
+        { value: 'gpt-image-1', note: 'local.modelFast' }
+      ] },
+      { key: 'anthropic', name: 'Claude（Anthropic）', use: 'text', setting: 'claude_model', models: [
+        { value: 'claude-opus-5', note: 'local.modelBest' },
+        { value: 'claude-sonnet-5', note: 'local.modelBalanced' },
+        { value: 'claude-fable-5-1', note: 'local.modelBalanced' },
+        { value: 'claude-haiku-4-5-20251001', note: 'local.modelFast' }
+      ] },
+      { key: 'deepseek', name: 'DeepSeek', use: 'text', setting: 'deepseek_model', models: [
+        { value: 'deepseek-flash', note: 'local.modelFast' },
+        { value: 'deepseek-v4-pro', note: 'local.modelNoImage' }
+      ] }
     ];
     var TEXT_PROVIDERS = [
       { value: 'claude', label: 'Claude' },
       { value: 'deepseek', label: 'DeepSeek' }
     ];
+
+    /* 会社ごとの「どのモデルで動かすか」。
+       空＝指定しない（.worker-env → 既定値に落ちる）。
+       一覧に無いモデルも打てるようにする（新しいものが出たとき、
+       リリースを待たずに試せるようにしておく） */
+    function modelField(prov) {
+      var now = String((state.appSettings || {})[prov.setting] || '');
+      var known = false;
+      prov.models.forEach(function (m) { if (m.value === now) { known = true; } });
+
+      var sel = el('select', 'select');
+      var opts = [{ value: '', label: tl('local.modelDefault') }];
+      prov.models.forEach(function (m) {
+        opts.push({ value: m.value, label: m.value + '（' + tl(m.note) + '）' });
+      });
+      opts.push({ value: '__other', label: tl('local.modelOther') });
+      opts.forEach(function (o) {
+        var node = el('option', '', o.label);
+        node.value = o.value;
+        sel.appendChild(node);
+      });
+      /* 一覧に無い値が入っているときは「その他」を選んだ形で見せる。
+         既定の '' と取り違えると、入っている指定が消えたように見える */
+      sel.value = now ? (known ? now : '__other') : '';
+
+      var free = textInput(known ? '' : now, {
+        placeholder: tl('local.modelOtherPlaceholder'), maxLength: 80
+      });
+      free.hidden = sel.value !== '__other';
+
+      var saveLabel = t('admin.save');
+      var saveBtn = button('btn btn--primary', saveLabel, function () {
+        var value = sel.value === '__other' ? String(free.value || '').trim() : sel.value;
+        if (sel.value === '__other' && !value) {
+          setFieldError(f, free, tl('local.modelOtherPlaceholder'));
+          return;
+        }
+        setFieldError(f, free, '');
+        busy(saveBtn, true, tl('local.saving'), saveLabel);
+        tableUpdate('appSettings', prov.setting,
+          { value: value, updated_at: new Date().toISOString() })
+          .then(function () {
+            state.appSettings[prov.setting] = value;
+            toast(t('admin.saveSuccess'), 'success');
+            draw();
+          }, function (err) {
+            busy(saveBtn, false, tl('local.saving'), saveLabel);
+            console.error('[screens-admin] モデルを替えられませんでした', err);
+            setFieldError(f, free, errorText(err));
+          });
+      });
+
+      sel.addEventListener('change', function () {
+        free.hidden = sel.value !== '__other';
+        if (!free.hidden) { free.focus(); }
+      });
+
+      var f = field(tl('local.modelLabel', { name: prov.name }), sel,
+        prov.use === 'text' ? tl('local.modelCostNote') : tl('local.modelHint'));
+      /* 直接入力の欄は選び口のすぐ下。見出しは選び口を指したままにする */
+      f.insertBefore(free, sel.nextSibling);
+
+      var row = el('div', 'row--input-action');
+      row.appendChild(f);
+      row.appendChild(saveBtn);
+      return row;
+    }
 
     function aiSection() {
       var box = el('div', 'stack');
@@ -1548,6 +1656,7 @@
         row.appendChild(f);
         row.appendChild(saveBtn);
         box.appendChild(row);
+        box.appendChild(modelField(prov));
 
         if (now && now.has_key) {
           var clear = button('btn btn--text btn--sm', tl('local.aiKeyClear'), function () {
