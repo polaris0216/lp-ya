@@ -236,9 +236,11 @@
     'local.aiCostCalls': ['呼んだ回数 {n}', '{n} calls', '호출 {n}회'],
     'local.aiCostUsd': ['費用', 'Cost', '비용'],
     'local.aiCostEmpty': ['まだ記録がありません', 'No records yet', '기록이 없습니다'],
-    'local.aiCostNote': ['※ 単価は上の「機能ごとの単価」で変えられます。絵は投げたときの単価が記録に残るので過去ぶんは変わりません。文章はトークン数だけを記録しているので、単価を直すと過去ぶんも計算し直されます。',
-      'Rates are editable above. Images keep the price recorded at the time, so past months do not change. Text stores only token counts, so changing a rate recalculates past months too.',
-      '단가는 위의 설정에서 변경할 수 있습니다. 이미지는 요청 당시의 단가가 기록되어 과거분은 바뀌지 않습니다. 텍스트는 토큰 수만 기록하므로 단가를 바꾸면 과거분도 다시 계산됩니다.'],
+    /* 文章の単価の置き場は「設定 → モデル別の単価」に移した（078）。
+       ここの案内も合わせる。2か所を指すと、どちらが効くのか分からなくなる */
+    'local.aiCostNote': ['※ 文章の単価は「設定 → モデル別の単価」で変えられます。絵は投げたときの単価が記録に残るので過去ぶんは変わりません。文章はトークン数だけを記録しているので、単価を直すと過去ぶんも計算し直されます。',
+      'Text rates are editable under Settings → Per-model rates. Images keep the price recorded at the time, so past months do not change. Text stores only token counts, so changing a rate recalculates past months too.',
+      '문장 단가는 설정 → 모델별 단가에서 변경할 수 있습니다. 이미지는 요청 당시의 단가가 기록되어 과거분은 바뀌지 않습니다. 텍스트는 토큰 수만 기록하므로 단가를 바꾸면 과거분도 다시 계산됩니다.'],
     'local.statusLabel': ['状態', 'Status', '상태'],
     'local.toSuspend': ['このユーザーを停止する', 'Suspend this user', '이 사용자를 정지'],
     'local.toActivate': ['このユーザーを有効にする', 'Activate this user', '이 사용자를 활성화'],
