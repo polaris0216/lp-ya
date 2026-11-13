@@ -4196,14 +4196,6 @@ input[type='radio'] {
   color: var(--c-text);
 }
 
-.jobwatch__urls {
-  margin: 0;
-  padding-left: 18px;
-  font-size: var(--fs-note);
-  line-height: 1.7;
-  color: var(--c-text-sub);
-}
-
 .jobwatch__note {
   margin: 0;
   font-size: var(--fs-note);

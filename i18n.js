@@ -461,7 +461,6 @@
     'job.done': ['完了しました。フォームに反映しました', 'Done. The form has been filled in', '완료했습니다. 폼에 반영했습니다'],
     'job.failed': ['失敗しました', 'It failed', '실패했습니다'],
     'job.elapsed': ['経過 {t}', 'Elapsed {t}', '경과 {t}'],
-    'job.targetUrls': ['読み取り対象', 'Pages being read', '읽는 대상'],
     'job.note': ['この画面を閉じても処理は続きます。完了するとフォームに反映されます。', 'You can close this window; the job keeps running and the form is filled in when it finishes.', '이 창을 닫아도 처리는 계속됩니다.'],
     'job.minimize': ['閉じる（右下に小さく表示）', 'Close (keep a small badge)', '닫기(오른쪽 아래에 작게 표시)'],
     'job.expand': ['詳しく見る', 'Show details', '자세히 보기'],

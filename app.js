@@ -2316,14 +2316,10 @@
       global.LpyaAds.slot(panel, 'jobwatch');
     }
 
+    /* 読み取り対象のURLは出さない（2026-11-14 要望）。
+       待っている人に必要なのは「進んでいるか」だけで、どのページを
+       読んでいるかは要らない。広告の真下に長いURLが並ぶのも邪魔だった */
     if (!watch.mini) {
-    var urls = (opts.urls || []);
-    if (urls.length) {
-      panel.appendChild(wEl('span', 'jobwatch__label', t('job.targetUrls')));
-      var list = wEl('ul', 'jobwatch__urls');
-      urls.forEach(function (url) { list.appendChild(wEl('li', 'break-url', url)); });
-      panel.appendChild(list);
-    }
     /* 「閉じても処理は続きます」は、まだ動いているときだけ。
        終わったあとや失敗したあとに出すと、続いていないものを続くと言うことになる */
     if (!done && !failed) {
