@@ -1676,7 +1676,6 @@
         row.appendChild(f);
         row.appendChild(saveBtn);
         box.appendChild(row);
-        box.appendChild(modelField(prov));
 
         if (now && now.has_key) {
           var clear = button('btn btn--text btn--sm', tl('local.aiKeyClear'), function () {
@@ -1690,6 +1689,9 @@
           });
           box.appendChild(clear);
         }
+        /* モデルの選び口は「消す」より下。鍵の欄 → 鍵を消す → モデル、の順。
+           あいだに挟むと、「消す」がモデルを消すボタンに見える（2026-11-14、画面で確認） */
+        box.appendChild(modelField(prov));
         if (prov.use === 'image') {
           box.appendChild(el('p', 'field__hint', tl('local.aiImageNote')));
         }
@@ -1763,7 +1765,7 @@
         if (String(r.model).toLowerCase() === one.model.toLowerCase()) { now = r; }
       });
 
-      var wrap = el('div', 'stack stack--tight');
+      var wrap = el('div', 'stack stack--tight admin-rate-row');
       var head = el('div', 'list-row__title clamp-1', one.model);
       wrap.appendChild(head);
       wrap.appendChild(el('div', 'list-row__meta',
