@@ -460,6 +460,12 @@
     'job.running': ['ページを読み取っています', 'Reading the page', '페이지를 읽는 중입니다'],
     'job.done': ['完了しました。フォームに反映しました', 'Done. The form has been filled in', '완료했습니다. 폼에 반영했습니다'],
     'job.failed': ['失敗しました', 'It failed', '실패했습니다'],
+    /* いつの報せか。これが無いと、何日も前の失敗が今のものに見える
+       （2026-11-16 実測: 2日前のパネルが開いたままで、同じ字が出ていた） */
+    'job.endedAt': ['{time} の報せです', 'Reported at {time}', '{time}의 알림입니다'],
+    'job.endedLongAgo': ['{time} の報せです（そのまま残っています。閉じてから、もう一度お試しください）',
+      'Reported at {time} — this panel has been left open. Close it and try again.',
+      '{time}의 알림입니다(그대로 남아 있습니다. 닫은 뒤 다시 시도해 주세요)'],
     'job.elapsed': ['経過 {t}', 'Elapsed {t}', '경과 {t}'],
     'job.note': ['この画面を閉じても処理は続きます。完了するとフォームに反映されます。', 'You can close this window; the job keeps running and the form is filled in when it finishes.', '이 창을 닫아도 처리는 계속됩니다.'],
     'job.minimize': ['閉じる（右下に小さく表示）', 'Close (keep a small badge)', '닫기(오른쪽 아래에 작게 표시)'],

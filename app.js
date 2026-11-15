@@ -2043,6 +2043,12 @@
     global.Api.generationJobs.get(id).then(function (row) {
     if (!watch || watch.jobId !== id) { return; }
     watch.status = String(row.status || 'pending');
+    /* 終わった時刻をここで控える。elapsedText の中でついでに付けていたが、
+       描く順に頼る形だったので、状態が決まった所で付ける（2026-11-16） */
+    if (!watch.endedAt && (watch.status === 'failed' || watch.status === 'cancelled'
+        || watch.status === 'done')) {
+      watch.endedAt = new Date().getTime();
+    }
     /* 仕事の種類。残り時間の目安（job-eta.js）を引くのに使う */
     if (row.feature_key) { watch.featureKey = String(row.feature_key); }
     /* 中止はワーカーが status に書く。押した直後は cancel_requested だけが
@@ -2298,6 +2304,20 @@
     watch.msgNode = wEl('p', 'jobwatch__msg' + (failed ? ' t-danger' : ''),
       isWaitedLong() ? t(isQueuedBusy() ? 'job.queuedBusy' : 'job.stalled', { m: waitedMinutes() }) : message);
     panel.appendChild(watch.msgNode);
+
+    /* **いつの報せか**を必ず書く（2026-11-16 要望）。
+       終わった窓は、閉じるまで残り続ける。経過の時計は止めてあるが
+       （2026-10-18）、時刻が出ていなかったので、2日前の失敗が
+       いまの失敗に見えていた。実測: 11-13 の「SBP_TOKEN がありません」が
+       11-15 の画面にそのまま出ていて、直っていないように見えた。
+       少し時間が経っているものは、そのまま残っていることまで書く */
+    if ((failed || done || watch.status === 'cancelled') && watch.endedAt) {
+      var clock = new Date(watch.endedAt);
+      var hh = ('0' + clock.getHours()).slice(-2) + ':' + ('0' + clock.getMinutes()).slice(-2);
+      var old10 = (new Date().getTime() - watch.endedAt) > 10 * 60 * 1000;
+      panel.appendChild(wEl('p', 'jobwatch__msg t-sub',
+        t(old10 ? 'job.endedLongAgo' : 'job.endedAt', { time: hh })));
+    }
     /* 止まっていると伝えるだけだと、待つ以外にできることが無い。直し方まで出す */
     if (isStalled() && !watch.mini) {
       panel.appendChild(wEl('p', 'jobwatch__msg t-sub', t('job.stalledHow')));
