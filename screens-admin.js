@@ -407,6 +407,17 @@
     'local.modelCostNote': ['替えると、次に積む仕事から変わります。原価はこの下の「モデル別の単価」で計算します。一覧に無いモデルを打ったときは、そこに単価も入れてください（入れるまでは会社の単価で計算します）。',
       'Takes effect for jobs queued after the change. Cost is computed from the per-model rates below. If you typed a model that is not listed, add its rates there too (until then the company rate is used).',
       '변경 후 쌓이는 작업부터 적용됩니다. 원가는 아래의 모델별 단가로 계산합니다. 목록에 없는 모델을 입력했다면 거기에 단가도 넣어주세요(넣기 전에는 회사 단가로 계산합니다).'],
+    'local.psTitle': ['掲載先ごとの画像サイズ（リターン）', 'Reward image size by platform', '게재처별 이미지 크기(리워드)'],
+    'local.psDesc': ['リターン画像をこの寸法で作ります。公式の案内が変わったら、ここを直してください。「未確認」は公式で確かめられず、比率から当てた値です。',
+      'Reward images are made at these sizes. Update here when a platform changes its guide. "Unverified" means the value was inferred from the aspect ratio, not confirmed.',
+      '리워드 이미지를 이 치수로 만듭니다. 공식 안내가 바뀌면 여기를 고쳐주세요. "미확인"은 공식으로 확인하지 못하고 비율로 추정한 값입니다.'],
+    'local.psW': ['横', 'Width', '가로'],
+    'local.psH': ['縦', 'Height', '세로'],
+    'local.psPer': ['1件あたり枚数', 'Per reward', '건당 장수'],
+    'local.psVerified': ['公式で確認済み', 'Confirmed officially', '공식 확인됨'],
+    'local.psUnverified': ['未確認（比率から当てた値）', 'Unverified (inferred)', '미확인(추정값)'],
+    'local.psSource': ['出どころ: {src}', 'Source: {src}', '출처: {src}'],
+    'local.psInvalid': ['1以上の数で入れてください', 'Enter a number of 1 or more', '1 이상의 수로 입력하세요'],
     'local.mrTitle': ['モデル別の単価（USD / 100万トークン）', 'Per-model rates (USD / 1M tokens)', '모델별 단가(USD / 100만 토큰)'],
     'local.mrDesc': ['原価はこの単価で計算します。行が無いモデルは会社の単価に落ちます。公式の値段表が変わったら、ここを直してください。',
       'Cost is computed from these rates. A model with no row falls back to the company rate. Update here when the official price list changes.',
@@ -1035,6 +1046,9 @@
         }).catch(function () { return []; }),
         /* モデルごとの単価（078）。読めなくても管理画面は開ける */
         tableList('aiModelRates', { order: 'model.asc' })
+          .catch(function () { return []; }),
+        /* 掲載先ごとの画像サイズ（079）。読めなくても管理画面は開ける */
+        tableList('platformAssetSpecs', { order: 'platform.asc' })
           .catch(function () { return []; })
       ]).then(function (results) {
         var featureRows = results[0] || [];
@@ -1051,6 +1065,7 @@
         });
         state.textProvider = String(state.appSettings.text_provider || 'claude');
         state.modelRates = results[12] || [];
+        state.assetSpecs = results[13] || [];
         state.rateRow = null;
         featureRows.forEach(function (row) {
           if (textOf(row.feature_key).trim() === 'usdjpy_x100') {
@@ -1168,7 +1183,7 @@
       if (key === 'coupons') { return [couponSection()]; }
       if (key === 'inquiries') { return [inquiriesSection()]; }
       if (key === 'settings') {
-        return [aiSection(), modelRateSection(), adTagSection(), selectorsSection()];
+        return [aiSection(), modelRateSection(), specSection(), adTagSection(), selectorsSection()];
       }
       /* 既定は会員。承認待ちは、待たせているあいだ相手がアプリに入れないので先頭に出す */
       return [pendingSection(), usersSection()];
@@ -1839,6 +1854,67 @@
         models.forEach(function (one) { body.appendChild(modelRateRow(one)); });
       }
       return section(tl('local.mrTitle'), tl('local.mrDesc'), [body]);
+    }
+
+    /* ---- 掲載先ごとの画像サイズ（2026-11-16 要望）----
+       寸法は各社の都合で変わる。コードに焼くとリリースが要るので、表にして画面から直す。
+       「公式で確認済み」の印を持つ理由は 079 に書いた：推測を確認済みと混ぜると、
+       登録できない絵を作っても気づけない */
+    function specRow(row) {
+      var wrap = el('div', 'stack stack--tight admin-rate-row');
+      wrap.appendChild(el('div', 'list-row__title clamp-1', textOf(row.platform)));
+      wrap.appendChild(el('div', 'list-row__meta',
+        (row.verified ? tl('local.psVerified') : tl('local.psUnverified'))
+        + (row.source ? ' ・ ' + tl('local.psSource', { src: textOf(row.source) }) : '')));
+
+      var wIn = numberInput(Number(row.width) || '', { min: 1, max: 10000, step: '1', id: uid('pw') });
+      var hIn = numberInput(Number(row.height) || '', { min: 1, max: 10000, step: '1', id: uid('ph') });
+      var pIn = numberInput(Number(row.per_item) || 1, { min: 1, max: 20, step: '1', id: uid('pp') });
+      var grid = el('div', 'admin-rate-grid');
+      grid.appendChild(field(tl('local.psW'), wIn, ''));
+      grid.appendChild(field(tl('local.psH'), hIn, ''));
+      grid.appendChild(field(tl('local.psPer'), pIn, ''));
+      wrap.appendChild(grid);
+
+      var saveLabel = t('admin.save');
+      var saveBtn = button('btn btn--primary btn--sm', saveLabel, function () {
+        var w = Number(String(wIn.value || '').trim());
+        var h = Number(String(hIn.value || '').trim());
+        var per = Number(String(pIn.value || '').trim()) || 1;
+        if (!(w >= 1) || !(h >= 1)) {
+          setFieldError(wIn.parentNode, wIn, tl('local.psInvalid'));
+          return;
+        }
+        setFieldError(wIn.parentNode, wIn, '');
+        busy(saveBtn, true, tl('local.saving'), saveLabel);
+        /* 人が直した値は「確認済み」にする。管理者が入稿画面を見て入れた値なので、
+           こちらが比率から当てた値より確かだと扱う */
+        tableUpdate('platformAssetSpecs', row.platform, {
+          width: w, height: h, per_item: per, verified: true,
+          source: textOf(row.source) || '管理画面で入力',
+          updated_at: new Date().toISOString()
+        }).then(function () {
+          toast(t('admin.saveSuccess'), 'success');
+          load();
+        }, function (err) {
+          busy(saveBtn, false, tl('local.saving'), saveLabel);
+          console.error('[screens-admin] 寸法を保存できませんでした', err);
+          toast(t('admin.saveFailed'), 'danger');
+        });
+      });
+      wrap.appendChild(saveBtn);
+      return wrap;
+    }
+
+    function specSection() {
+      var rows = (state.assetSpecs || []).slice().sort(function (a, b) {
+        /* 未確認を上に出す。直してほしいのはそちらなので */
+        if (!!a.verified !== !!b.verified) { return a.verified ? 1 : -1; }
+        return String(a.platform).localeCompare(String(b.platform));
+      });
+      var body = rows.length ? el('div', 'list') : emptyBlock(tl('local.mrEmpty'));
+      rows.forEach(function (row) { body.appendChild(specRow(row)); });
+      return section(tl('local.psTitle'), tl('local.psDesc'), [body]);
     }
 
     function rateSection() {

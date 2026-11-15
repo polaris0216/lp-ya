@@ -24,6 +24,24 @@
     /* 2026-11-01 指摘:「組み直す」では何の機能か分からない。
        やっているのは「いまのブロック・文字・設定からページを作る」こと。
        作ったものが公開ページにも出るので、そこまで言う */
+    /* リターン画像（2026-11-16 要望）。LP本体と同じ世界観・同じ切り抜きで作れる
+       のは、この画面まで来てからなので、ここに置いた（S4では切り抜きがまだ無い） */
+    'rw.title': ['リターン画像', 'Reward images', '리워드 이미지'],
+    'rw.lead': ['掲載先の入稿欄にそのまま上げられる1枚を、リターンの数だけ作ります。文字は入れません（価格を直しても作り直さずに済みます）。',
+      'Makes one upload-ready image per reward. No text is burned in, so a price change does not force a redo.',
+      '등록란에 그대로 올릴 수 있는 이미지를 리워드 수만큼 만듭니다. 글자는 넣지 않습니다(가격을 고쳐도 다시 만들 필요가 없습니다).'],
+    'rw.size': ['{platform} / {w}×{h} で作ります', 'Making {w}×{h} for {platform}', '{platform} / {w}×{h}로 만듭니다'],
+    'rw.unverified': ['※ この寸法はまだ公式で確認できていません。入稿で弾かれたら、管理 → 設定 で直してください。',
+      'Note: this size is not yet confirmed against the official guide. If upload is rejected, fix it in Admin → Settings.',
+      '※ 이 치수는 아직 공식으로 확인되지 않았습니다. 등록이 거부되면 관리 → 설정에서 고쳐주세요.'],
+    'rw.makeAll': ['リターン画像をまとめて作る（{n}枚）', 'Make all reward images ({n})', '리워드 이미지를 한번에 만들기({n}장)'],
+    'rw.redo': ['作り直す', 'Redo', '다시 만들기'],
+    'rw.empty': ['リターンがまだ入っていません。商品入力のリターン欄に足すと、ここで画像を作れます。',
+      'No rewards yet. Add them in the product form and you can make images here.',
+      '리워드가 아직 없습니다. 상품 입력의 리워드란에 추가하면 여기서 이미지를 만들 수 있습니다.'],
+    'rw.none': ['まだ作っていません', 'Not made yet', '아직 만들지 않았습니다'],
+    'rw.queued': ['リターン画像を作り始めました', 'Started making the reward images', '리워드 이미지 생성을 시작했습니다'],
+    'rw.open': ['リターン画像を作る', 'Make reward images', '리워드 이미지 만들기'],
     'lpr.build': ['ページを作る', 'Create the page', '페이지 만들기'],
     'lpr.rebuild': ['最新の内容でページを作り直す', 'Rebuild the page with the latest content', '최신 내용으로 다시 만들기'],
     'lpr.buildHint': ['文字や並びを直したら押してください。公開中のページにも、押したときの内容が出ます。',
@@ -287,6 +305,10 @@
       add(stage, frameWrap);
       add(stage, shelf);
       add(screen, stage);
+      /* リターン画像。既定は閉じておく。リターンが多いと画面が長くなるので、
+         LPを見に来た人の邪魔をしない（2026-11-16） */
+      var rewardBox = el('details', 'lpr-rewards');
+      add(screen, rewardBox);
       add(root, screen);
 
       /* 幅の札。押した幅を覚えるのはこのタブの中だけ（別の案件にも効く） */
@@ -294,6 +316,123 @@
         { key: 'phone', cls: 'lpr-frame--phone' },
         { key: 'pc', cls: 'lpr-frame--pc' }
       ];
+      /* ---- リターン画像（2026-11-16 要望）----------------------------------
+         ここに置いた理由: リターン画像に要る材料（商品の切り抜き・LPの世界観・
+         掲載先・リターン一覧）が全部そろうのは、この画面まで来てから。
+         商品入力の段では切り抜きも世界観もまだ無く、作るとLP本体と色味がずれる。
+         この画面は「掲載先に登録する直前の確認」なので、登録物はここで揃える。 */
+      var rewardSpec = null;      /* 掲載先ごとの寸法（079） */
+      var rewardGen = null;       /* できた絵の置き場（generations の1行） */
+
+      function rewardList() {
+        var got = view.project && view.project.rewards;
+        return Array.isArray(got) ? got : [];
+      }
+
+      /* できた絵のURL。区画と同じ「<番号>-1」の形で入る */
+      function rewardUrl(at) {
+        var made = rewardGen && rewardGen.asset_prompts && rewardGen.asset_prompts.made;
+        if (!made || typeof made !== 'object') { return ''; }
+        return String(made[String(at) + '-1'] || '');
+      }
+
+      function loadRewards() {
+        var platform = String((view.project && view.project.cf_platform) || 'other').toLowerCase();
+        return Promise.all([
+          Api.platformAssetSpecs.list({ in: { platform: [platform, 'other'] }, order: false })
+            .catch(function () { return []; }),
+          Api.generations.list({
+            eq: { projects_id: projectId, feature_key: 'reward_assets' },
+            select: 'id,asset_prompts,sections', order: 'created_at.desc', limit: 1
+          }).catch(function () { return []; })
+        ]).then(function (got) {
+          var rows = got[0] || [];
+          /* 掲載先のぶんを優先し、無ければ other に落とす */
+          rewardSpec = rows.filter(function (r) { return String(r.platform) === platform; })[0]
+            || rows.filter(function (r) { return String(r.platform) === 'other'; })[0] || null;
+          rewardGen = (got[1] || [])[0] || null;
+        });
+      }
+
+      function startRewards(only) {
+        return Api.generationJobs.insert({
+          feature_key: 'reward_assets', status: 'pending', projects_id: projectId,
+          users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function')
+            ? Api.auth.userId() : undefined,
+          payload: only ? { sections: [only] } : {},
+          lang: currentLocale()
+        }).then(function (job) {
+          toast(t('rw.queued'), 'success');
+          if (App.watchJob) {
+            App.watchJob({ jobId: job.id, titleKey: 'rw.title', urls: [], onDone: function () {
+              loadRewards().then(paintRewards);
+            } });
+          }
+        });
+      }
+
+      function paintRewards() {
+        clear(rewardBox);
+        var sum = el('summary', 'lpr-rewards__head', t('rw.open'));
+        add(rewardBox, sum);
+        var body = el('div', 'lpr-rewards__body');
+        add(rewardBox, body);
+        add(body, el('p', 'screen__lead', t('rw.lead')));
+
+        var list = rewardList();
+        if (!list.length) {
+          add(body, el('p', 'empty', t('rw.empty')));
+          return;
+        }
+        if (rewardSpec) {
+          add(body, el('p', 'lpr-rewards__size', t('rw.size', {
+            platform: String(view.project.cf_platform || 'other'),
+            w: rewardSpec.width, h: rewardSpec.height
+          })));
+          /* 未確認の寸法で作ることは、作る前に言う。
+             黙って作ると、入稿で弾かれてから原因を探すことになる（079） */
+          if (!rewardSpec.verified) {
+            add(body, el('p', 'lpr-rewards__warn t-sub', t('rw.unverified')));
+          }
+        }
+
+        var all = button('btn btn--primary', t('rw.makeAll', { n: list.length }), function (e) {
+          var node = e.currentTarget;
+          node.disabled = true;
+          startRewards(null).catch(function (err) {
+            node.disabled = false;
+            toast(String(err && err.message || err), 'danger');
+          });
+        });
+        add(body, all);
+
+        var grid = el('div', 'lpr-rewards__grid');
+        list.forEach(function (reward, at) {
+          var cell = el('div', 'lpr-rewards__cell');
+          var url = rewardUrl(at + 1);
+          if (url) {
+            var img = el('img', 'lpr-rewards__img');
+            img.src = url;
+            img.alt = String(reward.name || '');
+            img.loading = 'lazy';
+            add(cell, img);
+          } else {
+            add(cell, el('div', 'lpr-rewards__blank', t('rw.none')));
+          }
+          add(cell, el('div', 'lpr-rewards__name clamp-1', String(reward.name || '')));
+          add(cell, button('btn btn--text btn--sm', t('rw.redo'), function (e) {
+            var node = e.currentTarget;
+            node.disabled = true;
+            startRewards(at + 1).catch(function (err) {
+              node.disabled = false;
+              toast(String(err && err.message || err), 'danger');
+            });
+          }));
+          add(grid, cell);
+        });
+        add(body, grid);
+      }
+
       function pickWidth(key) {
         var one = WIDTHS.filter(function (w) { return w.key === key; })[0] || WIDTHS[0];
         WIDTHS.forEach(function (w) { frameWrap.classList.remove(w.cls); });
@@ -354,6 +493,7 @@
            生成結果が変わらなかった（実測）。前の版は履歴に積んでおく */
         if (params.build === '1' || !view.html) { build(!!view.gen.generated_html || params.build === '1'); }
         paint();
+        loadRewards().then(paintRewards, paintRewards);
       }).catch(function (err) {
         console.error('[screens-lp-result] 読み込みに失敗:', err);
         add(root, el('p', 'empty', String(err && err.message || err)));

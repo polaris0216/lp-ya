@@ -5998,6 +5998,27 @@ input[type='radio'] {
 .lpr-widths__b--on { background: var(--accent, #7c3aed); border-color: var(--accent, #7c3aed); color: #fff; }
 /* スマホ幅は実寸390pxで中央に置く。枠だけ細くしても、中のページは
    自分の幅で組まれるので、これで実機と同じ折り返しになる */
+/* リターン画像（2026-11-16）。既定は閉じた折りたたみ。
+   リターンが多いと S13 が長くなるので、LPを見に来た人の邪魔をしない */
+.lpr-rewards { margin: 16px 0; border: 1px solid var(--c-line); border-radius: 12px; background: var(--c-surface); }
+.lpr-rewards__head { padding: 12px 14px; cursor: pointer; font-weight: 700; }
+.lpr-rewards__body { padding: 0 14px 14px; }
+.lpr-rewards__size { font-size: var(--fs-note); font-weight: 700; margin: 4px 0; }
+.lpr-rewards__warn { font-size: var(--fs-note); margin: 0 0 8px; }
+.lpr-rewards__grid {
+  display: grid; gap: 12px; margin-top: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+.lpr-rewards__cell { display: flex; flex-direction: column; gap: 6px; }
+.lpr-rewards__img { width: 100%; border-radius: 8px; display: block; }
+.lpr-rewards__blank {
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 16 / 9; max-width: 100%;
+  border: 1px dashed var(--c-line); border-radius: 8px;
+  color: var(--c-text-sub); font-size: var(--fs-note);
+}
+.lpr-rewards__name { font-size: var(--fs-note); }
+
 .lpr-frame--phone .lpr-frame__iframe { width: 390px; margin: 0 auto; }
 .lpr-frame--pc .lpr-frame__iframe { width: 100%; }
 

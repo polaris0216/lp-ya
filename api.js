@@ -132,7 +132,9 @@
     /* アプリ全体の小さな設定。公開してよい値だけ（061） */
     appSettings: TABLE_PREFIX + 'app_settings',
     /* モデルごとの単価（078）。原価なので管理者だけ */
-    aiModelRates: TABLE_PREFIX + 'ai_model_rates'
+    aiModelRates: TABLE_PREFIX + 'ai_model_rates',
+    /* 掲載先ごとの画像サイズ（079）。読みは会員、書きは管理者 */
+    platformAssetSpecs: TABLE_PREFIX + 'platform_asset_specs'
   };
 
   /* ---------- 日本語エラーメッセージ ---------- */
@@ -867,6 +869,9 @@
     featureProviderCosts: makeTable(TABLES.featureProviderCosts),
     /* モデルごとの単価（078）。主キーは model */
     aiModelRates: makeTable(TABLES.aiModelRates, 'model'),
+    /* 掲載先ごとの画像サイズ（079）。主キーは (platform, kind) なので、
+       1行を指す get/update は使わない。list と insert だけ使う */
+    platformAssetSpecs: makeTable(TABLES.platformAssetSpecs, 'platform'),
     coupons: makeTable(TABLES.coupons),
     inquiries: makeTable(TABLES.inquiries),
     inquiryMessages: makeTable(TABLES.inquiryMessages),
