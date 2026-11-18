@@ -2396,6 +2396,23 @@ button.list-row:hover { background: var(--c-surface-3); }
 .carousel__card .list { margin-top: -2px; }
 
 /* 動く素材の印。★（左下）と ×（右上）を避けて左上に置く */
+/* AIの採点（2026-11-18）。☆が付いた理由を写真の左下に出す。
+   GIFの印は左上なので、ぶつからないように下に置く */
+.thumb__score {
+  position: absolute;
+  left: 4px; bottom: 4px;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .58);
+  color: var(--c-white);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: .04em;
+  pointer-events: none;
+}
+/* ☆が付かなかった写真の採点。付いたものと見分けが付くようにする */
+.thumb__score--low { background: rgba(0, 0, 0, .35); color: rgba(255, 255, 255, .75); }
+
 .thumb__tag {
   position: absolute;
   left: 4px;

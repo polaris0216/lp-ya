@@ -829,6 +829,9 @@
     var registerRow = null;
     var registerBtn = null;
     var rewardsHost = null;
+    /* AIの採点（081）。url → {product, alone, text, angle, note, provider, model} */
+    var shotScores = {};
+    var shotEngine = '';
     var rewardsEmpty = null;
     var discountNodes = [];
     var rewardIndex = 0;
@@ -971,6 +974,16 @@
       lastBrandLogo = form.brandLogo;
       form.images = list(row.image_urls).map(String);
       form.productShots = list(row.product_shot_urls).map(String);
+      /* AIが付けた採点（081）。☆が付いた理由を写真の下に出す */
+      shotScores = {};
+      shotEngine = '';
+      list(row.shots_scored).forEach(function (one) {
+        if (!one || !one.url) { return; }
+        shotScores[String(one.url)] = one;
+        if (!shotEngine && one.provider) {
+          shotEngine = String(one.provider) + (one.model ? '（' + one.model + '）' : '');
+        }
+      });
       lastShots = JSON.stringify(form.productShots.slice().sort());
       form.videos = list(row.video_urls).map(String);
       form.brandColors = list(row.brand_colors).map(String);
@@ -2790,13 +2803,30 @@
         mark.title = t('s4.productShot');
         cell.appendChild(mark);
 
+        /* **なぜ☆が付いたか**を出す（2026-11-18 要望）。
+           採点は前からしていたのに結果を捨てていたので、利用者には
+           「AIがちゃんと見ているのか」を確かめようがなかった。
+           本体の写り（0-5）と、AIが書いた一言を添える */
+        var score = shotScores[source];
+        if (score) {
+          var badge = el('span', 'thumb__score'
+            + (Number(score.product) >= 2 ? '' : ' thumb__score--low'),
+            t('s4.shotScore', { n: String(score.product) }));
+          badge.title = t('s4.shotScoreHint', {
+            n: String(score.product),
+            angle: String(score.angle || '-'),
+            note: String(score.note || '-')
+          });
+          cell.appendChild(badge);
+        }
+
         imagesHost.appendChild(cell);
       });
 
       if (productShotNote) {
         productShotNote.textContent = t('s4.productShotCount', {
           n: form.productShots.length, m: form.images.length
-        });
+        }) + (shotEngine ? ' ・ ' + t('s4.shotEngine', { engine: shotEngine }) : '');
         productShotNote.hidden = form.images.length === 0;
       }
       if (registerRow) { registerRow.hidden = !projectId || form.images.length === 0; }
