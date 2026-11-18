@@ -1671,9 +1671,6 @@ a.card:active,
   gap: 8px;
 }
 
-/* 作る層の選び（2026-11-19）。既存の chip をそのまま使い、並びだけ決める */
-.lp-pick__chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
-
 .chip {
   display: inline-flex;
   align-items: center;

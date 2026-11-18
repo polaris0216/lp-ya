@@ -470,6 +470,12 @@
     /* 作る層をここで選ぶ（2026-11-19 要望）。
        前は全層ぶん作ってから次の画面で選ぶ形で、選ぶ前に払い終えていた */
     'ov.pickTitle': ['どのターゲット層のLPを作りますか', 'Which audiences should the LP be written for?', '어떤 타깃 층의 LP를 만들까요'],
+    'ov.pickAll': ['すべて選ぶ', 'Select all', '전체 선택'],
+    'ov.pickCol': ['選ぶ', 'Pick', '선택'],
+    'ov.pickLabel': ['ターゲット', 'Audience', '타깃'],
+    /* S12 では同じ位置に「残り」が出る。ここはまだ1本も作っていないので、
+       代わりに誰に向けた層かを出す */
+    'ov.pickWho': ['年齢 / 性別', 'Age / gender', '연령 / 성별'],
     'ov.pickHint': ['選んだ層のぶんだけ作ります。あとから足すこともできます。',
       'Only the selected audiences are written. You can add more later.',
       '선택한 층만 만듭니다. 나중에 추가할 수도 있습니다.'],
@@ -3163,27 +3169,71 @@
             .filter(function (L) { return lpPicked[L]; });
         }
 
+        /* 見た目は S12 のターゲット一覧表と同じにする（2026-11-19 要望）。
+           同じことを選ぶ表が2つの画面で違う形だと、同じ操作だと気づけない。
+           クラス（lp-pick*）もそのまま借りるので、片方の見た目を直せば両方効く */
         function paintPick() {
           clear(pickHost);
           if (lpTargets.length < 2) { return; }   /* 1層しか無いなら選ばせる意味が無い */
-          add(pickHost, el('p', 'card__sub', t('ov.pickTitle')));
-          var box = el('div', 'lp-pick__chips');
+
+          var wrap = el('div', 'lp-pick');
+          var head = el('div', 'lp-pick__head');
+          add(head, el('span', 'lp-pick__title', t('ov.pickTitle')));
+          add(head, button('btn btn--secondary btn--sm', t('ov.pickAll'), function () {
+            lpTargets.forEach(function (one) { lpPicked[String(one.label || '-')] = true; });
+            paintPick();
+            refreshLpCost();
+          }));
+          add(wrap, head);
+
+          var table = el('table', 'lp-pick__table');
+          var thead = el('thead');
+          var hr = el('tr');
+          add(hr, el('th', 'lp-pick__c-pick', t('ov.pickCol')));
+          add(hr, el('th', '', t('ov.pickLabel')));
+          add(hr, el('th', 'lp-pick__c-left', t('ov.pickWho')));
+          add(thead, hr);
+          add(table, thead);
+
+          var tbody = el('tbody');
           lpTargets.forEach(function (one) {
             var L = String(one.label || '-');
             var on = !!lpPicked[L];
-            var chip = button('chip' + (on ? ' chip--selected' : ''),
-              L + (one.name ? '：' + String(one.name).slice(0, 18) : ''), function () {
-                if (on) { delete lpPicked[L]; } else { lpPicked[L] = true; }
-                /* 1つも無い状態にはしない。押した人が困るだけ */
-                if (!pickedLabels().length) { lpPicked[L] = true; }
-                paintPick();
-                refreshLpCost();
-              });
-            chip.setAttribute('aria-pressed', on ? 'true' : 'false');
-            add(box, chip);
+            var tr = el('tr', on ? 'is-on' : '');
+
+            var td1 = el('td', 'lp-pick__c-pick');
+            var box = el('input');
+            box.type = 'checkbox';
+            box.checked = on;
+            box.id = 'ov-pick-' + L;
+            box.addEventListener('change', function () {
+              if (box.checked) { lpPicked[L] = true; } else { delete lpPicked[L]; }
+              /* 1つも無い状態にはしない。押した人が困るだけ */
+              if (!pickedLabels().length) { lpPicked[L] = true; }
+              paintPick();
+              refreshLpCost();
+            });
+            add(td1, box);
+            add(tr, td1);
+
+            var td2 = el('td');
+            var lab = el('label', 'lp-pick__name');
+            lab.setAttribute('for', box.id);
+            add(lab, el('span', 'lp-variant__label', L));
+            if (one.name) { add(lab, el('span', 'lp-pick__sub', String(one.name).slice(0, 40))); }
+            add(td2, lab);
+            add(tr, td2);
+
+            /* S12 の「残り」の位置には、誰に向けた層かを出す。
+               まだ1本も作っていない段なので「残り」は数えようがない */
+            var who = [one.age, one.gender].filter(Boolean).join(' / ');
+            add(tr, el('td', 'lp-pick__c-left' + (who ? '' : ' is-none'), who || '—'));
+            add(tbody, tr);
           });
-          add(pickHost, box);
-          add(pickHost, el('p', 't-note', t('ov.pickHint')));
+          add(table, tbody);
+          add(wrap, table);
+          add(wrap, el('p', 't-note', t('ov.pickHint')));
+          add(pickHost, wrap);
         }
 
         var lpBtn = button('btn btn--primary btn--block', t('ov.makeLp'), function () {
