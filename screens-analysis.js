@@ -2932,7 +2932,11 @@
             [t('ov.stepsLabel'), asArray(one.steps).join('\n'), 'info-row--lead']
           ],
           assetsFirst: true,
-          assets: asArray(one.assets).slice(0, 6),
+          /* **切らない**（2026-11-19 指摘「トグルを開くと素材が全部出ていない」）。
+             素材の帯は横に送って見る作りなので、枚数で切る必要が無い。
+             6枚で切っていたため、分析が「この区画にあった」と書いたものが
+             黙って落ちていた */
+          assets: asArray(one.assets),
           assetsLabel: t('s11.assetsLabel'),
           marks: [
             { on: !!one.cta, yes: t('s11.hasCta'), no: t('s11.noCta') },
@@ -2987,7 +2991,8 @@
             sources.length ? t('ov.sources', { n: sources.length }) : ''].filter(Boolean).join(' / '),
           rows: rows,
           assetsFirst: true,
-          assets: asArray(one.assets).slice(0, 6),
+          /* こちらも切らない（上と同じ理由） */
+          assets: asArray(one.assets),
           assetsLabel: t('s11.assetsLabel')
         }));
       });
