@@ -302,6 +302,9 @@
     'product.rewards': ['リワード', 'Rewards', '리워드'],
     'product.reward': ['リワード', 'Reward', '리워드'],
     'product.rewardAdd': ['リワードを追加', 'Add a reward', '리워드 추가'],
+    'product.rewardCopy': ['このリワードを複製', 'Duplicate this reward', '이 리워드를 복제'],
+    /* 複製した名前に付ける印。直し忘れたとき、同じ名前が2つ並ぶのを防ぐ */
+    'product.rewardCopyOf': ['{name}（コピー）', '{name} (copy)', '{name}(복사)'],
     'product.rewardName': ['リワード名', 'Reward name', '리워드 이름'],
     'product.rewardPrice': ['リワード価格', 'Reward price', '리워드 가격'],
     'product.rewardQty': ['数量', 'Quantity', '수량'],

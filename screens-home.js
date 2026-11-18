@@ -2482,6 +2482,33 @@
       head.appendChild(el('span', 'reward-badge', String(index + 1)));
       head.appendChild(el('span', 'reward-card__title', t('product.rewardCardTitle', { n: index + 1 })));
       head.appendChild(el('span', 'reward-card__pos', t('product.rewardPosition', { n: index + 1, total: total })));
+      /* 複製（2026-11-18 要望）。段階は「1台 → 2台 → 3台」のように、
+         1つ作って数量と価格だけ変えることが多い。毎回4欄を打ち直さずに済ませる。
+
+         **値は1つずつ写す。** そのまま入れると同じ物を2か所から指すことになり、
+         片方を直すともう片方も変わる（JSの参照）。 */
+      var copy = button('target-card__copy', '', function () {
+        var from = form.rewards[index];
+        var made = {
+          /* 名前には印を付ける。付けないと、直し忘れたとき同じ名前の段階が
+             2つ掲載先に並ぶ。印があれば、直していないことが一目で分かる */
+          name: from.name ? t('product.rewardCopyOf', { name: from.name }) : '',
+          listPrice: from.listPrice,
+          price: from.price,
+          qty: from.qty,
+          desc: from.desc
+        };
+        form.rewards.splice(index + 1, 0, made);
+        rewardIndex = index + 1;
+        rewardAnim = 1;
+        paintRewards();
+        markDirty();
+      });
+      copy.appendChild(svgIcon('M9 9h10v10H9zM5 15V5h10'));
+      copy.setAttribute('aria-label', t('product.rewardCopy'));
+      copy.setAttribute('title', t('product.rewardCopy'));
+      head.appendChild(copy);
+
       var remove = button('target-card__remove', '', function () {
         form.rewards.splice(index, 1);
         if (rewardIndex >= form.rewards.length) { rewardIndex = form.rewards.length - 1; }

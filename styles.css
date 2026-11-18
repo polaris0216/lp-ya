@@ -4554,6 +4554,18 @@ input[type='radio'] {
 .target-card__remove:hover { background: var(--c-skeleton); color: var(--c-danger); }
 .target-card__remove svg { display: block; width: 16px; height: 16px; }
 
+/* 複製（2026-11-18）。消すボタンと同じ形だが、赤くしない。
+   並べて置くので、押し間違いの行き先が「消す」になるのを避ける */
+.target-card__copy {
+  flex: 0 0 auto;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; border: none; border-radius: 7px;
+  background: transparent; color: var(--c-text-sub); cursor: pointer;
+}
+.target-card__copy:hover { background: var(--c-skeleton); color: var(--c-main); }
+.target-card__copy svg { display: block; width: 16px; height: 16px; }
+
 .target-card__body {
   display: flex;
   flex-direction: column;
