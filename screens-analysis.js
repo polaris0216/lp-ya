@@ -505,10 +505,15 @@
       'Red marks this page’s weak points',
       '빨간색은 "반성할 점"(이 참조 LP의 약한 부분)입니다'
     ],
+    /* **理由を決めつけない。** 開けなかった理由はいくつもある
+       （本文が空・ボットよけ・遠隔ブラウザが落ちた等）。
+       実際の理由は collection_errors.message に入っているので、
+       ここは種類の見出しに留める（2026-11-19 指摘:
+       URLは変わっていないのに「URLが変わっていないか確認」と出ていた）*/
     'error.pageUnreadable': [
-      'このページを開けませんでした。URLが変わっていないか確認してください。',
-      'Could not open this page. Check whether the URL has changed.',
-      '이 페이지를 열 수 없었습니다. URL이 변경되지 않았는지 확인해 주세요.'
+      'このページを読み取れませんでした',
+      'Could not read this page',
+      '이 페이지를 읽을 수 없었습니다'
     ],
     's11.noAsset': ['収集できたコンテンツがありません', 'Nothing could be collected', '수집된 콘텐츠가 없습니다'],
     's11.reAnalyze': ['競合LPを追加して再分析', 'Add competitors and analyse again', '경쟁 LP를 추가해 재분석'],
@@ -2721,11 +2726,13 @@
           add(card, list);
         }
 
-        /* このリンクで読めなかったものがあれば、その1件だけ添える */
+        /* このリンクで読めなかったものがあれば、その1件だけ添える。
+           **実際の理由を先に出す**（errorSection と同じ扱い。2026-11-19）*/
         asArray(errors).forEach(function (one) {
           if (one.url !== source.url) { return; }
-          var message = LOCAL[one.reasonKey] ? t(one.reasonKey) : (one.message || one.reasonKey);
-          add(card, el('p', 'warn-box', message));
+          var why = String(one.message || '').trim();
+          var kindText = LOCAL[one.reasonKey] ? t(one.reasonKey) : '';
+          add(card, el('p', 'warn-box', why || kindText || one.reasonKey));
         });
 
         var cardView = el('div', 'carousel__view');
@@ -2810,9 +2817,19 @@
       errors.forEach(function (one) {
         var row = el('li', 'list-row list-row--danger');
         var body = el('div', 'list-row__body');
-        var message = LOCAL[one.reasonKey] ? t(one.reasonKey) : (one.message || one.reasonKey);
-        add(body, el('span', 'list-row__title', message));
+        /* **実際の理由を先に出す。**
+           ここは長いあいだ定型文（reasonKey）を優先していた。
+           そのため「本文が空のまま返ってきました」と分かっているのに
+           「URLが変わっていないか確認してください」と出ていて、
+           URLは変わっていないのに利用者を調べ直させていた
+           （2026-11-19 指摘）。
+           定型文は種類の見出しでしかないので、理由があるならそちらを出し、
+           定型文は下に小さく添える */
+        var why = String(one.message || '').trim();
+        var kindText = LOCAL[one.reasonKey] ? t(one.reasonKey) : '';
+        add(body, el('span', 'list-row__title', why || kindText || one.reasonKey));
         add(body, el('span', 'list-row__sub break-url', shortUrl(one.url, 52)));
+        if (why && kindText) { add(body, el('span', 'list-row__meta t-sub', kindText)); }
         add(row, body);
         add(row, el('span', 'list-row__meta', one.kind === 'kv' ? t('s11.kindKv') : t('s11.kindLp')));
         add(list, row);
