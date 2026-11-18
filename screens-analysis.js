@@ -381,6 +381,16 @@
     ],
     'overall.toSources': ['リンクごとの結果に戻る', 'Back to the per-link results', '링크별 결과로 돌아가기'],
     's11.noResult': ['分析結果なし', 'No analysis result', '분석 결과 없음'],
+    /* 「URLはあるのに一度も走っていない」ときの逃げ道（2026-11-18）。
+       AI自動分析が積み損ねると、この画面に打つ手が無く行き止まりになっていた */
+    's11.stuckTitle': ['競合LPが{n}件登録されていますが、分析はまだ一度も走っていません。',
+      '{n} competitor pages are registered, but the analysis has never run.',
+      '경쟁 LP가 {n}건 등록되어 있지만, 분석이 아직 한 번도 실행되지 않았습니다.'],
+    's11.stuckWhy': ['前回うまくいかなかった理由: {why}', 'Last failure: {why}', '지난번 실패 이유: {why}'],
+    's11.stuckHow': ['商品入力の「AI自動分析」からも始められますが、ここからも動かせます。',
+      'You can start it from the product form, or run it here.',
+      '상품 입력에서도 시작할 수 있고, 여기서도 실행할 수 있습니다.'],
+    's11.stuckRun': ['競合分析を実行する', 'Run the competitor analysis', '경쟁 분석 실행'],
     's11.collecting': ['収集しています…', 'Collecting…', '수집하는 중…'],
     's11.runFailed': ['分析結果の保存に失敗しました', 'Failed to save the analysis result', '분석 결과 저장에 실패했습니다'],
     's11.counts': ['テキスト{text} / 画像{image} / GIF{gif} / 動画{video}', 'Text {text} / Images {image} / GIF {gif} / Video {video}', '텍스트 {text} / 이미지 {image} / GIF {gif} / 동영상 {video}'],
@@ -1969,19 +1979,125 @@
       });
     }
 
-    /* 結果が無いときは、それだけを出す。ここから分析を始める口は置かない */
+    /* 「URLは入っているのに、一度も分析が走っていない」状態か。
+       そのときだけ、この画面から動かせるようにする（2026-11-18） */
+    function stuckUrls() {
+      var report = view.report;
+      if (!report) { return []; }
+      var list = Array.isArray(report.competitor_urls) ? report.competitor_urls : [];
+      return list.map(function (one) {
+        if (one && typeof one === 'object') { return String(one.url || ''); }
+        return String(one || '');
+      }).filter(Boolean);
+    }
+
+    /* 前に積もうとして失敗していれば、その理由。無ければ空（3の記録）。
+       商品入力の画面が、失敗をここに書き残す */
+    function queueErrorOf(report) {
+      var errs = (report && Array.isArray(report.collection_errors)) ? report.collection_errors : [];
+      var found = '';
+      errs.forEach(function (one) {
+        if (found) { return; }
+        if (one && one.kind === 'queue' && one.message) { found = String(one.message); }
+      });
+      return found.slice(0, 200);
+    }
+
+    /* 止まっている分析を、この画面から動かす。
+       積み方は商品入力と同じ（analyze-competitor に report_id を渡す）。
+       **失敗したら、その理由をレポートに書き残す。**
+       黙ってトーストだけ出して消えると、あとから原因を追えない
+       （2026-11-18: まさにそれで5日ぶん追えなかった） */
+    function startStuckAnalysis() {
+      var report = view.report;
+      if (!report || !report.id) { return Promise.reject(new Error('report')); }
+      if (!window.Api || !window.Api.analysis || typeof window.Api.analysis.run !== 'function') {
+        return Promise.reject(new Error('Api.analysis.run がありません'));
+      }
+      return window.Api.analysis.run({
+        report_id: String(report.id),
+        lang: currentLocale()
+      }).then(function (res) {
+        /* 積めたら、仕事を見張る窓に繋ぐ */
+        if (res && res.job_id && App.watchJob) {
+          App.watchJob({
+            jobId: res.job_id, titleKey: 'job.titleAnalysis',
+            urls: stuckUrls(), onDone: function () { load(); }
+          });
+          return res;
+        }
+        /* 積めたと言いながら job_id が無いのも、記録に残す値打ちがある */
+        return noteQueueError(report, 'queued=' + JSON.stringify(res || null).slice(0, 120))
+          .then(function () { return res; });
+      }, function (err) {
+        var why = String((err && (err.message || err.code)) || err);
+        return noteQueueError(report, why).then(function () { throw err; });
+      });
+    }
+
+    /* 失敗の理由をレポートに残す。画面を閉じても消えない */
+    function noteQueueError(report, why) {
+      if (!window.Api || !window.Api.analysisReports) { return Promise.resolve(null); }
+      var errs = (report && Array.isArray(report.collection_errors))
+        ? report.collection_errors.slice(0, 9) : [];
+      errs.unshift({ url: '', platform: '', kind: 'queue',
+        reasonKey: 's11.stuckWhy', message: String(why).slice(0, 300),
+        at: new Date().toISOString() });
+      return window.Api.analysisReports.update(report.id, { collection_errors: errs })
+        .catch(function (e) {
+          console.error('[screens-analysis] 失敗の理由を残せませんでした', e);
+          return null;
+        });
+    }
+
+    /* 結果が無いときは、それだけを出す。
+       **ただし「URLはあるのに一度も走っていない」ときだけは別。**
+       2026-10-29 の決めは「分析は商品入力のAI自動分析から始まる1本道。
+       ここに二つ目の入口があると迷う」だった。それは
+       「AI自動分析が必ず積む」ことが前提になっていた。
+       積まれなかったとき、この画面には打つ手が1つも無く、
+       空箱を見せられたまま行き止まりになる（2026-11-18 実測:
+       レポートは5日間 pending、競合分析の仕事は0件、画面は空）。
+       迷わせないための決めが、詰ませる原因になっていた。
+       **入口を増やすのではなく、止まっているときの逃げ道を1つ置く。** */
     function drawNoResult() {
       clear(root);
       var wrap = el('div', 'screen');
       var head = el('div', 'screen__head');
       add(head, el('h1', 'screen__title', t('report.title')));
       add(wrap, head);
-      /* 分析がまだ無いときに、ここから始める口は置かない（2026-10-29 要望）。
-         分析は商品入力の「AI自動分析」から始まる1本道で、ここに二つ目の
-         入口があると「どちらから始めるのか」で迷う。
-         下書き（未実行）も同じ扱いにした（2026-10-30）。結果が無いことに
-         変わりはないので、画面を2種類に分けない */
-      add(wrap, emptyBox(t('s11.noResult')));
+
+      var stuck = stuckUrls();
+      if (!stuck.length) {
+        add(wrap, emptyBox(t('s11.noResult')));
+        root.appendChild(wrap);
+        return;
+      }
+
+      /* 何が起きているかを、推測させずに書く */
+      var box = el('div', 'stack');
+      add(box, el('p', 'lp-notice__warn', t('s11.stuckTitle', { n: stuck.length })));
+      /* 前に失敗した理由が残っていれば、それも出す（3の記録） */
+      var why = queueErrorOf(view.report);
+      if (why) { add(box, el('p', 'lp-notice__warn', t('s11.stuckWhy', { why: why }))); }
+      add(box, el('p', 't-note', t('s11.stuckHow')));
+
+      var runBtn = button('btn btn--primary', t('s11.stuckRun'), function (e) {
+        var node = e.currentTarget;
+        node.disabled = true;
+        node.textContent = t('s11.errorRetryRunning');
+        startStuckAnalysis().then(function () {
+          node.disabled = false;
+          node.textContent = t('s11.stuckRun');
+        }, function (err) {
+          node.disabled = false;
+          node.textContent = t('s11.stuckRun');
+          toast(String(err && err.message || err), 'danger');
+        });
+      });
+      if (window.LpyaCost) { window.LpyaCost.stamp(runBtn, 'competitor_analysis', stuck.length); }
+      add(box, runBtn);
+      add(wrap, box);
       root.appendChild(wrap);
     }
 

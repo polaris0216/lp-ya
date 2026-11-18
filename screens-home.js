@@ -1780,7 +1780,27 @@
       }).catch(function (err) {
         console.error('[screens-home] 競合分析を積めませんでした', err);
         toast(errorMessage(err), 'danger');
+        /* **理由をレポートに書き残す。** トーストは数秒で消え、
+           コンソールも閉じれば消える。残さないと、あとから原因を追えない。
+           2026-11-18 実測: 競合分析だけが積まれず、レポートは5日間 pending、
+           画面は空のまま。なぜ積めなかったのかを示すものが1つも無かった */
+        noteRivalQueueError(err);
         return null;
+      });
+    }
+
+    /* 積めなかった理由をレポートの collection_errors に足す。
+       分析結果の画面（S11）が、これを読んで画面に出す */
+    function noteRivalQueueError(err) {
+      if (!rivalReportId || !window.Api || !window.Api.analysisReports) { return; }
+      var why = String((err && (err.message || err.code)) || err).slice(0, 300);
+      window.Api.analysisReports.get(rivalReportId).then(function (row) {
+        var errs = (row && isArray(row.collection_errors)) ? row.collection_errors.slice(0, 9) : [];
+        errs.unshift({ url: '', platform: '', kind: 'queue',
+          reasonKey: 's11.stuckWhy', message: why, at: new Date().toISOString() });
+        return window.Api.analysisReports.update(rivalReportId, { collection_errors: errs });
+      }).catch(function (e) {
+        console.error('[screens-home] 失敗の理由を残せませんでした', e);
       });
     }
 
