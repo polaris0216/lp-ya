@@ -138,6 +138,15 @@
       'Generates only the sections that have no image yet, across LP, KV and Meta ads for every audience (A–E). '
       + '35–60 s each, 10 at a time.',
       '모든 타깃(A~E)의 LP·KV·메타광고 중, 아직 이미지가 없는 구획만 만듭니다.'],
+    /* 押せない理由（2026-11-19）。無効なボタンは「壊れている」と見分けがつかない */
+    'lp.whyBusy': ['いま生成しています。終わるまで待ってください。', 'Generating now. Please wait until it finishes.', '지금 생성 중입니다. 끝날 때까지 기다려 주세요.'],
+    'lp.whyDone': ['この回のブロックは、すべて絵ができています。作り直すなら「全部を作り直す」を押してください。',
+      'Every section in this run already has an image. Use “Regenerate everything” to redo them.',
+      '이 회차의 구획은 모두 이미지가 있습니다. 다시 만들려면 "전부 다시 생성"을 눌러주세요.'],
+    'lp.whyNoPlan': ['この回の区画をまだ読めていません。少し待つか、画面を開き直してください。',
+      'The sections for this run have not loaded yet. Wait a moment or reopen the screen.',
+      '이 회차의 구획을 아직 불러오지 못했습니다. 잠시 기다리거나 화면을 다시 열어주세요.'],
+    'lp.whyNoPick': ['ターゲットを1つ以上選んでください。', 'Pick at least one audience.', '타깃을 하나 이상 선택해 주세요.'],
     'lp.genAllRunning': ['まとめて生成しています…', 'Generating all…', '한꺼번에 생성 중…'],
     'lp.genPicked': ['選んだターゲットだけ生成', 'Generate the selected audiences', '선택한 타깃만 생성'],
     'lp.genPickedHint': ['下の表でチェックを入れたターゲットの LP・キービジュアル・メタ広告だけを作ります',
@@ -840,6 +849,24 @@
         });
         var remaining = batchPlan.reduce(function (n, x) { return n + x.miss; }, 0);
         var anyBusy = Object.keys(view.busy).length > 0;
+        /* **押せないときは、理由を言う**（2026-11-19 指摘
+           「全部一括生成ボタンや選んだターゲットだけ生成ボタンは押しても何も動作しない」）。
+           無効なボタンは、押しても何も起きないという点で「壊れている」と見分けがつかない。
+           理由が出ていれば、待てばよいのか・ほかに原因があるのかが分かる。
+           batchPlan が空（＝この回の区画をまだ読めていない）ときも、黙らない */
+        function whyBlocked() {
+          if (anyBusy) { return t('lp.whyBusy'); }
+          if (!batchPlan.length) { return t('lp.whyNoPlan'); }
+          if (!remaining) { return t('lp.whyDone'); }
+          return '';
+        }
+        function markBlocked(node) {
+          var why = whyBlocked();
+          if (!node.disabled || !why) { return node; }
+          node.title = why;
+          node.setAttribute('aria-disabled', 'true');
+          return node;
+        }
         /* 走っていても、残りがあれば枚数を出して押せるようにする */
         /* 「123／11案」は読めない。この画面では斜線を「できた／全体」の意味で
            使っている（4/8 区画が完成・LP 7/34）ので、同じ形だと二重に誤解される。
@@ -884,6 +911,7 @@
            画面を開き直すまで押せないままだった）。
            残りが0なら作り直しなので、そこだけは走行中に押させない */
         all.disabled = !remaining || anyBusy;
+        markBlocked(all);
 
         /* 全部作り直す。こちらもいつでも押せるようにする（下の bulkBar に並べる） */
         var allRedo = button('btn btn--secondary lp-bulk__btn', t('lp.genAllRedo'), function () {
@@ -892,6 +920,7 @@
         });
         allRedo.disabled = anyBusy;
         allRedo.title = t('lp.genAllRedoHint');
+        markBlocked(allRedo);
         /* 静止画は lp_section（OpenAI の画面）、動く絵は lp_assets（Replicate の
            seedance-2.5）と作る先が別なので、ボタンも分ける。
            押したときの案を指すので、層を切り替えてから押せばその層ぶんが作られる */
@@ -905,10 +934,16 @@
         stampCost(allRedo, 'lp_section', batchPlan.reduce(function (x, y) { return x + y.all; }, 0), true);
         add(bulkBar, all);
         add(bulkBar, allRedo);
+        /* 押せない理由は、札（title）だけでなく画面にも出す。
+           触らないと分からない作りだと、結局「押しても動かない」に見える */
+        var blocked = whyBlocked();
+        if (blocked && all.disabled) {
+          add(bulkBar, el('p', 'lp-bulk__blocked', blocked));
+        }
         /* 全部ではなく、選んだターゲットだけ作る口（2026-10-29 要望）。
            「全部一括生成」のすぐ下に、ターゲットの一覧表とチェックを出す。
            押すまでは何も起きないので、既定では1つも選んでいない */
-        add(bulkBar, pickPanel(anyBusy));
+        add(bulkBar, pickPanel(anyBusy, whyBlocked()));
         /* できあがりを持ち出す口。生成の隣に置く（別の画面を探させない） */
         var zipBtn = button('btn btn--secondary lp-bulk__zip', t('lp.zip'), function (e) {
           downloadZip(e.currentTarget);
@@ -2578,7 +2613,7 @@
       /* 生成するターゲットの一覧表。チェックを入れた層だけ作る。
          数えるのは、いま見ている回の LP・キービジュアル・メタ広告を合わせた
          「まだ絵が無いブロック」。耳に出ている数と同じ数え方にする */
-      function pickPanel(anyBusy) {
+      function pickPanel(anyBusy, blockedWhy) {
         var wrap = el('div', 'lp-pick');
         var rows = sameBatch();
         var labels = [];
@@ -2651,10 +2686,20 @@
         });
         go.title = t('lp.genPickedHint');
         go.disabled = !picked.length || anyBusy;
+        /* 押せない理由を言う。「1つも選んでいない」は自分で直せるので、
+           そのときは理由を選びの話にする（2026-11-19）*/
+        if (go.disabled) {
+          var why = !picked.length ? t('lp.whyNoPick') : (blockedWhy || '');
+          if (why) { go.title = why; go.setAttribute('aria-disabled', 'true'); }
+        }
         stampCost(go, 'lp_section', rows.filter(function (g) {
           return picked.indexOf(String(g.variant_label || '-')) !== -1;
         }).reduce(function (n, g) { return n + missingOf(g).length; }, 0), true);
         add(wrap, go);
+        if (go.disabled) {
+          var pickWhy = !picked.length ? t('lp.whyNoPick') : (blockedWhy || '');
+          if (pickWhy) { add(wrap, el('p', 'lp-bulk__blocked', pickWhy)); }
+        }
         add(wrap, el('p', 'lp-bulk__note', t('lp.genPickedHint')));
         return wrap;
       }
@@ -2736,7 +2781,22 @@
         return false;
       }
 
+      /* 押したのに何も起きない、を作らない（2026-11-19）。
+         この中で例外が出ると、ブラウザが黙って飲み込み、queueing が立ったままになる。
+         そうなると次からは「いま積んでいます」と出るだけで、永久に積めない。
+         例外は必ず画面に出し、鍵も外す */
       function generateEverything(redo, only) {
+        try {
+          return generateEverythingInner(redo, only);
+        } catch (err) {
+          queueing = false;
+          console.error('[screens-lp] まとめて生成で落ちました', err);
+          toast(String((err && err.message) || err), 'danger');
+          return undefined;
+        }
+      }
+
+      function generateEverythingInner(redo, only) {
         if (!window.Api || !Api.generationJobs) { toast(t('common.error'), 'danger'); return; }
         if (!askMust(function () { generateEverything(redo, only); })) { return; }
         /* 二度押しで同じ仕事が重なるのを止める。

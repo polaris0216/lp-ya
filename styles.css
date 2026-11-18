@@ -5442,6 +5442,12 @@ input[type='radio'] {
 
 /* 選んだターゲットだけ生成する。全部一括生成のすぐ下に、
    どの層を作るのか分かる一覧表を出す（2026-10-29 要望） */
+/* 押せない理由（2026-11-19）。ボタンのすぐ下に、目立たせずに出す */
+.lp-bulk__blocked {
+  margin: 4px 0 0; font-size: var(--fs-note);
+  color: var(--c-text-sub, #666);
+}
+
 .lp-pick {
   flex: 1 0 100%;
   margin: 12px 0 0; padding: 14px;
