@@ -425,9 +425,10 @@
     ],
     's11.errorTitle': ['収集エラー {n}件', 'Collection errors: {n}', '수집 오류 {n}건'],
     's11.errorRetry': ['この{n}件だけ再収集', 'Re-collect these {n}', '이 {n}건만 다시 수집'],
-    's11.errorRetryHint': ['失敗したリンクだけを開き直します。すでに分析できている競合LPはそのまま残ります。',
-      'Reopens only the failed links. Competitors already analysed are kept as they are.',
-      '실패한 링크만 다시 엽니다. 이미 분석된 경쟁 LP는 그대로 남습니다.'],
+    's11.errorRetryFree': ['無料', 'Free', '무료'],
+    's11.errorRetryHint': ['失敗したリンクだけを開き直します。すでに分析できている競合LPはそのまま残ります。ポイントはかかりません。',
+      'Reopens only the failed links. Competitors already analysed are kept as they are. No points are charged.',
+      '실패한 링크만 다시 엽니다. 이미 분석된 경쟁 LP는 그대로 남습니다. 포인트는 들지 않습니다.'],
     's11.errorRetryRunning': ['再収集しています…', 'Re-collecting…', '다시 수집 중…'],
     's11.errorRetryQueued': ['再収集を積みました', 'Re-collection queued', '다시 수집을 예약했습니다'],
     's11.errorContinue': ['エラーのあった範囲以外の分析は続けています。', 'Everything else was analysed as usual.', '오류가 난 범위 외의 분석은 계속했습니다.'],
@@ -2846,8 +2847,12 @@
         var actions = el('div', 'lp-toolbar');
         var retryBtn = button('btn btn--primary btn--sm', t('s11.errorRetry', { n: urls.length }),
           function (ev) { retryCollection(ev.currentTarget, report, urls); });
-        if (window.LpyaCost) { window.LpyaCost.stamp(retryBtn, 'competitor_analysis', urls.length); }
+        /* **値段を出さない。読めなかったぶんの再収集は無料**（2026-11-19 要望）。
+           読めなかったのはこちらの取り出しが失敗したからで、利用者の操作のせいではない。
+           無料にしているのは DB 側（082）。失敗として記録されている URL だけを
+           数えないので、画面の言い値では迂回できない */
         add(actions, retryBtn);
+        add(actions, el('span', 'badge badge--free', t('s11.errorRetryFree')));
         add(actions, el('span', 't-note', t('s11.errorRetryHint')));
         add(section, actions);
       }

@@ -2032,6 +2032,10 @@ button.list-row:hover { background: var(--c-surface-3); }
   white-space: nowrap;
 }
 
+/* 無料の印（2026-11-19）。読めなかったぶんの再収集はポイントを取らない。
+   値段の札（LpyaCost）と同じ場所に出るので、取り違えないよう色を分ける */
+.badge--free { background: #DCFCE7; color: #166534; }
+
 .badge--ok {
   color: var(--c-success);
   border-color: #BFE9D6;
