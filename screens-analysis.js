@@ -2647,7 +2647,8 @@
           return asArray(one && one.assets).map(function (url) {
             var key = String(url || '').split('?')[0];
             return byUrl[key] || (key ? { src: String(url), type: 'image', label: '' } : null);
-          }).filter(Boolean).slice(0, 6);
+          /* ここも切らない（2026-11-19）。帯は横に送って見る作り */
+          }).filter(Boolean);
         };
 
         /* この競合ページの流れ。
@@ -2899,11 +2900,40 @@
       });
     }
 
+    /* 素材のURLを、収集済みの1件（種別・動画のサムネイル付き）に引き当てる表。
+       **総合分析にはこれが無かった**（2026-11-19 指摘「トグルを開くと素材が
+       全部表示されてない」）。
+       assetTile は item.src を見るのに、総合分析は URL の文字列をそのまま
+       渡していたため、href も img.src も undefined になり、絵が出なかった。
+       とくに動画は、収集済みの poster に引き当てないと絶対に出ない
+       （YouTube の watch URL は <img> では映らない）。
+       1件ごとの画面（competitorSection）は前から引き当てていたので、
+       そちらは出ていた。同じ引き当てをここにも置く。
+       URLはクエリの付き方が変わることがあるので、?より前で照らす */
+    function assetLookup(report, kvAssets, lpAssets) {
+      var byUrl = {};
+      sourcesOf(report, kvAssets, lpAssets).forEach(function (source) {
+        asArray(source.items).forEach(function (item) {
+          if (!item || !item.src) { return; }
+          var key = String(item.src).split('?')[0];
+          if (!byUrl[key]) { byUrl[key] = item; }
+        });
+      });
+      return function (list) {
+        return asArray(list).map(function (url) {
+          var key = String(url || '').split('?')[0];
+          /* 引き当たらなければ、せめて絵として出す（URLだけは分かっている）。
+             黙って落とすと「素材が無い区画」に見えてしまう */
+          return byUrl[key] || (key ? { src: String(url), type: 'image', label: '' } : null);
+        }).filter(Boolean);
+      };
+    }
+
     /* ---- 総合分析: 全リンクを突き合わせた「流れ」 ----
        1件ごとの分析（competitorSection）と同じ foldRow で出す。
        違うのは、ここが「何ページに共通していたか」を持っていること。
        共通が多いものほど、真似する価値が確かめられている */
-    function structureSection(sections, summary) {
+    function structureSection(sections, summary, shotsOf) {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
       add(head, el('h2', 'section__title', t('ov.structureTitle')));
@@ -2932,11 +2962,9 @@
             [t('ov.stepsLabel'), asArray(one.steps).join('\n'), 'info-row--lead']
           ],
           assetsFirst: true,
-          /* **切らない**（2026-11-19 指摘「トグルを開くと素材が全部出ていない」）。
-             素材の帯は横に送って見る作りなので、枚数で切る必要が無い。
-             6枚で切っていたため、分析が「この区画にあった」と書いたものが
-             黙って落ちていた */
-          assets: asArray(one.assets),
+          /* 収集済みの1件に引き当ててから渡す。**切らない**
+             （枚数の帯は横に送って見る作りなので、切る必要が無い）*/
+          assets: shotsOf(one.assets),
           assetsLabel: t('s11.assetsLabel'),
           marks: [
             { on: !!one.cta, yes: t('s11.hasCta'), no: t('s11.noCta') },
@@ -2953,7 +2981,7 @@
        真似すべき点（success）と反省点（failure）。重みの大きい順に並べる。
        反省点を混ぜて出すのは、良い点だけ並べても自分のLPで
        気をつけることが何も残らないため */
-    function factorSection(factors, summary) {
+    function factorSection(factors, summary, shotsOf) {
       var section = el('section', 'section');
       var head = el('div', 'section__head');
       add(head, el('h2', 'section__title', t('ov.factorTitle')));
@@ -2991,8 +3019,8 @@
             sources.length ? t('ov.sources', { n: sources.length }) : ''].filter(Boolean).join(' / '),
           rows: rows,
           assetsFirst: true,
-          /* こちらも切らない（上と同じ理由） */
-          assets: asArray(one.assets),
+          /* こちらも引き当ててから渡し、切らない */
+          assets: shotsOf(one.assets),
           assetsLabel: t('s11.assetsLabel')
         }));
       });
@@ -3096,8 +3124,9 @@
       } else {
         /* ---- 総合分析: 全リンクを突き合わせた結果 ---- */
         add(wrap, commonSection(asArray(report.common_points), entries.length));
-        add(wrap, structureSection(sections, summaryOf(report.page_structure)));
-        add(wrap, factorSection(factors, summaryOf(report.success_factors)));
+        var shotsOf = assetLookup(report, kvAssets, lpAssets);
+        add(wrap, structureSection(sections, summaryOf(report.page_structure), shotsOf));
+        add(wrap, factorSection(factors, summaryOf(report.success_factors), shotsOf));
 
         var kvSection = el('section', 'section');
         add(kvSection, assetCard(kvAssets, 'kv'));
