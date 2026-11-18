@@ -422,6 +422,15 @@
     'product.rivalQueued': ['競合LP {n}件も分析します（商品の読み取りが終わってから始まります）',
       'Also analysing {n} competitor LPs (starts once the product page is read)',
       '경쟁 LP {n}건도 분석합니다(상품 읽기가 끝난 뒤 시작)'],
+    /* 積めなかったことを必ず知らせる（2026-11-19）。
+       前は黙って飛ばしていたので、「ひと押しで3本走ったはず」と思ったまま
+       空の分析結果に行き着いていた */
+    'product.rivalNotQueued': ['競合分析を始められませんでした。競合分析結果の画面から実行できます。',
+      'Could not start the competitor analysis. You can run it from the competitor results screen.',
+      '경쟁 분석을 시작하지 못했습니다. 경쟁 분석 결과 화면에서 실행할 수 있습니다.'],
+    'product.targetNotQueued': ['ターゲット提案を始められませんでした。',
+      'Could not start the target proposal.',
+      '타깃 제안을 시작하지 못했습니다.'],
     'product.refStructure': ['参照ページの組み立て方', 'How the reference page is built', '참고 페이지의 구성'],
     'product.refMediaImage': ['画像{n}', '{n} images', '이미지 {n}'],
     'product.refMediaGif': ['GIF{n}', '{n} GIFs', 'GIF {n}'],

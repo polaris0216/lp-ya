@@ -2382,6 +2382,46 @@
       return touchedAny;
     }
 
+    /* 「AI自動分析」ひと押しで、競合分析とターゲット提案まで積む（2026-10-29 の決め）。
+
+       **前はここが fire-and-forget だった。**
+         queueRivalAnalysis().then(function (row) { if (row) toast(...); return queueTargetProposal(); });
+       この形には2つ穴があった:
+         ・競合分析が黙って飛ばされた（row が null）とき、画面に何も出ない。
+           押した人は3本とも走ったと思い込む
+         ・.catch が無いので、競合分析が転ぶとターゲット提案まで道連れになる
+       実測 2026-11-18: 競合分析だけが積まれず、レポートは5日間 pending のまま、
+       画面には何の報せも出なかった。
+       **1本ずつ結果を受け取り、最後に何が積まれたかを必ず出す。** */
+    function runRest(rivalCount) {
+      var queued = [];
+      var failed = [];
+      return queueRivalAnalysis().then(function (row) {
+        if (row && row.skipped) { toast(t('product.rivalSame'), 'success'); }
+        else if (row) { queued.push(t('product.rivalQueued', { n: rivalCount })); }
+        else if (rivalCount) {
+          /* URLはあるのに積めなかった。**ここが黙っていた所** */
+          failed.push(t('product.rivalNotQueued'));
+        }
+      }, function (err) {
+        console.error('[screens-home] 競合分析を積めませんでした', err);
+        failed.push(t('product.rivalNotQueued'));
+      }).then(function () {
+        /* 競合分析が転んでも、ターゲット提案は走らせる（道連れにしない） */
+        return queueTargetProposal().catch(function (err) {
+          console.error('[screens-home] ターゲット案を積めませんでした', err);
+          failed.push(t('product.targetNotQueued'));
+          return null;
+        });
+      }).then(function () {
+        if (queued.length) { toast(queued.join(' / '), 'success'); }
+        /* 積めなかったものは、必ず画面に出す。
+           出さないと「3本走ったはず」と思ったまま空の画面に行き着く */
+        if (failed.length) { toast(failed.join(' / '), 'danger'); }
+        return { queued: queued, failed: failed };
+      });
+    }
+
     function isArray(value) {
       return Object.prototype.toString.call(value) === '[object Array]';
     }
@@ -2404,12 +2444,11 @@
          以前はここで「参考ページを入れてください」と止まっていた（2026-10-07） */
       if (!urls.length) {
         setAnalyzing(true, refRunButton, 'product.refRun');
-        queueRivalAnalysis().then(function (row) {
+        /* 競合LPだけでも、ターゲット提案までは走らせる。
+           「ひと押しで3本」の決め（2026-10-29）を、この道でも守る */
+        runRest(rivals.length).then(function () {
           setAnalyzing(false, refRunButton, 'product.refRun');
-          if (!row) { return; }
-          toast(row.skipped ? t('product.rivalSame')
-            : t('product.rivalQueued', { n: rivals.length }), 'success');
-        }, function () { setAnalyzing(false, refRunButton, 'product.refRun'); });
+        });
         return;
       }
 
@@ -2428,16 +2467,7 @@
         setAnalyzing(false, refRunButton, 'product.refRun');
         /* 競合LPも貼ってあれば、同じボタンで積む。走る順番（商品 → 競合）は
            ワーカーが守るので、ここでは積むだけ（2026-10-06） */
-        queueRivalAnalysis().then(function (row) {
-          if (row) {
-            toast(row.skipped
-              ? t('product.rivalSame')
-              : t('product.rivalQueued', { n: filledRivalUrls().length }), 'success');
-          }
-          /* 競合分析のあとに層も決める。ここまでやって初めて
-             「販売戦略分析結果」の画面に中身が出る */
-          return queueTargetProposal();
-        });
+        runRest(filledRivalUrls().length);
         if (result && result.queued) { startWatch(result.job_id, 'job.title'); return; }
         var before = form.images.length;
         if (applyAutofill(result && result.content ? result.content : result)) {
