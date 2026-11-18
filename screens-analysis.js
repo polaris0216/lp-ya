@@ -467,6 +467,12 @@
        ここに「反省点」と書くと、上の札と同じ言葉が2度出て中身が伝わらない */
     's11.factorInstead': ['代わりにやること', 'Do this instead', '대신 할 일'],
     'ov.makeLp': ['LP・キービジュアルプロンプトを生成', 'Generate LP/KV prompts', 'LP·KV 프롬프트 생성'],
+    /* 作る層をここで選ぶ（2026-11-19 要望）。
+       前は全層ぶん作ってから次の画面で選ぶ形で、選ぶ前に払い終えていた */
+    'ov.pickTitle': ['どのターゲット層のLPを作りますか', 'Which audiences should the LP be written for?', '어떤 타깃 층의 LP를 만들까요'],
+    'ov.pickHint': ['選んだ層のぶんだけ作ります。あとから足すこともできます。',
+      'Only the selected audiences are written. You can add more later.',
+      '선택한 층만 만듭니다. 나중에 추가할 수도 있습니다.'],
     'ov.makeLpHint': [
       'マスターブリーフ（LP全体の決まり：色・書体・禁止事項・商品の一貫性）と、ブロックごとの生成プロンプトを書きます。元ページのブロックを骨格に、日本のLPの決まりを当てます。ターゲットごとに1本。',
       'Writes the master brief (page-wide rules: colors, type, prohibitions, product consistency) and one prompt per section. The origin page is the skeleton; Japanese LP rules are applied. One per target segment.',
@@ -2864,7 +2870,7 @@
 
     /* LP案を作る。ジョブを積んで、終わったら S12（LP案）へ渡す。
        ターゲット層の数だけ本数ができる（層が未設定なら1本） */
-    function startLpDraft(node, report) {
+    function startLpDraft(node, report, picked, total) {
       if (!window.Api || !Api.generationJobs) {
         console.error('[screens-analysis] Api.generationJobs がありません。api.js を確認してください。');
         toast(t('common.error'), 'danger');
@@ -2882,7 +2888,10 @@
         /* 誰の仕事かを入れる。RLS もこれで効く */
         users_id: (window.Api && Api.auth && typeof Api.auth.userId === 'function')
           ? Api.auth.userId() : undefined,
-        payload: {},
+        /* 全部選んでいるときは、これまでどおり空で送る。
+           わざわざ全層を並べて送っても同じ結果で、古い形との食い違いも生まない */
+        payload: (picked && picked.length && picked.length < (total || 0))
+          ? { only: picked } : {},
         lang: currentLocale()
       }).then(function (job) {
         if (!App.watchJob) { toast(t('ov.makeLpQueued'), 'success'); return; }
@@ -3137,22 +3146,66 @@
         add(wrap, lpSection);
 
         /* ここがLPの入口。総合分析（流れ＋要因）とターゲット層から、
-           層ごとに1本ずつ作る。押した先は S12（LP案） */
+           層ごとに1本ずつ作る。押した先は S12（LP案）。
+
+           **作る層は、ここで選ぶ**（2026-11-19 要望）。
+           前は全層ぶん無条件に作っていて、どの層を作るかを選べるのは
+           次の画面（S12）だった。つまり**選ぶ前に全層ぶん払っていた**。
+           プロンプトは1層50Pなので、5層なら250P。使わない層のぶんが丸ごと無駄になる。
+           選ぶ場所を、お金が動く前に移した。 */
+        var lpPicked = {};          /* 層の記号 → true。空＝まだ読めていない */
+        var lpTargets = [];
+        var pickHost = el('div', 'stack stack--tight');
+        add(actions, pickHost);
+
+        function pickedLabels() {
+          return lpTargets.map(function (one) { return String(one.label || '-'); })
+            .filter(function (L) { return lpPicked[L]; });
+        }
+
+        function paintPick() {
+          clear(pickHost);
+          if (lpTargets.length < 2) { return; }   /* 1層しか無いなら選ばせる意味が無い */
+          add(pickHost, el('p', 'card__sub', t('ov.pickTitle')));
+          var box = el('div', 'lp-pick__chips');
+          lpTargets.forEach(function (one) {
+            var L = String(one.label || '-');
+            var on = !!lpPicked[L];
+            var chip = button('chip' + (on ? ' chip--selected' : ''),
+              L + (one.name ? '：' + String(one.name).slice(0, 18) : ''), function () {
+                if (on) { delete lpPicked[L]; } else { lpPicked[L] = true; }
+                /* 1つも無い状態にはしない。押した人が困るだけ */
+                if (!pickedLabels().length) { lpPicked[L] = true; }
+                paintPick();
+                refreshLpCost();
+              });
+            chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+            add(box, chip);
+          });
+          add(pickHost, box);
+          add(pickHost, el('p', 't-note', t('ov.pickHint')));
+        }
+
         var lpBtn = button('btn btn--primary btn--block', t('ov.makeLp'), function () {
-          startLpDraft(lpBtn, report);
+          startLpDraft(lpBtn, report, pickedLabels(), lpTargets.length);
         });
+
         /* AIを使うボタンには値段を出す（2026-10-30 要望）。
-           ターゲット層の数ぶん、1層に1本ずつ書く */
-        if (window.LpyaCost) {
-          /* 値段はターゲット層の数で変わる。プロジェクトはこの画面では
-             読んでいないので、ここで取ってから出し直す（取れなければ1層ぶん） */
-          window.LpyaCost.stamp(lpBtn, 'lp_brief', 1);
-          if (window.Api && window.Api.projects && projectId) {
-            window.Api.projects.get(projectId).then(function (pj) {
-              var n = (pj && Array.isArray(pj.targets)) ? pj.targets.length : 0;
-              window.LpyaCost.stamp(lpBtn, 'lp_brief', Math.max(1, n));
-            }).catch(function () {});
-          }
+           選んだ層の数ぶん、1層に1本ずつ書く */
+        function refreshLpCost() {
+          if (!window.LpyaCost) { return; }
+          var n = pickedLabels().length || lpTargets.length || 1;
+          window.LpyaCost.stamp(lpBtn, 'lp_brief', Math.max(1, n));
+        }
+        refreshLpCost();
+        if (window.Api && window.Api.projects && projectId) {
+          window.Api.projects.get(projectId).then(function (pj) {
+            lpTargets = (pj && Array.isArray(pj.targets)) ? pj.targets : [];
+            /* 既定は全部。これまでの動きと同じにしておく */
+            lpTargets.forEach(function (one) { lpPicked[String(one.label || '-')] = true; });
+            paintPick();
+            refreshLpCost();
+          }).catch(function () {});
         }
         add(actions, lpBtn);
         add(actions, el('p', 't-note', t('ov.makeLpHint')));
