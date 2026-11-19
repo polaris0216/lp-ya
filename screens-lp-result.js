@@ -669,7 +669,7 @@
            ものを使う。2つに持つと、同じ文が画面によって違う形で出る */
         var lines = (window.LpRender && LpRender.textLines)
           ? LpRender.textLines(sec.text)
-          : String(sec.text || '').split('\n').map(function (s) { return s.trim(); })
+          : String(sec.text || '').replace(/\\n/g, '\n').split('\n').map(function (s) { return s.trim(); })
             .filter(function (s) { return s; });
         if (!lines.length) { return ''; }
         var out = [];
@@ -983,8 +983,12 @@
                 ? ' data-edit="' + sec.index + ':' + what + '" contenteditable="plaintext-only"'
                 : '';
             };
-            var cap = sec.body
-              ? '<p class="cap"' + edit('body') + '>' + escapeHtml(String(sec.body)) + '</p>' : '';
+            /* 本文も下ごしらえを通す。AIが「\n」の2文字を書いてくることがあり、
+               そのまま出ると公開ページに「\n」が並ぶ（2026-11-19 指摘）*/
+            var capText = (window.LpRender && LpRender.plain)
+              ? LpRender.plain(sec.body) : String(sec.body || '');
+            var cap = capText
+              ? '<p class="cap"' + edit('body') + '>' + escapeHtml(capText) + '</p>' : '';
             /* POINT の区画は「帯＋写真」。帯は販売ページの組み立て
                （lp-render の cfPanelHtml）にしか入れていなかったので、
                「区画そのまま」で見ると帯が出なかった（実測 2026-10-10:
@@ -1397,7 +1401,12 @@
           view.kvUrls = [];
           loadKv();
           /* まだ組んでいない層は、その場で組む（空の画面を見せない） */
-          if (!view.html) { build(false); }
+          /* 組んであるHTMLが、いまの区画で組まれたものでなければ組み直す
+             （2026-11-19 指摘:「生成したセクションが表示されてない事象がある」）。
+             staleOf は作ってあったのに **どこからも呼ばれておらず**、
+             区画を足した・作り直したあとも前のHTMLをそのまま見せていた。
+             組むのは手元の計算だけなので、ただで揃う */
+          if (!view.html || staleOf()) { build(false); }
           paint();
         }).catch(function (err) {
           view.gen = hold;
@@ -2227,16 +2236,23 @@
          追従の逆向き。着地点は追従と同じ目の高さにそろえるので、
          運んだあと、その区画がそのまま光る */
       function goToSlot(slot) {
+        var win = frame.contentWindow;
+        if (!win || !slot) { return; }
+        /* 区画の名前をそのまま渡す。中にいる側が札を引いて運ぶので、
+           こちらで位置を測らなくてよい（2026-11-19 指摘:
+           「セクション２をクリックしたら違うセクションまでスクロールする」）。
+           測った位置は、札が見つからないときのための落とし先としてだけ添える。
+           **測れていないときは添えない。** 当て推量（ページの高さ÷区画数）を
+           渡すと、必ず別の所に着く */
+        var msg = { lpya: 1, kind: 'goto', slot: String(slot) };
         var spots = view.spots || [];
         var at = -1;
         spots.forEach(function (one, i) { if (at < 0 && String(one.slot) === slot) { at = i; } });
-        if (at < 0) { return; }
-        var r = spotRange(at);
-        /* 着地点は追従と同じ目の高さ。枠の中を動かすので、外へは触らない */
-        var want = Math.max(0, Math.round(r.top - (view.frameH || frame.clientHeight) * 0.4 + 1));
-        var win = frame.contentWindow;
-        if (!win) { return; }
-        try { win.postMessage({ lpya: 1, kind: 'goto', top: want }, '*'); } catch (err) { /* 動かせなくても困らない */ }
+        if (at >= 0 && Number(spots[at].h)) {
+          var top = Number(spots[at].top || 0);
+          msg.top = Math.max(0, Math.round(top - (view.frameH || frame.clientHeight) * 0.4 + 1));
+        }
+        try { win.postMessage(msg, '*'); } catch (err) { /* 動かせなくても困らない */ }
       }
 
       /* 棚のうち、いま見ている区画を目立たせて、見える所まで寄せる */

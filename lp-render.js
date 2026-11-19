@@ -936,9 +936,24 @@
      150字の1行が丸ごと大見出しになる
      （実測 2026-10-10:「アジア系の家族経営として／shlebruはアジア系の
      家族が営むブランドです。2021年に…」が9行の特大文字で出た）。 */
+  /* 生のままの文字を、出す前にそろえる（2026-11-19 指摘:
+       「\n だったり変な文字が並んだりしてる」）。
+     AIがJSONの中で改行を **文字どおりの「\」＋「n」** として書いてくることがある。
+     実測 2026-11-19: 区画7の text が "一般的なペンと比べる\\n比べる項目は4つ…" で、
+     公開ページに「\n」の2文字がそのまま並んでいた。
+     割る側は本物の改行しか見ていないので、ここで本物の改行に直す。
+     ついでに、同じ書き方で来る \r \t と、改行コードの揺れもそろえる。
+     **ここ1か所**でやる（割る所が3つあり、別々に直すと取りこぼす）。 */
+  function plain(raw) {
+    return String(raw == null ? '' : raw)
+      .replace(/\\r\\n|\\n|\\r/g, '\n')   /* 文字どおりの \n \r\n \r */
+      .replace(/\\t/g, ' ')                /* 文字どおりの \t */
+      .replace(/\r\n?/g, '\n');             /* 本物の改行コードの揺れ */
+  }
+
   function textLines(raw) {
     var out = [];
-    String(raw == null ? '' : raw).split('\n').forEach(function (line) {
+    plain(raw).split('\n').forEach(function (line) {
       var one = line.trim();
       if (!one) { return; }
       /* 「見出し／本文」の形。／の前が短くて句点が無ければ、そこで切る。
@@ -1762,7 +1777,20 @@
       'window.addEventListener("message",function(e){var m=e&&e.data;',
       /* 棚の見出しを押されたら、中をその区画まで運ぶ。
          枠は中だけがスクロールするので、外からは動かせない */
-      'if(m&&m.lpya===1&&m.kind==="goto"){var y=Number(m.top);',
+      /* 区画の名前で来たら、その札そのものへ運ぶ（2026-11-19 指摘:
+         「セクション２をクリックしたらいきなり違うセクションまでスクロールする」）。
+         外側は測った位置（top）で運んでいたが、絵が読み込まれる前は
+         高さが全部0で、そのときは「ページの高さ÷区画数×番号」という
+         当て推量に落ちていた。区画の高さはばらばらなので、必ず別の所に着く。
+         中にいる側は札を直接引けるので、測らずに正しく運べる。
+         top は、札が見つからないときのための落とし先として残す */
+      'if(m&&m.lpya===1&&m.kind==="goto"){',
+      'var s=String(m.slot||"").replace(/[^0-9A-Za-z_-]/g,"");',
+      'if(s){var t=document.querySelector("[data-slot=\\""+s+"\\"]");',
+      'if(t){try{t.scrollIntoView({behavior:"smooth",block:"start"});}',
+      'catch(e2){window.scrollTo(0,Math.max(0,Math.round(t.getBoundingClientRect().top+window.scrollY)));}',
+      'return;}}',
+      'var y=Number(m.top);',
       'if(isFinite(y)){try{window.scrollTo({top:Math.max(0,y),behavior:"smooth"});}',
       'catch(err){window.scrollTo(0,Math.max(0,y));}}return;}',
       'if(!m||m.lpya!==1||m.kind!=="swap")return;',
@@ -2025,7 +2053,7 @@
   /* 販売ページを組む。sales が無ければ null（呼ぶ側がこれまでの組み方に戻す） */
   /* 本文を段落に割る。区画の文章は改行で段が分かれている */
   function paras(text) {
-    return String(text || '').split('\n')
+    return plain(text).split('\n')
       .map(function (x) { return x.trim(); })
       .filter(function (x) { return x; });
   }
@@ -2690,7 +2718,7 @@
   function wrapLines(text, maxChars) {
     var limit = Math.max(8, Math.floor(maxChars) || 8);
     var out = [];
-    String(text === undefined || text === null ? '' : text).split('\n').forEach(function (paragraph) {
+    plain(text).split('\n').forEach(function (paragraph) {
       if (!paragraph) { out.push(''); return; }
       var line = '';
       var units = 0;
@@ -2738,6 +2766,7 @@
   }
   window.LpRender = {
     TYPE: TYPE,
+    plain: plain,
     textLines: textLines,
     looksLikeHead: looksLikeHead,
     isReadPanel: isReadPanel,
