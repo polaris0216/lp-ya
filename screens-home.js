@@ -804,6 +804,68 @@
       /* 参照ページの組み立て方。自動入力がワーカー側でプロジェクトへ直接書く。
          ここは読んで表示するためだけに持つ（画面からは編集しない） */
       referenceStructure: null };
+    /* 薄い字で出していた「例」を、そのまま初期値にする（2026-11-19 要望）。
+       辞書の例文は「例: …」「e.g. …」「예: …」で始まるので、その頭だけ外す。
+       空の欄にだけ入れるので、保存済みの中身は上書きしない。
+       「選択してください」のような指示文と、「AIに5案を…」のような説明は
+       例ではないので、この表には入れない */
+    function exampleOf(key) {
+      return String(t(key) || '')
+        .replace(/^\s*(例|예)\s*[:：]\s*/, '')
+        .replace(/^\s*e\.g\.\s*/i, '')
+        .trim();
+    }
+    var EXAMPLE_FIELDS = [
+      ['price', 'product.pricePlaceholder'],
+      ['fundingGoal', 'product.fundingGoalPlaceholder'],
+      ['valueProp', 'product.valuePropPlaceholder'],
+      ['features', 'product.featuresPlaceholder'],
+      ['target', 'product.targetPlaceholder'],
+      ['brandTone', 'product.brandTonePlaceholder']
+    ];
+    /* メーカー・実行者（特商法の表記にそのまま出る）。
+       例のままでは publish できないので、保存前に必ず直してもらう */
+    var EXAMPLE_PARTY = {
+      maker: { name: 'product.makerNamePlaceholder', business: 'product.makerBusinessPlaceholder',
+        place: 'product.makerPlacePlaceholder', founded: 'product.makerFoundedPlaceholder' },
+      exec: { name: 'product.execNamePlaceholder', business: 'product.execBusinessPlaceholder',
+        place: 'product.execPlacePlaceholder', founded: 'product.execFoundedPlaceholder' }
+    };
+    function exampleReward() {
+      return { name: exampleOf('product.rewardNamePlaceholder'),
+        listPrice: exampleOf('product.rewardListPricePlaceholder'),
+        price: exampleOf('product.rewardPricePlaceholder'),
+        qty: exampleOf('product.rewardQtyPlaceholder'),
+        desc: exampleOf('product.rewardDescPlaceholder') };
+    }
+    function exampleTarget(label) {
+      return { label: label, name: exampleOf('product.targetNamePlaceholder'),
+        age: exampleOf('product.targetAgePlaceholder'),
+        gender: exampleOf('product.targetGenderPlaceholder'),
+        rationale: '', persona: exampleOf('product.targetPersonaPlaceholder'), description: '' };
+    }
+    /* 空の欄だけ埋める。1行も無い所（リワード・ターゲット）は1行だけ作る。
+       1つでも入れたら true を返す（入れた中身は未保存なので、印はそのときだけ出す。
+       全部埋まっている保存済みの行を開いたときに「未保存」と出さないため） */
+    function fillExamples() {
+      var put = false;
+      EXAMPLE_FIELDS.forEach(function (pair) {
+        if (String(form[pair[0]] || '').trim()) { return; }
+        form[pair[0]] = exampleOf(pair[1]);
+        put = true;
+      });
+      Object.keys(EXAMPLE_PARTY).forEach(function (who) {
+        Object.keys(EXAMPLE_PARTY[who]).forEach(function (key) {
+          if (String(form[who][key] || '').trim()) { return; }
+          form[who][key] = exampleOf(EXAMPLE_PARTY[who][key]);
+          put = true;
+        });
+      });
+      if (!form.rewards.length) { form.rewards.push(exampleReward()); put = true; }
+      if (!form.targets.length) { form.targets.push(exampleTarget(TARGET_LABELS[0])); put = true; }
+      return put;
+    }
+
     var user = null;
     var targetCandidates = [];
     var touched = false;
@@ -919,6 +981,8 @@
         lastRivals = rivalKey();
         rivalReportId = report && report.id ? String(report.id) : '';
         rivalDone = !!(report && report.analysis_status === 'done');
+        /* 薄い字の「例」を初期値として入れる。入れたぶんは未保存なので印を出す */
+        if (fillExamples()) { dirty = true; }
         paint();
         /* まだ作られていないなら、まず名前だけ決めてもらう */
         if (!projectId) { askProjectName(); }
@@ -1280,7 +1344,7 @@
       rewardPanel.appendChild(rewardsHost);
       rewardPanel.querySelector('.panel__head').appendChild(
         button('btn btn--secondary btn--sm panel__action', '＋ ' + t('product.rewardAdd'), function () {
-          form.rewards.push({ name: '', listPrice: '', price: '', qty: '', desc: '' });
+          form.rewards.push(exampleReward());
           rewardIndex = form.rewards.length - 1;
           rewardAnim = 1;
           paintRewards();
@@ -1330,7 +1394,7 @@
       targetPanel.appendChild(targetsHost);
       targetAddButton = button('btn btn--secondary', '＋ ' + t('product.targetAdd'), function () {
         if (form.targets.length >= TARGET_LABELS.length) { return; }
-        form.targets.push({ label: TARGET_LABELS[form.targets.length], name: '', age: '', gender: '', rationale: '', persona: '', description: '' });
+        form.targets.push(exampleTarget(TARGET_LABELS[form.targets.length]));
         targetOpen = form.targets.length - 1;
         paintTargets();
       });
