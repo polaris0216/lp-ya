@@ -353,6 +353,16 @@
     'product.categoryPlaceholder': ['選択してください', 'Select', '선택해 주세요'],
     'product.fundingGoal': ['目標調達額 / ポジショニング', 'Funding goal / positioning', '목표 펀딩액 / 포지셔닝'],
     'product.fundingGoalPlaceholder': ['例: 500万円目標 / プレミアムライン', 'e.g. 5M yen goal / premium line', '예: 5,000만원 목표 / 프리미엄 라인'],
+    'product.brandName': ['ブランド名', 'Brand name', '브랜드명'],
+    'product.brandNamePlaceholder': ['例: SYMTIK', 'e.g. SYMTIK', '예: SYMTIK'],
+    'product.productName': ['商品名', 'Product name', '상품명'],
+    'product.productNamePlaceholder': ['例: S1 携帯用エスプレッソマシン',
+      'e.g. S1 portable espresso machine', '예: S1 휴대용 에스프레소 머신'],
+    'product.nameHint': ['ここに入れた綴りが、そのまま絵の中の文字になります。'
+      + 'AIが訳したり、ターゲット層ごとに書き換えたりしません。',
+      'Spelled exactly as entered, including inside generated images. '
+      + 'The AI will not translate it or vary it per audience.',
+      '여기에 입력한 철자가 이미지 안의 문자에도 그대로 쓰입니다.'],
     'product.namePlaceholder': ['例: SYMTIK S1 携帯用エスプレッソマシン', 'e.g. SYMTIK S1 portable espresso machine', '예: SYMTIK S1 휴대용 에스프레소 머신'],
     'product.pricePlaceholder': ['例: 12,900', 'e.g. 12,900', '예: 129,000'],
     'product.rewardPanel': ['リワード（販売）価格・数量', 'Rewards — price and quantity', '리워드(판매) 가격·수량'],

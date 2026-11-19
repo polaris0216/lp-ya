@@ -778,7 +778,8 @@
     function makerValue() { return partyValue('maker'); }
     function execValue() { return partyValue('exec'); }
     var paintBrandLogo = function () {};
-    var form = { name: '', features: '', price: '', target: '', images: [], productShots: [], rewards: [],
+    var form = { name: '', brandName: '', productName: '',
+      features: '', price: '', target: '', images: [], productShots: [], rewards: [],
       salesInfo: {}, brandLogo: '',
       category: '', outputLang: 'ja', cfPlatform: 'makuake', fundingGoal: '', valueProp: '', brandTone: '',
       /* メーカー情報（2026-11-03 要望）。LPの「メーカー紹介」の区画に
@@ -1003,6 +1004,10 @@
       function text(value) { return value === null || value === undefined ? '' : String(value); }
       function list(value) { return isArray(value) ? value : []; }
       form.name = text(row.project_name || row.name);
+      /* ブランド名と商品名は、案件の呼び名とは別に持つ（2026-11-19 要望）。
+         商品名が空の古い行は、案件の呼び名をそのまま商品名として見せる */
+      form.brandName = text(row.brand_name);
+      form.productName = text(row.product_name) || form.name;
       form.referenceStructure = (row.reference_structure
         && isArray(row.reference_structure.sections)
         && row.reference_structure.sections.length) ? row.reference_structure : null;
@@ -1403,6 +1408,22 @@
 
       /* ブランド指定（色・フォント） */
       var brandPanel = panel('product.brandPanel', 'product.brandPanelDesc');
+      /* ブランド名と商品名（2026-11-19 要望:「商品入力ページにはっきり
+         ブランド名と商品名を入力するところも設けて」）。
+         ここに入れた綴りが、そのまま絵の中の文字になる。
+         前は名前の欄が1つしか無く、絵を作るAIが層ごとに書き方を決め直していた */
+      var nameGrid = el('div', 'row--2');
+      var brandNameInput = textInput('home-create-brand-name', form.brandName,
+        exampleOf('product.brandNamePlaceholder'),
+        function (value) { form.brandName = value; markDirty(); }, { maxLength: MAX_NAME });
+      nameGrid.appendChild(makeField(t('product.brandName'), brandNameInput, {}).wrap);
+      var productNameInput = textInput('home-create-product-name', form.productName,
+        exampleOf('product.productNamePlaceholder'),
+        function (value) { form.productName = value; markDirty(); }, { maxLength: MAX_NAME });
+      nameGrid.appendChild(makeField(t('product.productName'), productNameInput, {}).wrap);
+      brandPanel.appendChild(nameGrid);
+      brandPanel.appendChild(el('p', 'field__hint', t('product.nameHint')));
+
       brandPanel.appendChild(el('span', 'field__label', t('product.brandColors')));
       palettesHost = el('div', 'palettes');
       brandPanel.appendChild(palettesHost);
@@ -2358,6 +2379,15 @@
         form.category = String(result.category);
         touchedAny = true;
       }
+      /* 読み取れたブランド名・商品名は、空の欄にだけ入れる（人が入れた綴りを上書きしない）*/
+      if (result.brand_name && !form.brandName.trim()) {
+        form.brandName = String(result.brand_name).slice(0, MAX_NAME);
+        touchedAny = true;
+      }
+      if (result.product_name && !form.productName.trim()) {
+        form.productName = String(result.product_name).slice(0, MAX_NAME);
+        touchedAny = true;
+      }
       if (result.product_name && !form.name.trim()) {
         form.name = String(result.product_name).slice(0, MAX_NAME);
         touchedAny = true;
@@ -3202,7 +3232,9 @@
       return {
         project_name: name,
         name: name,
-        product_name: name,
+        /* 商品名は人が決める。空なら案件の呼び名に落とす（これまでの動き）*/
+        product_name: form.productName.trim() || name,
+        brand_name: form.brandName.trim() || null,
         price: firstListPrice(),
         product_features: form.features.trim() || null,
         target_audience: primaryTargetName(),

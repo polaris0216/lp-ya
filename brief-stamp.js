@@ -39,6 +39,8 @@
     var p = project || {};
     var r = report || {};
     return {
+      /* ブランド名も材料。変えたらブリーフは古くなる（2026-11-19） */
+      brand: p.brand_name || '',
       name: p.product_name || p.name || '',
       category: p.category || '',
       price: p.price || '',
