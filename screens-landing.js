@@ -205,6 +205,8 @@
         /* 大きさの光学補正をCSS側でやるため、どの社かを持たせる。
            色を変える加工は各社の条件で禁じられているので、できるのは大きさだけ */
         img.setAttribute('data-platform', platform.id);
+        /* 絵の中で社名の行が寄っている素材は、置く位置で寄せ直す（焼き込みのときに測った値） */
+        if (logo.nudge) { img.style.transform = 'translateX(' + logo.nudge + '%)'; }
         img.loading = 'lazy';
         img.decoding = 'async';
         run.appendChild(img);

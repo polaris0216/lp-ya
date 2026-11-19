@@ -1832,13 +1832,20 @@
     if (!src && !one) { return ''; }
     /* 自分で入れたロゴは大きさが分からないので、上限いっぱいで出す */
     var cap = logoUrl ? LOGO_MAX : logoCap(built);
+    /* 自分で入れたロゴは中の寄りが分からないので、動かさない */
+    var nudge = logoUrl ? 0 : ((built && built.nudge) || 0);
     var inner = src
       /* loading="lazy" は付けない。焼き込んだ data URI は取りに行く先が無いので
          遅らせる意味がなく、読む前は幅も高さも無いので 0×0 に潰れる。
          実測 2026-10-04: 描画が止まっている枠の中でロゴが消えた */
+      /* 絵の中で社名の行が片側に寄っている素材がある（CAMPFIRE の2行バッジは
+         上段が左に43.5px寄っている）。各社の条件で素材は切れないので、
+         置く位置だけ、焼き込みのときに測った分だけずらす（platform-logos.js の nudge）。
+         2026-11-19 指摘「CAMPFIREのロゴが少し左によってる。全てのロゴは中央に揃うように」 */
       ? '<img class="cta-block__logo" src="' + escapeHtml(src)
           + '" alt="' + escapeHtml(one ? one.name : '')
-          + '" style="max-width:' + cap + 'px">'
+          + '" style="max-width:' + cap + 'px'
+          + (nudge ? ';transform:translateX(' + nudge + '%)' : '') + '">'
       : '<span class="cta-block__name">' + escapeHtml(one.name) + '</span>';
     /* 添え文句は、ロゴの絵が無いときだけ。絵があるときは見本どおり
        ロゴ1つで見せる（CAMPFIRE のバッジのように絵の中に入っている物もある） */
