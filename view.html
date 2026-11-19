@@ -53,7 +53,11 @@
        「どのパスでも view.html を 200 で返す」設定のときだけで、
        そこでは LP は root 直下に置く（Cloudflare Pages の _redirects）*/
     slug = (window.location.pathname || '').replace(/^\/+/, '').replace(/\/+$/, '');
-    if (slug === 'view.html' || slug === 'index.html') { slug = ''; }
+    /* 置き場によっては .html が省かれる（Cloudflare Pages は /view.html を
+       /view へ 308 で寄せる）。省かれた形も「名前ではない」として扱う。
+       実測 2026-11-19: これが無いと、根を開いたときに slug が 'view' になり、
+       「このページは公開されていないか…」と出ていた */
+    if (/^(view|index)(\.html)?$/.test(slug)) { slug = ''; }
   }
   var stateNode = document.getElementById('state');
   if (!slug) { stateNode.textContent = 'このURLは無効です。'; return; }
