@@ -48,7 +48,12 @@
       'Press this after editing text or order. The published page shows what you build here.',
       '글이나 순서를 고친 뒤 누르세요. 공개 중인 페이지에도 반영됩니다.'],
     'lpr.download': ['HTMLをダウンロード', 'Download HTML', 'HTML 다운로드'],
-    'lpr.publish': ['公開する', 'Publish', '공개'],
+    'lpr.publish': ['この設定のまま公開する', 'Publish as shown', '이 설정 그대로 공개'],
+    'lpr.publishHint': ['いま画面にある「ブロックの見せ方」と「公開URLの名前」のまま公開します。'
+      + '先に「ページを作る」や「URLを保存」を押しておく必要はありません。',
+      'Publishes exactly what is on screen: the per-section display and the public URL name. '
+      + 'No need to press Create the page or Save URL first.',
+      '지금 화면의 구획 표현 방식과 공개 URL 이름 그대로 공개합니다.'],
     'lpr.unpublish': ['公開をやめる', 'Unpublish', '공개 중지'],
     'lpr.published': ['公開しました', 'Published', '공개했습니다'],
     'lpr.unpublished': ['公開をやめました', 'Unpublished', '공개를 중지했습니다'],
@@ -247,7 +252,13 @@
       clear(root);
       if (!projectId) { add(root, el('p', 'empty', t('lpr.noProject'))); return; }
 
-      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '', goTo: '', lastPick: '', shots: {}, swapped: false };
+      var view = { project: null, gen: null, html: '', busy: false, mode: {}, siblings: [], modesOpen: false, kvUrls: [], preview: '', takes: {}, takePick: {}, spots: [], atSlot: '', goTo: '', lastPick: '', shots: {}, swapped: false,
+        /* 画面で打った公開URLの名前と置き場。打っただけで「URLを保存」を
+           押していなくても、公開のときはこれを使う（2026-11-19 要望:
+           「公開URLの名前を入力し、各ブロックの見せ方での設定をしたら
+             その設定のまま公開するボタンがあればいい」）。
+           null は「まだ何も打っていない＝保存済みのものを使う」 */
+        urlEdit: null };
       var screen = el('div', 'screen');
       var head = el('header', 'screen__head');
       add(head, el('h2', 'screen__title', t('lpr.title')));
@@ -1601,6 +1612,10 @@
 
         var preview = el('p', 't-note lpr-url__preview', '');
         var show = function () {
+          /* 打ったそばから控えておく。「URLを保存」を押さずに公開しても、
+             打った名前のまま公開されるようにする（2026-11-19 要望） */
+          view.urlEdit = { brand: brand.value, product: product.value,
+            site: pick ? String(pick.value || '') : String(salesInfo().lp_site || '') };
           var slug = [slugify(brand.value), slugify(product.value),
             String(view.gen.variant_label || '-').toLowerCase()].filter(Boolean).join('/');
           var base = pick && pick.value
@@ -1613,23 +1628,13 @@
         show();
 
         var save = button('btn btn--secondary btn--sm', t('lpr.urlSave'), function (e) {
-          var b = slugify(brand.value);
-          if (!b) { toast(t('lpr.urlEmpty'), 'danger'); return; }
+          if (!slugify(brand.value)) { toast(t('lpr.urlEmpty'), 'danger'); return; }
           var node = e && e.currentTarget;
           if (node) { node.disabled = true; }
-          var shop = [b, slugify(product.value)].filter(Boolean).join('/');
-          var patch = { shop_slug: shop };
-          /* 選んだドメインも一緒に覚えさせる。覚えないと、画面を開き直した
+          /* 覚えさせる所は saveUrlParts に1本化（公開のときも同じ所を通る）。
+             選んだドメインも一緒に覚える。覚えないと、画面を開き直した
              ときに並びの先頭へ戻り、配ったURLと食い違う */
-          if (pick) {
-            var info2 = {};
-            Object.keys(salesInfo()).forEach(function (k) { info2[k] = salesInfo()[k]; });
-            info2.lp_site = String(pick.value || '');
-            patch.sales_info = info2;
-          }
-          Api.projects.update(projectId, patch).then(function () {
-            view.project.shop_slug = shop;
-            if (patch.sales_info) { view.project.sales_info = patch.sales_info; }
+          saveUrlParts().then(function () {
             /* 公開中なら、新しい名前で公開し直す。でないと画面の表示と
                実際に開けるURLが食い違う */
             if (!view.gen.published_at) { return null; }
@@ -1816,7 +1821,10 @@
           if (view.gen.published_at && publicUrl()) {
             add(toolbar, button('btn btn--secondary', t('lpr.unpublish'), function () { setPublish(false); }));
           } else {
-            add(toolbar, button('btn btn--secondary', t('lpr.publish'), function () { setPublish(true); }));
+            var pub = button('btn btn--primary', t('lpr.publish'), function () { setPublish(true); });
+            pub.title = t('lpr.publishHint');
+            add(toolbar, pub);
+            add(toolbar, el('span', 't-note', t('lpr.publishHint')));
           }
         }
         if (view.gen.published_at && publicUrl()) {
@@ -2292,8 +2300,40 @@
          「会社・ブランド／商品名」をまとめて1本で持つ。
          層は層で分かるので足さない（公開のときに後ろへ付ける） */
       function urlParts() {
+        /* 画面で打ちかけのものが勝つ。「URLを保存」を押し忘れたまま公開して、
+           打った名前が黙って捨てられるのを防ぐ（2026-11-19） */
+        if (view.urlEdit) {
+          return { brand: slugify(view.urlEdit.brand), product: slugify(view.urlEdit.product) };
+        }
         var raw = String((view.project && view.project.shop_slug) || '').split('/');
         return { brand: slugify(raw[0] || ''), product: slugify(raw[1] || '') };
+      }
+
+      /* 画面で打った名前・置き場が、保存済みと違うか */
+      function urlDirty() {
+        if (!view.urlEdit) { return false; }
+        var now = urlParts();
+        var raw = String((view.project && view.project.shop_slug) || '').split('/');
+        if (now.brand !== slugify(raw[0] || '') || now.product !== slugify(raw[1] || '')) { return true; }
+        return String(view.urlEdit.site || '') !== String(salesInfo().lp_site || '');
+      }
+
+      /* 画面で打った名前・置き場を、案件に覚えさせる。
+         公開のときも通るので、配ったURLと画面の表示が食い違わない */
+      function saveUrlParts() {
+        if (!urlDirty()) { return Promise.resolve(); }
+        var now = urlParts();
+        var patch = { shop_slug: [now.brand, now.product].filter(Boolean).join('/') };
+        if (view.urlEdit && view.urlEdit.site) {
+          var info = {};
+          Object.keys(salesInfo()).forEach(function (k) { info[k] = salesInfo()[k]; });
+          info.lp_site = String(view.urlEdit.site || '');
+          patch.sales_info = info;
+        }
+        return Api.projects.update(projectId, patch).then(function () {
+          view.project.shop_slug = patch.shop_slug;
+          if (patch.sales_info) { view.project.sales_info = patch.sales_info; }
+        });
       }
 
       /* 公開ページのURL。記録には名前（public_url_slug）しか持っていない。
@@ -2349,11 +2389,21 @@
           .filter(Boolean).join('/');
       }
 
+      /* 公開は「いま画面にあるもの」をそのまま出す（2026-11-19 要望）。
+         それまでは、
+           ・公開URLの名前は **「URLを保存」を押していなければ黙って捨てられ**、
+             打っていない古い名前（または無作為の名前）で公開されていた
+           ・組み直していなければ、ひとつ前に組んだHTMLが出ていた
+         ので、ここで両方そろえてから出す。押す順番を覚えなくてよくする。 */
       function setPublish(on) {
         if (view.busy) { return; }
         view.busy = true;
+        /* ① いまの見せ方で組み直す ② 打った名前を覚えさせる ③ 出す。
+           名前を打っていないときは、これまでどおり記録側が名前を付ける */
+        if (on) { build(false); }
         var call = on
-          ? Api.lp.publish(view.gen.id, view.html, wantSlug() || null)
+          ? saveUrlParts()
+            .then(function () { return Api.lp.publish(view.gen.id, view.html, wantSlug() || null); })
           : Api.lp.unpublish(view.gen.id);
         call.then(function () {
           return Api.generations.get(view.gen.id);
