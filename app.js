@@ -73,14 +73,13 @@
 
      空のあいだは、これまでどおりアプリと同じ置き場を使う。
      url は「/」で終える。買ったら足す */
-  /* 顧客のLPを載せる置き場。空のあいだは、アプリと同じ場所（app.lpya.net）に出る。
-     2026-11-19 の段取り: pre-launch.net は Cloudflare Pages（lp-site）に
-     中身まで上げて、カスタムドメインも登録済み。**残りは DNS の2件だけ**で、
-     それが通ったら下の1行のコメントを外して release する。
-     通る前に外すと、開けないドメインを公開URLに出してしまう。
-     詳しくは docs/domains.md「pre-launch.net の進み具合」 */
+  /* 顧客のLPを載せる置き場。2026-11-19 から pre-launch.net（Cloudflare Pages
+     の lp-site）。アプリ（app.lpya.net）と分けるのは、名前の衝突と
+     評判の巻き添えを避けるため（docs/domains.md）。
+     空にすると、これまでどおりアプリと同じ場所に出る。
+     2本以上並べると、S13 で案件ごとに選べるようになる */
   var LP_SITES = [
-    // { label: '顧客のLP', url: 'https://pre-launch.net/' },
+    { label: '顧客のLP（pre-launch.net）', url: 'https://pre-launch.net/' },
   ];
   var DEFAULT_LANG = 'ja';
   var TOAST_MS = 3200;
