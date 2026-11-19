@@ -1801,7 +1801,11 @@
      （sales_info.platform_logo）。 */
   var PLATFORMS = {
     makuake: { name: 'Makuake', sub: 'クラウドファンディング公開中', logo: 'makuake' },
-    campfire: { name: 'CAMPFIRE', sub: 'クラウドファンディング公開中', logo: 'campfire' },
+    /* campfire-centered は配布素材（campfire.png）の2行を、大きさ・色・行の間は
+       そのままに、左右だけ中央へそろえ直したもの（2026-11-19）。
+       配布素材は上段が87px左に寄っていて、枠を中央に置いてもロゴが左に残る。
+       戻すときは 'campfire' に書き換えれば配布素材そのままになる */
+    campfire: { name: 'CAMPFIRE', sub: 'クラウドファンディング公開中', logo: 'campfire-centered' },
     greenfunding: { name: 'GREENFUNDING', sub: 'クラウドファンディング公開中', logo: 'greenfunding' },
     machiya: { name: 'machi-ya', sub: 'クラウドファンディング公開中', logo: 'machiya' }
   };
