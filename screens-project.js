@@ -683,7 +683,9 @@
           var open = el('button', 'btn btn--primary', tl('local.nextOpenPage'));
           open.type = 'button';
           open.addEventListener('click', function () {
-            window.open('view.html?lp=' + encodeURIComponent(next.slug), '_blank', 'noopener');
+            /* 組み立ては App.lpUrl に1か所（2026-11-19）。
+               置き場があれば、きれいな道の本物のURLで開く */
+            window.open(App.lpUrl(next.slug), '_blank', 'noopener');
           });
           row.appendChild(open);
         }

@@ -81,6 +81,29 @@
   var LP_SITES = [
     { label: '顧客のLP（pre-launch.net）', url: 'https://pre-launch.net/' },
   ];
+  /* 公開ページのURLを、ここ1か所で組む（2026-11-19 指摘）。
+     置き場（LP_SITES）があるときは、そこが「どのパスでも view を 200 で返す」
+     作りなので、**きれいな道**で出す:
+       https://pre-launch.net/astrapen/hubble/a
+     置き場が無いときは、アプリと同じ場所（GitHub Pages）に出る。
+     あちらは任意のパスを 200 で返せないので、これまでどおり
+       …/view.html?lp=astrapen%2Fhubble%2Fa
+     になる。「/」が %2F に化けて読みにくいのは、こちらの道だけ。
+
+     きれいな道では「/」を encode しない（道の区切りそのものなので）。
+     区切りごとに encode する。 */
+  function lpUrl(slug, siteUrl) {
+    var clean = String(slug || '').replace(/^\/+/, '').replace(/\/+$/, '');
+    if (!clean) { return ''; }
+    var base = String(siteUrl || (LP_SITES[0] && LP_SITES[0].url) || '');
+    if (base) {
+      return base.replace(/\/*$/, '/')
+        + clean.split('/').map(encodeURIComponent).join('/');
+    }
+    var here = location.href.split('#')[0].replace(/[^/]*$/, '');
+    return here + 'view.html?lp=' + encodeURIComponent(clean);
+  }
+
   var DEFAULT_LANG = 'ja';
   var TOAST_MS = 3200;
 
@@ -3398,6 +3421,7 @@
     closeModal: closeModal,
     openViewer: openViewer,
     lpSites: function () { return LP_SITES.slice(); },
+    lpUrl: lpUrl,
     closeViewer: closeViewer,
     saveProgressButton: saveProgressButton,
 

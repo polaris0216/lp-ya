@@ -1618,9 +1618,9 @@
             site: pick ? String(pick.value || '') : String(salesInfo().lp_site || '') };
           var slug = [slugify(brand.value), slugify(product.value),
             String(view.gen.variant_label || '-').toLowerCase()].filter(Boolean).join('/');
-          var base = pick && pick.value
-            ? String(pick.value).replace(/\/*$/, '/') : lpBase();
-          preview.textContent = base + 'view.html?lp=' + slug;
+          /* 下見も本番と同じ組み立てを通す。違う形を見せると、
+             配ったURLと食い違う（2026-11-19） */
+          preview.textContent = App.lpUrl(slug, pick ? String(pick.value || '') : lpSiteUrl());
         };
         brand.addEventListener('input', show);
         product.addEventListener('input', show);
@@ -2363,16 +2363,15 @@
         return String((hit || list[0]).url || '');
       }
 
-      function lpBase() {
-        var site = lpSiteUrl();
-        if (site) { return site.replace(/\/*$/, '/'); }
-        return location.href.split('#')[0].replace(/[^/]*$/, '');
-      }
+      /* 置き場から先を組むのは App.lpUrl の仕事になったので、
+         ここの lpBase() は消した（2026-11-19）。残すと2通りの組み方ができる */
 
       function publicUrl() {
         var slug = String(view.gen.public_url_slug || '');
         if (!slug) { return ''; }
-        return lpBase() + 'view.html?lp=' + encodeURIComponent(slug);
+        /* 組み立ては App.lpUrl に1か所。置き場があればきれいな道で出る
+           （2026-11-19 指摘: view.html?lp=astrapen%2Fhubble%2Fa になっていた）*/
+        return App.lpUrl(slug, lpSiteUrl());
       }
 
       /* 公開したときのURLの名前。メールの登録もこの名前で受けるので、

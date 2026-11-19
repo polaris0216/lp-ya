@@ -72,7 +72,14 @@
       stateNode.textContent = 'このページは公開されていないか、公開が終了しました。';
       return;
     }
-    if (data.title || data.headline) { document.title = data.title || data.headline; }
+    /* タブに出す名前は **商品（ブランド）**。2026-11-19 指摘:
+       ここは generations.title を使っていて、タブに
+       「デスク環境を整えたい管理職」というターゲット層の名前が出ていた。
+       層の名前は社内の作業上の呼び名で、見る人には関係がない。
+       商品名が取れないときだけ、これまでどおり title → headline に落とす
+       （084 より前に公開したものは商品名が返らない）*/
+    var tab = data.product_name || data.title || data.headline;
+    if (tab) { document.title = tab; }
 
     var frame = document.createElement('iframe');
     /* 中の JS を動かす。KVのスライドもメールの登録も、ページの中の小さな
