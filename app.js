@@ -225,6 +225,7 @@
       'common.errorScreenMissing': 'この画面の部品がまだ読み込まれていません。アプリを再読み込みしてください。',
       'common.errorApiMissing': '通信部品（api.js）が読み込まれていないため、データを取得できません。',
       'common.reload': '再読み込み',
+      'common.stale': 'この画面は古い版です。新しい版が出ています。再読み込みしてください。',
       'common.adminOnly': 'この画面は管理者のみが利用できます。',
       'common.loginRequired': 'この画面を使うにはログインが必要です。',
       'common.sessionExpired': 'ログインの有効期限が切れました。もう一度ログインしてください。',
@@ -921,6 +922,37 @@
     }));
     dom.banner.appendChild(node);
     return node;
+  }
+
+  /* 開いている画面が古い版かどうかを見る（2026-11-19 指摘）。
+     なぜ要るか: 直して release しても、**index.html そのものがキャッシュされる**
+     ので（GitHub Pages は max-age=600）、人が開いているタブは古い js を
+     読み続ける。実測: 公開URLの形を直した直後、画面には前の形が出たままで
+     「なぜ？」になった。黙って古いままにせず、画面に言う。
+
+     やり方: 配信元の index.html を **キャッシュを使わずに**取り直し、
+     そこに書かれている版（?v=…）と、この画面が読んだ版を比べる。
+     違えば帯を出して、押せば読み直す。
+     取れないとき（手元・圏外・置き場が違う）は、黙って何もしない。 */
+  function myVersion() {
+    var node = document.querySelector('script[src*="app.js?v="]');
+    var m = node ? /\?v=([0-9a-z]+)/i.exec(node.getAttribute('src') || '') : null;
+    return m ? m[1] : '';
+  }
+
+  function checkFresh() {
+    var mine = myVersion();
+    if (!mine || typeof fetch !== 'function') { return; }
+    var here = global.location.href.split('#')[0].replace(/[^/]*$/, '');
+    fetch(here + 'index.html', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.text() : ''; })
+      .then(function (html) {
+        var m = /app\.js\?v=([0-9a-z]+)/i.exec(html || '');
+        if (!m || m[1] === mine) { return; }
+        console.warn('[App] 画面の版 ' + mine + ' に対して、置き場は ' + m[1] + ' です。');
+        showBanner(t('common.stale'), function () { global.location.reload(); });
+      })
+      .catch(function () { /* 取れないなら何も言わない（手元での開発を止めない）*/ });
   }
 
   function handleError(err, retry) {
@@ -3295,6 +3327,8 @@
       console.error('[App] api.js が読み込まれていません（window.Api がありません）。index.html の読み込み順を確認してください。');
       showBanner(t('common.errorApiMissing'), function () { global.location.reload(); });
     }
+
+    checkFresh();
 
     // Google ログインから戻った直後は URL のハッシュにトークンが入っている。
     // ルーターより先に取り込んで消す（消さないと '#access_token=...' を画面IDとして読む）。
