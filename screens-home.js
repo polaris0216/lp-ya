@@ -83,16 +83,9 @@
   ];
   var CATEGORY_KEYS = ['tech', 'appliance', 'food', 'fashion', 'bag', 'beauty', 'interior',
     'outdoor', 'vehicle', 'baby', 'pet', 'craft', 'other'];
-  var FONT_OPTIONS = ['gothic', 'mincho', 'maru', 'gothicBold', 'serifEn', 'sansEn'];
-  /* 外部CDNを使わない方針なので、端末に載っている書体だけで組む */
-  var FONT_STACKS = {
-    gothic: "'Hiragino Sans', 'Yu Gothic', Meiryo, system-ui, sans-serif",
-    mincho: "'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif",
-    maru: "'Hiragino Maru Gothic ProN', 'Yu Gothic', system-ui, sans-serif",
-    gothicBold: "'Hiragino Sans', 'Yu Gothic', Meiryo, system-ui, sans-serif",
-    serifEn: "Georgia, 'Times New Roman', serif",
-    sansEn: "Helvetica, Arial, system-ui, sans-serif"
-  };
+  /* 書体の一覧は fonts.js に1か所だけ置く（画面・生成プロンプト・画の指示で同じ鍵を使う）。
+     系統ごとの CSS も向こうが持つ（外部CDNを使わない方針は変わらない） */
+  var FONTS = window.LpFonts;
   /* 表示順は「新商品として出やすい順」。値は辞書キーの末尾（tech / food ...）を保存する。
      翻訳文そのものを保存すると、言語を切り替えたときに保存済みの値と一致しなくなる。 */
   /* LPを出す言語。画面の表示言語（i18n）とは別物なので、ここに持つ。
@@ -1424,19 +1417,34 @@
         var auto = el('option', null, t('product.fontAuto'));
         auto.value = '';
         select.appendChild(auto);
-        FONT_OPTIONS.forEach(function (key) {
-          var option = el('option', null, t('font.' + key));
-          option.value = key;
-          option.style.fontFamily = FONT_STACKS[key];
-          if (form.brandFonts[slot.key] === key) { option.selected = true; }
-          select.appendChild(option);
+        /* 100件を素のリストで出すと選べないので、系統ごとにまとめる */
+        FONTS.groups().forEach(function (g) {
+          var box = el('optgroup');
+          box.label = g.name;
+          g.fonts.forEach(function (f) {
+            var option = el('option', null, f.name);
+            option.value = f.key;
+            option.title = f.mood;
+            option.style.cssText = 'font-family: ' + FONTS.cssOf(f.key);
+            if (form.brandFonts[slot.key] === f.key) { option.selected = true; }
+            box.appendChild(option);
+          });
+          select.appendChild(box);
         });
+        var moodNote = el('p', 'field__hint');
+        function paintMood() {
+          var f = FONTS.byKey[select.value];
+          select.style.cssText = select.value ? 'font-family: ' + FONTS.cssOf(select.value) : '';
+          moodNote.textContent = f ? f.mood : '';
+        }
         select.addEventListener('change', function () {
           form.brandFonts[slot.key] = select.value;
-          select.style.fontFamily = select.value ? FONT_STACKS[select.value] : '';
+          paintMood();
         });
-        select.style.fontFamily = form.brandFonts[slot.key] ? FONT_STACKS[form.brandFonts[slot.key]] : '';
-        fontGrid.appendChild(makeField(t(slot.label), select, {}).wrap);
+        paintMood();
+        var fontField = makeField(t(slot.label), select, {}).wrap;
+        fontField.appendChild(moodNote);
+        fontGrid.appendChild(fontField);
       });
       brandPanel.appendChild(fontGrid);
       rest.appendChild(brandPanel);
@@ -2332,7 +2340,7 @@
       if (result.brand_fonts && typeof result.brand_fonts === 'object') {
         FONT_SLOTS.forEach(function (slot) {
           var value = result.brand_fonts[slot.key];
-          if (value && FONT_OPTIONS.indexOf(String(value)) !== -1) { form.brandFonts[slot.key] = String(value); }
+          if (value && FONTS.has(value)) { form.brandFonts[slot.key] = String(value); }
         });
         touchedAny = true;
       }

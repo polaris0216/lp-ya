@@ -158,6 +158,11 @@
   }
 
   function fontStack(kind) {
+    /* 系統（丸ゴ・筆・欧文…）は fonts.js が持つ。
+       mincho / gothic は昔の値でもあり系統の名前でもあるので、そのまま通る */
+    var F = window.LpFonts;
+    var group = F && F.GROUPS[kind];
+    if (group) { return group.css; }
     if (kind === 'mincho') { return "'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif"; }
     if (kind === 'gothic') { return "'Hiragino Sans', 'Yu Gothic UI', 'Noto Sans JP', system-ui, sans-serif"; }
     return "-apple-system, system-ui, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif";
@@ -1451,8 +1456,11 @@
     if (forAccent[0]) { d.accentColor = forAccent[0]; }
     else if (forText[0]) { d.accentColor = forText[0]; }
     var fonts = project && project.brand_fonts && typeof project.brand_fonts === 'object' ? project.brand_fonts : {};
-    if (fonts.title === 'mincho') { d.titleFont = 'mincho'; }
-    if (fonts.body === 'mincho') { d.bodyFont = 'mincho'; }
+    /* 選べる書体は100種以上ある。HTMLのLPは系統ごとの CSS で描くので、系統に落とす
+       （前は mincho かどうかだけ見ていて、丸ゴや欧文を選んでもゴシックで出ていた） */
+    var groupOf = window.LpFonts ? window.LpFonts.groupOf : function () { return ''; };
+    d.titleFont = groupOf(fonts.title) || d.titleFont;
+    d.bodyFont = groupOf(fonts.body) || d.bodyFont;
     return d;
   }
   /* ---- 販売ページ ----
