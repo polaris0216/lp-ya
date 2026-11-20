@@ -129,6 +129,13 @@
   --h-control: 48px;
   --tap-min: 44px;
   --content-max: 640px;
+  /* 本文（.app-main）の幅。お知らせの帯と仕事の帯も、これに合わせて左右をそろえる。
+     トーストと操作シートは --content-max のまま（重ねて出す物なので、
+     本文と同じだけ広げると画面を覆ってしまう）。
+     2026-11-19 要望:「class = app-main のところの横幅をもっと広くして」。
+     それまでは 861px 以上で 900px 固定だった。
+     リワードや写真の並びが詰まって見えていたので、広い画面では広げる */
+  --main-max: var(--content-max);
 
   /* 安全領域 */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -764,7 +771,7 @@ table { border-collapse: collapse; width: 100%; }
 
 /* --- 通信失敗バナーの置き場 --- */
 .banner-root {
-  max-width: var(--content-max);
+  max-width: var(--main-max);
   margin: 0 auto;
   padding: 0 var(--sp-screen);
   width: 100%;
@@ -776,7 +783,7 @@ table { border-collapse: collapse; width: 100%; }
 .app-main {
   flex: 1 1 auto;
   width: 100%;
-  max-width: var(--content-max);
+  max-width: var(--main-max);
   margin: 0 auto;
   padding: var(--sp-group) var(--sp-screen) calc(var(--sp-section) + var(--safe-bottom));
   outline: none;
@@ -800,7 +807,12 @@ table { border-collapse: collapse; width: 100%; }
 
 @media (min-width: 861px) {
   .sidebar__backdrop { display: none; }
-  .app-main { max-width: 900px; }
+  :root { --main-max: 1120px; }
+}
+
+/* さらに広い画面。リワードの一覧や写真の棚が、横に余って見えないところまで */
+@media (min-width: 1440px) {
+  :root { --main-max: 1320px; }
 }
 
 /* 段の間。これまで各段にも margin-bottom が残っていて、
@@ -5917,7 +5929,7 @@ input[type='radio'] {
   margin: 0;
   /* 本文（.app-main）と左右をそろえる */
   width: 100%;
-  max-width: var(--content-max);
+  max-width: var(--main-max);
   margin: 0 auto;
   padding: 8px var(--sp-screen) 0;
 }
