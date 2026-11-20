@@ -157,6 +157,24 @@
     return out;
   }
 
+  /* スマホで読める下限（2026-11-21 要望:
+       「写真に焼き付けるテキストや入力されるテキストがあまりに小さい部分がある。
+         スマホでもちゃんと見える最低限のフォントサイズ制限をつけるようにして」）。
+
+     HTMLの文字はスマホでも px のままなので、CSSに書いた数字がそのまま効く。
+     困るのは **SVGの板**。板は絵と同じく入れ物の幅まで縮むので、
+     中の字は「板の幅 W に対する割合」でしか決まらない。
+     LPは本文712pxで組むが、スマホでは画面幅（下限とみる 390px）まで縮む。
+     実測: 本文の 0.027×W は W=1000 で27px、390px幅のスマホでは **10.5px** にしかならない。
+
+     390px のときに 14px 以上に見せるには、W に対して 14/390 = 3.59% 以上が要る。
+     割合で書いた字の大きさは、全部この床を通す。 */
+  var PHONE_W = 390;
+  var PHONE_MIN_PX = 14;
+  function fit(W, ratio) {
+    return Math.max(Math.round(W * ratio), Math.ceil(W * PHONE_MIN_PX / PHONE_W));
+  }
+
   function fontStack(kind) {
     /* 系統（丸ゴ・筆・欧文…）は fonts.js が持つ。
        mincho / gothic は昔の値でもあり系統の名前でもあるので、そのまま通る */
@@ -531,9 +549,9 @@
        上下に幅の7%（PCで48px）ずつ取ると、板と板のあいだが96px空く
        （2026-11-03 指摘「セクション間の空白がまだ広い」） */
     var padY = Math.round(W * 0.042);
-    var headSize = Math.round(W * 0.045);
-    var qSize = Math.round(W * 0.030);
-    var aSize = Math.round(W * 0.026);
+    var headSize = fit(W, 0.045);
+    var qSize = fit(W, 0.030);
+    var aSize = fit(W, 0.026);
     var qStep = Math.round(qSize * 1.6);
     var aStep = Math.round(aSize * 1.75);
     var inner = W - pad * 2;
@@ -570,7 +588,9 @@
       out.push('<rect x="' + pad + '" y="' + (top - qSize) + '" width="' + badge + '" height="'
         + Math.round(qSize * 1.5) + '" rx="' + Math.round(qSize * 0.35) + '" fill="' + hot + '"/>');
       out.push('<text x="' + (pad + badge / 2) + '" y="' + (top + Math.round(qSize * 0.12))
-        + '" font-family="' + fam + '" font-size="' + Math.round(qSize * 0.82)
+        /* Q の番号も床を通す。質問より小さくしているので、
+           ここだけ14pxを割ることがあった（2026-11-21 実測: 30px＝スマホ11.7px）*/
+        + '" font-family="' + fam + '" font-size="' + Math.max(Math.round(qSize * 0.82), fit(W, 0))
         + '" font-weight="800" fill="#FFFFFF" text-anchor="middle">Q' + (i + 1) + '</text>');
       var x = pad + badge + 12;
       wrapQ(r.ql.length ? list[i].q : '').forEach(function (line, li) {
@@ -652,10 +672,10 @@
        上下に幅の7%（PCで48px）ずつ取ると、板と板のあいだが96px空く
        （2026-11-03 指摘「セクション間の空白がまだ広い」） */
     var padY = Math.round(W * 0.042);
-    var headSize = Math.round(W * 0.045);
-    var labSize = Math.round(W * 0.019);
-    var painSize = Math.round(W * 0.027);
-    var fixSize = Math.round(W * 0.034);
+    var headSize = fit(W, 0.045);
+    var labSize = fit(W, 0.019);
+    var painSize = fit(W, 0.027);
+    var fixSize = fit(W, 0.034);
     var painStep = Math.round(painSize * 1.5);
     var fixStep = Math.round(fixSize * 1.4);
     /* 左（悩み）は小さく、右（解決）は大きいので、幅も右を広く取る */
@@ -818,8 +838,8 @@
     var W = width;
     var pad = Math.round(W * 0.06);
     var avail = W - pad * 2;
-    var labelSize = Math.round(W * 0.026);
-    var descSize = Math.round(W * 0.030);
+    var labelSize = fit(W, 0.026);
+    var descSize = fit(W, 0.030);
     var descStep = Math.round(descSize * 1.55);
 
     /* 見出しは帯の幅いっぱいまで大きくする。短ければ1行で特大、
@@ -1067,12 +1087,12 @@
        上下に幅の7%（PCで48px）ずつ取ると、板と板のあいだが96px空く
        （2026-11-03 指摘「セクション間の空白がまだ広い」） */
     var padY = Math.round(W * 0.042);
-    var headSize = Math.round(W * 0.045);
+    var headSize = fit(W, 0.045);
     /* 縦に積む。横一列に並べると、スマホ幅（390px）に縮んだとき
        1節あたり90pxしかなく、字が9pxまで落ちて読めない（実測 2026-11-03）。
        縦なら1行に幅を使えるので、同じ板の中で字を大きくできる */
-    var whenSize = Math.round(W * 0.030);
-    var whatSize = Math.round(W * 0.034);
+    var whenSize = fit(W, 0.030);
+    var whatSize = fit(W, 0.034);
     var whatStep = Math.round(whatSize * 1.45);
     var dot = Math.round(W * 0.020);
     var railX = pad + dot;
@@ -1149,9 +1169,9 @@
     var padY = Math.round(W * 0.042);
 
     /* よくある質問の板と同じ大きさにそろえる。絵に焼いていたときより大きい */
-    var headSize = Math.round(W * 0.045);
-    var hSize = Math.round(W * 0.030);
-    var bodySize = Math.round(W * 0.027);
+    var headSize = fit(W, 0.045);
+    var hSize = fit(W, 0.030);
+    var bodySize = fit(W, 0.027);
     var step = Math.round(bodySize * 1.75);
     var ink = d.titleColor;
     var hot = d.accentColor;
@@ -1233,8 +1253,10 @@
     var o = options || {};
     var W = width;
     var pad = Math.round(W * 0.075);
-    var titleSize = Math.round(W * 0.062);      /* 712px で 44px */
-    var bodySize = Math.round(W * 0.023);       /* 712px で 16px */
+    var titleSize = fit(W, 0.062);              /* 712px で 44px */
+    /* 0.023 だと 712px で16pxだが、スマホ（390px）では9pxに縮む。
+       床を通して14pxを割らないようにする（2026-11-21） */
+    var bodySize = fit(W, 0.023);
     var titleLines = title ? wrapLines(title, (W - pad * 2) / (titleSize * 0.56)) : [];
     var bodyLines = body ? wrapLines(body, (W - pad * 2) / (bodySize * 0.62)).slice(0, PANEL_BODY_LINES) : [];
     var titleStep = Math.round(titleSize * 1.5);
@@ -1425,7 +1447,7 @@
         if (section.image && forDownload) {
           out.push('<img src="' + escapeHtml(section.image) + '" alt="' + escapeHtml(section.title) + '" style="display:block;width:100%;height:auto;border-radius:12px;margin-top:20px;">');
         } else {
-          out.push('<div style="margin-top:20px;border:1px dashed #ECE6EE;border-radius:12px;padding:32px;text-align:center;color:#6B6270;font-size:13px;">' + escapeHtml(t('gen.imagePlaceholder')) + '</div>');
+          out.push('<div style="margin-top:20px;border:1px dashed #ECE6EE;border-radius:12px;padding:32px;text-align:center;color:#6B6270;font-size:14px;">' + escapeHtml(t('gen.imagePlaceholder')) + '</div>');
         }
       }
       if (String(section.key).toLowerCase().indexOf('cta') !== -1) {
@@ -1560,7 +1582,7 @@
       '.block .bg--full{width:calc(100% + 36px);margin:0 -18px 16px}',
       /* 特長の番号。見出しの上に小さく、差し色で。
          ページ内で1種類だけにする（参照ページもどれも1種類だった） */
-      '.pt{display:block;margin:0 0 6px;font-size:13px;font-weight:800;'
+      '.pt{display:block;margin:0 0 6px;font-size:14px;font-weight:800;'
         + 'letter-spacing:.18em;color:' + d.accentColor + '}',
       '.block h2{margin:0 0 10px;font-family:' + fontStack(d.titleFont) + ';font-size:'
         + Math.round(d.titleSize * 0.78) + 'px;line-height:1.45;font-weight:700;color:' + d.titleColor + '}',
@@ -1576,7 +1598,7 @@
       'table.spec th{width:38%;font-weight:600;color:' + d.titleColor + ';background:rgba(0,0,0,.02)}',
       '.faq dt{margin:16px 0 4px;font-weight:600;color:' + d.titleColor + '}',
       '.faq dd{margin:0;font-size:' + d.bodySize + 'px}',
-      '.notes{margin:28px 0 0;padding:0 0 96px;font-size:13px;opacity:.75}',
+      '.notes{margin:28px 0 0;padding:0 0 96px;font-size:14px;opacity:.75}',
       '.notes li{margin:4px 0}',
       /* 画面下の固定バー。実物も同じで、スクロールのどこからでも1タップで届く */
       '.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));'
@@ -1692,7 +1714,7 @@
         + 'border-radius:10px;font-size:16px;background:#fff;color:#222}',
       '.sub__btn{flex:0 0 auto;min-height:48px;padding:0 22px;border:0;border-radius:10px;'
         + 'background:' + d.accentColor + ';color:#fff;font-size:16px;font-weight:600;cursor:pointer}',
-      '.sub__note{margin:6px 0 0;font-size:12px;opacity:.75}',
+      '.sub__note{margin:6px 0 0;font-size:14px;opacity:.75}',
       '.sub__note:empty{display:none}',
       '.sub__say{margin:6px 0 0;font-size:14px}',
       '.sub__say:empty{display:none}',
@@ -1939,7 +1961,7 @@
       '.cta-block__logo{display:block;width:42%;height:auto;margin:0 auto}',
       /* ロゴを持っていない掲載先のための文字組み。大きさはロゴに合わせる */
       '.cta-block__name{display:block;font-size:40px;font-weight:800;letter-spacing:.04em;color:' + ink + '}',
-      '.cta-block__sub{display:block;margin-top:4px;font-size:12px;letter-spacing:.18em;color:' + ink + '99}',
+      '.cta-block__sub{display:block;margin-top:4px;font-size:14px;letter-spacing:.18em;color:' + ink + '99}',
       /* 2行目 */
       '.cta-block__t{margin:0 0 4px;font-weight:700;font-size:20px;line-height:1.35;color:' + ink + '}',
       /* 3行目。数字だけさらに大きく。見本は「最大」「OFF」より「30%」が一回り大きい */
@@ -2507,11 +2529,13 @@
         + ';color:#fff;font-size:17px;font-weight:700;text-decoration:none;}',
       /* 絵に載せきれなかった本文の添え書き。makuake の一行キャプションと同じ役目。
          絵と絵の間に置くので、上下の余白は詰める（間が空くと並びが切れて見える） */
-      '.cap{margin:0;padding:14px 24px 22px;font-size:' + Math.round(d.bodySize * 0.94)
+      /* 添え書きも14pxを割らない（2026-11-21）。
+         本文を小さくした案件で、ここだけ13pxになっていた */
+      '.cap{margin:0;padding:14px 24px 22px;font-size:' + Math.max(14, Math.round(d.bodySize * 0.94))
         + 'px;line-height:1.7;color:' + escapeHtml(d.bodyColor) + ';}',
       '.cap:empty{display:none;}',
       '.visual{margin:20px 0 0;padding:14px 16px;border:1px dashed #D9CFE0;border-radius:10px;'
-        + 'color:#6B6270;font-size:13px;background:#FBF9FC;}',
+        + 'color:#6B6270;font-size:14px;background:#FBF9FC;}',
       /* 絵が主体のページなので、画像は読み込みを待たせない */
       'img,video{display:block;width:100%;height:auto;margin:0;}',
       '@media (max-width:600px){section[data-text="1"]{padding:32px 0;}'
@@ -2743,10 +2767,15 @@
             /* 語の途中で終わるより、文の切れ目で終わったほうが読みやすい
                （2026-10-10 利用者の指摘:「改行は自然に文章を区切ってやって」）。
                読点・句点・中黒・閉じ括弧のうしろまで戻す。
-               戻すのは行の1/4までにして、行が短くなりすぎないようにする */
-            var most = Math.max(2, Math.floor(limit / 4));
+               戻せる幅は 1/4 では足りない（2026-11-21 文字の下限を上げたら
+               1行の字数が減り、1/4 では句読点まで届かず語の途中で折れた）。
+               1/3、ただし最低4字までは戻す */
+            var most = Math.max(4, Math.floor(limit / 3));
             for (var j = cut; j > cut - most && j > 1; j -= 1) {
               if (/[、。，．・）」』】！？]/.test(line.charAt(j - 1))) { cut = j; break; }
+              /* 開き括弧の直前も文の切れ目（「…承れません／（例：…」）。
+                 句読点が窓の中に無いときは、ここで折る */
+              if (/[（「『【〔〈《［｛]/.test(line.charAt(j))) { cut = j; break; }
             }
           }
           /* 行の終わりに開き括弧を残さない（行末禁則）。次の行へ送る */
