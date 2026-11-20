@@ -4741,7 +4741,7 @@ input[type='radio'] {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 10px 9px 14px;
+  padding: 4px 10px 4px 14px;
   border-bottom: 1px solid var(--c-line-soft);
   background: var(--c-surface-2);
 }
@@ -4750,8 +4750,8 @@ input[type='radio'] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--r-pill);
   background: var(--c-accent);
   color: var(--c-white);
@@ -4771,8 +4771,8 @@ input[type='radio'] {
 .reward-card__body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px 14px;
+  gap: 6px;
+  padding: 8px 14px 10px;
 }
 
 /* 定価・リワード価格・数量を1行に収めて、カードの縦を詰める */
@@ -4783,9 +4783,37 @@ input[type='radio'] {
   align-items: start;
 }
 
-.reward-card__body .textarea { min-height: 54px; }
-.reward-card__body .field { gap: 3px; }
-.reward-card__body .field__hint { line-height: 1.5; }
+/* 説明は textarea の既定（2行ぶん）が効いて、min-height を下げても縮まない。
+   高さを決め打ちし、足りなければ人が引き伸ばせるようにする */
+.reward-card__body .textarea {
+  min-height: 0;
+  height: 42px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.reward-card__body .field { gap: 2px; }
+.reward-card__body .field__hint { line-height: 1.4; }
+
+/* 本文の幅が広い所では、**名前と数字の3つを1行に並べる**
+   （2026-11-19 要望:「リワードカードの縦をもっと短くして」）。
+   縦に積むと 名前 → 数字 → 説明 の3段で、1枚が265pxほどになる。
+   1列の縦並びにしたので、段階が5つあると画面に1〜2枚しか入らない。
+   横に余りがあるのだから、そちらを使う。説明だけ下に敷く */
+@media (min-width: 861px) {
+  .reward-card__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 2.7fr);
+    gap: 6px 12px;
+    align-items: start;
+  }
+
+  /* 中身は 名前 / 数字の3つ / 説明 の順に並んでいる */
+  .reward-card__body > .field:first-child { grid-column: 1; }
+  .reward-card__pair { grid-column: 2; }
+  .reward-card__body > .field:last-child { grid-column: 1 / -1; }
+}
 
 /* 数字の欄に単位を添える */
 .input-unit {
