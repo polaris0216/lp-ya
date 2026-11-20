@@ -95,7 +95,10 @@
      名前は媒体そのものなので訳さない */
   var CF_PLATFORMS = [
     { value: 'makuake', label: 'Makuake', note: '16:9 ・ 8枚' },
-    { value: 'campfire', label: 'CAMPFIRE', note: '3:2 ・ 1枚' },
+    /* 2026-11-21 指摘で確認し直した。CAMPFIRE はメイン画像を最大5枚登録でき、
+       複数枚のときはメイン画像の下にサムネイルが並んで切り替わる。
+       根拠は tools/job-worker.mjs の KV_SPEC に書いてある */
+    { value: 'campfire', label: 'CAMPFIRE', note: '3:2 ・ 最大5枚' },
     { value: 'machiya', label: 'machi-ya', note: '3:2 ・ 1枚' },
     { value: 'greenfunding', label: 'GREENFUNDING', note: '3:2 ・ 1枚' },
     { value: 'kickstarter', label: 'Kickstarter', note: '16:9 ・ 1枚' },
