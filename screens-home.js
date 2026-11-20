@@ -1552,6 +1552,18 @@
         });
         paintMood();
         var fontField = makeField(t(slot.label), select, {}).wrap;
+        /* ドロップの一覧では、どんな字形かまで分からない
+           （端末に無い書体は系統の見た目に落ちるうえ、1行では比べられない）。
+           見本を大きく出す窓を別に用意する（2026-11-19 要望）*/
+        var pick = button('btn btn--text btn--sm', t('product.fontPick'), function () {
+          openFontPicker(select.value, function (key) {
+            select.value = key;
+            form.brandFonts[slot.key] = key;
+            paintMood();
+            markDirty();
+          });
+        });
+        fontField.appendChild(pick);
         fontField.appendChild(moodNote);
         fontGrid.appendChild(fontField);
       });
@@ -2651,6 +2663,94 @@
     /* つまんで動かしているのは何枚目か。-1 は動かしていない（2026-11-19 要望:
        「順番を自由にクリックドロップで移動できるようにして」）*/
     var dragFrom = -1;
+
+    /* 書体の見本を大きく出して選ぶ窓（2026-11-19 要望:
+       「ドロップメニューからフォントがどんなフォントデザインなのか
+         わかるようにしてほしい。できないならポップアップ窓に」）。
+
+       正直に出すために:
+         ・その端末で**本物の字形が出せる**ものには、その印を付ける
+         ・出せないものは「◯◯系の見た目で出しています」と断る。
+           黙って別の形を見せると「これがリュウミンだ」と思わせてしまう
+         ・絵の中の文字は画像AIが書体名を見て描くので、端末に無くても
+           指定どおりになる。それも書いておく */
+    function openFontPicker(current, onPick) {
+      if (!window.App || typeof App.openModal !== 'function') { return; }
+      var box = el('div', 'modal modal--wide');
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+      box.appendChild(el('h3', 'modal__title', t('product.fontPickTitle')));
+
+      var find = el('input', 'input input--sm font-pick__find');
+      find.type = 'search';
+      find.setAttribute('placeholder', t('product.fontSearch'));
+      find.setAttribute('aria-label', t('product.fontSearch'));
+      box.appendChild(find);
+      var hits = el('p', 't-note');
+      box.appendChild(hits);
+
+      var body = el('div', 'modal__body font-pick');
+      box.appendChild(body);
+
+      function close() { App.closeModal(); }
+
+      /* 「指定なし」も選べる。選び直して AI にまかせたいことがある */
+      function rowFor(f) {
+        var on = f ? (current === f.key) : !current;
+        var row = button('font-pick__row' + (on ? ' is-on' : ''), '', function () {
+          if (typeof onPick === 'function') { onPick(f ? f.key : ''); }
+          close();
+        });
+        row.setAttribute('aria-pressed', on ? 'true' : 'false');
+        if (!f) {
+          row.appendChild(el('span', 'font-pick__name', t('product.fontNone')));
+          return row;
+        }
+        var sample = el('span', 'font-pick__sample', t('product.fontSample'));
+        sample.style.cssText = 'font-family: ' + FONTS.cssOf(f.key);
+        row.appendChild(sample);
+        var meta = el('span', 'font-pick__meta');
+        var name = el('span', 'font-pick__name', f.name);
+        name.style.cssText = 'font-family: ' + FONTS.cssOf(f.key);
+        meta.appendChild(name);
+        meta.appendChild(el('span', 'font-pick__mood', f.mood));
+        var real = FONTS.canShow(f.key);
+        var mark = el('span', 'font-pick__mark' + (real ? ' is-real' : ''),
+          real ? t('product.fontReal')
+            : t('product.fontFallback', { g: FONTS.GROUPS[f.group].name }));
+        meta.appendChild(mark);
+        row.appendChild(meta);
+        return row;
+      }
+
+      function paint(word) {
+        clear(body);
+        var want = String(word || '').trim().toLowerCase();
+        var n = 0;
+        if (!want) { body.appendChild(rowFor(null)); }
+        FONTS.groups().forEach(function (g) {
+          var rows = g.fonts.filter(function (f) {
+            return !want || f.name.toLowerCase().indexOf(want) !== -1
+              || f.mood.toLowerCase().indexOf(want) !== -1
+              || g.name.indexOf(want) !== -1;
+          });
+          if (!rows.length) { return; }
+          body.appendChild(el('p', 'font-pick__group', g.name));
+          rows.forEach(function (f) { body.appendChild(rowFor(f)); n += 1; });
+        });
+        hits.textContent = t('product.fontHit', { n: n });
+      }
+
+      find.addEventListener('input', function () { paint(find.value); });
+      paint('');
+
+      var actions = el('div', 'modal__actions');
+      actions.appendChild(button('btn btn--secondary', t('common.close'), close));
+      box.appendChild(actions);
+      App.openModal(box);
+      /* 探す欄に入る。一覧の先頭に入ると、いきなり選びそうで落ち着かない */
+      try { find.focus(); } catch (err) { /* 入れなくても使える */ }
+    }
 
     /* つまんだまま画面の端へ寄せたら、ひとりでに送る（2026-11-19 要望:
        「リワードカードクリックしたまま下の方に持っていたら

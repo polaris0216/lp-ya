@@ -3156,6 +3156,80 @@ button.list-row:hover { background: var(--c-surface-3); }
   gap: var(--sp-group);
 }
 
+/* 書体の見本を選ぶ窓（2026-11-19 要望）。
+   1行では字形が分からないので、見本の文を大きく出して縦に並べる。
+   ふつうのモーダルより広くする */
+.modal--wide { max-width: 760px; }
+
+.font-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 60dvh;
+  overflow: auto;
+}
+
+.font-pick__group {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 10px 0 2px;
+  padding: 4px 2px;
+  background: var(--c-surface);
+  font-size: var(--fs-note);
+  font-weight: var(--fw-semi);
+  color: var(--c-text-sub);
+}
+
+.font-pick__row {
+  display: block;
+  /* 縦に積む flex の中では、既定で縮む。入れ物に max-height を付けてあるので、
+     縮んだぶん行どうしが重なる（実測 2026-11-19: 見本と説明が重なった）。
+     縮ませない */
+  flex: 0 0 auto;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  background: none;
+  cursor: pointer;
+}
+
+.font-pick__row:hover { background: var(--c-surface-2); }
+.font-pick__row.is-on { border-color: var(--c-accent); background: var(--c-surface-2); }
+
+/* 見本の文。字形を見るのが目的なので、ここを大きく */
+.font-pick__sample {
+  display: block;
+  font-size: 26px;
+  line-height: 1.45;
+  color: var(--c-text);
+  overflow-wrap: anywhere;
+}
+
+.font-pick__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 2px;
+}
+
+.font-pick__name { font-size: var(--fs-note); font-weight: var(--fw-semi); color: var(--c-text); }
+.font-pick__mood { font-size: var(--fs-note); color: var(--c-text-sub); }
+
+/* 本物で出せるか。出せないものは黙らず断る */
+.font-pick__mark {
+  font-size: var(--fs-note);
+  color: var(--c-text-sub);
+}
+
+.font-pick__mark.is-real { color: var(--c-accent); font-weight: var(--fw-semi); }
+
+.font-pick__find { width: 100%; }
+
 .modal__title {
   font-family: var(--font-sub);
   font-size: var(--fs-sub);

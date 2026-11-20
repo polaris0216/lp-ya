@@ -233,6 +233,33 @@
   }
 
   function has(key) { return !!byKey[String(key || '')]; }
+  /* その端末で、その書体が**本物で出せるか**（2026-11-19 要望:
+       「どんなフォントデザインなのかわかるようにしてほしい」）。
+     端末に無い書体は CSS が黙って飛ばすので、見た目は系統のものになる。
+     黙って別の形を見せると「これがリュウミンだ」と誤解させるので、
+     出せないものは画面でそう言う。
+
+     測り方: 同じ字を、その書体＋monospace と、無い書体＋monospace で描いて
+     幅を比べる。違えば、その書体が効いている。
+     document.fonts.check は当てにならない（無い書体でも true を返す）。
+     1回測ったら覚える（一覧を開くたびに124回測らない）。 */
+  var canCache = {};
+  function canShow(key) {
+    var f = byKey[String(key || '')];
+    if (!f || !f.family) { return false; }
+    if (canCache[f.key] !== undefined) { return canCache[f.key]; }
+    var out = false;
+    try {
+      var ctx = document.createElement('canvas').getContext('2d');
+      var text = /^[\x20-\x7e]+$/.test(f.name) ? 'Handgloves 123' : 'あア漢Ag';
+      var wide = function (fam) { ctx.font = '32px ' + fam; return ctx.measureText(text).width; };
+      out = Math.round(wide(f.family + ', monospace') * 100)
+        !== Math.round(wide("'__lpya_none__', monospace") * 100);
+    } catch (err) { out = false; }
+    canCache[f.key] = out;
+    return out;
+  }
+
   /* 鍵 → 系統。HTMLのLPは系統ごとの CSS で描くので、この1語に落として渡す */
   function groupOf(key) {
     var f = byKey[String(key || '')];
@@ -266,7 +293,7 @@
 
   var api = {
     GROUPS: GROUPS, list: list, byKey: byKey, groups: groups,
-    has: has, groupOf: groupOf, cssOf: cssOf, promptOf: promptOf, lines: lines,
+    has: has, groupOf: groupOf, canShow: canShow, cssOf: cssOf, promptOf: promptOf, lines: lines,
     keys: list.map(function (f) { return f.key; })
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
