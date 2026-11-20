@@ -2652,6 +2652,39 @@
        「順番を自由にクリックドロップで移動できるようにして」）*/
     var dragFrom = -1;
 
+    /* つまんだまま画面の端へ寄せたら、ひとりでに送る（2026-11-19 要望:
+       「リワードカードクリックしたまま下の方に持っていたら
+         自動スクロールされるようにして」）。
+       運んでいる間はブラウザがスクロールを助けてくれないので、自分で送る。
+       端から90pxの帯に入ったら、近いほど速く。1こまあたり最大18px */
+    var EDGE = 90;
+    var MAX_STEP = 18;
+    var dragY = 0;
+    var scrollTick = 0;
+
+    function onDragMove(e) { dragY = e.clientY; }
+
+    function autoScrollStep() {
+      if (dragFrom < 0) { scrollTick = 0; return; }
+      var high = window.innerHeight;
+      var step = 0;
+      if (dragY < EDGE) { step = -Math.ceil((EDGE - dragY) / EDGE * MAX_STEP); }
+      else if (dragY > high - EDGE) { step = Math.ceil((dragY - (high - EDGE)) / EDGE * MAX_STEP); }
+      if (step) { window.scrollBy(0, step); }
+      scrollTick = window.requestAnimationFrame(autoScrollStep);
+    }
+
+    function startAutoScroll(e) {
+      dragY = e.clientY;
+      document.addEventListener('dragover', onDragMove, true);
+      if (!scrollTick) { scrollTick = window.requestAnimationFrame(autoScrollStep); }
+    }
+
+    function stopAutoScroll() {
+      document.removeEventListener('dragover', onDragMove, true);
+      if (scrollTick) { window.cancelAnimationFrame(scrollTick); scrollTick = 0; }
+    }
+
     /* 1枚を from から to へ移す。並べ替えたら保存の印を付け、
        動かした1枚の取っ手に入る（続けてキーで動かせるように） */
     function moveReward(from, to) {
@@ -2795,6 +2828,7 @@
       card.addEventListener('dragstart', function (e) {
         dragFrom = index;
         card.classList.add('is-dragging');
+        startAutoScroll(e);
         try {
           e.dataTransfer.effectAllowed = 'move';
           /* 中身は使わないが、入れないと Firefox が掴んでくれない */
@@ -2803,6 +2837,7 @@
       });
       card.addEventListener('dragend', function () {
         card.draggable = false;
+        stopAutoScroll();
         dragFrom = -1;
         card.classList.remove('is-dragging');
         clearDropMarks();
@@ -2825,6 +2860,7 @@
       card.addEventListener('drop', function (e) {
         if (dragFrom < 0) { return; }
         e.preventDefault();
+        stopAutoScroll();
         var box = card.getBoundingClientRect();
         var after = (e.clientY - box.top) > box.height / 2;
         var to = index + (after ? 1 : 0);
