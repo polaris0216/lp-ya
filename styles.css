@@ -4625,17 +4625,29 @@ input[type='radio'] {
    2026-11-19 要望:「リワードカードが一目瞭然に全部見えるようにしてほしい」。
    それまでは1枚ずつ送る形（◀ ▶ と点）で、何段階あるのか・どれがいくらなのかを
    見るのに、いちいち送る必要があった。段階は多くて5〜8個なので、並べて困らない。
-   広い画面では2列、狭い画面では1列にする。
+
+   2026-11-19 の続き:「カラムは1つにして。リストスタイルにして。」
+   2列だと目が左右に行き来して、段階の順（1台→2台→3台）が追いにくい。
+   **1列の縦並び**にして、上から順に読める形にする。
+   隣り合う行が1本の線でつながって見えるよう、影は落として間も詰める。
    -------------------------------------------------------------------------- */
 .reward-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-item);
-  align-items: start;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
-@media (max-width: 860px) {
-  .reward-list { grid-template-columns: 1fr; }
+/* 並べたときは、1枚ずつ浮かせない。浮いていると「別々の物」に見えて、
+   段階の並びとして読めなくなる */
+.reward-list .reward-card {
+  box-shadow: none;
+  border-radius: var(--r-control);
+}
+
+.reward-list .reward-card:hover,
+.reward-list .reward-card:focus-within {
+  border-color: var(--c-accent);
+  box-shadow: 0 1px 4px rgba(80, 60, 120, .10);
 }
 
 .reward-card {
