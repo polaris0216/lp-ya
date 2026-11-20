@@ -896,8 +896,6 @@
     var shotEngine = '';
     var rewardsEmpty = null;
     var discountNodes = [];
-    var rewardIndex = 0;
-    var rewardAnim = 0;   // 1=次へ -1=前へ。滑り込む向き
     var refHost = null;
     var rivalHost = null;
     var rivalAddButton = null;
@@ -1377,9 +1375,8 @@
       rewardPanel.querySelector('.panel__head').appendChild(
         button('btn btn--secondary btn--sm panel__action', '＋ ' + t('product.rewardAdd'), function () {
           form.rewards.push(exampleReward());
-          rewardIndex = form.rewards.length - 1;
-          rewardAnim = 1;
           paintRewards();
+          showReward(form.rewards.length - 1);
         }));
       rest.appendChild(rewardPanel);
 
@@ -2644,31 +2641,32 @@
 
     /* 入力中に描き直すとフォーカスが飛ぶので、追加・削除・送りのときだけ呼ぶこと。
        段階が増えても縦に伸びないよう、1枚ずつ出して左右のボタンで送る。 */
+    /* リワードは**全部そのまま並べる**（2026-11-19 要望:
+       「リワードカードが一目瞭然に全部見えるようにしてほしい」）。
+       それまでは1枚ずつの送り（◀ ▶ と点）で、何段階あるのか・
+       どれがいくらなのかを見るのに、いちいち送る必要があった。
+       段階は多くて5〜8個なので、並べて困る数ではない。
+       送りのための仕掛け（rewardIndex / rewardAnim / slideOut / stepReward）は
+       使い道が無くなったので消した */
     function paintRewards() {
       if (!rewardsHost) { return; }
-      /* 描き直す前に、いま出ている1枚を手元に残す。あとで新しい枠に置き直して
-         出ていく側として動かす。これがないと前のカードだけ瞬間的に消える */
-      var leaving = rewardAnim && !reducedMotion() ? rewardsHost.querySelector('.reward-card') : null;
       clear(rewardsHost);
       discountNodes = [];
       var total = form.rewards.length;
       if (rewardsEmpty) { rewardsEmpty.hidden = total > 0; }
       if (!total) { return; }
 
-      if (rewardIndex >= total) { rewardIndex = total - 1; }
-      if (rewardIndex < 0) { rewardIndex = 0; }
-      var index = rewardIndex;
-      var reward = form.rewards[index];
+      var list = el('div', 'reward-list');
+      form.rewards.forEach(function (reward, index) {
+        list.appendChild(rewardCard(reward, index, total));
+      });
+      rewardsHost.appendChild(list);
+      refreshDiscounts();
+    }
 
-      var carousel = el('div', 'reward-carousel');
-      var prev = iconButton('reward-nav', 'M15 19L8 12l7-7', 'product.rewardPrev', function () { stepReward(-1); });
-      prev.disabled = total < 2;
-      carousel.appendChild(prev);
-
-      var dir = rewardAnim;
-      var card = el('article', 'reward-card'
-        + (dir > 0 ? ' is-from-right' : (dir < 0 ? ' is-from-left' : '')));
-      rewardAnim = 0;
+    /* カード1枚。並べる側は数だけ決めて、中身はここが作る */
+    function rewardCard(reward, index, total) {
+      var card = el('article', 'reward-card');
 
       var head = el('div', 'reward-card__head');
       head.appendChild(el('span', 'reward-badge', String(index + 1)));
@@ -2691,9 +2689,8 @@
           desc: from.desc
         };
         form.rewards.splice(index + 1, 0, made);
-        rewardIndex = index + 1;
-        rewardAnim = 1;
         paintRewards();
+        showReward(index + 1);
         markDirty();
       });
       copy.appendChild(svgIcon('M9 9h10v10H9zM5 15V5h10'));
@@ -2703,7 +2700,6 @@
 
       var remove = button('target-card__remove', '', function () {
         form.rewards.splice(index, 1);
-        if (rewardIndex >= form.rewards.length) { rewardIndex = form.rewards.length - 1; }
         paintRewards();
         markDirty();
       });
@@ -2747,59 +2743,20 @@
       body.appendChild(descField);
 
       card.appendChild(body);
-      var cardView = el('div', 'reward-carousel__view');
-      cardView.appendChild(card);
-      if (leaving && dir) { slideOut(cardView, leaving, dir); }
-      carousel.appendChild(cardView);
-
-      var next = iconButton('reward-nav', 'M9 5l7 7-7 7', 'product.rewardNext', function () { stepReward(1); });
-      next.disabled = total < 2;
-      carousel.appendChild(next);
-      rewardsHost.appendChild(carousel);
-
-      /* 何段階目を見ているかの点。押しても移れる */
-      if (total > 1) {
-        var dots = el('div', 'reward-dots');
-        form.rewards.forEach(function (item, dotIndex) {
-          var dot = button('reward-dot' + (dotIndex === index ? ' is-current' : ''), '', function () {
-            if (dotIndex === rewardIndex) { return; }
-            rewardAnim = dotIndex > rewardIndex ? 1 : -1;
-            rewardIndex = dotIndex;
-            paintRewards();
-          });
-          dot.setAttribute('aria-label', t('product.rewardCardTitle', { n: dotIndex + 1 }));
-          dots.appendChild(dot);
-        });
-        rewardsHost.appendChild(dots);
-      }
-
-      refreshDiscounts();
+      return card;
     }
 
-    /* OS側で「視差効果を減らす」が入っているときは動かさない */
-    function reducedMotion() {
-      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    }
-
-    /* 前のカードを新しい枠に置き直し、送った向きへ流して捨てる。
-       入力欄が残っているので、触れないようにしてから動かす */
-    function slideOut(view, node, delta) {
-      node.className = 'reward-card ' + (delta > 0 ? 'is-leaving-left' : 'is-leaving-right');
-      node.setAttribute('aria-hidden', 'true');
-      node.querySelectorAll('input, textarea, button').forEach(function (field) { field.tabIndex = -1; });
-      view.appendChild(node);
-      var drop = function () { if (node.parentNode) { node.parentNode.removeChild(node); } };
-      node.addEventListener('animationend', drop);
-      /* アニメーションが走らなかったときの保険。残ると次の1枚に重なる */
-      setTimeout(drop, 1200);
-    }
-
-    function stepReward(delta) {
-      var total = form.rewards.length;
-      if (total < 2) { return; }
-      rewardAnim = delta;
-      rewardIndex = (rewardIndex + delta + total) % total;
-      paintRewards();
+    /* 足した・複製した1枚を、見える所まで運んで名前の欄に入る。
+       並べる形にしたので画面の外に増えることがある（2026-11-19） */
+    function showReward(index) {
+      if (!rewardsHost) { return; }
+      var cards = rewardsHost.querySelectorAll('.reward-card');
+      var card = cards[index];
+      if (!card) { return; }
+      try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      catch (err) { card.scrollIntoView(); }
+      var first = card.querySelector('input');
+      if (first) { first.focus({ preventScroll: true }); }
     }
 
     /* 定価とリワード価格から割引率を出す。定価より高い構成（2台セット等）は
