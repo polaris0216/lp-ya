@@ -2084,7 +2084,9 @@
     startedAt: new Date().getTime(),
     status: 'pending',
     error: '',
-    mini: false,
+    /* 画面を移ったあとに出し直すときは、はじめから小さい窓で開く。
+       真ん中に大きく出すと、見ていた画面を覆ってしまう（2026-11-21 要望）*/
+    mini: !!o.mini,
     root: null,
     busy: false,
     busyAt: 0,
@@ -3447,6 +3449,9 @@
     confirm: confirmDialog,
     openModal: openModal,
     watchJob: watchJob,
+    /* いま右下（または真ん中）に出している仕事。出ていなければ空。
+       帯（jobbar）が「出し直すかどうか」を決めるのに使う（2026-11-21） */
+    watchingJobId: function () { return watch ? String(watch.jobId || '') : ''; },
     takeWhereIWas: takeWhereIWas,
     loadFlow: loadFlow,
     flowNow: flowNow,

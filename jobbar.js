@@ -308,8 +308,56 @@
         });
         groups = next;
         paint();
+        keepWindow(jobs);
       });
     }, function () { /* 読めない回は、前の表示のまま */ });
+  }
+
+  /* 走っている仕事があるのに、右下の窓が出ていなければ出し直す
+     （2026-11-21 要望:「どのページに行っても実行中のタスクがあれば
+       右下に窓は消えないようにして」）。
+
+     それまで窓が消えていた理由は2つ:
+       ・別の仕事を見張りはじめると、前の窓は裏へ送られて消える
+         （watchInBackground。進み具合はもう見えない）
+       ・画面を読み直すと、窓は作り直されない。帯だけが残る
+
+     帯はもともとDBから6秒ごとに引き直しているので、その折り返しで
+     窓も出し直す。窓の中身は App 側が同じ仕事IDで組み直す。
+     **押して閉じた窓は出し直さない。**走っている間の「閉じる」は
+     最小化なので窓は残るが、終わった窓を閉じたぶんまで戻すと鬱陶しい */
+  function keepWindow(jobs) {
+    if (!App || typeof App.watchingJobId !== 'function' || typeof App.watchJob !== 'function') { return; }
+    if (App.watchingJobId()) { return; }
+    var live = (jobs || []).filter(function (j) { return LIVE.indexOf(String(j.status)) !== -1; });
+    if (!live.length) { return; }
+    /* いちばん新しいものを出す。古い順に並んでいるので末尾 */
+    var one = live[live.length - 1];
+    App.watchJob({
+      jobId: String(one.id),
+      titleKey: titleKeyOf(one.feature_key),
+      mini: true
+    });
+  }
+
+  /* 仕事の種類 → 窓の見出し。帯の名前と同じ辞書を使う */
+  function titleKeyOf(featureKey) {
+    var map = {
+      product_autofill: 'job.title',
+      competitor_analysis: 'job.titleAnalysis',
+      target_proposal: 'job.titleTargets',
+      font_pick: 'job.titleFonts',
+      color_pick: 'job.titleColors',
+      lp_brief: 'job.titlePrompts',
+      lp_section: 'job.titleAssets',
+      lp_assets: 'job.titleAssets',
+      reward_assets: 'job.titleAssets',
+      line_brief: 'job.titlePrompts',
+      line_copy: 'job.titlePrompts',
+      line_assets: 'job.titleAssets',
+      sales_copy: 'job.titlePrompts'
+    };
+    return map[String(featureKey || '')] || 'job.title';
   }
 
   function tick() {
