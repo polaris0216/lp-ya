@@ -3230,6 +3230,14 @@ button.list-row:hover { background: var(--c-surface-3); }
 
 .font-pick__find { width: 100%; }
 
+/* AIがなぜそれを選んだか。欄のそばに置いたままにする
+   （トーストは消えてしまう。2026-11-20 要望）*/
+.ai-why {
+  border-left: 3px solid var(--c-accent);
+  padding-left: 10px;
+  color: var(--c-text);
+}
+
 .modal__title {
   font-family: var(--font-sub);
   font-size: var(--fs-sub);

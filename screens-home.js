@@ -781,6 +781,14 @@
     var fontAiButton = null;
     /* AIが入れ替える前の書体。1回ぶんだけ覚えて「元に戻す」で使う */
     var fontUndo = null;
+    /* なぜその書体・配色にしたか（2026-11-20 要望:
+       「何でそのフォントにしたか理由も簡単に表示してくれるといい」）。
+       トーストは消えてしまうので、欄のそばに置いたままにする。
+       画面の中だけで持つ（商品の事実ではないので記録には送らない） */
+    var fontWhy = '';
+    var colorWhy = '';
+    var colorAiButton = null;
+    var colorUndo = null;
     var paintBrandLogo = function () {};
     var form = { name: '', brandName: '', productName: '',
       features: '', price: '', target: '', images: [], productShots: [], rewards: [],
@@ -1463,6 +1471,21 @@
         paintBrandColors();
       });
       brandPanel.appendChild(brandColorAdd);
+      /* AIに配色を選ばせる（2026-11-20 要望:「ブランドカラーの方も
+         AIに再度おすすめカラー分析するようにボタンあるといいね」）。
+         返す形は商品の自動入力と同じなので、入れ口も同じものを通す */
+      colorAiButton = button('btn btn--secondary btn--sm', t('product.colorAi'), pickColorsByAi);
+      if (window.LpyaCost && typeof LpyaCost.stamp === 'function') {
+        LpyaCost.stamp(colorAiButton, 'color_pick');
+      }
+      brandPanel.appendChild(colorAiButton);
+      if (colorUndo) {
+        brandPanel.appendChild(button('btn btn--text btn--sm', t('product.colorUndo'), undoColors));
+      }
+      if (colorWhy) {
+        brandPanel.appendChild(el('p', 'field__hint ai-why', t('product.aiWhy', { why: colorWhy })));
+      }
+      brandPanel.appendChild(el('p', 'field__hint', t('product.colorAiHint')));
 
       /* ブランドロゴ（2026-10-23 要望）。
          置き場は LP案ページの「販売の条件」と同じ sales_info.brand_logo。
@@ -1582,6 +1605,9 @@
       brandPanel.appendChild(fontAiButton);
       if (fontUndo) {
         brandPanel.appendChild(button('btn btn--text btn--sm', t('product.fontUndo'), undoFonts));
+      }
+      if (fontWhy) {
+        brandPanel.appendChild(el('p', 'field__hint ai-why', t('product.aiWhy', { why: fontWhy })));
       }
       brandPanel.appendChild(el('p', 'field__hint', t('product.fontAiHint')));
       rest.appendChild(brandPanel);
@@ -2401,6 +2427,10 @@
         onDone: function (result) {
           /* 書体だけを選ばせたときは、入れ方が違う（空の欄だけ埋める）。
              自動入力の経路に混ぜると、人が選んだ欄まで上書きしてしまう */
+          if (result && isArray(result.brand_palettes) && !result.targets && !result.product_name) {
+            if (applyColors(result)) { if (projectId) { saveDraft(); } }
+            return;
+          }
           if (result && result.fonts) {
             if (applyFonts(result)) {
               if (projectId) { saveDraft(); }
@@ -2419,7 +2449,7 @@
     /* --- AI呼び出し。鍵未接続の開発中は {queued:true} が返り、後から反映される --- */
     function setAnalyzing(on, node, labelKey) {
       analyzing = on;
-      [refRunButton, targetProposeButton, fontAiButton].forEach(function (b) {
+      [refRunButton, targetProposeButton, fontAiButton, colorAiButton].forEach(function (b) {
         if (b) { b.disabled = on; }
       });
       if (node) { node.textContent = on ? t('product.refRunning') : t(labelKey); }
@@ -2715,7 +2745,9 @@
         return true;
       }
       markDirty();
-      toast(t('product.fontAiDone', { why: String(got.why || '').slice(0, 80) || '—' }), 'success');
+      fontWhy = String(got.why || '').slice(0, 120);
+      paint();
+      toast(t('product.fontAiDone', { why: fontWhy || '—' }), 'success');
       return true;
     }
 
@@ -2724,9 +2756,70 @@
       if (!fontUndo) { return; }
       FONT_SLOTS.forEach(function (slot) { form.brandFonts[slot.key] = fontUndo[slot.key] || ''; });
       fontUndo = null;
+      fontWhy = '';
       paint();
       markDirty();
       toast(t('product.fontUndone'), 'success');
+    }
+
+    /* AIに配色を選ばせる。返る形は商品の自動入力と同じ（brand_palettes /
+       brand_colors）なので、入れるのも同じ道を通す。
+       書体と同じく、**いまの5案は置き換える**。押した人は出し直してほしくて
+       押している。代わりに元へ戻せるようにする（2026-11-20） */
+    function pickColorsByAi() {
+      if (analyzing) { return; }
+      if (!analysisApiReady()) { toast(t('common.error'), 'danger'); return; }
+      setAnalyzing(true, colorAiButton, 'product.colorAi');
+      window.Api.analysis.run({
+        mode: 'color_pick',
+        projects_id: projectId || undefined,
+        product: {
+          name: form.productName.trim() || form.name.trim(),
+          brand: form.brandName.trim(),
+          category: form.category,
+          price: digitsOf(form.price),
+          features: form.features.trim(),
+          value_prop: form.valueProp.trim(),
+          brand_tone: form.brandTone.trim(),
+          target: primaryTargetName()
+        }
+      }).then(function (result) {
+        setAnalyzing(false, colorAiButton, 'product.colorAi');
+        if (result && result.queued) { startWatch(result.job_id, 'job.titleColors'); return; }
+        if (!applyColors(result && result.content ? result.content : result)) {
+          toast(t('common.error'), 'danger');
+        }
+      }, function (err) {
+        setAnalyzing(false, colorAiButton, 'product.colorAi');
+        console.error('[screens-home] 配色を選べませんでした', err);
+        toast(errorMessage(err), 'danger');
+      });
+    }
+
+    function applyColors(got) {
+      if (!got || !isArray(got.brand_palettes) || !got.brand_palettes.length) { return false; }
+      colorUndo = {
+        palettes: form.brandPalettes.slice(),
+        colors: form.brandColors.slice()
+      };
+      /* 入れ方は自動入力と同じ1か所を通す。2通りあると片方だけ直る */
+      applyAutofill({ brand_palettes: got.brand_palettes, brand_colors: got.brand_colors });
+      colorWhy = String(got.why || '').slice(0, 120);
+      paint();
+      markDirty();
+      toast(t('product.colorAiDone', { n: form.brandPalettes.length }), 'success');
+      return true;
+    }
+
+    function undoColors() {
+      if (!colorUndo) { return; }
+      form.brandPalettes = colorUndo.palettes.slice();
+      form.brandColors = colorUndo.colors.slice();
+      colorUndo = null;
+      colorWhy = '';
+      paint();
+      markDirty();
+      toast(t('product.colorUndone'), 'success');
     }
 
     function proposeTargets() {

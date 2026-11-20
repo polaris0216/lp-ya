@@ -464,6 +464,7 @@
        引けないので、画面の中だけの辞書に置くと鍵がそのまま出る
        （実測 2026-10-18: 進み具合の見出しが「line.title」になっていた） */
     'job.lineAssets': ['LINEの素材を作成中', 'Making LINE assets', 'LINE 소재 생성 중'],
+    'job.titleColors': ['配色を選んでいます', 'Choosing palettes', '배색을 고르는 중'],
     'job.titleFonts': ['書体を選んでいます', 'Choosing typefaces', '서체를 고르는 중'],
     'job.titleTargets': ['ターゲット案を作成中', 'Building target segments', '타깃 안 생성 중'],
     // ==== wf: プロジェクトの工程タブ（画面上部） ====
@@ -619,6 +620,16 @@
     'product.fontAiSame': ['AIが選んだ書体は、いま入っているものと同じでした',
       'The AI picked the same typefaces you already have',
       'AI가 고른 서체는 지금과 같았습니다'],
+    'product.aiWhy': ['AIの理由: {why}', 'Why the AI chose this: {why}', 'AI의 이유: {why}'],
+    'product.colorAi': ['AIに選ばせる', 'Let the AI choose', 'AI에게 맡기기'],
+    'product.colorAiHint': ['商品の色・ブランドの印象・ターゲット層から、配色を5案出し直します。'
+      + 'いまの5案は置き換わります（すぐ下の「元に戻す」で戻せます）。',
+      'Re-proposes five palettes from the product colour, brand tone and audience. '
+      + 'Current ones are replaced; use Undo right below.',
+      '상품 색·브랜드 인상·타깃층에서 배색 5안을 다시 제안합니다.'],
+    'product.colorAiDone': ['配色を{n}案、出し直しました', 'Re-proposed {n} palettes', '배색 {n}안을 다시 제안했습니다'],
+    'product.colorUndo': ['配色を元に戻す', 'Undo the palettes', '배색 되돌리기'],
+    'product.colorUndone': ['配色を元に戻しました', 'Palettes restored', '배색을 되돌렸습니다'],
     'product.fontUndo': ['書体を元に戻す', 'Undo the typefaces', '서체 되돌리기'],
     'product.fontUndone': ['書体を元に戻しました', 'Typefaces restored', '서체를 되돌렸습니다'],
     'product.fontPick': ['見本から選ぶ', 'Pick from samples', '見本에서 고르기'],
