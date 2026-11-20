@@ -765,6 +765,7 @@
     /* メーカー情報は、変えたときだけ sales_info を送る目印 */
     var lastMaker = '';
     var lastExec = '';
+    var lastShow = '';
     /* 空の欄は入れない。全部空なら、その塊ごと消す */
     function partyValue(which) {
       var src = form[which] || {};
@@ -787,6 +788,11 @@
       maker: { name: '', business: '', place: '', founded: '' },
       /* 実行者情報（2026-11-03 要望）。日本で売る側。置き場は sales_info.exec */
       exec: { name: '', business: '', place: '', founded: '' },
+      /* LPに載せるかどうか（2026-11-19 要望:「載せるか載せないかチェック入れ
+         機能も追加して」）。入れた内容は残したまま、載せるかだけを切る。
+         既定は載せる（これまでの動きを変えない）。
+         置き場は sales_info.show_maker / show_exec */
+      showMaker: true, showExec: true,
       /* 2段目を人が自分で開いたか（2026-11-04）。下書きが来ていれば自動で開く */
       restOpen: false,
       refUrls: [''],
@@ -1029,6 +1035,10 @@
       form.exec = { name: text(savedExec.name), business: text(savedExec.business),
         place: text(savedExec.place), founded: text(savedExec.founded) };
       lastExec = JSON.stringify(form.exec);
+      /* 印が無い古い行は「載せる」。入れてあった情報が黙って消えないようにする */
+      form.showMaker = savedInfo.show_maker !== false;
+      form.showExec = savedInfo.show_exec !== false;
+      lastShow = form.showMaker + '/' + form.showExec;
       /* ブランドロゴは sales_info の中にある（LP案ページの「販売の条件」と同じ置き場）。
          ほかの鍵（LINEの形など）を壊さないよう、丸ごと控えてから差し替える */
       form.salesInfo = (row.sales_info && typeof row.sales_info === 'object') ? row.sales_info : {};
@@ -1337,6 +1347,23 @@
           grid.appendChild(makeField(t(cap), input, {}).wrap);
         });
         box.appendChild(grid);
+        /* LPに載せるかどうか（2026-11-19 要望）。
+           欄の中身は消さずに、載せるかだけを切り替える */
+        var showKey = which === 'maker' ? 'showMaker' : 'showExec';
+        var lab = el('label', 'lp-pub__check');
+        var cb = el('input', '');
+        cb.type = 'checkbox';
+        cb.id = 'home-create-' + which + '-show';
+        cb.checked = !!form[showKey];
+        cb.addEventListener('change', function () {
+          form[showKey] = cb.checked;
+          markDirty();
+        });
+        lab.appendChild(cb);
+        lab.appendChild(el('span', '', t('product.showOnLp')));
+        box.appendChild(lab);
+        box.appendChild(el('p', 'field__hint',
+          t(which === 'maker' ? 'product.showMakerHint' : 'product.showExecHint')));
         box.appendChild(el('p', 'field__hint', t(party[3])));
         rest.appendChild(box);
       });
@@ -3244,12 +3271,18 @@
         /* ロゴかメーカー情報を変えたときだけ送る。毎回送ると、別の画面が
            入れた LINEの形などを古い値で上書きしてしまう */
         sales_info: (form.brandLogo === lastBrandLogo && JSON.stringify(form.maker) === lastMaker
-          && JSON.stringify(form.exec) === lastExec)
+          && JSON.stringify(form.exec) === lastExec
+          && (form.showMaker + '/' + form.showExec) === lastShow)
           ? undefined
           : Object.assign({}, form.salesInfo, {
             brand_logo: form.brandLogo || undefined,
             maker: makerValue(),
-            exec: execValue()
+            exec: execValue(),
+            /* 載せるかどうか。false のときだけ意味があるが、
+               true も書く（読む側が「印が無い＝載せる」と決めているので、
+               一度外して戻したときに印が消えないようにする） */
+            show_maker: !!form.showMaker,
+            show_exec: !!form.showExec
           }),
         /* 素材生成で AI に渡す見本。GIF も可（最初のコマを切り抜いて使う） */
         /* ☆は、この画面で変えたときだけ書く。変えていなければ列ごと送らない
