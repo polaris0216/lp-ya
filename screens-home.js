@@ -2648,6 +2648,24 @@
        段階は多くて5〜8個なので、並べて困る数ではない。
        送りのための仕掛け（rewardIndex / rewardAnim / slideOut / stepReward）は
        使い道が無くなったので消した */
+    /* つまんで動かしているのは何枚目か。-1 は動かしていない（2026-11-19 要望:
+       「順番を自由にクリックドロップで移動できるようにして」）*/
+    var dragFrom = -1;
+
+    /* 1枚を from から to へ移す。並べ替えたら保存の印を付け、
+       動かした1枚の取っ手に入る（続けてキーで動かせるように） */
+    function moveReward(from, to) {
+      var total = form.rewards.length;
+      if (from < 0 || to < 0 || from >= total || to >= total || from === to) { return; }
+      var moved = form.rewards.splice(from, 1)[0];
+      form.rewards.splice(to, 0, moved);
+      paintRewards();
+      markDirty();
+      var cards = rewardsHost ? rewardsHost.querySelectorAll('.reward-card') : [];
+      var grip = cards[to] ? cards[to].querySelector('.reward-grip') : null;
+      if (grip) { grip.focus({ preventScroll: true }); }
+    }
+
     function paintRewards() {
       if (!rewardsHost) { return; }
       clear(rewardsHost);
@@ -2669,6 +2687,19 @@
       var card = el('article', 'reward-card');
 
       var head = el('div', 'reward-card__head');
+      /* 取っ手。ここをつまんだときだけカードを動かせるようにする。
+         カードごと draggable にすると、中の入力欄で文字を選べなくなる */
+      var grip = button('reward-grip', '', null);
+      grip.appendChild(svgIcon('M8 7h8M8 12h8M8 17h8'));
+      grip.setAttribute('aria-label', t('product.rewardMove'));
+      grip.setAttribute('title', t('product.rewardMove'));
+      grip.addEventListener('mousedown', function () { card.draggable = true; });
+      /* つまめない人のために、キーでも動かせるようにする */
+      grip.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowUp') { e.preventDefault(); moveReward(index, index - 1); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); moveReward(index, index + 1); }
+      });
+      head.appendChild(grip);
       head.appendChild(el('span', 'reward-badge', String(index + 1)));
       head.appendChild(el('span', 'reward-card__title', t('product.rewardCardTitle', { n: index + 1 })));
       head.appendChild(el('span', 'reward-card__pos', t('product.rewardPosition', { n: index + 1, total: total })));
@@ -2760,7 +2791,58 @@
       body.appendChild(descField);
 
       card.appendChild(body);
+
+      card.addEventListener('dragstart', function (e) {
+        dragFrom = index;
+        card.classList.add('is-dragging');
+        try {
+          e.dataTransfer.effectAllowed = 'move';
+          /* 中身は使わないが、入れないと Firefox が掴んでくれない */
+          e.dataTransfer.setData('text/plain', String(index));
+        } catch (err) { /* 運べなくても、押し込みだけは効く */ }
+      });
+      card.addEventListener('dragend', function () {
+        card.draggable = false;
+        dragFrom = -1;
+        card.classList.remove('is-dragging');
+        clearDropMarks();
+      });
+      card.addEventListener('dragover', function (e) {
+        if (dragFrom < 0 || dragFrom === index) { return; }
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = 'move'; } catch (err) { /* 見た目だけ */ }
+        /* 真ん中より上なら手前、下なら後ろ。どちらに入るかを線で見せる */
+        var box = card.getBoundingClientRect();
+        var after = (e.clientY - box.top) > box.height / 2;
+        clearDropMarks();
+        card.classList.add(after ? 'is-drop-after' : 'is-drop-before');
+      });
+      card.addEventListener('dragleave', function (e) {
+        /* 中の欄へ移っただけなら消さない（ちらつく） */
+        if (card.contains(e.relatedTarget)) { return; }
+        card.classList.remove('is-drop-before', 'is-drop-after');
+      });
+      card.addEventListener('drop', function (e) {
+        if (dragFrom < 0) { return; }
+        e.preventDefault();
+        var box = card.getBoundingClientRect();
+        var after = (e.clientY - box.top) > box.height / 2;
+        var to = index + (after ? 1 : 0);
+        /* 前から後ろへ動かすときは、抜いたぶん1つ詰まる */
+        if (dragFrom < to) { to -= 1; }
+        clearDropMarks();
+        moveReward(dragFrom, to);
+      });
       return card;
+    }
+
+    /* どこに入るかの線を、全部消す */
+    function clearDropMarks() {
+      if (!rewardsHost) { return; }
+      var marked = rewardsHost.querySelectorAll('.is-drop-before, .is-drop-after');
+      for (var i = 0; i < marked.length; i += 1) {
+        marked[i].classList.remove('is-drop-before', 'is-drop-after');
+      }
     }
 
     /* 足した・複製した1枚を、見える所まで運んで名前の欄に入る。

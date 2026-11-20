@@ -607,6 +607,8 @@
       'Printed as-is in the "Manufacturer" block of the LP. Facts only — the AI never fills these in.',
       'LP의 「제조사 소개」 구획에 그대로 나옵니다. AI가 쓰지 않는 사실 항목입니다.'],
     'product.makerName': ['メーカー名', 'Manufacturer name', '제조사명'],
+    'product.rewardMove': ['順番を変える（つまんで動かす／↑↓キー）',
+      'Reorder (drag, or Arrow Up/Down)', '순서 변경 (드래그 또는 ↑↓)'],
     'product.showOnLp': ['LPに載せる', 'Show on the LP', 'LP에 표시'],
     'product.showMakerHint': ['チェックを外すと、入力した内容はここに残りますが、LPのメーカー紹介の区画は作られません。',
       'Unchecked: what you typed stays here, but no maker section is built into the LP.',
