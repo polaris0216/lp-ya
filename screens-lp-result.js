@@ -1190,8 +1190,14 @@
               + 'text-align:center;z-index:9}.bar .line-cta__a{animation:none;box-shadow:none}'
               + 'body{padding-bottom:84px}' : '')
             + '</style></head><body>'
-            + (wantKv ? LpRender.kvSliderMarkup(view.kvUrls, view.project.product_name || '') : '')
+            /* KV は **main の中**。外に出すと、広い画面で main だけが1000pxに
+               収まり、KVは画面いっぱい（1600pxなら1600px）に出て、
+               下に続く絵とサイズがそろわなかった
+               （2026-11-21 指摘:「KVとその以降の写真のサイズが合わない。
+               KVがデカすぎ」。実測: KV 1600px幅・区画の絵 1000px幅）。
+               中に入れておけば、幅の決めは main の1か所だけで足りる */
             + '<main>'
+            + (wantKv ? LpRender.kvSliderMarkup(view.kvUrls, view.project.product_name || '') : '')
             + parts.join('') + '</main>'
             /* 画面下の固定バー。どこまで読んでも1タップで届く */
             + (ctaHref && LpRender.lineButtonMarkup
