@@ -5285,7 +5285,18 @@ input[type='radio'] {
 .lpr-stats { margin: 0; }
 /* LPの下見と、その右の棚。狭い画面では棚が下に回る
    （2026-10-05 要望: 右にサイドメニュー） */
-.lpr-stage { display: grid; gap: 12px; align-items: start; }
+/* LP登録確認の下見は、本文を広げる前の幅のままにする（2026-11-21 指摘:
+   「class = app-main の横幅を広くしてと言ったけど、LP登録確認ページで
+     表示するLPまで広くはしないで。以前のままにして」）。
+
+   広げる前の作り:
+     .app-main 900px − 左右の余白 36px×2 = 中身 828px
+     その中で 下見 : 棚 = minmax(0,1fr) : 300px（間 12px）
+   広げたあと（1120px）は下見だけが 516px → 736px に伸びていた。
+   LPは実際には 712px 幅の読み物なので、ここが伸びると
+   「公開したときの見え方」とずれる。入れ物ごと 828px に戻す。
+   ほかの部分（盤・道具の列・リターンの一覧）は広いままでよい */
+.lpr-stage { display: grid; gap: 12px; align-items: start; max-width: 828px; }
 @media (min-width: 1100px) {
   .lpr-stage { grid-template-columns: minmax(0, 1fr) 300px; }
   /* 下見と棚を、まとめて画面に貼り付ける。
