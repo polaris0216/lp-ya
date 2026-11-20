@@ -778,6 +778,7 @@
     }
     function makerValue() { return partyValue('maker'); }
     function execValue() { return partyValue('exec'); }
+    var fontAiButton = null;
     var paintBrandLogo = function () {};
     var form = { name: '', brandName: '', productName: '',
       features: '', price: '', target: '', images: [], productShots: [], rewards: [],
@@ -1568,6 +1569,16 @@
         fontGrid.appendChild(fontField);
       });
       brandPanel.appendChild(fontGrid);
+      /* AIに選ばせる（2026-11-19 要望:「AIがこの商品やブランドにふさわしい
+         フォントを分析して設定してくれるボタンも追加して」）。
+         **自分で選んだ欄は上書きしない。** 人の決めを勝手に変えない */
+      fontAiButton = button('btn btn--secondary btn--sm', t('product.fontAi'), pickFontsByAi);
+      /* いくら引かれるかを、押す前に札で出す（ほかのAIボタンと同じ作法） */
+      if (window.LpyaCost && typeof LpyaCost.stamp === 'function') {
+        LpyaCost.stamp(fontAiButton, 'font_pick');
+      }
+      brandPanel.appendChild(fontAiButton);
+      brandPanel.appendChild(el('p', 'field__hint', t('product.fontAiHint')));
       rest.appendChild(brandPanel);
 
 
@@ -2383,6 +2394,14 @@
         titleKey: titleKey,
         urls: filledRefUrls(),
         onDone: function (result) {
+          /* 書体だけを選ばせたときは、入れ方が違う（空の欄だけ埋める）。
+             自動入力の経路に混ぜると、人が選んだ欄まで上書きしてしまう */
+          if (result && result.fonts) {
+            if (applyFonts(result)) {
+              if (projectId) { saveDraft(); }
+            }
+            return;
+          }
           if (!applyAutofill(result || {})) { return; }
           markDirty();
           toast(t('job.done'), 'success');
@@ -2395,7 +2414,7 @@
     /* --- AI呼び出し。鍵未接続の開発中は {queued:true} が返り、後から反映される --- */
     function setAnalyzing(on, node, labelKey) {
       analyzing = on;
-      [refRunButton, targetProposeButton].forEach(function (b) {
+      [refRunButton, targetProposeButton, fontAiButton].forEach(function (b) {
         if (b) { b.disabled = on; }
       });
       if (node) { node.textContent = on ? t('product.refRunning') : t(labelKey); }
@@ -2619,6 +2638,60 @@
         console.error('[screens-home] 参考ページの読み取りに失敗しました', err);
         toast(errorMessage(err), 'danger');
       });
+    }
+
+    /* AIに書体を選ばせる。返るのは一覧の鍵だけ（綴りを作られても捨てる）。
+       空の欄だけ埋める——人が選んだ欄を勝手に変えない（2026-11-19） */
+    function pickFontsByAi() {
+      if (analyzing) { return; }
+      if (!analysisApiReady()) { toast(t('common.error'), 'danger'); return; }
+      setAnalyzing(true, fontAiButton, 'product.fontAi');
+      window.Api.analysis.run({
+        mode: 'font_pick',
+        projects_id: projectId || undefined,
+        product: {
+          name: form.productName.trim() || form.name.trim(),
+          brand: form.brandName.trim(),
+          category: form.category,
+          price: digitsOf(form.price),
+          features: form.features.trim(),
+          value_prop: form.valueProp.trim(),
+          brand_tone: form.brandTone.trim(),
+          target: primaryTargetName()
+        }
+      }).then(function (result) {
+        setAnalyzing(false, fontAiButton, 'product.fontAi');
+        if (result && result.queued) { startWatch(result.job_id, 'job.titleFonts'); return; }
+        if (!applyFonts(result && result.content ? result.content : result)) {
+          toast(t('common.error'), 'danger');
+        }
+      }, function (err) {
+        setAnalyzing(false, fontAiButton, 'product.fontAi');
+        console.error('[screens-home] 書体を選べませんでした', err);
+        toast(errorMessage(err), 'danger');
+      });
+    }
+
+    /* AIが選んだ書体を入れる。入れるのは**空の欄だけ**。
+       一覧に無い綴りは捨てる（画面で出せないものを持たせない） */
+    function applyFonts(got) {
+      var fonts = got && got.fonts && typeof got.fonts === 'object' ? got.fonts : null;
+      if (!fonts) { return false; }
+      var put = 0;
+      var kept = 0;
+      FONT_SLOTS.forEach(function (slot) {
+        var key = String(fonts[slot.key] || '');
+        if (!key || !FONTS.has(key)) { return; }
+        if (form.brandFonts[slot.key]) { kept += 1; return; }
+        form.brandFonts[slot.key] = key;
+        put += 1;
+      });
+      if (!put && !kept) { return false; }
+      paint();
+      markDirty();
+      var why = String(got.why || '').slice(0, 80);
+      toast(put ? t('product.fontAiDone', { why: why || '—' }) : t('product.fontAiKept'), 'success');
+      return true;
     }
 
     function proposeTargets() {

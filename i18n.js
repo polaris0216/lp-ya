@@ -464,6 +464,7 @@
        引けないので、画面の中だけの辞書に置くと鍵がそのまま出る
        （実測 2026-10-18: 進み具合の見出しが「line.title」になっていた） */
     'job.lineAssets': ['LINEの素材を作成中', 'Making LINE assets', 'LINE 소재 생성 중'],
+    'job.titleFonts': ['書体を選んでいます', 'Choosing typefaces', '서체를 고르는 중'],
     'job.titleTargets': ['ターゲット案を作成中', 'Building target segments', '타깃 안 생성 중'],
     // ==== wf: プロジェクトの工程タブ（画面上部） ====
     'wf.input': ['商品入力', 'Product', '상품 입력'],
@@ -607,6 +608,15 @@
       'Printed as-is in the "Manufacturer" block of the LP. Facts only — the AI never fills these in.',
       'LP의 「제조사 소개」 구획에 그대로 나옵니다. AI가 쓰지 않는 사실 항목입니다.'],
     'product.makerName': ['メーカー名', 'Manufacturer name', '제조사명'],
+    'product.fontAi': ['AIに選ばせる', 'Let the AI choose', 'AI에게 맡기기'],
+    'product.fontAiHint': ['商品・カテゴリ・値段・ブランドの印象・ターゲット層から、4つの書体を選びます。'
+      + '**自分で選んだ欄は上書きしません**（空の欄だけ埋めます）。',
+      'Picks four typefaces from the product, price band, brand tone and audience. '
+      + 'Slots you chose yourself are left alone.',
+      '상품·가격대·브랜드 인상·타깃층에서 4개 서체를 고릅니다. 직접 고른 칸은 덮어쓰지 않습니다.'],
+    'product.fontAiDone': ['書体を選びました: {why}', 'Typefaces chosen: {why}', '서체를 골랐습니다: {why}'],
+    'product.fontAiKept': ['自分で選んだ欄はそのままにしました', 'Kept the slots you chose yourself',
+      '직접 고른 칸은 그대로 두었습니다'],
     'product.fontPick': ['見本から選ぶ', 'Pick from samples', '見本에서 고르기'],
     'product.fontPickTitle': ['ブランド書体を選ぶ', 'Choose a brand typeface', '브랜드 서체 선택'],
     'product.fontSearch': ['書体名で絞る', 'Filter by name', '서체명으로 좁히기'],
