@@ -789,6 +789,8 @@
     var colorWhy = '';
     var colorAiButton = null;
     var colorUndo = null;
+    /* リワードの区画を開いているか。描き直しても閉じたまま（2026-11-20） */
+    var rewardOpen = true;
     var paintBrandLogo = function () {};
     var form = { name: '', brandName: '', productName: '',
       features: '', price: '', target: '', images: [], productShots: [], rewards: [],
@@ -1148,6 +1150,53 @@
         return box;
       }
 
+      /* 区画をたたむ（2026-11-20 要望:「リワード（販売）価格・数量 の
+         パーツがトグルで折り畳められるようにして」）。
+
+         panel() を直さずに後から包む形にした。panel() の返り値を変えると、
+         いま箱へ直接足している 10 か所の呼び出しを全部直すことになる。
+         ここでは **見出しより後ろを丸ごと body へ移す**だけで済む。
+         開いているかどうかは呼ぶ側が持つ（描き直しても閉じたまま） */
+      function foldPanel(box, opts) {
+        var o = opts || {};
+        var head = box.querySelector('.panel__head');
+        if (!head) { return box; }
+        var body = el('div', 'panel__body');
+        /* 見出しの次から末尾までを body へ移す。移すあいだに
+           childNodes が縮むので、先に並びを取っておく */
+        var rest = [];
+        for (var i = 0; i < box.childNodes.length; i += 1) {
+          if (box.childNodes[i] !== head) { rest.push(box.childNodes[i]); }
+        }
+        rest.forEach(function (node) { body.appendChild(node); });
+        box.appendChild(body);
+
+        var open = o.open !== false;
+        body.hidden = !open;
+        var fold = button('panel__fold', '', function () {
+          open = !open;
+          body.hidden = !open;
+          mark();
+          if (typeof o.onToggle === 'function') { o.onToggle(open); }
+        });
+        fold.appendChild(svgIcon('M6 9l6 6 6-6'));
+        function mark() {
+          fold.classList.toggle('is-open', open);
+          fold.setAttribute('aria-expanded', open ? 'true' : 'false');
+          var label = t(open ? 'product.fold' : 'product.unfold');
+          fold.setAttribute('aria-label', label);
+          fold.setAttribute('title', label);
+        }
+        mark();
+        /* 数は見出しに出す。たたんでいても何件あるか分かるように */
+        if (o.count !== undefined && o.count !== null) {
+          var n = el('span', 'panel__count', t('product.rewardCount', { n: o.count }));
+          head.insertBefore(n, head.firstChild ? head.firstChild.nextSibling : null);
+        }
+        head.insertBefore(fold, head.firstChild);
+        return box;
+      }
+
       function textInput(id, value, placeholder, onInput, options) {
         var opts = options || {};
         var input = el('input', 'input');
@@ -1385,10 +1434,17 @@
       rewardPanel.appendChild(rewardsHost);
       rewardPanel.querySelector('.panel__head').appendChild(
         button('btn btn--secondary btn--sm panel__action', '＋ ' + t('product.rewardAdd'), function () {
+          /* たたんだまま足すと、足したものが見えない。開けてから足す */
+          if (!rewardOpen) { rewardOpen = true; paint(); }
           form.rewards.push(exampleReward());
           paintRewards();
           showReward(form.rewards.length - 1);
         }));
+      foldPanel(rewardPanel, {
+        open: rewardOpen,
+        count: form.rewards.length,
+        onToggle: function (on) { rewardOpen = on; }
+      });
       rest.appendChild(rewardPanel);
 
       /* 訴求メッセージ */

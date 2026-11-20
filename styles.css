@@ -2537,6 +2537,33 @@ button.list-row:hover { background: var(--c-surface-3); }
   margin-left: auto;
 }
 
+/* 区画をたたむ（2026-11-20 要望）。見出しの左に置く小さな矢印 */
+.panel__fold {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--c-text-sub);
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease);
+  /* 閉じているときは右向き。開くと下を向く */
+  transform: rotate(-90deg);
+}
+
+.panel__fold:hover { background: var(--c-line-soft); color: var(--c-text); }
+.panel__fold.is-open { transform: rotate(0deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .panel__fold { transition: none; }
+}
+
 /* 見出しの脇に置く小さめのボタン */
 .btn--sm {
   min-height: 32px;
