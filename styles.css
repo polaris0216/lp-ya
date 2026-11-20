@@ -4804,7 +4804,11 @@ input[type='radio'] {
 @media (min-width: 861px) {
   .reward-card__body {
     display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 2.7fr);
+    /* 数字の3つは桁が決まっているので、要るぶんだけ（auto）。
+       余りは全部リワード名に回す（2026-11-19 要望:
+       「定価、リワード価格、数量入力欄の横幅は縮めて、
+         リワード名欄を横長くして！」）*/
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 6px 12px;
     align-items: start;
   }
@@ -4813,6 +4817,10 @@ input[type='radio'] {
   .reward-card__body > .field:first-child { grid-column: 1; }
   .reward-card__pair { grid-column: 2; }
   .reward-card__body > .field:last-child { grid-column: 1 / -1; }
+
+  /* 数字の欄の幅。「24,800」＋単位の札が入るぶんだけ取る。
+     1fr で割ると、名前と同じだけ伸びて間延びする */
+  .reward-card__pair { grid-template-columns: repeat(3, 140px); }
 }
 
 /* 数字の欄に単位を添える */
