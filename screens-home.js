@@ -779,6 +779,8 @@
     function makerValue() { return partyValue('maker'); }
     function execValue() { return partyValue('exec'); }
     var fontAiButton = null;
+    /* AIが入れ替える前の書体。1回ぶんだけ覚えて「元に戻す」で使う */
+    var fontUndo = null;
     var paintBrandLogo = function () {};
     var form = { name: '', brandName: '', productName: '',
       features: '', price: '', target: '', images: [], productShots: [], rewards: [],
@@ -1578,6 +1580,9 @@
         LpyaCost.stamp(fontAiButton, 'font_pick');
       }
       brandPanel.appendChild(fontAiButton);
+      if (fontUndo) {
+        brandPanel.appendChild(button('btn btn--text btn--sm', t('product.fontUndo'), undoFonts));
+      }
       brandPanel.appendChild(el('p', 'field__hint', t('product.fontAiHint')));
       rest.appendChild(brandPanel);
 
@@ -2672,26 +2677,56 @@
       });
     }
 
-    /* AIが選んだ書体を入れる。入れるのは**空の欄だけ**。
-       一覧に無い綴りは捨てる（画面で出せないものを持たせない） */
+    /* AIが選んだ書体を入れる。**4つとも入れ替える**（2026-11-19 直し）。
+
+       最初は「空の欄だけ埋める」にしていたが、それだとボタンが何もしない。
+       実測 2026-11-20: 押した案件は4つとも埋まっていて（title:din /
+       subtitle:kokuryu / body:gothic / emphasis:gothicBold）、
+       AIは別の4つ（eurostile / din / helveticaNeue / oswald）を選んだのに
+       1つも入らず、「全然変わらない」になった。
+       そもそも欄を埋めていたのは人とは限らない（商品の自動入力も書く）ので、
+       「人が選んだから触らない」という判断自体が成り立っていなかった。
+
+       押した人は選び直してほしくて押している。だから入れ替える。
+       代わりに**元に戻せる**ようにして、取り返しが付くようにする。
+       一覧に無い綴りは捨てる（画面で出せないものを持たせない）。 */
     function applyFonts(got) {
       var fonts = got && got.fonts && typeof got.fonts === 'object' ? got.fonts : null;
       if (!fonts) { return false; }
-      var put = 0;
-      var kept = 0;
+      var next = {};
+      var changed = 0;
       FONT_SLOTS.forEach(function (slot) {
         var key = String(fonts[slot.key] || '');
         if (!key || !FONTS.has(key)) { return; }
-        if (form.brandFonts[slot.key]) { kept += 1; return; }
-        form.brandFonts[slot.key] = key;
-        put += 1;
+        next[slot.key] = key;
+        if (form.brandFonts[slot.key] !== key) { changed += 1; }
       });
-      if (!put && !kept) { return false; }
+      if (!Object.keys(next).length) { return false; }
+      /* 戻せるように、入れ替える前を覚える */
+      fontUndo = {};
+      FONT_SLOTS.forEach(function (slot) { fontUndo[slot.key] = form.brandFonts[slot.key] || ''; });
+      FONT_SLOTS.forEach(function (slot) {
+        if (next[slot.key]) { form.brandFonts[slot.key] = next[slot.key]; }
+      });
+      paint();
+      if (!changed) {
+        /* 同じものが返ってきた。黙って終わると「効いていない」に見える */
+        toast(t('product.fontAiSame'), 'success');
+        return true;
+      }
+      markDirty();
+      toast(t('product.fontAiDone', { why: String(got.why || '').slice(0, 80) || '—' }), 'success');
+      return true;
+    }
+
+    /* 入れ替える前に戻す。1回ぶんだけ覚える（押し間違いを取り消せれば足りる） */
+    function undoFonts() {
+      if (!fontUndo) { return; }
+      FONT_SLOTS.forEach(function (slot) { form.brandFonts[slot.key] = fontUndo[slot.key] || ''; });
+      fontUndo = null;
       paint();
       markDirty();
-      var why = String(got.why || '').slice(0, 80);
-      toast(put ? t('product.fontAiDone', { why: why || '—' }) : t('product.fontAiKept'), 'success');
-      return true;
+      toast(t('product.fontUndone'), 'success');
     }
 
     function proposeTargets() {

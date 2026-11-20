@@ -609,14 +609,18 @@
       'LP의 「제조사 소개」 구획에 그대로 나옵니다. AI가 쓰지 않는 사실 항목입니다.'],
     'product.makerName': ['メーカー名', 'Manufacturer name', '제조사명'],
     'product.fontAi': ['AIに選ばせる', 'Let the AI choose', 'AI에게 맡기기'],
-    'product.fontAiHint': ['商品・カテゴリ・値段・ブランドの印象・ターゲット層から、4つの書体を選びます。'
-      + '**自分で選んだ欄は上書きしません**（空の欄だけ埋めます）。',
-      'Picks four typefaces from the product, price band, brand tone and audience. '
-      + 'Slots you chose yourself are left alone.',
-      '상품·가격대·브랜드 인상·타깃층에서 4개 서체를 고릅니다. 직접 고른 칸은 덮어쓰지 않습니다.'],
-    'product.fontAiDone': ['書体を選びました: {why}', 'Typefaces chosen: {why}', '서체를 골랐습니다: {why}'],
-    'product.fontAiKept': ['自分で選んだ欄はそのままにしました', 'Kept the slots you chose yourself',
-      '직접 고른 칸은 그대로 두었습니다'],
+    'product.fontAiHint': ['商品・カテゴリ・値段・ブランドの印象・ターゲット層から、4つの書体を選び直します。'
+      + 'いま入っているものは置き換わります（すぐ下の「元に戻す」で戻せます）。',
+      'Re-picks all four typefaces from the product, price band, brand tone and audience. '
+      + 'Current values are replaced; use Undo right below to restore them.',
+      '상품·가격대·브랜드 인상·타깃층에서 4개 서체를 다시 고릅니다. 바로 아래 되돌리기로 복구할 수 있습니다.'],
+    'product.fontAiDone': ['書体を選び直しました: {why}', 'Typefaces re-picked: {why}',
+      '서체를 다시 골랐습니다: {why}'],
+    'product.fontAiSame': ['AIが選んだ書体は、いま入っているものと同じでした',
+      'The AI picked the same typefaces you already have',
+      'AI가 고른 서체는 지금과 같았습니다'],
+    'product.fontUndo': ['書体を元に戻す', 'Undo the typefaces', '서체 되돌리기'],
+    'product.fontUndone': ['書体を元に戻しました', 'Typefaces restored', '서체를 되돌렸습니다'],
     'product.fontPick': ['見本から選ぶ', 'Pick from samples', '見本에서 고르기'],
     'product.fontPickTitle': ['ブランド書体を選ぶ', 'Choose a brand typeface', '브랜드 서체 선택'],
     'product.fontSearch': ['書体名で絞る', 'Filter by name', '서체명으로 좁히기'],
