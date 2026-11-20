@@ -2686,7 +2686,10 @@
           listPrice: from.listPrice,
           price: from.price,
           qty: from.qty,
-          desc: from.desc
+          desc: from.desc,
+          /* 手で伸ばした説明欄の高さも写す（2026-11-19 要望）。
+             写さないと、複製した側だけ既定の高さに戻って見比べにくい */
+          descH: from.descH
         };
         form.rewards.splice(index + 1, 0, made);
         paintRewards();
@@ -2739,6 +2742,20 @@
       desc.value = reward.desc || '';
       desc.setAttribute('placeholder', t('product.rewardDescPlaceholder'));
       desc.addEventListener('input', function () { reward.desc = desc.value; });
+      /* 手で伸ばした高さを覚えて、描き直しても・複製しても同じ高さで出す
+         （2026-11-19 要望:「入力窓で縦を手作業で伸ばして、それをコピーしたら
+           コピーされた入力欄も同じく手作業で伸ばされたサイズのまま」）。
+         覚えるのは画面の中だけ。保存する形（rewardsValue）には入れない
+         ——高さは商品の事実ではないので、記録にも生成にも渡さない */
+      if (reward.descH) { desc.style.height = reward.descH + 'px'; }
+      if (window.ResizeObserver) {
+        var watch = new ResizeObserver(function () {
+          var h = Math.round(desc.getBoundingClientRect().height);
+          /* 画面から外れている間は0になる。0で覚えると潰れたまま復活する */
+          if (h > 0) { reward.descH = h; }
+        });
+        watch.observe(desc);
+      }
       descField.appendChild(desc);
       body.appendChild(descField);
 
